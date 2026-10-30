@@ -1226,14 +1226,19 @@
     window.sendWeeklySummaryWhatsAppToAdmin = sendWeeklySummaryWhatsAppToAdmin;
 
     /**
-     * إرسال التقرير عبر البريد الإلكتروني (Email) للإدارة
+     * إرسال التقرير عبر البريد الإلكتروني (Gmail / Email) للإدارة
      */
     function sendWeeklySummaryEmailToAdmin() {
         const data = getWeeklyAbsenceSummaryData();
         const text = generateWeeklyAdminMemoText(data);
-        const subject = encodeURIComponent(`تقرير الغياب الأسبوعي (${data.startDate} إلى ${data.endDate}) - ${data.classFilter === 'all' ? 'كافة الأقسام' : data.classFilter}`);
-        const body = encodeURIComponent(text);
-        window.location.href = `mailto:?subject=${subject}&body=${body}`;
+        const subject = `تقرير الغياب الأسبوعي (${data.startDate} إلى ${data.endDate}) - ${data.classFilter === 'all' ? 'كافة الأقسام' : data.classFilter}`;
+        
+        // محاولة الفتح المباشر عبر واجهة Gmail على الويب
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+        const win = window.open(gmailUrl, '_blank');
+        if (!win || win.closed || typeof win.closed === 'undefined') {
+            window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+        }
     }
     window.sendWeeklySummaryEmailToAdmin = sendWeeklySummaryEmailToAdmin;
 

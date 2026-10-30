@@ -316,6 +316,12 @@
                         </div>
                         <span style="color: #0369a1; font-weight: 700; font-size: 0.86rem;" id="loginDriveBtnText">دخول ومزامنة آخر تحديث من Google Drive</span>
                     </button>
+                    <button type="button" onclick="if(typeof window.openGmailInbox==='function'){window.openGmailInbox();}else{window.open('https://mail.google.com','_blank');}" style="background: #ffffff; border: 1.5px dashed #ea4335; color: #c5221f; border-radius: 8px; padding: 7px 12px; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; transition: all 0.2s;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                            <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                        </svg>
+                        <span>فتح بريد Gmail المباشر (mail.google.com)</span>
+                    </button>
                     <div id="loginDriveSyncStatus" style="display: none; font-size: 0.76rem; text-align: center; color: #0284c7; font-weight: 600; padding: 4px;"></div>
                 </div>
             </div>
@@ -494,6 +500,16 @@
                                     <span class="header-dropdown-item-desc">تدقيق سلامة السجلات والنقط والغياب آلياً</span>
                                 </div>
                             </button>
+
+                            <a href="https://mail.google.com" target="_blank" rel="noopener noreferrer" class="header-dropdown-item" onclick="closeHeaderSettingsMenu();" style="text-decoration: none; color: inherit;">
+                                <div class="header-dropdown-item-icon" style="background: #fef2f2; color: #ea4335;">
+                                    <span class="ui-icon"><span data-lucide="mail" data-size="16"></span></span>
+                                </div>
+                                <div class="header-dropdown-item-content">
+                                    <span class="header-dropdown-item-title" style="color: #ea4335;">فتح بريد Gmail 📬</span>
+                                    <span class="header-dropdown-item-desc">الوصول المباشر إلى صندوق البريد الإلكتروني الخاص بك</span>
+                                </div>
+                            </a>
 
                             <div class="header-dropdown-divider"></div>
 
@@ -2632,10 +2648,14 @@
                                 <span>استعادة من Drive</span>
                             </button>
                         </div>
-                        <div style="display: flex; gap: 8px; margin-top: 4px;">
-                            <button type="button" onclick="closeTeacherSettings(); openDriveSyncCenterModal();" style="flex: 1; background: #e0f2fe; border: 1px solid #bae6fd; color: #0284c7; font-size: 0.78rem; font-weight: 700; padding: 7px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <div style="display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap;">
+                            <button type="button" onclick="closeTeacherSettings(); openDriveSyncCenterModal();" style="flex: 1; min-width: 140px; background: #e0f2fe; border: 1px solid #bae6fd; color: #0284c7; font-size: 0.78rem; font-weight: 700; padding: 7px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
                                 <span class="ui-icon"><span data-lucide="sliders" data-size="13"></span></span>
                                 <span>مركز التحكم بتعدد الأجهزة</span>
+                            </button>
+                            <button type="button" onclick="if(typeof window.openGmailInbox==='function'){window.openGmailInbox();}else{window.open('https://mail.google.com','_blank');}" style="background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; font-size: 0.78rem; font-weight: 700; padding: 7px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                                <span class="ui-icon"><span data-lucide="mail" data-size="13"></span></span>
+                                <span>فتح Gmail 📬</span>
                             </button>
                             <button type="button" class="backup-logout-btn btn-secondary" onclick="handleDriveLogout()" style="display: none; background: #f1f5f9; border: 1px solid #cbd5e1; color: #64748b; font-size: 0.78rem; padding: 7px 12px; border-radius: 6px; align-items: center; justify-content: center; gap: 6px;">
                                 <span class="ui-icon"><span data-lucide="log-out" data-size="12"></span></span>
