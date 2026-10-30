@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/* Smooth Tab Transition & View Entrance Animations */
+@keyframes tabViewFadeSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.996);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.tab-view-enter {
+  animation: tabViewFadeSlideIn 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: opacity, transform;
+}
+
+.nav-tabs .nav-tab {
+  transition:
+    background-color 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.25s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.nav-tabs .nav-tab:hover:not(.active) {
+  transform: translateY(-1.5px);
+}
+
+.nav-tabs .nav-tab.active {
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-view-enter {
+    animation: none !important;
+  }
+  .nav-tabs .nav-tab {
+    transition: none !important;
+  }
+}

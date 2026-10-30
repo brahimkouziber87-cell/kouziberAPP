@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">منظومة التدبير التربوي لمادة الرياضيات</string>
+    <string name="title_activity_main">منظومة التدبير التربوي لمادة الرياضيات</string>
+    <string name="package_name">com.kouziber.pedagogicalmath</string>
+    <string name="custom_url_scheme">com.kouziber.pedagogicalmath</string>
+</resources>

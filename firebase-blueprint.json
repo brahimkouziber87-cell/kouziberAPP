@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "UserBackup": {
+      "title": "UserBackup",
+      "description": "User pedagogical application state backup and metadata",
+      "type": "object",
+      "properties": {
+        "appData": {
+          "type": "string",
+          "maxLength": 900000,
+          "description": "Compressed or serialized JSON string of the application state"
+        },
+        "isCompressed": {
+          "type": "boolean",
+          "description": "Whether the payload is Gzip compressed"
+        },
+        "isChunked": {
+          "type": "boolean",
+          "description": "Whether the backup payload is split across subcollection chunks"
+        },
+        "chunksCount": {
+          "type": "number",
+          "description": "Total number of subcollection chunks"
+        },
+        "totalRawSize": {
+          "type": "number",
+          "description": "Original uncompressed string length"
+        },
+        "compressedSize": {
+          "type": "number",
+          "description": "Compressed string length"
+        },
+        "lastUpdated": {
+          "type": "string",
+          "maxLength": 64,
+          "format": "date-time",
+          "description": "ISO timestamp of the last update"
+        },
+        "lastSavedTimestamp": {
+          "type": "number",
+          "description": "Epoch milliseconds of the last update"
+        },
+        "userEmail": {
+          "type": "string",
+          "maxLength": 256,
+          "format": "email",
+          "description": "Email address of the authenticated teacher"
+        }
+      },
+      "required": ["lastUpdated"]
+    },
+    "BackupChunk": {
+      "title": "BackupChunk",
+      "description": "Subcollection chunk for large compressed application backups",
+      "type": "object",
+      "properties": {
+        "chunk": {
+          "type": "string",
+          "maxLength": 900000,
+          "description": "Slice of the serialized or compressed backup string"
+        },
+        "index": {
+          "type": "number",
+          "description": "Zero-based index of this chunk"
+        },
+        "totalChunks": {
+          "type": "number",
+          "description": "Total number of chunks in the backup"
+        },
+        "lastUpdated": {
+          "type": "string",
+          "maxLength": 64,
+          "format": "date-time",
+          "description": "ISO timestamp when this chunk was written"
+        }
+      },
+      "required": ["chunk", "index", "totalChunks", "lastUpdated"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserBackup",
+      "description": "Stores the primary backup metadata and payload for each authenticated teacher"
+    },
+    "/users/{userId}/chunks/{chunkId}": {
+      "schema": "BackupChunk",
+      "description": "Stores individual payload slices when a teacher's backup exceeds 600KB"
+    }
+  }
+}
