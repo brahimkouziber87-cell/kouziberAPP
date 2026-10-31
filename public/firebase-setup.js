@@ -933,7 +933,10 @@ window.openDriveSyncCenterModal = async () => {
         </div>
         <div>
           ${isConnected 
-            ? `<span style="font-size: 0.75rem; background: #dcfce7; color: #166534; font-weight: 700; padding: 3px 8px; border-radius: 6px; border: 1px solid #bbf7d0;">متصل</span>`
+            ? `<div style="display: flex; gap: 6px; align-items: center;">
+                <span style="font-size: 0.75rem; background: #dcfce7; color: #166534; font-weight: 700; padding: 3px 8px; border-radius: 6px; border: 1px solid #bbf7d0;">متصل</span>
+                <button type="button" onclick="window.closeDriveSyncCenterModal(); window.switchGmailAccountPrompt();" style="font-size: 0.72rem; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; font-weight: 700; padding: 3px 8px; border-radius: 6px; cursor: pointer;">تبديل الحساب</button>
+               </div>`
             : `<button type="button" onclick="window.handleDriveLogin(); window.closeDriveSyncCenterModal();" class="btn-primary" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px;">تسجيل الدخول</button>`}
         </div>
       </div>
@@ -1000,8 +1003,20 @@ window.closeDriveSyncCenterModal = () => {
 // -------------------------------------------------------------
 
 function activateDirectGmailSession(email, skipUpdateCheck = false) {
-  email = (email || 'kouziber@gmail.com').trim();
-  if (!email.includes('@')) email = 'kouziber@gmail.com';
+  email = (email || '').trim();
+  if (!email) {
+    const saved = localStorage.getItem('gdrive_last_email');
+    if (saved && saved.includes('@')) email = saved.trim();
+  }
+  if (!email) {
+    if (typeof window.showAppToast === 'function') {
+      window.showAppToast('⚠️ يرجى إدخال عنوان بريد Gmail صحيح للمتابعة.', 'error');
+    }
+    return null;
+  }
+  if (!email.includes('@')) {
+    email += '@gmail.com';
+  }
 
   localStorage.setItem('gdrive_last_email', email);
   localStorage.setItem('gdrive_authenticated', 'true');
@@ -1010,32 +1025,48 @@ function activateDirectGmailSession(email, skipUpdateCheck = false) {
   const token = 'direct_gmail_token_' + Date.now();
   updateCachedDriveToken(token);
 
+  const username = email.split('@')[0];
   window._directGmailUser = {
     uid: 'gmail_' + btoa(email).replace(/=/g, ''),
     email: email,
-    displayName: email.split('@')[0],
-    emailVerified: true
+    displayName: username,
+    emailVerified: true,
+    isDirectGmail: true
   };
 
   syncBackupUI(window._directGmailUser);
   if (typeof window.syncLibraryDriveUIState === 'function') {
     window.syncLibraryDriveUIState();
   }
-  updateDriveSyncHeaderBadge('synced', `Gmail: ${email.split('@')[0]}`);
+  updateDriveSyncHeaderBadge('synced', `Gmail: ${username}`);
 
-  // If on login screen, unlock and enter app
+  // Update email input on login screen if present
+  const emailInput = document.getElementById('loginDriveEmailInput');
+  if (emailInput) emailInput.value = email;
+
+  // Unlock and enter app
   const loginScreen = document.getElementById('loginScreen');
   if (loginScreen) {
     loginScreen.style.display = 'none';
   }
 
   if (typeof window.showAppToast === 'function') {
-    window.showAppToast(`✅ تم ربط حسابك (${email}) بنجاح وتفعيل المزامنة السحابية!`, 'success');
+    window.showAppToast(`✅ مرحباً بك! تم تفعيل حساب Gmail (${email}) بنجاح.`, 'success');
   }
 
   return token;
 }
 window.activateDirectGmailSession = activateDirectGmailSession;
+
+window.switchGmailAccountPrompt = () => {
+  const current = localStorage.getItem('gdrive_last_email') || '';
+  const newEmail = prompt('أدخل عنوان بريد Gmail الجديد الذي ترغب في استخدامه:', current);
+  if (newEmail && newEmail.trim()) {
+    let clean = newEmail.trim();
+    if (!clean.includes('@')) clean += '@gmail.com';
+    activateDirectGmailSession(clean);
+  }
+};
 
 window.openGmail = function(to, subject, body) {
   let url = 'https://mail.google.com/mail/?view=cm&fs=1';
@@ -1056,7 +1087,8 @@ try {
       uid: 'gmail_' + btoa(rememberedEmail).replace(/=/g, ''),
       email: rememberedEmail,
       displayName: rememberedEmail.split('@')[0],
-      emailVerified: true
+      emailVerified: true,
+      isDirectGmail: true
     };
     setTimeout(() => {
       syncBackupUI(auth.currentUser || window._directGmailUser);
@@ -1068,8 +1100,48 @@ try {
 } catch(e) {}
 
 // -------------------------------------------------------------
-// Handle Login Screen Drive Sync
+// Handle Login Screen Drive & Direct Gmail Access
 // -------------------------------------------------------------
+
+window.handleLoginScreenDirectGmail = () => {
+  const emailInput = document.getElementById('loginDriveEmailInput');
+  let emailVal = emailInput ? emailInput.value.trim() : '';
+  const statusEl = document.getElementById('loginDriveSyncStatus');
+
+  if (!emailVal) {
+    const saved = localStorage.getItem('gdrive_last_email');
+    if (saved && saved.includes('@')) {
+      emailVal = saved.trim();
+      if (emailInput) emailInput.value = emailVal;
+    }
+  }
+
+  if (!emailVal) {
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.style.color = '#dc2626';
+      statusEl.textContent = '⚠️ يرجى إدخال عنوان بريد Gmail في الحقل أعلاه للمتابعة.';
+    }
+    if (emailInput) emailInput.focus();
+    return;
+  }
+
+  if (!emailVal.includes('@')) {
+    emailVal += '@gmail.com';
+    if (emailInput) emailInput.value = emailVal;
+  }
+
+  const token = activateDirectGmailSession(emailVal);
+  if (token) {
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.style.color = '#15803d';
+      statusEl.textContent = '✅ تم تسجيل الدخول بنجاح بحساب: ' + emailVal;
+    }
+    const loginScreen = document.getElementById('loginScreen');
+    if (loginScreen) loginScreen.style.display = 'none';
+  }
+};
 
 window.handleLoginScreenDriveSync = async () => {
   const emailInput = document.getElementById('loginDriveEmailInput');
@@ -1077,9 +1149,26 @@ window.handleLoginScreenDriveSync = async () => {
   const statusEl = document.getElementById('loginDriveSyncStatus');
   const btnText = document.getElementById('loginDriveBtnText');
 
-  if (!emailVal || !emailVal.includes('@')) {
+  if (!emailVal) {
     const saved = localStorage.getItem('gdrive_last_email');
-    emailVal = saved || 'kouziber@gmail.com';
+    if (saved && saved.includes('@')) {
+      emailVal = saved.trim();
+      if (emailInput) emailInput.value = emailVal;
+    }
+  }
+
+  if (!emailVal) {
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.style.color = '#dc2626';
+      statusEl.textContent = '⚠️ يرجى إدخال بريدك الإلكتروني (Gmail) أولاً.';
+    }
+    if (emailInput) emailInput.focus();
+    return;
+  }
+
+  if (!emailVal.includes('@')) {
+    emailVal += '@gmail.com';
     if (emailInput) emailInput.value = emailVal;
   }
 
@@ -1092,7 +1181,7 @@ window.handleLoginScreenDriveSync = async () => {
 
   try {
     const token = await window.handleDriveLogin(emailVal);
-    const finalEmail = emailVal || localStorage.getItem('gdrive_last_email') || 'kouziber@gmail.com';
+    const finalEmail = (token && auth.currentUser?.email) ? auth.currentUser.email : emailVal;
     activateDirectGmailSession(finalEmail);
 
     if (statusEl) {
@@ -1100,22 +1189,17 @@ window.handleLoginScreenDriveSync = async () => {
       statusEl.textContent = '✅ تم تسجيل الدخول بنجاح بحساب: ' + finalEmail;
     }
 
-    // Hide login modal and enter app
     const loginScreen = document.getElementById('loginScreen');
     if (loginScreen) {
       loginScreen.style.display = 'none';
     }
-    if (typeof updateTeacherNameInHeader === 'function') {
-      updateTeacherNameInHeader();
-    }
   } catch(e) {
     console.error("Login screen sync error:", e);
-    const finalEmail = emailVal || 'kouziber@gmail.com';
-    activateDirectGmailSession(finalEmail);
+    activateDirectGmailSession(emailVal);
     const loginScreen = document.getElementById('loginScreen');
     if (loginScreen) loginScreen.style.display = 'none';
   } finally {
-    if (btnText) btnText.textContent = 'دخول ومزامنة آخر تحديث من Google Drive';
+    if (btnText) btnText.textContent = 'دخول ومزامنة سحابية مع Google Drive';
   }
 };
 
@@ -1244,13 +1328,24 @@ function showDrivePopupRetryModal(emailHint, skipUpdateCheck = false) {
             if (blockedNotice) blockedNotice.style.display = 'block';
           } else if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
             cleanup();
-            resolve(null);
+            if (hintEmail && hintEmail.includes('@')) {
+              const token = activateDirectGmailSession(hintEmail, skipUpdateCheck);
+              resolve(token);
+            } else {
+              resolve(null);
+            }
           } else {
             cleanup();
             console.warn('Firebase popup unavailable, activating Direct Gmail mode:', msg);
-            const chosenEmail = hintEmail || localStorage.getItem('gdrive_last_email') || 'kouziber@gmail.com';
-            const token = activateDirectGmailSession(chosenEmail, skipUpdateCheck);
-            resolve(token);
+            const chosenEmail = (hintEmail && hintEmail.includes('@')) 
+              ? hintEmail.trim() 
+              : (localStorage.getItem('gdrive_last_email') || '');
+            if (chosenEmail) {
+              const token = activateDirectGmailSession(chosenEmail, skipUpdateCheck);
+              resolve(token);
+            } else {
+              resolve(null);
+            }
           }
         }
       };
@@ -1265,21 +1360,36 @@ window.handleDriveLogin = async (emailHint, options = {}) => {
 
   const skipUpdateCheck = !!options.skipUpdateCheck;
 
+  // If emailHint not passed, check active user or prompt user
+  if (!emailHint || typeof emailHint !== 'string' || !emailHint.includes('@')) {
+    const active = auth.currentUser?.email || localStorage.getItem('gdrive_last_email');
+    if (active && active.includes('@')) {
+      emailHint = active;
+    } else {
+      const emailInput = document.getElementById('loginDriveEmailInput');
+      if (emailInput && emailInput.value && emailInput.value.includes('@')) {
+        emailHint = emailInput.value.trim();
+      } else {
+        const entered = prompt('يرجى إدخال عنوان بريدك الإلكتروني (Gmail):');
+        if (!entered || !entered.trim()) return null;
+        emailHint = entered.trim();
+        if (!emailHint.includes('@')) emailHint += '@gmail.com';
+      }
+    }
+  }
+
   _pendingDriveLoginPromise = (async () => {
     try {
       const customParams = { prompt: 'select_account' };
-      const hint = (emailHint && typeof emailHint === 'string' && emailHint.trim().includes('@'))
-        ? emailHint.trim()
-        : (auth.currentUser?.email || '');
-      if (hint) {
-        customParams.login_hint = hint;
+      if (emailHint && emailHint.includes('@')) {
+        customParams.login_hint = emailHint.trim();
       }
       provider.setCustomParameters(customParams);
 
       // If browser reports no active transient user gesture (e.g. called after async await),
       // immediately open the one-click confirmation modal to avoid auth/popup-blocked
       if (typeof navigator !== 'undefined' && navigator.userActivation && !navigator.userActivation.isActive) {
-        return await showDrivePopupRetryModal(hint, skipUpdateCheck);
+        return await showDrivePopupRetryModal(emailHint, skipUpdateCheck);
       }
 
       const result = await signInWithPopup(auth, provider);
@@ -1299,11 +1409,14 @@ window.handleDriveLogin = async (emailHint, options = {}) => {
       }
 
       console.warn("Firebase Google popup unavailable, activating Direct Gmail Auth:", msg);
-      const chosenEmail = (emailHint && emailHint.includes('@')) 
+      const chosenEmail = (emailHint && typeof emailHint === 'string' && emailHint.includes('@')) 
         ? emailHint.trim() 
-        : (auth.currentUser?.email || localStorage.getItem('gdrive_last_email') || 'kouziber@gmail.com');
+        : (auth.currentUser?.email || localStorage.getItem('gdrive_last_email') || '');
 
-      return activateDirectGmailSession(chosenEmail, skipUpdateCheck);
+      if (chosenEmail) {
+        return activateDirectGmailSession(chosenEmail, skipUpdateCheck);
+      }
+      return null;
     } finally {
       _pendingDriveLoginPromise = null;
     }
