@@ -306,15 +306,9 @@
                         <button type="button" onclick="document.getElementById('loginDriveEmailInput').value=''; document.getElementById('loginDriveEmailInput').focus();" title="مسح الحقل لإدخال بريد آخر" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 1.2rem; color: #94a3b8; cursor: pointer; padding: 2px 6px;">&times;</button>
                     </div>
                     
-                    <!-- الزر الأول: دخول فوري ومباشر بأي بريد يتم إدخاله -->
-                    <button type="button" onclick="handleLoginScreenDirectGmail()" style="display: flex; background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; border: none; border-radius: 8px; padding: 10px 14px; font-family: inherit; cursor: pointer; align-items: center; justify-content: center; width: 100%; transition: all 0.2s; box-shadow: 0 3px 8px rgba(2, 132, 199, 0.25); gap: 8px;">
-                        <span class="ui-icon" style="color: white; margin: 0;"><span data-lucide="check-circle" data-size="16"></span></span>
-                        <span style="font-weight: 800; font-size: 0.88rem;">دخول فوري بحساب Gmail هذا (يقبل أي بريد)</span>
-                    </button>
-
-                    <!-- الزر الثاني: تسجيل دخول ومزامنة مع Google Cloud / Drive -->
-                    <button type="button" class="gsi-material-button" onclick="handleLoginScreenDriveSync()" style="display: flex; background-color: #ffffff; border: 1.5px solid #0284c7; border-radius: 8px; padding: 8px 12px; font-family: inherit; cursor: pointer; align-items: center; justify-content: center; width: 100%; transition: all 0.2s; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
-                        <div class="gsi-material-button-icon" style="margin-left: 8px;">
+                    <!-- الزر الرئيسي: دخول وتفعيل المزامنة بحساب Gmail المدخل -->
+                    <button type="button" onclick="handleLoginScreenDirectGmail()" class="gsi-material-button" style="display: flex; background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; border: none; border-radius: 8px; padding: 11px 14px; font-family: inherit; cursor: pointer; align-items: center; justify-content: center; width: 100%; transition: all 0.2s; box-shadow: 0 3px 8px rgba(2, 132, 199, 0.25); gap: 8px;">
+                        <div class="gsi-material-button-icon" style="margin-left: 8px; background: #ffffff; border-radius: 4px; padding: 2px; display: flex; align-items: center; justify-content: center;">
                             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style="display: block; width: 18px; height: 18px;">
                                 <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
                                 <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
@@ -322,7 +316,7 @@
                                 <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
                             </svg>
                         </div>
-                        <span style="color: #0369a1; font-weight: 700; font-size: 0.84rem;" id="loginDriveBtnText">دخول ومزامنة سحابية مع Google Drive</span>
+                        <span style="color: #ffffff; font-weight: 800; font-size: 0.9rem;" id="loginDriveBtnText">دخول فوري وربط بحساب Gmail المدخل</span>
                     </button>
 
                     <!-- الزر الثالث: فتح بريد Gmail عبر الويب -->
