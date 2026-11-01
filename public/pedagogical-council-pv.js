@@ -262,8 +262,27 @@
 
             <!-- Key Statistical Indicators Matrix (KPIs) -->
             <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px; margin-bottom: 14px;">
-                <div style="font-size: 0.85rem; font-weight: 900; color: #1e3a8a; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                    <span>📊 المؤشرات الإحصائية العامة للتحصيل الصفي:</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+                    <div style="font-size: 0.85rem; font-weight: 900; color: #1e3a8a; display: flex; align-items: center; gap: 6px;">
+                        <span>📊 المؤشرات الإحصائية العامة للتحصيل والتجانس الصفي:</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        ${(() => {
+                            if (typeof window.computeClassValueAddedStats === 'function') {
+                                const vaStats = window.computeClassValueAddedStats(className, sem);
+                                if (vaStats && vaStats.testedCount >= 2) {
+                                    const vaText = vaStats.globalValueAdded !== null
+                                        ? (vaStats.globalValueAdded >= 0 ? `القيمة المضافة: +${vaStats.globalValueAdded}` : `القيمة المضافة: ${vaStats.globalValueAdded}`)
+                                        : `الانحراف المعياري σ=${vaStats.stdDev}`;
+                                    return `<span style="font-size: 0.73rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; border: 1px solid ${vaStats.homogeneityColor}; background: ${vaStats.homogeneityBadgeBg}; color: ${vaStats.homogeneityColor};">📈 ${vaStats.homogeneityLabel} (CV: ${vaStats.cv}% • ${vaText})</span>`;
+                                }
+                            }
+                            return '';
+                        })()}
+                        <div style="font-size: 0.74rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; border: 1px solid ${massarAudit.missing.length === 0 && massarAudit.invalidFormat.length === 0 ? '#bbf7d0' : '#fde68a'}; background: ${massarAudit.missing.length === 0 && massarAudit.invalidFormat.length === 0 ? '#f0fdf4' : '#fffbeb'}; color: ${massarAudit.missing.length === 0 && massarAudit.invalidFormat.length === 0 ? '#15803d' : '#b45309'};">
+                            تدقيق أرقام مسار: ${massarAudit.valid} مطابق من ${massarAudit.total}${massarAudit.missing.length > 0 ? ` • ${massarAudit.missing.length} غير متوفر` : ''}${massarAudit.invalidFormat.length > 0 ? ` • ${massarAudit.invalidFormat.length} صيغة خاصة` : ''}
+                        </div>
+                    </div>
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; text-align: center;">
                     <div style="background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px;">
@@ -347,14 +366,19 @@
                     <div style="font-size: 0.68rem; color: #94a3b8;">خاتم المؤسسة: ......................</div>
                 </div>
             </div>
+
+            <!-- Official Footer Signature -->
+            <div style="margin-top: 12px; padding-top: 8px; border-top: 1px dashed #cbd5e1; text-align: center; font-size: 0.76rem; font-weight: 800; color: #1e3a8a;">
+                منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر
+            </div>
         </div>
         `;
     }
 
     /**
-     * فتح نافذة محضر مجلس القسم التفاعلية
+     * فتح نافذة المركز المدمج: محضر مجلس القسم الرسمي + القيمة المضافة والتجانس الصفي
      */
-    function openPedagogicalCouncilPvModal(className = null, semester = null) {
+    function openPedagogicalCouncilPvModal(className = null, semester = null, tab = null) {
         let modal = document.getElementById('pedagogicalCouncilPvModal');
         if (!modal) {
             modal = createCouncilPvModalElement();
@@ -362,11 +386,13 @@
         }
 
         const classSelect = document.getElementById('classSelect');
-        const activeCls = className || (classSelect ? classSelect.value : '') || Object.keys(window.db?.classes || {})[0] || '';
-        const activeSem = semester || window.activeSemester || 's1';
+        const activeCls = className || _councilState.selectedClass || (classSelect ? classSelect.value : '') || Object.keys(window.db?.classes || {})[0] || '';
+        const activeSem = semester || _councilState.semester || window.activeSemester || 's1';
+        const activeTab = tab || _councilState.activeTab || 'pv';
 
         _councilState.selectedClass = activeCls;
         _councilState.semester = activeSem;
+        _councilState.activeTab = activeTab;
 
         // Populate dropdowns in modal
         const clsDropdown = document.getElementById('councilPvClassSelect');
@@ -379,6 +405,7 @@
             semDropdown.value = activeSem;
         }
 
+        syncCouncilHubTabsUI();
         renderCouncilPvPreview();
         modal.style.display = 'flex';
         if (window.renderLucide) window.renderLucide(modal);
@@ -390,7 +417,41 @@
     }
 
     /**
-     * تحديث معاينة المحضر داخل النافذة
+     * تبديل التبويب النشط داخل النافذة المدمجة (pv | va | combined)
+     */
+    function switchCouncilHubTab(tab) {
+        _councilState.activeTab = tab || 'pv';
+        syncCouncilHubTabsUI();
+        renderCouncilPvPreview();
+    }
+
+    function syncCouncilHubTabsUI() {
+        const tab = _councilState.activeTab || 'pv';
+        const tabs = [
+            { id: 'councilHubTabPv', key: 'pv', activeBg: 'linear-gradient(135deg, #1e3a8a, #2563eb)' },
+            { id: 'councilHubTabVa', key: 'va', activeBg: 'linear-gradient(135deg, #0284c7, #0369a1)' },
+            { id: 'councilHubTabCombined', key: 'combined', activeBg: 'linear-gradient(135deg, #0f766e, #0d9488)' }
+        ];
+        tabs.forEach(t => {
+            const btn = document.getElementById(t.id);
+            if (!btn) return;
+            const isActive = (t.key === tab);
+            btn.style.background = isActive ? t.activeBg : '#ffffff';
+            btn.style.color = isActive ? '#ffffff' : '#334155';
+            btn.style.borderColor = isActive ? 'transparent' : '#cbd5e1';
+            btn.style.boxShadow = isActive ? '0 3px 10px rgba(30, 58, 138, 0.22)' : 'none';
+        });
+
+        const printBtnLabel = document.getElementById('councilHubPrintBtnLabel');
+        if (printBtnLabel) {
+            if (tab === 'va') printBtnLabel.textContent = 'طباعة القيمة المضافة A4';
+            else if (tab === 'combined') printBtnLabel.textContent = 'طباعة الملف الشامل A4';
+            else printBtnLabel.textContent = 'طباعة المحضر الرسمي A4';
+        }
+    }
+
+    /**
+     * تحديث معاينة التقرير داخل النافذة حسب التبويب المختار
      */
     function renderCouncilPvPreview() {
         const previewBox = document.getElementById('councilPvPreviewContainer');
@@ -398,62 +459,99 @@
 
         const cls = _councilState.selectedClass;
         const sem = _councilState.semester;
+        const tab = _councilState.activeTab || 'pv';
 
         if (!cls) {
-            previewBox.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">يرجى اختيار القسم لعرض محضر مجلس القسم.</div>';
+            previewBox.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;">يرجى اختيار القسم لعرض محضر مجلس القسم ومؤشرات القيمة المضافة.</div>';
             return;
         }
 
-        previewBox.innerHTML = buildPedagogicalCouncilPvHTML(cls, sem);
+        if (tab === 'va' && typeof window.buildValueAddedReportHTML === 'function') {
+            previewBox.innerHTML = `<div style="border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(15,23,42,0.06);">${window.buildValueAddedReportHTML(cls, sem)}</div>`;
+        } else if (tab === 'combined' && typeof window.buildValueAddedReportHTML === 'function') {
+            previewBox.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div style="border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(15,23,42,0.06);">
+                        ${buildPedagogicalCouncilPvHTML(cls, sem)}
+                    </div>
+                    <div style="page-break-before: always; break-before: page; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(15,23,42,0.06);">
+                        ${window.buildValueAddedReportHTML(cls, sem)}
+                    </div>
+                </div>
+            `;
+        } else {
+            previewBox.innerHTML = `<div style="border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(15,23,42,0.06);">${buildPedagogicalCouncilPvHTML(cls, sem)}</div>`;
+        }
     }
 
     /**
-     * طباعة المحضر A4
+     * طباعة التقرير النشط (المحضر أو القيمة المضافة أو الملف الشامل) A4 عبر إطار طباعة مدمج آمن
      */
     function printPedagogicalCouncilPv() {
         const cls = _councilState.selectedClass;
         const sem = _councilState.semester;
+        const tab = _councilState.activeTab || 'pv';
         if (!cls) return;
 
-        const html = buildPedagogicalCouncilPvHTML(cls, sem);
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) {
-            alert('يرجى السماح بالنوافذ المنبثقة للطباعة');
-            return;
+        let html = '';
+        let docTitle = `محضر مجلس القسم - ${cls} - مادة الرياضيات`;
+        if (tab === 'va' && typeof window.buildValueAddedReportHTML === 'function') {
+            html = window.buildValueAddedReportHTML(cls, sem);
+            docTitle = `تقرير القيمة المضافة والتجانس الصفي - ${cls}`;
+        } else if (tab === 'combined' && typeof window.buildValueAddedReportHTML === 'function') {
+            html = `
+                <div>${buildPedagogicalCouncilPvHTML(cls, sem)}</div>
+                <div style="page-break-before: always; break-before: page; margin-top: 16px;">${window.buildValueAddedReportHTML(cls, sem)}</div>
+            `;
+            docTitle = `الملف التربوي الشامل لمجلس القسم والقيمة المضافة - ${cls}`;
+        } else {
+            html = buildPedagogicalCouncilPvHTML(cls, sem);
         }
 
-        printWindow.document.write(`
+        let iframe = document.getElementById('councilPvPrintIframe');
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'councilPvPrintIframe';
+            iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+            document.body.appendChild(iframe);
+        }
+
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(`
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
             <head>
                 <meta charset="UTF-8">
-                <title>محضر مجلس القسم - ${cls} - مادة الرياضيات</title>
+                <title>${docTitle}</title>
                 <style>
-                    @page { size: A4 portrait; margin: 12mm; }
-                    body { font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; background: #fff; }
+                    @page { size: A4 portrait; margin: 10mm; }
+                    body { font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                     table { width: 100%; border-collapse: collapse; }
                     th, td { border: 1px solid #cbd5e1; }
                 </style>
             </head>
-            <body>
-                ${html}
-                <script>
-                    window.onload = function() { window.print(); };
-                </script>
-            </body>
+            <body>${html}</body>
             </html>
         `);
-        printWindow.document.close();
+        doc.close();
+        setTimeout(() => {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        }, 250);
     }
 
     /**
-     * تصدير ورقة التنقيط الرسمية لمسار بصيغة Excel
+     * تصدير ورقة التنقيط الرسمية لمسار + مصفوفة القيمة المضافة والتجانس بصيغة Excel
      */
     function exportCouncilMassarFicheExcel() {
         const cls = _councilState.selectedClass;
         const sem = _councilState.semester;
         if (!cls || !window.XLSX) {
-            alert('لا توجد بيانات متاحة أو مكتبة Excel غير محملة');
+            const toastFn = window.showAppToast || window.showToast;
+            if (typeof toastFn === 'function') {
+                toastFn('لا توجد بيانات متاحة أو مكتبة Excel غير محملة', 'warning');
+            }
             return;
         }
 
@@ -481,11 +579,38 @@
         const ws = XLSX.utils.aoa_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, `مجلس_${cls.slice(0, 10)}`);
-        XLSX.writeFile(wb, `محضر_مجلس_القسم_${cls}_${sem}.xlsx`);
+
+        // إضافة ورقة ثانية خاصة بمؤشر القيمة المضافة والتجانس الصفي تلقائياً
+        if (typeof window.computeClassValueAddedStats === 'function') {
+            const vaStats = window.computeClassValueAddedStats(cls, sem);
+            if (vaStats && Array.isArray(vaStats.students)) {
+                const vaData = [
+                    ['المملكة المغربية', 'تقرير مؤشر القيمة المضافة التربوية والتجانس الصفي (IVAP)', `القسم: ${cls}`],
+                    [`معدل المراقبة المستمرة: ${vaStats.meanCC}`, `الانحراف المعياري (σ): ${vaStats.stdDev}`, `معامل التباين (CV%): ${vaStats.cv}%`, `التصنيف: ${vaStats.homogeneityLabel}`],
+                    [''],
+                    ['الرقم الترتيبي', 'رقم مسار', 'الاسم الكامل للتلميذ', 'نقطة التقويم التشخيصي (/20)', 'معدل المراقبة المستمرة (/20)', 'الفارق التربوي (Δ)', 'تصنيف مؤشر التطور البيداغوجي']
+                ];
+                vaStats.students.forEach(s => {
+                    vaData.push([
+                        s.orderNum,
+                        s.massar,
+                        s.name,
+                        s.scoreDiag !== null ? s.scoreDiag : 'غير مرصود',
+                        s.avgCC !== null ? s.avgCC : 'غائب',
+                        s.delta !== null ? s.delta : '—',
+                        s.status
+                    ]);
+                });
+                const wsVa = XLSX.utils.aoa_to_sheet(vaData);
+                XLSX.utils.book_append_sheet(wb, wsVa, `القيمة_المضافة_${cls.slice(0, 8)}`);
+            }
+        }
+
+        XLSX.writeFile(wb, `مجلس_القسم_والقيمة_المضافة_${cls}_${sem}.xlsx`);
     }
 
     /**
-     * بناء عنصر النافذة المنبثقة
+     * بناء عنصر النافذة المنبثقة المدمجة (مجلس القسم + القيمة المضافة والتجانس)
      */
     function createCouncilPvModalElement() {
         const m = document.createElement('div');
@@ -494,39 +619,57 @@
         m.onclick = (e) => { if (e.target === m) closePedagogicalCouncilPvModal(); };
 
         m.innerHTML = `
-        <div class="card" style="width: 100%; max-width: 1080px; max-height: 94vh; display: flex; flex-direction: column; background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
+        <div class="card" style="width: 100%; max-width: 1120px; max-height: 94vh; display: flex; flex-direction: column; background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
             <!-- Header -->
-            <div style="padding: 14px 20px; border-bottom: 1.5px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; flex-wrap: wrap; gap: 10px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff;">
-                        <span data-lucide="file-check" data-size="20"></span>
-                    </span>
-                    <div>
-                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 900; color: #0f172a;">محضر اجتماع مجلس القسم الرسمي (Procès-Verbal Officiel)</h3>
-                        <div style="font-size: 0.76rem; color: #64748b; font-weight: 600;">التقرير الإداري والتربوي لنتائج مادة الرياضيات وتوصيات التوجيه لمجالس الأقسام</div>
+            <div style="padding: 12px 18px; border-bottom: 1.5px solid #e2e8f0; display: flex; flex-direction: column; gap: 10px; background: #f8fafc;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #1e3a8a, #0284c7); color: #fff; box-shadow: 0 3px 10px rgba(30, 58, 138, 0.25);">
+                            <span data-lucide="file-check" data-size="20"></span>
+                        </span>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.08rem; font-weight: 900; color: #0f172a;">المركز المدمج: محضر مجلس القسم الرسمي ومؤشر القيمة المضافة والتجانس</h3>
+                            <div style="font-size: 0.75rem; color: #64748b; font-weight: 600;">التقرير الإداري لمجالس الأقسام وتوصيات التوجيه + تحليل الانحراف المعياري والتجانس الصفي (IVAP)</div>
+                        </div>
+                    </div>
+                    <!-- Controls -->
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <select id="councilPvClassSelect" onchange="window.onCouncilPvClassChanged(this.value)" style="padding: 6px 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-weight: 700; font-size: 0.82rem; background: #fff;"></select>
+                        <select id="councilPvSemesterSelect" onchange="window.onCouncilPvSemesterChanged(this.value)" style="padding: 6px 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-weight: 700; font-size: 0.82rem; background: #fff;">
+                            <option value="s1">الدورة الأولى (الأسدوس 1)</option>
+                            <option value="s2">الدورة الثانية (الأسدوس 2)</option>
+                        </select>
+                        <button type="button" onclick="window.printPedagogicalCouncilPv()" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(37,99,235,0.25);">
+                            <span data-lucide="printer" data-size="16"></span>
+                            <span id="councilHubPrintBtnLabel">طباعة المحضر الرسمي A4</span>
+                        </button>
+                        <button type="button" onclick="window.exportCouncilMassarFicheExcel()" style="background: linear-gradient(135deg, #059669, #047857); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(5,150,105,0.25);" title="تصدير ملف Excel يضم ورقة محضر مجلس القسم لمسار + ورقة القيمة المضافة والتجانس">
+                            <span data-lucide="file-spreadsheet" data-size="16"></span>
+                            <span>تصدير لمسار Excel</span>
+                        </button>
+                        <button type="button" onclick="window.closePedagogicalCouncilPvModal()" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #64748b; width: 32px; height: 32px; border-radius: 8px; font-size: 1.1rem; cursor: pointer;">✕</button>
                     </div>
                 </div>
-                <!-- Controls -->
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <select id="councilPvClassSelect" onchange="window.onCouncilPvClassChanged(this.value)" style="padding: 6px 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-weight: 700; font-size: 0.82rem; background: #fff;"></select>
-                    <select id="councilPvSemesterSelect" onchange="window.onCouncilPvSemesterChanged(this.value)" style="padding: 6px 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-weight: 700; font-size: 0.82rem; background: #fff;">
-                        <option value="s1">الدورة الأولى (الأسدوس 1)</option>
-                        <option value="s2">الدورة الثانية (الأسدوس 2)</option>
-                    </select>
-                    <button type="button" onclick="window.printPedagogicalCouncilPv()" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(37,99,235,0.25);">
-                        <span data-lucide="printer" data-size="16"></span>
-                        <span>طباعة A4 رسمية</span>
+
+                <!-- Segmented Switcher Tabs (شريط التبديل الفوري بين محضر مجلس القسم والقيمة المضافة والتجانس) -->
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 6px; border-top: 1px dashed #e2e8f0;">
+                    <button type="button" id="councilHubTabPv" onclick="window.switchCouncilHubTab('pv')" style="padding: 6px 14px; border-radius: 8px; border: 1.5px solid transparent; background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #ffffff; font-family: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                        <span data-lucide="file-check" data-size="15"></span>
+                        <span>1. محضر مجلس القسم الرسمي (PV Officiel)</span>
                     </button>
-                    <button type="button" onclick="window.exportCouncilMassarFicheExcel()" style="background: linear-gradient(135deg, #059669, #047857); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(5,150,105,0.25);">
-                        <span data-lucide="file-spreadsheet" data-size="16"></span>
-                        <span>تصدير لمسار Excel</span>
+                    <button type="button" id="councilHubTabVa" onclick="window.switchCouncilHubTab('va')" style="padding: 6px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #334155; font-family: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                        <span data-lucide="trending-up" data-size="15"></span>
+                        <span>2. مؤشر القيمة المضافة والتجانس الصفي (IVAP &amp; Homogénéité)</span>
                     </button>
-                    <button type="button" onclick="window.closePedagogicalCouncilPvModal()" style="background: #f1f5f9; border: none; color: #64748b; width: 32px; height: 32px; border-radius: 8px; font-size: 1.2rem; cursor: pointer;">✕</button>
+                    <button type="button" id="councilHubTabCombined" onclick="window.switchCouncilHubTab('combined')" style="padding: 6px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #334155; font-family: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                        <span data-lucide="layers" data-size="15"></span>
+                        <span>3. العرض والطباعة المدمجة (المحضر + القيمة المضافة معاً)</span>
+                    </button>
                 </div>
             </div>
 
             <!-- Preview Body -->
-            <div id="councilPvPreviewContainer" style="flex: 1; overflow-y: auto; padding: 20px; background: #f1f5f9;"></div>
+            <div id="councilPvPreviewContainer" style="flex: 1; overflow-y: auto; padding: 18px; background: #f1f5f9;"></div>
         </div>
         `;
         return m;
@@ -543,6 +686,8 @@
         renderCouncilPvPreview();
     };
 
+    window.switchCouncilHubTab = switchCouncilHubTab;
+
     // Global exports
     window.openPedagogicalCouncilPvModal = openPedagogicalCouncilPvModal;
     window.closePedagogicalCouncilPvModal = closePedagogicalCouncilPvModal;
@@ -553,3 +698,4 @@
     window.getCouncilClassStatistics = getCouncilClassStatistics;
 
 })(window);
+

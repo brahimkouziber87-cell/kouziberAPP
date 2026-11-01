@@ -6,6 +6,7 @@ const STATIC_ASSETS = [
   '/style.css?v=3.5',
   '/app.js?v=3.5',
   '/manifest.json',
+  '/logo.svg',
   '/logo.png',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
@@ -15,6 +16,7 @@ const STATIC_ASSETS = [
   '/favicon.ico',
   '/lucide-icons.js?v=3.5',
   '/secondary-math-curriculum.js?v=3.5',
+  '/latex-math-engine.js?v=3.5',
   '/attendance-slip.js?v=3.5',
   '/resources.js?v=3.5',
   '/tutoring-advanced.js?v=3.5',
@@ -44,6 +46,9 @@ const STATIC_ASSETS = [
   '/teacher-profile.js?v=3.5',
   '/desktop-app.js?v=3.5',
   '/chunked-pdf-engine.js?v=3.5',
+  '/pedagogical-council-pv.js?v=3.5',
+  '/value-added-analytics.js?v=3.5',
+  '/ministerial-decrees-library.js?v=3.5',
   '/firebase-setup.js'
 ];
 

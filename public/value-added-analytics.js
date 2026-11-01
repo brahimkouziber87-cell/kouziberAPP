@@ -21,18 +21,33 @@
      */
     function getStudentDiagnosticScore(className, studentId) {
         const db = window.db || {};
-        // التحقق من قاعدة بيانات التقويم التشخيصي
-        if (db.diagnosticEvaluation && db.diagnosticEvaluation[className] && db.diagnosticEvaluation[className][studentId]) {
-            const diag = db.diagnosticEvaluation[className][studentId];
-            if (typeof diag === 'number') return diag;
-            if (diag.totalScore !== undefined) return parseFloat(diag.totalScore);
-            if (diag.score !== undefined) return parseFloat(diag.score);
+        // 1. التحقق من قاعدة بيانات التقويم التشخيصي المعتمدة (db.diagnostic)
+        if (db.diagnostic && db.diagnostic[className] && db.diagnostic[className][studentId] !== undefined) {
+            const dEntry = db.diagnostic[className][studentId];
+            if (typeof dEntry === 'number' && !isNaN(dEntry)) return dEntry;
+            if (dEntry && typeof dEntry === 'object') {
+                if (dEntry.total !== undefined && !isNaN(parseFloat(dEntry.total))) return parseFloat(dEntry.total);
+                if (dEntry.totalScore !== undefined && !isNaN(parseFloat(dEntry.totalScore))) return parseFloat(dEntry.totalScore);
+                if (dEntry.score !== undefined && !isNaN(parseFloat(dEntry.score))) return parseFloat(dEntry.score);
+                const sumD = ['d1', 'd2', 'd3', 'd4'].reduce((acc, k) => acc + (parseFloat(dEntry[k]) || 0), 0);
+                if (sumD > 0) return parseFloat(sumD.toFixed(2));
+            }
         }
-        // التحقق من سجل التلميذ المباشر
+        // 2. التحقق من البنية البديلة (db.diagnosticEvaluation)
+        if (db.diagnosticEvaluation && db.diagnosticEvaluation[className] && db.diagnosticEvaluation[className][studentId] !== undefined) {
+            const diag = db.diagnosticEvaluation[className][studentId];
+            if (typeof diag === 'number' && !isNaN(diag)) return diag;
+            if (diag && typeof diag === 'object') {
+                if (diag.total !== undefined && !isNaN(parseFloat(diag.total))) return parseFloat(diag.total);
+                if (diag.totalScore !== undefined && !isNaN(parseFloat(diag.totalScore))) return parseFloat(diag.totalScore);
+                if (diag.score !== undefined && !isNaN(parseFloat(diag.score))) return parseFloat(diag.score);
+            }
+        }
+        // 3. التحقق من سجل التلميذ المباشر
         const students = (db.classes && db.classes[className]) || [];
         const std = students.find(s => s.id === studentId);
         if (std && (std.diagnosticScore !== undefined || std.diagScore !== undefined)) {
-            const val = parseFloat(std.diagnosticScore || std.diagScore);
+            const val = parseFloat(std.diagnosticScore ?? std.diagScore);
             if (!isNaN(val)) return val;
         }
         return null;
@@ -193,9 +208,9 @@
 
         const vaBadge = stats.globalValueAdded !== null ? (
             stats.globalValueAdded >= 0 
-                ? `<span style="color:#15803d; font-weight:900;">+${stats.globalValueAdded} نقطة (قيمة مضافة إيجابية)</span>` 
-                : `<span style="color:#dc2626; font-weight:900;">${stats.globalValueAdded} نقطة (تراجع بيداغوجي)</span>`
-        ) : '<span style="color:#64748b;">غير محدد (يتطلب رائز تشخيصي)</span>';
+                ? `<span style="color:#86efac; font-weight:900;">+${stats.globalValueAdded} نقطة (قيمة مضافة إيجابية)</span>` 
+                : `<span style="color:#fca5a5; font-weight:900;">${stats.globalValueAdded} نقطة (تراجع بيداغوجي)</span>`
+        ) : '<span style="color:#e2e8f0;">غير محدد (يتطلب رائز تشخيصي)</span>';
 
         const rowsHtml = stats.students.map((std, i) => {
             const deltaBadge = std.delta !== null ? (
@@ -247,7 +262,7 @@
                 <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px;">
                     <div style="font-size: 0.75rem; font-weight: 800; color: #64748b;">معدل المراقبة المستمرة (x̄)</div>
                     <div style="font-size: 1.35rem; font-weight: 900; color: #1e3a8a; margin: 4px 0;">${stats.meanCC} <span style="font-size:0.75rem;">/20</span></div>
-                    <div style="font-size: 0.72rem; color: #475569;">المتوسط الحسابي لفروض القسم الحالية</div>
+                    <div style="font-size: 0.72rem; color: #475569;">معدل التشخيصي: <strong>${stats.meanDiag} /20</strong> (${stats.diagCount} مرصود)</div>
                 </div>
 
                 <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px;">
@@ -287,14 +302,63 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Official Footer Signature -->
+            <div style="margin-top: 12px; padding-top: 8px; border-top: 1px dashed #cbd5e1; text-align: center; font-size: 0.76rem; font-weight: 800; color: #1e3a8a;">
+                منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر
+            </div>
         </div>
         `;
     }
 
     /**
-     * فتح نافذة مؤشر القيمة المضافة والتجانس الصفي
+     * طباعة تقرير القيمة المضافة والتجانس الصفي A4
      */
-    function openValueAddedAnalyticsModal(className = null) {
+    function printValueAddedReport() {
+        const cls = _vaState.selectedClass;
+        if (!cls) return;
+        const html = buildValueAddedReportHTML(cls, _vaState.semester);
+
+        let iframe = document.getElementById('vaReportPrintIframe');
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'vaReportPrintIframe';
+            iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+            document.body.appendChild(iframe);
+        }
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(`
+            <!DOCTYPE html>
+            <html lang="ar" dir="rtl">
+            <head>
+                <meta charset="UTF-8">
+                <title>تقرير القيمة المضافة والتجانس الصفي - ${cls}</title>
+                <style>
+                    @page { size: A4 portrait; margin: 10mm; }
+                    body { font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    table { width: 100%; border-collapse: collapse; }
+                    th, td { border: 1px solid #cbd5e1; }
+                </style>
+            </head>
+            <body>${html}</body>
+            </html>
+        `);
+        doc.close();
+        setTimeout(() => {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+        }, 250);
+    }
+
+    /**
+     * فتح نافذة مؤشر القيمة المضافة والتجانس الصفي (توجيه مباشر للمركز المدمج لمجلس القسم والقيمة المضافة)
+     */
+    function openValueAddedAnalyticsModal(className = null, semester = null) {
+        if (typeof window.openPedagogicalCouncilPvModal === 'function') {
+            window.openPedagogicalCouncilPvModal(className, semester, 'va');
+            return;
+        }
         let modal = document.getElementById('valueAddedAnalyticsModal');
         if (!modal) {
             modal = createValueAddedModalElement();
@@ -303,12 +367,18 @@
 
         const classSelect = document.getElementById('classSelect');
         const activeCls = className || (classSelect ? classSelect.value : '') || Object.keys(window.db?.classes || {})[0] || '';
+        const activeSem = window.activeSemester || 's1';
         _vaState.selectedClass = activeCls;
+        _vaState.semester = activeSem;
 
         const clsDropdown = document.getElementById('vaModalClassSelect');
         if (clsDropdown) {
             const classes = Object.keys(window.db?.classes || {});
             clsDropdown.innerHTML = classes.map(c => `<option value="${c}" ${c === activeCls ? 'selected' : ''}>${c}</option>`).join('');
+        }
+        const semDropdown = document.getElementById('vaModalSemesterSelect');
+        if (semDropdown) {
+            semDropdown.value = activeSem;
         }
 
         renderValueAddedModalContent();
@@ -350,8 +420,16 @@
                         <div style="font-size: 0.76rem; color: #64748b; font-weight: 600;">تحليل دقيق للانحراف المعياري، تباين النتائج، وتطور التحصيل بين التشخيص والمراقبة المستمرة</div>
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <select id="vaModalClassSelect" onchange="window.onVaClassChanged(this.value)" style="padding: 6px 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-weight: 700; font-size: 0.82rem; background: #fff;"></select>
+                    <select id="vaModalSemesterSelect" onchange="window.onVaSemesterChanged(this.value)" style="padding: 6px 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-weight: 700; font-size: 0.82rem; background: #fff;">
+                        <option value="s1">الدورة الأولى (الأسدوس 1)</option>
+                        <option value="s2">الدورة الثانية (الأسدوس 2)</option>
+                    </select>
+                    <button type="button" onclick="window.printValueAddedReport()" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(37,99,235,0.25);">
+                        <span data-lucide="printer" data-size="16"></span>
+                        <span>طباعة A4</span>
+                    </button>
                     <button type="button" onclick="window.closeValueAddedAnalyticsModal()" style="background: #f1f5f9; border: none; color: #64748b; width: 32px; height: 32px; border-radius: 8px; font-size: 1.2rem; cursor: pointer;">✕</button>
                 </div>
             </div>
@@ -366,8 +444,14 @@
         renderValueAddedModalContent();
     };
 
+    window.onVaSemesterChanged = function (sem) {
+        _vaState.semester = sem;
+        renderValueAddedModalContent();
+    };
+
     window.openValueAddedAnalyticsModal = openValueAddedAnalyticsModal;
     window.closeValueAddedAnalyticsModal = closeValueAddedAnalyticsModal;
+    window.printValueAddedReport = printValueAddedReport;
     window.computeClassValueAddedStats = computeClassValueAddedStats;
     window.buildValueAddedReportHTML = buildValueAddedReportHTML;
 

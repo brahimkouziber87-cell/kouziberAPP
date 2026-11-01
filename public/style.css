@@ -230,10 +230,10 @@
            Modern Header & Merged Settings/Data Management Controls
            ======================================================== */
         .app-header-main {
-            background: linear-gradient(135deg, #090d16 0%, #0f172a 45%, #162035 100%) !important;
-            border-bottom: 2px solid #2563eb !important;
-            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(37, 99, 235, 0.18) !important;
-            padding: 4px 12px !important;
+            background: linear-gradient(135deg, #070b14 0%, #0f172a 48%, #172554 100%) !important;
+            border-bottom: 2px solid #d4af37 !important;
+            box-shadow: 0 6px 24px -4px rgba(2, 6, 23, 0.55), 0 1px 0 rgba(212, 175, 55, 0.28) !important;
+            padding: 5px 14px !important;
             position: relative;
             z-index: 1000;
             width: 100%;
@@ -242,7 +242,7 @@
 
         .header-container-inner,
         .header-main-wrapper {
-            max-width: 1700px;
+            max-width: 1740px;
             margin: 0 auto;
             width: 100%;
             display: flex !important;
@@ -266,7 +266,7 @@
         .header-rows-layout {
             display: flex !important;
             flex-direction: column !important;
-            gap: 3px !important;
+            gap: 4px !important;
             flex: 1 1 0% !important;
             min-width: 0 !important;
             width: 100% !important;
@@ -277,9 +277,9 @@
             justify-content: space-between !important;
             align-items: center !important;
             width: 100% !important;
-            gap: 6px !important;
-            padding-bottom: 3px !important;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+            gap: 8px !important;
+            padding-bottom: 4px !important;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.14) !important;
             flex-wrap: nowrap !important;
             overflow-x: auto !important;
             overflow-y: hidden !important;
@@ -297,14 +297,12 @@
             justify-content: space-between !important;
             align-items: center !important;
             width: 100% !important;
-            gap: 5px !important;
+            gap: 8px !important;
             padding-top: 2px !important;
             flex-wrap: nowrap !important;
-            overflow-x: auto !important;
-            overflow-y: hidden !important;
-            scrollbar-width: none !important;
-            height: 24px !important;
-            min-height: 24px !important;
+            overflow: visible !important;
+            height: 26px !important;
+            min-height: 26px !important;
             box-sizing: border-box !important;
         }
         .header-bottom-row::-webkit-scrollbar {
@@ -314,18 +312,18 @@
         .header-cycle-companions-group {
             display: inline-flex !important;
             align-items: center !important;
-            gap: 4px !important;
+            gap: 5px !important;
             flex-wrap: nowrap !important;
             flex-shrink: 0 !important;
             justify-content: flex-end !important;
-            height: 22px !important;
+            height: 24px !important;
             line-height: 1 !important;
         }
 
         .header-level-1-group {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
+            gap: 5px;
             flex-shrink: 0;
             flex-wrap: nowrap;
             justify-content: flex-end;
@@ -335,31 +333,48 @@
         .header-actions-bar {
             display: inline-flex !important;
             align-items: center !important;
-            gap: 3.5px !important;
+            gap: 5px !important;
             flex-wrap: nowrap !important;
             justify-content: flex-end !important;
             max-width: 100% !important;
-            flex-shrink: 0 !important;
-            height: 22px !important;
+            min-width: 0 !important;
+            flex: 1 1 auto !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            scrollbar-width: none !important;
+            height: 24px !important;
+        }
+        .header-level-2-group::-webkit-scrollbar,
+        .header-actions-bar::-webkit-scrollbar {
+            display: none !important;
         }
 
         .header-user-info-group {
             display: inline-flex !important;
             align-items: center !important;
-            gap: 4px !important;
+            gap: 6px !important;
             flex-wrap: nowrap !important;
             flex-shrink: 0 !important;
-            height: 22px !important;
+            height: 24px !important;
         }
 
         .header-brand-group {
             display: inline-flex !important;
             align-items: center !important;
-            gap: 5px !important;
+            gap: 6px !important;
             flex-wrap: nowrap !important;
             flex-shrink: 0 !important;
-            height: 22px !important;
+            height: 24px !important;
             line-height: 1 !important;
+        }
+
+        .header-v-sep {
+            width: 1px !important;
+            height: 14px !important;
+            background: rgba(148, 163, 184, 0.22) !important;
+            margin: 0 2px !important;
+            flex-shrink: 0 !important;
+            display: inline-block !important;
         }
 
         .header-logo-wrapper {
@@ -368,15 +383,15 @@
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
-            width: 52px !important;
-            height: 52px !important;
+            width: 54px !important;
+            height: 54px !important;
             margin: 0 !important;
             border-radius: 50% !important;
         }
 
         .header-logo-img {
-            width: 52px !important;
-            height: 52px !important;
+            width: 54px !important;
+            height: 54px !important;
             border-radius: 50% !important;
             border: 2px solid #f59e0b !important;
             box-shadow: 0 0 14px rgba(245, 158, 11, 0.45), 0 3px 8px rgba(0, 0, 0, 0.5) !important;
@@ -411,9 +426,9 @@
         .header-title-wrapper {
             display: inline-flex !important;
             align-items: center !important;
-            gap: 4px !important;
+            gap: 5px !important;
             flex-wrap: nowrap !important;
-            height: 22px !important;
+            height: 24px !important;
             line-height: 1 !important;
             box-sizing: border-box !important;
         }
@@ -421,15 +436,15 @@
         .header-title-h1 {
             display: inline-flex !important;
             align-items: center !important;
-            gap: 4px !important;
+            gap: 5px !important;
             margin: 0 !important;
             flex-wrap: nowrap !important;
-            height: 22px !important;
+            height: 24px !important;
             line-height: 1 !important;
         }
 
         .header-title-text {
-            font-size: 0.80rem !important;
+            font-size: 0.82rem !important;
             font-weight: 800 !important;
             color: #ffffff !important;
             letter-spacing: -0.2px !important;
@@ -437,26 +452,27 @@
             white-space: nowrap !important;
             display: inline-flex !important;
             align-items: center !important;
-            height: 22px !important;
+            height: 24px !important;
             line-height: 1 !important;
             margin: 0 !important;
+            padding-left: 2px !important;
         }
 
         .header-discipline-pill {
             display: inline-flex !important;
             align-items: center !important;
-            gap: 3.5px !important;
-            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%) !important;
-            border: 1px solid rgba(147, 197, 253, 0.5) !important;
-            color: #ffffff !important;
-            padding: 1px 6px !important;
-            border-radius: 11px !important;
+            gap: 4px !important;
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.85) 0%, rgba(37, 99, 235, 0.75) 100%) !important;
+            border: 1px solid rgba(96, 165, 250, 0.42) !important;
+            color: #f8fafc !important;
+            padding: 1px 8px !important;
+            border-radius: 6px !important;
             font-size: 0.67rem !important;
             font-weight: 700 !important;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.22) !important;
-            height: 22px !important;
-            max-height: 22px !important;
-            min-height: 22px !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.22) !important;
+            height: 23px !important;
+            max-height: 23px !important;
+            min-height: 23px !important;
             box-sizing: border-box !important;
             white-space: nowrap !important;
             line-height: 1 !important;
@@ -467,9 +483,9 @@
         .header-top-row .header-discipline-pill,
         .header-top-row .header-chip,
         .header-top-row .header-logout-btn {
-            height: 22px !important;
-            max-height: 22px !important;
-            min-height: 22px !important;
+            height: 23px !important;
+            max-height: 23px !important;
+            min-height: 23px !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
@@ -477,9 +493,10 @@
             vertical-align: middle !important;
             line-height: 1 !important;
             margin: 0 !important;
-            padding: 1px 6px !important;
+            padding: 1px 8px !important;
+            border-radius: 6px !important;
             font-size: 0.67rem !important;
-            gap: 3.5px !important;
+            gap: 4px !important;
             flex-shrink: 0 !important;
             white-space: nowrap !important;
         }
@@ -505,8 +522,8 @@
         }
 
         .header-top-row .chip-sub-label {
-            font-size: 0.54rem !important;
-            padding: 1px 4px !important;
+            font-size: 0.55rem !important;
+            padding: 1px 5px !important;
             border-radius: 4px !important;
             height: 15px !important;
             display: inline-flex !important;
@@ -540,14 +557,14 @@
         .header-status-bar {
             display: flex;
             align-items: center;
-            gap: 3px;
+            gap: 4px;
             flex-wrap: wrap;
         }
 
         .header-actions-bar {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 5px;
             flex-wrap: wrap;
         }
 
@@ -555,63 +572,72 @@
             font-size: 0.67rem;
             display: inline-flex;
             align-items: center;
-            gap: 3.5px;
-            padding: 1px 7px;
-            border-radius: 11px;
+            gap: 4px;
+            padding: 1px 8px;
+            border-radius: 6px;
             font-weight: 700;
-            transition: all 0.2s ease;
+            transition: all 0.18s ease;
             white-space: nowrap;
-            height: 22px;
+            height: 23px;
             box-sizing: border-box;
             line-height: 1;
+            background: rgba(30, 41, 59, 0.72);
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            color: #e2e8f0;
         }
 
         .chip-sub-label {
             font-size: 0.56rem;
-            background: rgba(59, 130, 246, 0.24);
+            background: rgba(59, 130, 246, 0.22);
             border: 1px solid rgba(96, 165, 250, 0.35);
             color: #bae6fd;
             padding: 1px 4px;
-            border-radius: 5px;
+            border-radius: 4px;
             font-weight: 700;
             line-height: 1.1;
         }
 
         .header-chip-desktop {
             cursor: pointer;
-            border: 1px solid #0ea5e9;
-            background: rgba(14, 165, 233, 0.18);
-            color: #bae6fd;
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            background: rgba(15, 23, 42, 0.68);
+            color: #e0f2fe;
         }
 
         .header-chip-desktop:hover {
-            background: rgba(14, 165, 233, 0.32);
+            background: rgba(14, 165, 233, 0.25);
+            border-color: rgba(56, 189, 248, 0.6);
             color: #ffffff;
         }
 
         .header-chip-network {
             color: #d1fae5;
-            background: rgba(16, 185, 129, 0.12);
-            border: 1px solid rgba(52, 211, 153, 0.3);
+            background: rgba(16, 185, 129, 0.14);
+            border: 1px solid rgba(52, 211, 153, 0.32);
         }
 
         .header-chip-date {
             color: #f1f5f9;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(30, 41, 59, 0.72);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+        }
+
+        .header-chip-date:hover {
+            background: rgba(51, 65, 85, 0.85);
+            border-color: rgba(148, 163, 184, 0.45);
         }
 
         .header-chip-teacher {
-            color: #bae6fd;
-            background: rgba(37, 99, 235, 0.22);
-            border: 1px solid rgba(96, 165, 250, 0.4);
-            font-weight: 700;
+            color: #f8fafc;
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.65), rgba(15, 23, 42, 0.8));
+            border: 1px solid rgba(96, 165, 250, 0.38);
+            font-weight: 800;
         }
 
         .header-chip-year {
-            color: #e2e8f0;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fef3c7;
+            background: linear-gradient(135deg, rgba(217, 119, 6, 0.28), rgba(180, 83, 9, 0.38));
+            border: 1px solid rgba(251, 191, 36, 0.55);
         }
 
         /* Merged Settings & Data Control */
@@ -624,26 +650,26 @@
         .header-settings-data-group {
             display: inline-flex;
             align-items: center;
-            background: linear-gradient(135deg, rgba(37, 99, 235, 0.25) 0%, rgba(30, 64, 175, 0.35) 100%);
-            border: 1px solid rgba(96, 165, 250, 0.4);
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.65) 0%, rgba(23, 37, 84, 0.85) 100%);
+            border: 1px solid rgba(96, 165, 250, 0.42);
             border-radius: 6px;
             padding: 0;
             transition: all 0.2s ease;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-            height: 22px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+            height: 23px;
             box-sizing: border-box;
         }
 
         .header-settings-data-group:hover {
-            background: linear-gradient(135deg, rgba(37, 99, 235, 0.38) 0%, rgba(30, 64, 175, 0.48) 100%);
-            border-color: rgba(147, 197, 253, 0.6);
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.48) 0%, rgba(30, 64, 175, 0.62) 100%);
+            border-color: rgba(147, 197, 253, 0.65);
             box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
         }
 
         .header-settings-main-btn {
             background: transparent;
             border: none;
-            padding: 0 6px;
+            padding: 0 8px;
             border-radius: 6px;
             color: #ffffff;
             cursor: pointer;
@@ -652,7 +678,7 @@
             font-weight: 700;
             display: inline-flex;
             align-items: center;
-            gap: 3.5px;
+            gap: 4px;
             transition: all 0.15s ease;
             white-space: nowrap;
             height: 100%;
@@ -668,7 +694,7 @@
             background: rgba(255, 255, 255, 0.08);
             border: none;
             border-right: 1px solid rgba(255, 255, 255, 0.15);
-            padding: 0 4px;
+            padding: 0 5px;
             border-radius: 0 6px 6px 0;
             color: #cbd5e1;
             cursor: pointer;
@@ -688,8 +714,9 @@
         .header-settings-dropdown {
             position: absolute;
             top: calc(100% + 8px);
-            left: 0;
-            min-width: 270px;
+            right: 0;
+            left: auto;
+            min-width: 280px;
             background: #ffffff;
             border: 1px solid #cbd5e1;
             border-radius: 12px;
@@ -761,41 +788,42 @@
             margin: 4px 6px;
         }
 
-        /* Dashboard button in header */
+        /* Unified Harmonious Toolbar Buttons in Row 2 */
         .header-dashboard-btn {
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.16) 0%, rgba(217, 119, 6, 0.22) 100%);
-            border: 1px solid rgba(245, 158, 11, 0.38);
-            padding: 1px 6px;
+            background: rgba(30, 41, 59, 0.78);
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            padding: 1px 8px;
             border-radius: 6px;
-            color: #fef3c7;
+            color: #f1f5f9;
             cursor: pointer;
             font-family: inherit;
             font-size: 0.67rem;
             font-weight: 700;
             display: inline-flex;
             align-items: center;
-            gap: 3.5px;
-            transition: all 0.2s ease;
+            gap: 4px;
+            transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
             white-space: nowrap;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-            height: 22px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            height: 23px;
             box-sizing: border-box;
             line-height: 1;
             flex-shrink: 0;
         }
 
         .header-dashboard-btn:hover {
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.28) 0%, rgba(217, 119, 6, 0.38) 100%);
-            color: #ffffff;
-            border-color: rgba(245, 158, 11, 0.65);
-            box-shadow: 0 0 10px rgba(245, 158, 11, 0.35);
+            background: rgba(51, 65, 85, 0.92) !important;
+            color: #ffffff !important;
+            border-color: rgba(212, 175, 55, 0.65) !important;
+            transform: translateY(-0.5px);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.35), 0 0 6px rgba(212, 175, 55, 0.22);
         }
 
         .header-dashboard-btn.active {
-            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-            border-color: #fcd34d;
-            color: #ffffff;
-            box-shadow: 0 0 12px rgba(245, 158, 11, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+            background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%) !important;
+            border-color: #fbbf24 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
         }
 
         .header-dashboard-badge {
@@ -822,7 +850,7 @@
         .header-presentation-btn {
             background: rgba(99, 102, 241, 0.14);
             border: 1px solid rgba(129, 140, 248, 0.35);
-            padding: 1px 6px;
+            padding: 1px 8px;
             border-radius: 6px;
             color: #c7d2fe;
             cursor: pointer;
@@ -831,11 +859,11 @@
             font-weight: 700;
             display: inline-flex;
             align-items: center;
-            gap: 3.5px;
+            gap: 4px;
             transition: all 0.2s ease;
             white-space: nowrap;
             user-select: none;
-            height: 22px;
+            height: 23px;
             box-sizing: border-box;
             line-height: 1;
         }
@@ -878,10 +906,10 @@
 
         /* Logout button - بجانب أيقونة الأستاذ */
         .header-logout-btn {
-            background: rgba(239, 68, 68, 0.16);
-            border: 1px solid rgba(239, 68, 68, 0.4);
-            padding: 1px 7px;
-            border-radius: 11px;
+            background: rgba(239, 68, 68, 0.14);
+            border: 1px solid rgba(248, 113, 113, 0.35);
+            padding: 1px 8px;
+            border-radius: 6px;
             color: #fca5a5;
             cursor: pointer;
             font-family: inherit;
@@ -890,12 +918,18 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 3.5px;
+            gap: 4px;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             white-space: nowrap;
-            height: 22px;
+            height: 23px;
             box-sizing: border-box;
             line-height: 1;
+        }
+
+        .header-logout-btn:hover {
+            background: rgba(239, 68, 68, 0.28);
+            border-color: rgba(248, 113, 113, 0.65);
+            color: #ffffff;
         }
 
         /* Strict icon sizing inside header for balanced, crisp look */
@@ -12292,5 +12326,31 @@ body.dark-mode #whiteboardDesktopHubModal .wb-desk-tab-btn.active {
         color: #000000 !important;
     }
 }
+
+.math-quick-copy-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 30px;
+    padding: 2px 7px;
+    background: #ffffff;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    color: #0369a1;
+    font-size: 0.88rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    font-family: monospace, sans-serif;
+}
+.math-quick-copy-chip:hover {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+    transform: scale(1.08);
+}
+
 
 

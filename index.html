@@ -317,22 +317,29 @@
 
                     <div style="display: flex; align-items: center; margin: 2px 0; color: #94a3b8; font-size: 0.72rem;">
                         <span style="flex: 1; height: 1px; background: #cbd5e1;"></span>
-                        <span style="padding: 0 8px; font-weight: 600;">أو الربط المباشر بعنوان البريد</span>
+                        <span style="padding: 0 8px; font-weight: 600;">أو الربط السريع المباشر بعنوان بريد Gmail</span>
                         <span style="flex: 1; height: 1px; background: #cbd5e1;"></span>
                     </div>
 
                     <div style="position: relative;">
-                        <input type="email" id="loginDriveEmailInput" placeholder="أدخل أي بريد Gmail تريده (مثال: prof.math@gmail.com)..." dir="ltr" onkeydown="if(event.key==='Enter'){handleLoginScreenDirectGmail();}" style="width: 100%; padding: 10px 38px 10px 12px; border: 1.5px solid #0284c7; border-radius: 8px; font-size: 0.88rem; box-sizing: border-box; text-align: left; background: #ffffff; color: #0f172a;" />
+                        <input type="email" id="loginDriveEmailInput" placeholder="أدخل بريد Gmail (مثال: brahim.kouziber87@gmail.com)..." dir="ltr" onkeydown="if(event.key==='Enter'){handleLoginScreenDirectGmail();}" style="width: 100%; padding: 10px 38px 10px 12px; border: 1.5px solid #0284c7; border-radius: 8px; font-size: 0.88rem; font-weight: 700; box-sizing: border-box; text-align: left; background: #ffffff; color: #0f172a;" />
                         <button type="button" onclick="document.getElementById('loginDriveEmailInput').value=''; document.getElementById('loginDriveEmailInput').focus();" title="مسح الحقل لإدخال بريد آخر" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 1.2rem; color: #94a3b8; cursor: pointer; padding: 2px 6px;">&times;</button>
+                    </div>
+
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap;">
+                        <span style="font-size: 0.71rem; color: #475569; font-weight: 700;">اختيار سريع للبريد الرسمي:</span>
+                        <button type="button" onclick="var inp=document.getElementById('loginDriveEmailInput'); if(inp){inp.value='brahim.kouziber87@gmail.com'; handleLoginScreenDirectGmail();}" style="background: #ffffff; border: 1px solid #7dd3fc; color: #0369a1; font-size: 0.72rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; cursor: pointer; direction: ltr;">
+                            brahim.kouziber87@gmail.com ⚡
+                        </button>
                     </div>
                     
                     <!-- الزر الثانوي: دخول فوري وربط بالبريد المدخل -->
                     <button type="button" onclick="handleLoginScreenDirectGmail()" class="btn-primary" style="display: flex; background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; border: none; border-radius: 8px; padding: 10px 14px; font-family: inherit; cursor: pointer; align-items: center; justify-content: center; width: 100%; transition: all 0.2s; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.2); gap: 6px; font-weight: 800; font-size: 0.85rem;">
                         <span class="ui-icon" style="color: white; margin: 0;"><span data-lucide="check-circle" data-size="14"></span></span>
-                        <span id="loginDriveBtnText">دخول فوري وربط بحساب Gmail المدخل</span>
+                        <span id="loginDriveBtnText">دخول فوري وربط سحابي بحساب Gmail المدخل</span>
                     </button>
 
-                                        <div id="loginDriveSyncStatus" style="display: none; font-size: 0.78rem; text-align: center; color: #0284c7; font-weight: 700; padding: 4px;"></div>
+                    <div id="loginDriveSyncStatus" style="display: none; font-size: 0.78rem; text-align: center; color: #0284c7; font-weight: 700; padding: 4px;"></div>
                 </div>
             </div>
 
@@ -373,65 +380,64 @@
 
             <!-- حاوية السطرين معاً أمام الشعار الدائري -->
             <div class="header-rows-content">
-                <!-- السطر الأول (المستوى الأول): الهوية البصرية + مادة الرياضيات والسلك التأهيلي + الأستاذ، خروج، التاريخ، مزامنة -->
+                <!-- السطر الأول (المستوى الأول): الهوية البصرية + مادة الرياضيات والسلك التأهيلي + الأستاذ، التاريخ، مزامنة، خروج -->
                 <div class="header-top-row">
-                    <!-- Brand & Title Group (يمين: الهوية والمادة والسلك) -->
+                    <!-- Brand & Title Group (يمين: الهوية والمادة والسلك والمذكرات) -->
                     <div class="header-brand-group">
                         <div class="header-title-wrapper">
                             <span class="header-title-text">منظومة التدبير التربوي</span>
-                            <!-- 1. مادة الرياضيات -->
-                            <span class="header-discipline-pill">
-                                <span style="color: #fbbf24; font-family: serif; font-size: 0.74rem; line-height: 1;">📐</span>
+                            <span class="header-v-sep"></span>
+                            <!-- 1. مادة الرياضيات (في أول السطر أمام السلك الثانوي التأهيلي) -->
+                            <span id="headerMathDisciplinePill" class="header-discipline-pill" onclick="openMassarCoefficientsModal()" title="مادة الرياضيات - السلك الثانوي التأهيلي: انقر للاطلاع على دليل معاملات مسار والتقويم التربوي" style="background: rgba(30, 58, 138, 0.78); border-color: rgba(96, 165, 250, 0.55); color: #f8fafc; font-weight: 800; cursor: pointer;">
+                                <span style="color: #fbbf24; font-family: serif; font-size: 0.76rem; line-height: 1;">📐</span>
                                 <span>مادة الرياضيات</span>
                             </span>
                             <!-- 2. السلك الثانوي التأهيلي -->
-                            <span class="header-discipline-pill header-cycle-pill" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #10b981; font-weight: 800;">
-                                <span class="ui-icon" style="color: #10b981; margin: 0;"><span data-lucide="graduation-cap" data-size="12"></span></span>
+                            <span class="header-discipline-pill header-cycle-pill" style="background: rgba(15, 23, 42, 0.72); border-color: rgba(52, 211, 153, 0.42); color: #a7f3d0; font-weight: 800;">
+                                <span class="ui-icon" style="color: #34d399; margin: 0;"><span data-lucide="graduation-cap" data-size="12"></span></span>
                                 <span>السلك الثانوي التأهيلي</span>
                             </span>
-                            <!-- 3. الموسم الدراسي (منقول للصف الأعلى أمام السلك التأهيلي) -->
-                            <span id="headerAcademicYear" class="header-discipline-pill header-chip header-chip-year" title="الموسم الدراسي الحالي" style="background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.25); color: #f1f5f9; font-weight: 800;">
-                                <span class="ui-icon" style="color: #fbbf24; margin: 0;"><span data-lucide="calendar" data-size="12"></span></span>
-                                <span id="headerAcademicYearText">2026 / 2027</span>
-                            </span>
-                            <!-- 4. دليل المذكرات الوزارية (منقول للصف الأعلى بجانب الموسم الدراسي) -->
-                            <button type="button" id="headerDecreesBtn" class="header-discipline-pill header-chip" onclick="openMinisterialDecreesModal()" title="دليل المذكرات الوزارية والنصوص التنظيمية لمادة الرياضيات مع ميزة نسخ السند القانوني بنقرة زر" style="background: rgba(139, 92, 246, 0.22); border-color: rgba(167, 139, 250, 0.55); color: #ddd6fe; cursor: pointer; text-decoration: none; font-weight: 800;">
-                                <span class="ui-icon" style="color: #c4b5fd; margin: 0;"><span data-lucide="scale" data-size="12"></span></span>
+                            <!-- 3. دليل المذكرات الوزارية -->
+                            <button type="button" id="headerDecreesBtn" class="header-discipline-pill header-chip" onclick="openMinisterialDecreesModal()" title="دليل المذكرات الوزارية والنصوص التنظيمية لمادة الرياضيات مع ميزة نسخ السند القانوني بنقرة زر" style="background: rgba(30, 41, 59, 0.78); border-color: rgba(212, 175, 55, 0.45); color: #fef3c7; cursor: pointer; text-decoration: none; font-weight: 800;">
+                                <span class="ui-icon" style="color: #fbbf24; margin: 0;"><span data-lucide="scale" data-size="12"></span></span>
                                 <span>المذكرات الوزارية</span>
                             </button>
                         </div>
                     </div>
 
-                <!-- يسار: الأستاذ: ابراهيم قزيبر، التاريخ، Google Drive، تطبيق المكتب والأندرويد، متصل، خروج -->
+                <!-- يسار: الأستاذ: ابراهيم قزيبر، التاريخ، Google Drive، تطبيق المكتب والأندرويد، خروج -->
                 <div class="header-cycle-companions-group">
-                    <!-- 3. الأستاذ: ابراهيم قزيبر -->
+                    <!-- 1. الأستاذ: ابراهيم قزيبر -->
                     <span id="headerTeacherName" class="header-chip header-chip-teacher" title="الأستاذ المسجل حالياً">
-                        <span class="ui-icon" style="color: #60a5fa; margin: 0;"><span data-lucide="user-check" data-size="12"></span></span>
+                        <span class="ui-icon" style="color: #fbbf24; margin: 0;"><span data-lucide="user-check" data-size="12"></span></span>
                         <span id="headerTeacherNameText">الأستاذ: ابراهيم قزيبر</span>
                     </span>
 
-                    <!-- 4. التاريخ والوقت الحي المتزامن مع الهاتف -->
+                    <!-- 2. التاريخ والوقت الحي المتزامن مع الهاتف -->
                     <div id="headerLiveDateBadge" class="header-chip header-chip-date" onclick="openAppTimeSyncModal()" style="cursor: pointer;" title="تاريخ وتوقيت اليوم الدراسي المتزامن مع هاتفك (انقر للتحقق والمزامنة)">
                         <span class="ui-icon" style="color: #60a5fa; margin: 0;"><span data-lucide="clock" data-size="12"></span></span>
                         <span id="headerLiveDateText">--</span>
                         <span class="chip-sub-label">مزامنة الهاتف</span>
                     </div>
 
-                    <!-- 5. Google Drive Multi-Device Sync Badge -->
-                    <div id="headerDriveSyncBadge" class="header-chip header-chip-drive" onclick="openDriveSyncCenterModal()" title="حالة مزامنة Google Drive السحابية مع أجهزتك الأخرى">
+                    <span class="header-v-sep"></span>
+
+                    <!-- 3. Google Drive Multi-Device Sync Badge -->
+                    <div id="headerDriveSyncBadge" class="header-chip header-chip-drive" onclick="openDriveSyncCenterModal()" title="حالة مزامنة Google Drive السحابية مع أجهزتك الأخرى" style="cursor: pointer;">
                         <span class="ui-icon" style="color: #38bdf8; margin: 0;"><span data-lucide="cloud" data-size="12"></span></span>
                         <span id="headerDriveSyncText">Google Drive</span>
                     </div>
 
-                    <!-- 6. تطبيق المكتب والأندرويد بجانب متصل -->
+                    <!-- 4. تطبيق المكتب والأندرويد -->
                     <button type="button" id="headerDesktopAppHubBtn" class="header-chip header-chip-desktop" onclick="if (typeof window.openDesktopAppModal === 'function') window.openDesktopAppModal();" title="مركز تطبيق سطح المكتب والأندرويد (Desktop & Android Hub) وتحديث المنظومة والنسخ الاحتياطي">
                         <span class="ui-icon" style="color: #38bdf8; margin: 0;"><span data-lucide="monitor" data-size="12"></span></span>
                         <span>تطبيق المكتب والأندرويد</span>
-                        <span id="headerDesktopVersionBadge" style="background: rgba(16, 185, 129, 0.25); border: 1px solid rgba(16, 185, 129, 0.55); color: #6ee7b7; padding: 1px 5px; border-radius: 999px; font-size: 0.58rem; font-weight: 800; direction: ltr; line-height: 1.2;">v3.5</span>
+                        <span id="headerDesktopVersionBadge" style="background: rgba(16, 185, 129, 0.22); border: 1px solid rgba(52, 211, 153, 0.5); color: #6ee7b7; padding: 1px 5px; border-radius: 4px; font-size: 0.56rem; font-weight: 800; direction: ltr; line-height: 1.15;">v3.5</span>
                     </button>
 
+                    <span class="header-v-sep"></span>
 
-                    <!-- 8. تسجيل الخروج في نهاية السطر الأول -->
+                    <!-- 5. تسجيل الخروج في نهاية السطر الأول -->
                     <button type="button" id="headerLogoutBtn" class="header-logout-btn" onclick="logout()" title="تسجيل الخروج من المنظومة">
                         <span class="ui-icon" style="margin: 0;"><span data-lucide="log-out" data-size="12"></span></span>
                         <span>خروج</span>
@@ -439,227 +445,89 @@
                 </div>
             </div>
 
-            <!-- السطر الثاني (المستوى الثاني): الموسم الدراسي أمام دليل البدء + الإعدادات + الأدوات البيداغوجية والذكية -->
+            <!-- السطر الثاني (المستوى الثاني): أيقونة السنة الدراسية في الأول + الأدوات البيداغوجية والذكية المرتبة بتناسق -->
             <div class="header-bottom-row">
-                <!-- اليمين: الموسم الدراسي أمام دليل البدء + الإعدادات والبيانات + شارة وضع العرض -->
+                <!-- اليمين: أيقونة السنة الدراسية (في أول السطر الثاني) + شارة وضع العرض -->
                 <div class="header-user-info-group">
+                    <span id="headerAcademicYear" class="header-discipline-pill header-chip header-chip-year header-dashboard-btn" onclick="if(typeof openTeacherSettings==='function') openTeacherSettings('settingsPersonal');" title="الموسم الدراسي الحالي (انقر لضبط الموسم الدراسي في الإعدادات)" style="background: linear-gradient(135deg, rgba(217, 119, 6, 0.85), rgba(180, 83, 9, 0.95)); border: 1.5px solid rgba(251, 191, 36, 0.65); color: #fef3c7; font-weight: 800; cursor: pointer; height: 24px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; box-shadow: 0 2px 6px rgba(180, 83, 9, 0.35); flex-shrink: 0;">
+                        <span class="ui-icon" style="color: #fbbf24; margin: 0;"><span data-lucide="calendar" data-size="12"></span></span>
+                        <span id="headerAcademicYearText">2026 / 2027</span>
+                    </span>
 
+                    <!-- عناصر توافقية خفية للإعدادات ومادة الرياضيات لضمان التوافق البرمجي التام -->
+                    <span id="headerSettingsDataBtn" style="display: none;" onclick="openTeacherSettings()"></span>
+                    <span id="headerSettingsDropdownTrigger" style="display: none;"></span>
+                    <div id="headerSettingsDropdown" style="display: none;"></div>
+                    <span id="headerMathDisciplineBtn" style="display: none;" onclick="openMassarCoefficientsModal()"></span>
 
                     <!-- Presentation Mode Badge (شارة وضع العرض عند التفعيل) -->
-                    <div id="presentationModeHeaderBadge" style="display: none; font-size: 0.65rem; color: #ffffff; background: linear-gradient(135deg, #6366f1, #4f46e5); border: 1px solid #818cf8; padding: 1px 7px; border-radius: 11px; font-weight: 700; align-items: center; gap: 3.5px; height: 22px;" title="وضع العرض مفعل: لا يمكن تعديل النقط أو الغياب">
+                    <div id="presentationModeHeaderBadge" style="display: none; font-size: 0.65rem; color: #ffffff; background: linear-gradient(135deg, #6366f1, #4f46e5); border: 1px solid #818cf8; padding: 1px 8px; border-radius: 6px; font-weight: 700; align-items: center; gap: 4px; height: 23px;" title="وضع العرض مفعل: لا يمكن تعديل النقط أو الغياب">
                         <span class="ui-icon" style="margin: 0;"><span data-lucide="eye" data-size="12"></span></span>
                         <span>وضع العرض</span>
                     </div>
-
-                    <!-- Merged Settings & Data Management Group (الاعدادات) -->
-                    <div class="header-settings-data-wrapper">
-                        <div class="header-settings-data-group">
-                            <!-- Main Action: Opens Unified Settings Modal -->
-                            <button type="button" id="headerSettingsDataBtn" class="header-settings-main-btn" onclick="openTeacherSettings()" title="فتح الإعدادات وإدارة البيانات والنسخ الاحتياطي">
-                                <span class="ui-icon" style="color: #38bdf8; margin: 0;"><span data-lucide="sliders-horizontal" data-size="12"></span></span>
-                                <span>الإعدادات والبيانات</span>
-                            </button>
-                            <!-- Dropdown Trigger: Direct Sub-Module Navigation -->
-                            <button type="button" id="headerSettingsDropdownTrigger" class="header-settings-chevron-btn" onclick="toggleHeaderSettingsMenu(event)" title="خيارات سريعة للإعدادات وإدارة البيانات">
-                                <span class="ui-icon" style="margin: 0;"><span data-lucide="chevron-down" data-size="11"></span></span>
-                            </button>
-                        </div>
-                        <!-- Quick Navigation Dropdown Menu -->
-                        <div id="headerSettingsDropdown" class="header-settings-dropdown" style="display: none;">
-                            <button type="button" class="header-dropdown-item" onclick="closeHeaderSettingsMenu(); openTeacherSettings('settingsPersonal');">
-                                <div class="header-dropdown-item-icon" style="background: #eff6ff; color: #2563eb;">
-                                    <span class="ui-icon"><span data-lucide="user" data-size="16"></span></span>
-                                </div>
-                                <div class="header-dropdown-item-content">
-                                    <span class="header-dropdown-item-title">إعدادات المنظومة والملف المهني</span>
-                                    <span class="header-dropdown-item-desc">الاسم، المؤسسة، المديرية، وتغيير القن السري</span>
-                                </div>
-                            </button>
-
-                            <button type="button" class="header-dropdown-item" onclick="closeHeaderSettingsMenu(); openTeacherSettings('settingsBackup');">
-                                <div class="header-dropdown-item-icon" style="background: #f0fdf4; color: #16a34a;">
-                                    <span class="ui-icon"><span data-lucide="database" data-size="16"></span></span>
-                                </div>
-                                <div class="header-dropdown-item-content">
-                                    <span class="header-dropdown-item-title">إدارة البيانات وسعة التخزين</span>
-                                    <span class="header-dropdown-item-desc">مؤشرات الذاكرة، تصدير واستيراد JSON و Excel</span>
-                                </div>
-                            </button>
-
-                            <button type="button" class="header-dropdown-item" onclick="closeHeaderSettingsMenu(); openTeacherSettings('settingsBackup');">
-                                <div class="header-dropdown-item-icon" style="background: #e0f2fe; color: #0284c7;">
-                                    <span class="ui-icon"><span data-lucide="cloud" data-size="16"></span></span>
-                                </div>
-                                <div class="header-dropdown-item-content">
-                                    <span class="header-dropdown-item-title">النسخ الاحتياطي والمزامنة السحابية</span>
-                                    <span class="header-dropdown-item-desc">مزامنة سحابية مع Google Drive و Firestore</span>
-                                </div>
-                            </button>
-
-                            <button type="button" class="header-dropdown-item" onclick="closeHeaderSettingsMenu(); runDataIntegrityAudit();">
-                                <div class="header-dropdown-item-icon" style="background: #f5f3ff; color: #7c3aed;">
-                                    <span class="ui-icon"><span data-lucide="shield-check" data-size="16"></span></span>
-                                </div>
-                                <div class="header-dropdown-item-content">
-                                    <span class="header-dropdown-item-title">فحص وصيانة اتساق البيانات</span>
-                                    <span class="header-dropdown-item-desc">تدقيق سلامة السجلات والنقط والغياب آلياً</span>
-                                </div>
-                            </button>
-
-
-
-                            <button type="button" class="header-dropdown-item" onclick="closeHeaderSettingsMenu(); if(typeof window.switchGmailAccountPrompt==='function') window.switchGmailAccountPrompt(); else window.handleDriveLogout();">
-                                <div class="header-dropdown-item-icon" style="background: #eff6ff; color: #0284c7;">
-                                    <span class="ui-icon"><span data-lucide="user-check" data-size="16"></span></span>
-                                </div>
-                                <div class="header-dropdown-item-content">
-                                    <span class="header-dropdown-item-title" style="color: #0369a1;">تبديل حساب Gmail المستخدم 🔄</span>
-                                    <span class="header-dropdown-item-desc">إدخال واستخدام أي بريد Gmail آخر ترغب فيه</span>
-                                </div>
-                            </button>
-
-                            <div class="header-dropdown-divider"></div>
-
-                            <button type="button" class="header-dropdown-item" onclick="closeHeaderSettingsMenu(); openTeacherSettings('settingsPrefs');">
-                                <div class="header-dropdown-item-icon" style="background: #faf5ff; color: #9333ea;">
-                                    <span class="ui-icon"><span data-lucide="sliders" data-size="16"></span></span>
-                                </div>
-                                <div class="header-dropdown-item-content">
-                                    <span class="header-dropdown-item-title">تفضيلات المنظومة والتنبيهات</span>
-                                    <span class="header-dropdown-item-desc">عتبة الغياب، ألوان الأقسام، والإشعارات</span>
-                                </div>
-                            </button>
-
-                            <button type="button" class="header-dropdown-item" onclick="closeHeaderSettingsMenu(); activateAndPreviewStudentPrintMode();">
-                                <div class="header-dropdown-item-icon" style="background: #f0fdfa; color: #0f766e;">
-                                    <span class="ui-icon"><span data-lucide="printer" data-size="16"></span></span>
-                                </div>
-                                <div class="header-dropdown-item-content">
-                                    <span class="header-dropdown-item-title">وضع الطباعة المخصص للتقرير الفردي (Print Mode)</span>
-                                    <span class="header-dropdown-item-desc">إعادة تنسيق تقرير التلميذ الفردي للطباعة الورقية القياسية A4</span>
-                                </div>
-                            </button>
-
-                            <button type="button" class="header-dropdown-item" onclick="closeHeaderSettingsMenu(); openTeacherSettings('settingsArchive');">
-                                <div class="header-dropdown-item-icon" style="background: #f8fafc; color: #64748b;">
-                                    <span class="ui-icon"><span data-lucide="archive" data-size="16"></span></span>
-                                </div>
-                                <div class="header-dropdown-item-content">
-                                    <span class="header-dropdown-item-title">أرشيف الأقسام السابقة</span>
-                                    <span class="header-dropdown-item-desc">استعراض أو استرجاع الأقسام المؤرشفة</span>
-                                </div>
-                            </button>
-
-                            <button type="button" class="header-dropdown-item" onclick="closeHeaderSettingsMenu(); openOnboardingGuideModal(true);">
-                                <div class="header-dropdown-item-icon" style="background: #e0f2fe; color: #0284c7;">
-                                    <span class="ui-icon"><span data-lucide="help-circle" data-size="16"></span></span>
-                                </div>
-                                <div class="header-dropdown-item-content">
-                                    <span class="header-dropdown-item-title">دليل الاستخدام السريع</span>
-                                    <span class="header-dropdown-item-desc">شرح مبسط لتسجيل الغياب، النقط، والنسخ الاحتياطي</span>
-                                </div>
-                            </button>
-
-                            <button type="button" class="header-dropdown-item" onclick="closeHeaderSettingsMenu(); openAppTimeSyncModal();">
-                                <div class="header-dropdown-item-icon" style="background: #ecfdf5; color: #059669;">
-                                    <span class="ui-icon"><span data-lucide="clock" data-size="16"></span></span>
-                                </div>
-                                <div class="header-dropdown-item-content">
-                                    <span class="header-dropdown-item-title">مزامنة الساعة مع الهاتف</span>
-                                    <span class="header-dropdown-item-desc">مواءمة ساعة التطبيق فورياً مع توقيت هاتفك الذكي</span>
-                                </div>
-                            </button>
-
-                            <button type="button" class="header-dropdown-item" onclick="closeHeaderSettingsMenu(); openPromptTemplatesModal();">
-                                <div class="header-dropdown-item-icon" style="background: #faf5ff; color: #7c3aed;">
-                                    <span class="ui-icon"><span data-lucide="sparkles" data-size="16"></span></span>
-                                </div>
-                                <div class="header-dropdown-item-content">
-                                    <span class="header-dropdown-item-title">مكتبة قوالب الذكاء الاصطناعي</span>
-                                    <span class="header-dropdown-item-desc">تنظيم وتخصيص وتجربة أوامر التدريس والدعم والفروض</span>
-                                </div>
-                            </button>
-                            <div class="header-dropdown-divider"></div>
-                            <button type="button" class="header-dropdown-item" onclick="closeHeaderSettingsMenu(); if (typeof window.forceUpdateApplication === 'function') window.forceUpdateApplication();">
-                                <div class="header-dropdown-item-icon" style="background: #ecfdf5; color: #059669;">
-                                    <span class="ui-icon"><span data-lucide="refresh-cw" data-size="16"></span></span>
-                                </div>
-                                <div class="header-dropdown-item-content">
-                                    <span class="header-dropdown-item-title" id="headerMenuUpdateVersionTitle">تحديث المنظومة ورفع الإصدار (v3.5 ⬅ v3.6)</span>
-                                    <span class="header-dropdown-item-desc">تفريغ الذاكرة المؤقتة وترقية إصدار التطبيق مع الحفاظ التام على بياناتك</span>
-                                </div>
-                            </button>
-                            <button type="button" class="header-dropdown-item" onclick="closeHeaderSettingsMenu(); resetHeaderShortcuts();">
-                                <div class="header-dropdown-item-icon" style="background: #fef3c7; color: #d97706;">
-                                    <span class="ui-icon"><span data-lucide="layout-grid" data-size="16"></span></span>
-                                </div>
-                                <div class="header-dropdown-item-content">
-                                    <span class="header-dropdown-item-title">إعادة ضبط وإظهار كافة اختصارات الشريط العلوي</span>
-                                    <span class="header-dropdown-item-desc">إظهار وتحديث جميع الأدوات البيداغوجية والشارات بالشريط العلوي</span>
-                                </div>
-                            </button>
-                        </div>
-                    </div>
                 </div>
 
-                <!-- المستوى الثاني (اليسار): الأدوات البيداغوجية والذكية -->
+                <!-- المستوى الثاني (اليسار): الأدوات البيداغوجية والذكية مرتبة في 3 مجموعات متناسقة -->
                 <div class="header-level-2-group header-actions-bar" id="headerShortcutsBar">
-                    <!-- 1. Pedagogical Council PV Button (محضر مجلس القسم الرسمي) -->
-                    <button type="button" id="headerCouncilPvBtn" class="header-dashboard-btn" onclick="openPedagogicalCouncilPvModal()" title="محضر اجتماع مجلس القسم الرسمي لمادة الرياضيات وتوصيات التوجيه لمسار" style="border-color: #3b82f6; background: rgba(59, 130, 246, 0.18); color: #bfdbfe; font-weight: 800;">
-                        <span class="ui-icon" style="color: #60a5fa; margin: 0;"><span data-lucide="file-check" data-size="12"></span></span>
-                        <span>محضر مجلس القسم</span>
-                    </button>
-
-                    <!-- 2. Value-Added & Classroom Homogeneity Analytics Button (القيمة المضافة والتجانس) -->
-                    <button type="button" id="headerValueAddedBtn" class="header-dashboard-btn" onclick="openValueAddedAnalyticsModal()" title="مؤشر القيمة المضافة التربوية (IVAP) وتحليل الانحراف المعياري والتجانس الصفي" style="border-color: #06b6d4; background: rgba(6, 182, 212, 0.18); color: #a5f3fc; font-weight: 800;">
-                        <span class="ui-icon" style="color: #22d3ee; margin: 0;"><span data-lucide="trending-up" data-size="12"></span></span>
-                        <span>القيمة المضافة والتجانس</span>
-                    </button>
-
-                    <!-- 4. Instant Emergency Database Backup Button (نسخ احتياطي فوري JSON) -->
-                    <button type="button" id="headerInstantBackupBtn" class="header-dashboard-btn" onclick="downloadEmergencyDatabaseBackup()" title="تنزيل فوري لنسخة احتياطية مشفرة وشاملة من قاعدة البيانات بنقرة زر واحدة" style="border-color: #10b981; background: rgba(16, 185, 129, 0.18); color: #a7f3d0; font-weight: 800;">
-                        <span class="ui-icon" style="color: #34d399; margin: 0;"><span data-lucide="save" data-size="12"></span></span>
-                        <span>نسخ احتياطي فوري</span>
-                    </button>
-
-
-                    <!-- Smart Pre-Exam Alert Button (التنبيه الذكي للفروض) -->
-                    <button type="button" id="headerSmartExamAlertBtn" class="header-dashboard-btn" onclick="openSmartExamAlertModal()" title="نظام التنبيهات الذكي: اقتراب الفروض المحروسة والتلاميذ ذوي الغياب المتكرر" style="border-color: #ef4444; background: rgba(239, 68, 68, 0.15); color: #fca5a5;">
-                        <span class="ui-icon" style="color: #f87171; margin: 0;"><span data-lucide="bell-ring" data-size="12"></span></span>
-                        <span>تنبيه الفرض</span>
-                        <span id="headerSmartExamCountdownPill" style="display: none; background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.25); color: #fef08a; padding: 1px 5px; border-radius: 999px; font-size: 0.58rem; font-family: monospace; font-weight: 800; margin-right: 3px;" title="العد التنازلي لموعد الفرض القادم">⏱️ --:--:--</span>
-                        <span id="headerSmartExamBadge" class="header-dashboard-badge" style="background: #dc2626; display: none;">0</span>
-                    </button>
-
-                    <!-- Interactive Teaching Mode Button (وضع التدريس التفاعلي ومؤقت الحصة) -->
-                    <button type="button" id="headerTeachingModeBtn" class="header-dashboard-btn" onclick="toggleInteractiveTeachingMode()" title="تفعيل وضع التدريس التفاعلي: مؤقت الحصة المباشر والربط مع جدول الحصص والتنبيه الصوتي" style="border-color: #8b5cf6; background: rgba(139, 92, 246, 0.15); color: #ddd6fe;">
+                    <!-- المجموعة 1: أدوات الحصة والتدريس والرموز -->
+                    <button type="button" id="headerTeachingModeBtn" class="header-dashboard-btn" onclick="toggleInteractiveTeachingMode()" title="تفعيل وضع التدريس التفاعلي: مؤقت الحصة المباشر والربط مع جدول الحصص والتنبيه الصوتي" style="border-color: rgba(167, 139, 250, 0.45); background: rgba(30, 41, 59, 0.82); color: #ede9fe;">
                         <span class="ui-icon" style="color: #c4b5fd; margin: 0;"><span data-lucide="timer" data-size="12"></span></span>
                         <span>التدريس التفاعلي</span>
                         <span id="headerTeachingModeBadge" class="header-dashboard-badge" style="background: #8b5cf6; display: none;">نشط</span>
                     </button>
 
-                    <!-- Custom AI Prompt Templates Library Button (مكتبة قوالب الذكاء الاصطناعي) -->
-                    <button type="button" id="headerPromptTemplatesBtn" class="header-dashboard-btn" onclick="openPromptTemplatesModal()" title="مكتبة وتنظيم قوالب الذكاء الاصطناعي المخصصة لمختلف المهام التربوية" style="border-color: #a855f7; background: rgba(168, 85, 247, 0.15); color: #e9d5ff;">
+                    <!-- دمج أيقونة الرموز الرياضية مع أيقونة الترويسة SVG -->
+                    <div class="header-merged-btn-group relative" id="headerMathAndSvgContainer" style="display: inline-flex; align-items: stretch; position: relative;">
+                        <button type="button" id="headerMathSymbolsAndSvgBtn" class="header-dashboard-btn" onclick="openCombinedMathSymbolsAndSvgModal(event)" title="المركز المدمج: لوحة الرموز الرياضية الرسمية (∑) + إدارة وتخصيص أيقونات الترويسة المطبوعة (SVG)" style="border-color: rgba(56, 189, 248, 0.65); background: linear-gradient(135deg, rgba(30, 58, 138, 0.9), rgba(180, 83, 9, 0.45)); color: #ffffff; font-weight: 800; border-top-left-radius: 0; border-bottom-left-radius: 0; cursor: pointer;">
+                            <span class="ui-icon" style="color: #38bdf8; font-weight: 900; font-family: monospace; font-size: 0.86rem; margin: 0;">∑</span>
+                            <span class="ui-icon" style="color: #fbbf24; margin: 0;"><span data-lucide="image" data-size="12"></span></span>
+                            <span>الرموز والترويسة SVG</span>
+                        </button>
+                        <button type="button" id="headerMathSvgDropdownTrigger" class="header-dashboard-btn" onclick="openCombinedMathSymbolsAndSvgModal(event)" title="فتح مركز الرموز الرياضية وترويسة المطبوعات الرسمية" style="border-color: rgba(56, 189, 248, 0.65); border-right: none; background: rgba(30, 41, 59, 0.92); color: #93c5fd; padding: 0 6px; border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: -1px; cursor: pointer;">
+                            <span data-lucide="chevron-down" data-size="11"></span>
+                        </button>
+                    </div>
+                    <!-- توافق خلفي للمعرفات السابقة -->
+                    <span id="headerMathSymbolsBtn" style="display:none;" onclick="openMathSymbolsPaletteModal()"></span>
+                    <span id="headerCustomSvgIconsBtn" style="display:none;" onclick="openCustomHeaderSvgIconsModal()"></span>
+
+                    <button type="button" id="headerPromptTemplatesBtn" class="header-dashboard-btn" onclick="openPromptTemplatesModal()" title="مكتبة وتنظيم قوالب الذكاء الاصطناعي المخصصة لمختلف المهام التربوية" style="border-color: rgba(192, 132, 252, 0.42); background: rgba(30, 41, 59, 0.82); color: #f3e8ff;">
                         <span class="ui-icon" style="color: #c084fc; margin: 0;"><span data-lucide="sparkles" data-size="12"></span></span>
                         <span>قوالب الذكاء الاصطناعي</span>
                     </button>
 
-                    <!-- Math Symbols & Formula Palette Button (لوحة الرموز الرياضية) -->
-                    <button type="button" id="headerMathSymbolsBtn" class="header-dashboard-btn" onclick="openMathSymbolsPaletteModal()" title="لوحة الرموز والصيغ الرياضية الرسمية: إدراج ونسخ فوري للرموز الهندسية والجبرية" style="border-color: #0284c7; background: rgba(2, 132, 199, 0.15); color: #bae6fd;">
-                        <span class="ui-icon" style="color: #38bdf8; font-weight: 800; font-family: monospace; font-size: 0.76rem; margin: 0;">∑</span>
-                        <span>الرموز الرياضية</span>
+                    <span class="header-v-sep"></span>
+
+                    <!-- المجموعة 2: التقويم ومجلس القسم والقيمة المضافة -->
+                    <button type="button" id="headerCouncilPvBtn" class="header-dashboard-btn" onclick="openPedagogicalCouncilPvModal(null, null, 'pv')" title="المركز المدمج: محضر اجتماع مجلس القسم الرسمي + مؤشر القيمة المضافة والتجانس الصفي (IVAP)" style="border-color: rgba(56, 189, 248, 0.52); background: linear-gradient(135deg, rgba(30, 58, 138, 0.82), rgba(14, 116, 144, 0.55)); color: #e0f2fe; font-weight: 800;">
+                        <span class="ui-icon" style="color: #60a5fa; margin: 0;"><span data-lucide="file-check" data-size="12"></span></span>
+                        <span class="ui-icon" style="color: #fbbf24; margin: 0;"><span data-lucide="trending-up" data-size="12"></span></span>
+                        <span>مجلس القسم والقيمة المضافة</span>
                     </button>
 
-                    <!-- Massar Math Coefficients & Guide Button (معاملات مسار للرياضيات) -->
-                    <button type="button" id="headerMassarCoefficientsBtn" class="header-dashboard-btn" onclick="openMassarCoefficientsModal()" title="دليل وحاسبة معاملات مسار لمادة الرياضيات حسب المستويات والشعب المغربية" style="border-color: #10b981; background: rgba(16, 185, 129, 0.15); color: #a7f3d0;">
+                    <button type="button" id="headerMassarCoefficientsBtn" class="header-dashboard-btn" onclick="openMassarCoefficientsModal()" title="دليل وحاسبة معاملات مسار لمادة الرياضيات حسب المستويات والشعب المغربية" style="border-color: rgba(52, 211, 153, 0.42); background: rgba(30, 41, 59, 0.82); color: #d1fae5;">
                         <span class="ui-icon" style="color: #34d399; margin: 0;"><span data-lucide="calculator" data-size="12"></span></span>
                         <span>معاملات مسار</span>
                     </button>
 
-                    <!-- Universal PDF Preview & Print Hub Button (مركز وثائق ومعاينة PDF) -->
-                    <button type="button" id="headerUniversalPdfHubBtn" class="header-dashboard-btn" onclick="openUniversalPdfPreviewModal()" title="مركز وثائق ومعاينة وطباعة مستندات PDF الرسمية بدون أوراق فارغة" style="border-color: #6366f1; background: rgba(99, 102, 241, 0.15); color: #c7d2fe;">
-                        <span class="ui-icon" style="color: #818cf8; margin: 0;"><span data-lucide="file-check" data-size="12"></span></span>
+                    <button type="button" id="headerSmartExamAlertBtn" class="header-dashboard-btn" onclick="openSmartExamAlertModal()" title="نظام التنبيهات الذكي: اقتراب الفروض المحروسة والتلاميذ ذوي الغياب المتكرر" style="border-color: rgba(248, 113, 113, 0.45); background: rgba(30, 41, 59, 0.82); color: #fecaca;">
+                        <span class="ui-icon" style="color: #f87171; margin: 0;"><span data-lucide="bell-ring" data-size="12"></span></span>
+                        <span>تنبيه الفرض</span>
+                        <span id="headerSmartExamCountdownPill" style="display: none; background: rgba(15,23,42,0.75); border: 1px solid rgba(251,191,36,0.45); color: #fef08a; padding: 1px 5px; border-radius: 4px; font-size: 0.56rem; font-family: monospace; font-weight: 800; margin-right: 2px;" title="العد التنازلي لموعد الفرض القادم">⏱️ --:--:--</span>
+                        <span id="headerSmartExamBadge" class="header-dashboard-badge" style="background: #dc2626; display: none;">0</span>
+                    </button>
+
+                    <span class="header-v-sep"></span>
+
+                    <!-- المجموعة 3: التوثيق والنسخ الاحتياطي -->
+                    <button type="button" id="headerUniversalPdfHubBtn" class="header-dashboard-btn" onclick="openUniversalPdfPreviewModal()" title="مركز وثائق ومعاينة وطباعة مستندات PDF الرسمية بدون أوراق فارغة" style="border-color: rgba(129, 140, 248, 0.45); background: rgba(30, 41, 59, 0.82); color: #e0e7ff;">
+                        <span class="ui-icon" style="color: #818cf8; margin: 0;"><span data-lucide="printer" data-size="12"></span></span>
                         <span>وثائق PDF</span>
+                    </button>
+
+                    <button type="button" id="headerInstantBackupBtn" class="header-dashboard-btn" onclick="downloadEmergencyDatabaseBackup()" title="تنزيل فوري لنسخة احتياطية مشفرة وشاملة من قاعدة البيانات بنقرة زر واحدة" style="border-color: rgba(52, 211, 153, 0.5); background: linear-gradient(135deg, rgba(6, 78, 59, 0.72), rgba(15, 23, 42, 0.85)); color: #a7f3d0; font-weight: 800;">
+                        <span class="ui-icon" style="color: #34d399; margin: 0;"><span data-lucide="save" data-size="12"></span></span>
+                        <span>نسخ احتياطي فوري</span>
                     </button>
 
                 </div>
@@ -4647,6 +4515,11 @@
                         <span>2. سجل الحصيلة السنوية وجدول التتبع (د1 + د2)</span>
                         <span style="font-size: 0.68rem; padding: 1px 6px; border-radius: 999px; background: #cbd5e1; color: #1e293b; font-weight: 800;">الجدول التفاعلي + الذروة</span>
                     </button>
+                    <button type="button" id="btnSubViewAutoRemediation" onclick="openAnnualAutoRemediationWorkspace()" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; border: none; font-family: inherit; font-size: 0.82rem; font-weight: 800; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #ffffff; box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);">
+                        <span data-lucide="sparkles" data-size="16"></span>
+                        <span>3. التوليد التلقائي لخطط المعالجة (الفروض الممسوحة)</span>
+                        <span style="font-size: 0.68rem; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.22); color: #ffffff; font-weight: 900;">تفييء المتعثرين</span>
+                    </button>
                 </div>
             </div>
 
@@ -4666,6 +4539,10 @@
                     </div>
 
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="btn-action" onclick="scrollToAnnualAutoRemediationPlan()" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; border: none; font-weight: 800; display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; box-shadow: 0 2px 6px rgba(124, 58, 237, 0.28);" title="التوليد التلقائي لخطط المعالجة البيداغوجية حسب الفروض الممسوحة وتفييء المتعثرين">
+                            <span data-lucide="sparkles" data-size="16"></span>
+                            <span>توليد خطط المعالجة حسب الفئات ✨</span>
+                        </button>
                         <button type="button" class="btn-action" onclick="switchAnnualAnalysisSubView('analysis')" style="background: linear-gradient(135deg, #0d9488, #0f766e); color: white; border: none; font-weight: 800; display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; box-shadow: 0 2px 6px rgba(13, 148, 136, 0.25);" title="الانتقال إلى القسم الأول: مختبر التحليل الإحصائي والارتباطي الشامل">
                             <span data-lucide="bar-chart-3" data-size="16"></span>
                             <span>1. مختبر التحليل الإحصائي الشامل</span>
@@ -4857,6 +4734,9 @@
 
             <!-- عرض تحليلي إضافي: منحنى تطور متوسط نقط التلاميذ لكل مادة أو درس على حدة -->
             <div id="annualPerExamLessonAnalysisContainer" style="margin-bottom: 16px;"></div>
+
+            <!-- التوليد التلقائي لخطط المعالجة البيداغوجية بناءً على نتائج الفروض الممسوحة وتفييء المتعثرين -->
+            <div id="annualAutoRemediationPlanContainer" style="margin-bottom: 16px;"></div>
 
             <!-- بطاقة جدول الأداء السنوي وتفاصيل النقط -->
             <div class="card" style="padding: 20px;">
@@ -6587,6 +6467,11 @@
                         <button type="button" id="btnOpenCahierPdfModal" onclick="openCahierDeTextesPdfModal()" class="btn-primary" style="background: linear-gradient(135deg, #059669, #047857); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 3px 8px rgba(5,150,105,0.25); cursor: pointer;" title="طبع واستخراج دفتر النصوص بصيغة PDF الرسمية">
                             <span data-lucide="printer" data-size="16"></span>
                             <span>طبع دفتر النصوص PDF</span>
+                        </button>
+                        <!-- Quick Custom SVG Icons Control Panel Button -->
+                        <button type="button" id="btnOpenCustomSvgHeaderIcons" onclick="openCustomHeaderSvgIconsModal(document.getElementById('lessonTitle')?.value || '', document.getElementById('lessonSessionType')?.value || 'cours')" class="btn-primary" style="background: linear-gradient(135deg, #1e3a8a, #b45309); border: 1px solid #f59e0b; padding: 8px 15px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(30,58,138,0.28); color: #fef3c7; cursor: pointer;" title="لوحة التحكم السريعة: رفع وتخصيص أيقونات SVG لكل درس أو تمرين لتظهر في الترويسة المطبوعة">
+                            <span data-lucide="image" data-size="15"></span>
+                            <span>أيقونات الترويسة (SVG) 🎨</span>
                         </button>
                         <!-- Quick Add Session Button (تدوين حصة سريعة) -->
                         <button type="button" onclick="addQuickSession()" class="btn-primary" style="background: linear-gradient(135deg, #f59e0b, #d97706); border: none; padding: 8px 15px; border-radius: 8px; font-weight: 800; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(245,158,11,0.25); color: #fff; cursor: pointer;" title="إضافة وتوثيق حصة سريعة لدفتر النصوص مباشرة">
@@ -9280,6 +9165,10 @@
                             <span data-lucide="printer" data-size="16"></span>
                             <span>معاينة وطباعة A4</span>
                         </button>
+                        <button type="button" onclick="openCustomHeaderSvgIconsModal()" class="btn-secondary" style="background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 8px 13px; border-radius: 8px; font-size: 0.82rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" title="رفع وتخصيص أيقونة SVG للدرس أو التمرين في الترويسة المطبوعة">
+                            <span data-lucide="image" data-size="15"></span>
+                            <span>تخصيص أيقونة الترويسة (SVG)</span>
+                        </button>
                         <button type="button" onclick="copyCahierDeTextesSummaryText()" class="btn-secondary" style="background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; padding: 8px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
                             <span data-lucide="copy" data-size="14"></span>
                             <span>نسخ نص الدفتر</span>
@@ -9291,6 +9180,145 @@
                 <div style="background: #e2e8f0; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 16px; overflow-x: auto; max-height: 58vh;">
                     <div id="cahierPdfPrintableContainer" style="background: #ffffff; min-width: 800px; padding: 24px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 0 auto; color: #0f172a; font-family: 'Cairo', sans-serif;">
                         <!-- Generated dynamically by updateCahierPdfPreview() -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Quick Control Panel for Custom Lesson & Exercise SVG Icons in Printed Header -->
+        <div id="customLessonSvgIconsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.76); z-index: 10050; align-items: center; justify-content: center; flex-direction: column; padding: 14px; backdrop-filter: blur(5px);">
+            <div class="card" style="width: 100%; max-width: 980px; padding: 20px 24px; max-height: 92vh; overflow-y: auto; border-radius: 16px; background: #ffffff; border: 2px solid #1e3a8a; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45); direction: rtl; font-family: 'Cairo', sans-serif;">
+                <!-- Modal Header -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #1e3a8a, #d97706); color: #fef3c7; box-shadow: 0 3px 10px rgba(30,58,138,0.25);">
+                                <span data-lucide="image" data-size="20"></span>
+                            </span>
+                            <div>
+                                <h3 style="margin: 0; color: #0f172a; font-size: 1.18rem; font-weight: 900; display: flex; align-items: center; gap: 8px;">
+                                    <span>لوحة التحكم السريعة: أيقونات الترويسة المطبوعة (SVG) للدروس والتمارين</span>
+                                    <span style="background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 800;">حفظ تلقائي محلي</span>
+                                </h3>
+                                <p style="margin: 3px 0 0 0; color: #64748b; font-size: 0.8rem; font-weight: 600;">
+                                    ارفع ملف أيقونة متجهية مخصصة (SVG) أو الصق كود SVG لكل درس أو تمرين، لتظهر تلقائياً في الترويسة الرسمية المطبوعة بدلاً من الأيقونة الافتراضية
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeCustomHeaderSvgIconsModal()" style="background: #f1f5f9; border: 1px solid #cbd5e1; cursor: pointer; color: #475569; font-size: 1.1rem; font-weight: 800; border-radius: 8px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;">✕</button>
+                </div>
+
+                <!-- Main Grid: Left (Upload & Configure) + Right (Live Printed Header Preview & Saved Rules) -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(390px, 1fr)); gap: 16px;">
+                    <!-- Column 1: Target Lesson/Exercise & SVG Upload/Editor -->
+                    <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 14px;">
+                        <div style="font-size: 0.88rem; font-weight: 900; color: #1e3a8a; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                            <span data-lucide="sliders" data-size="16"></span>
+                            <span>1. تحديد الدرس أو التمرين ورفع أيقونة SVG</span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                            <div>
+                                <label style="display: block; font-size: 0.76rem; font-weight: 800; color: #334155; margin-bottom: 4px;">نطاق التخصيص في الترويسة:</label>
+                                <select id="customSvgScopeType" onchange="onCustomSvgScopeTypeChange()" style="width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.82rem; font-weight: 800; color: #0f172a; background: #fff;">
+                                    <option value="lesson">درس محدد (حسب عنوان الدرس)</option>
+                                    <option value="exercise">سلسلة تمارين / تمرين محدد</option>
+                                    <option value="session_cours">افتراضي: جميع حصص الدروس (Cours)</option>
+                                    <option value="session_exercices">افتراضي: جميع حصص التمارين (Exercices)</option>
+                                    <option value="session_controle">افتراضي: الفروض المحروسة والتصحيح</option>
+                                    <option value="session_soutien">افتراضي: حصص الدعم والمعالجة</option>
+                                    <option value="global_default">أيقونة الترويسة العامة (لكافة المطبوعات)</option>
+                                </select>
+                            </div>
+                            <div id="customSvgTargetSelectWrapper">
+                                <label style="display: block; font-size: 0.76rem; font-weight: 800; color: #334155; margin-bottom: 4px;">اختيار سريع من الدروس/التمارين المسجلة:</label>
+                                <select id="customSvgKnownTargetsSelect" onchange="onSelectKnownSvgTarget(this.value)" style="width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.8rem; font-weight: 700; color: #1e293b; background: #fff;">
+                                    <option value="">-- اختر درساً أو تمريناً أو اكتب العنوان أسفله --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="customSvgTitleInputWrapper" style="margin-bottom: 10px;">
+                            <label style="display: block; font-size: 0.76rem; font-weight: 800; color: #334155; margin-bottom: 4px;">عنوان الدرس أو التمرين المستهدف (يُطابق تلقائياً عند الطباعة):</label>
+                            <input type="text" id="customSvgTargetKeyInput" oninput="updateCustomSvgLiveHeaderPreview()" placeholder="مثال: الاتصال والاشتقاق، المتتاليات العددية، الهندسة الفضائية..." style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1.5px solid #94a3b8; font-size: 0.84rem; font-weight: 800; color: #0f172a; background: #ffffff; box-sizing: border-box;">
+                        </div>
+
+                        <!-- Upload SVG File or Choose Ready Mathematical SVG -->
+                        <div style="margin-bottom: 10px;">
+                            <label style="display: block; font-size: 0.76rem; font-weight: 800; color: #334155; margin-bottom: 5px;">رفع ملف أيقونة مخصصة (.svg) من جهازك:</label>
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <label for="customSvgFileInput" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #ffffff; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(37,99,235,0.25);">
+                                    <span data-lucide="upload" data-size="15"></span>
+                                    <span>رفع ملف SVG مخصص...</span>
+                                </label>
+                                <input type="file" id="customSvgFileInput" accept=".svg,image/svg+xml" onchange="handleCustomLessonSvgUpload(event)" style="display: none;">
+                                <span id="customSvgUploadStatus" style="font-size: 0.74rem; color: #475569; font-weight: 700;">أو اختر رمزاً رياضياً متجهياً جاهزاً بالأسفل</span>
+                            </div>
+                        </div>
+
+                        <!-- Built-in Mathematical Vector SVG Presets -->
+                        <div style="margin-bottom: 10px;">
+                            <div style="font-size: 0.74rem; font-weight: 800; color: #475569; margin-bottom: 5px;">مكتبة أيقونات SVG الرياضية الجاهزة (انقر للتطبيق والتعديل):</div>
+                            <div id="customSvgBuiltInPresetsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px;">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Raw SVG Code / Data URI Editor -->
+                        <div style="margin-bottom: 12px;">
+                            <label style="display: flex; justify-content: space-between; align-items: center; font-size: 0.74rem; font-weight: 800; color: #334155; margin-bottom: 4px;">
+                                <span>كود الأيقونة المتجهية (SVG XML أو Data URI):</span>
+                                <span style="color: #059669; font-size: 0.68rem;">يقبل وسم &lt;svg&gt; مباشر</span>
+                            </label>
+                            <textarea id="customSvgCodeTextarea" rows="3" oninput="updateCustomSvgLiveHeaderPreview()" placeholder="<svg viewBox='0 0 64 64' ...>...</svg>" style="width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: monospace; font-size: 0.74rem; direction: ltr; text-align: left; color: #0f172a; background: #fff; box-sizing: border-box; resize: vertical;"></textarea>
+                        </div>
+
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                            <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 800; color: #1e3a8a; cursor: pointer;">
+                                <input type="checkbox" id="customSvgReplaceTeacherLogoToggle" onchange="toggleCustomSvgReplaceMode(this.checked)">
+                                <span>استبدال أيقونة الترويسة الافتراضية بالكامل بهذه الأيقونة عند الطباعة</span>
+                            </label>
+                            <div style="display: flex; gap: 6px;">
+                                <button type="button" onclick="saveCustomLessonSvgIcon()" style="background: linear-gradient(135deg, #059669, #047857); color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(5,150,105,0.28);">
+                                    <span data-lucide="check-circle" data-size="15"></span>
+                                    <span>حفظ الأيقونة في التفضيلات المحلية</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Live Printed Header Preview & Saved Custom Icons List -->
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Live Header Preview Box -->
+                        <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span style="font-size: 0.84rem; font-weight: 900; color: #1e3a8a; display: flex; align-items: center; gap: 6px;">
+                                    <span data-lucide="eye" data-size="15"></span>
+                                    <span>معاينة حية لظهور الأيقونة في الترويسة المطبوعة</span>
+                                </span>
+                                <span style="font-size: 0.7rem; font-weight: 800; color: #b45309; background: #fef3c7; padding: 2px 7px; border-radius: 6px;">دقة متجهية A4</span>
+                            </div>
+                            <div id="customSvgHeaderLivePreviewBox" style="background: #f8fafc; border: 1px dashed #94a3b8; border-radius: 8px; padding: 10px; zoom: 0.78;">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Saved Custom SVG Mappings List -->
+                        <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 12px; flex: 1; display: flex; flex-direction: column;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span style="font-size: 0.84rem; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 6px;">
+                                    <span data-lucide="bookmark-check" data-size="15"></span>
+                                    <span>الأيقونات المخصصة المحفوظة محلياً (<span id="customSvgSavedCountBadge">0</span>)</span>
+                                </span>
+                                <button type="button" onclick="resetAllCustomSvgHeaderIcons()" style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 3px 9px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
+                                    استعادة الافتراضي للكل
+                                </button>
+                            </div>
+                            <div id="customSvgSavedMappingsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 230px; overflow-y: auto; padding-left: 2px;">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -9497,15 +9525,16 @@
                         <div>
                             <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 4px;">توقيت وفترة الحصة:</label>
                             <select id="quickSessionTimeSlot" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 0.85rem; font-weight: 700; background: #fff;">
-                                <option value="08:30 - 10:30">08:30 - 10:30 (صباحاً)</option>
-                                <option value="10:30 - 12:30">10:30 - 12:30 (صباحاً)</option>
-                                <option value="12:30 - 13:30">12:30 - 13:30 (زوالاً)</option>
-                                <option value="14:30 - 16:30">14:30 - 16:30 (مساءً)</option>
-                                <option value="16:30 - 18:30">16:30 - 18:30 (مساءً)</option>
-                                <option value="08:00 - 10:00">08:00 - 10:00</option>
-                                <option value="10:00 - 12:00">10:00 - 12:00</option>
-                                <option value="14:00 - 16:00">14:00 - 16:00</option>
-                                <option value="16:00 - 18:00">16:00 - 18:00</option>
+                                <option value="08:00 - 10:00">08:00 - 10:00 (صباحاً - الحصة 1)</option>
+                                <option value="10:00 - 12:00">10:00 - 12:00 (صباحاً - الحصة 2)</option>
+                                <option value="12:00 - 13:00">12:00 - 13:00 (صباحاً - الحصة 3)</option>
+                                <option value="13:00 - 15:00">13:00 - 15:00 (مساءً - الحصة 1)</option>
+                                <option value="15:00 - 17:00">15:00 - 17:00 (مساءً - الحصة 2)</option>
+                                <option value="17:00 - 18:00">17:00 - 18:00 (مساءً - الحصة 3)</option>
+                                <option value="08:30 - 10:30">08:30 - 10:30 (توقيت بديل)</option>
+                                <option value="10:30 - 12:30">10:30 - 12:30 (توقيت بديل)</option>
+                                <option value="14:30 - 16:30">14:30 - 16:30 (توقيت بديل)</option>
+                                <option value="16:30 - 18:30">16:30 - 18:30 (توقيت بديل)</option>
                             </select>
                         </div>
                         <div>
@@ -10320,6 +10349,85 @@
                     <div id="universalPdfPrintableSheet" style="background: #ffffff; display: inline-block; text-align: right; width: 100%; max-width: 960px; min-height: 600px; padding: 28px 32px; border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); color: #0f172a; font-family: 'Cairo', system-ui, sans-serif; box-sizing: border-box;">
                         <!-- Generated dynamically by renderUniversalPdfContent() -->
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Combined Math Symbols & Printed Header SVG Modal (المركز المدمج للرموز الرياضية وترويسة المطبوعات) -->
+        <div id="combinedMathSymbolsAndSvgModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.78); z-index: 10020; align-items: center; justify-content: center; flex-direction: column; padding: 14px; backdrop-filter: blur(6px); direction: rtl; font-family: 'Cairo', sans-serif;">
+            <div class="card" style="width: 100%; max-width: 680px; padding: 22px; max-height: 90vh; overflow-y: auto; border-radius: 16px; background: #ffffff; border: 2px solid #0284c7; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
+                <!-- Modal Header -->
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 18px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #1e3a8a, #0284c7); color: #ffffff; font-family: monospace; font-size: 1.4rem; font-weight: 900; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.35);">
+                            ∑
+                        </span>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a;">الرموز الرياضية وترويسة المطبوعات الرسمية (SVG)</h3>
+                            <p style="margin: 2px 0 0; font-size: 0.75rem; color: #64748b;">إدراج الرموز والصيغ الجبرية والهندسية وتخصيص هوية الدروس والتمارين المطبوعة</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeCombinedMathSymbolsAndSvgModal()" style="background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 8px; color: #64748b; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'; this.style.color='#0f172a';" onmouseout="this.style.background='#f1f5f9'; this.style.color='#64748b';" title="إغلاق">✕</button>
+                </div>
+
+                <!-- Modal Content: Two Main Feature Cards -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 16px;">
+                    <!-- بطاقة 1: لوحة الرموز الرياضية -->
+                    <div style="background: linear-gradient(145deg, #f0f9ff, #e0f2fe); border: 1.5px solid #7dd3fc; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <span style="background: #0284c7; color: #fff; width: 28px; height: 28px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-family: monospace;">∑</span>
+                                <span style="font-weight: 800; color: #0369a1; font-size: 0.92rem;">لوحة الرموز والصيغ الرياضية</span>
+                            </div>
+                            <p style="font-size: 0.76rem; color: #334155; line-height: 1.45; margin-bottom: 12px;">
+                                مكتبة متكاملة لرموز الجبر، الهندسة، التحليل، المجموعات وكود LaTeX، مع إمكانية البحث والنسخ الفوري بنقرة زر واحدة.
+                            </p>
+                            <!-- شريط سريع لأشهر الرموز القابلة للنسخ المباشر -->
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 14px;">
+                                <button type="button" class="math-quick-copy-chip" onclick="quickCopyMathSymbol('∑')" title="نسخ ∑">∑</button>
+                                <button type="button" class="math-quick-copy-chip" onclick="quickCopyMathSymbol('∫')" title="نسخ ∫">∫</button>
+                                <button type="button" class="math-quick-copy-chip" onclick="quickCopyMathSymbol('√')" title="نسخ √">√</button>
+                                <button type="button" class="math-quick-copy-chip" onclick="quickCopyMathSymbol('∞')" title="نسخ ∞">∞</button>
+                                <button type="button" class="math-quick-copy-chip" onclick="quickCopyMathSymbol('ℝ')" title="نسخ ℝ">ℝ</button>
+                                <button type="button" class="math-quick-copy-chip" onclick="quickCopyMathSymbol('∈')" title="نسخ ∈">∈</button>
+                                <button type="button" class="math-quick-copy-chip" onclick="quickCopyMathSymbol('lim')" title="نسخ lim">lim</button>
+                                <button type="button" class="math-quick-copy-chip" onclick="quickCopyMathSymbol('ln')" title="نسخ ln">ln</button>
+                                <button type="button" class="math-quick-copy-chip" onclick="quickCopyMathSymbol('eˣ')" title="نسخ eˣ">eˣ</button>
+                                <button type="button" class="math-quick-copy-chip" onclick="quickCopyMathSymbol('π')" title="نسخ π">π</button>
+                                <button type="button" class="math-quick-copy-chip" onclick="quickCopyMathSymbol('≤')" title="نسخ ≤">≤</button>
+                                <button type="button" class="math-quick-copy-chip" onclick="quickCopyMathSymbol('≥')" title="نسخ ≥">≥</button>
+                            </div>
+                        </div>
+                        <button type="button" onclick="closeCombinedMathSymbolsAndSvgModal(); openMathSymbolsPaletteModal();" style="width: 100%; background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; border: none; padding: 10px 14px; border-radius: 9px; font-weight: 800; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 8px rgba(2, 132, 199, 0.35);">
+                            <span>فتح لوحة الرموز الرياضية الكاملة</span>
+                            <span>⬅</span>
+                        </button>
+                    </div>
+
+                    <!-- بطاقة 2: أيقونات الترويسة المطبوعة SVG -->
+                    <div style="background: linear-gradient(145deg, #fefce8, #fef3c7); border: 1.5px solid #fde047; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <span style="background: #d97706; color: #fff; width: 28px; height: 28px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; font-weight: 900;">🖼️</span>
+                                <span style="font-weight: 800; color: #92400e; font-size: 0.92rem;">أيقونات الترويسة المطبوعة (SVG)</span>
+                            </div>
+                            <p style="font-size: 0.76rem; color: #334155; line-height: 1.45; margin-bottom: 12px;">
+                                لوحة التحكم لرفع وتعيين أيقونات متجهية مخصصة (SVG) لكل درس أو تمرين لتظهر في الترويسة الرسمية عند الطباعة بدلاً من الأيقونة الافتراضية.
+                            </p>
+                            <div style="background: rgba(255, 255, 255, 0.85); border: 1px dashed #d97706; border-radius: 8px; padding: 8px 10px; font-size: 0.72rem; color: #78350f; margin-bottom: 14px;">
+                                💡 تدعم حفظ التفضيلات محلياً واستبدال الشعار المطبوع برسم هندسي أو ديداكتيكي مخصص لكل درس أو تمرين.
+                            </div>
+                        </div>
+                        <button type="button" onclick="closeCombinedMathSymbolsAndSvgModal(); openCustomHeaderSvgIconsModal();" style="width: 100%; background: linear-gradient(135deg, #d97706, #b45309); color: #ffffff; border: none; padding: 10px 14px; border-radius: 9px; font-weight: 800; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 8px rgba(217, 119, 6, 0.35);">
+                            <span>فتح مركز تخصيص أيقونات SVG</span>
+                            <span>⬅</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div style="display: flex; justify-content: flex-end; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+                    <button type="button" onclick="closeCombinedMathSymbolsAndSvgModal()" class="btn-secondary" style="padding: 6px 16px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">إغلاق</button>
                 </div>
             </div>
         </div>

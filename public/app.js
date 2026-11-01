@@ -200,6 +200,12 @@
         // دالة إعادة ضبط وتثبيت ظهور كافة اختصارات الشريط العلوي
         window.resetHeaderShortcuts = function() {
             try {
+                const yearBadge = document.getElementById('headerAcademicYear');
+                if (yearBadge) {
+                    yearBadge.style.display = 'inline-flex';
+                    yearBadge.style.opacity = '1';
+                    yearBadge.style.visibility = 'visible';
+                }
                 const bar = document.querySelector('.header-level-2-group.header-actions-bar') || document.getElementById('headerShortcutsBar');
                 if (bar) {
                     const btns = bar.querySelectorAll('button, .header-dashboard-btn, .header-settings-data-wrapper');
@@ -215,7 +221,9 @@
                         bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }
                 }
-                if (typeof window.renderLucide === 'function') {
+                if (typeof updateHeaderTeacherInfo === 'function') {
+                    updateHeaderTeacherInfo();
+                } else if (typeof window.renderLucide === 'function') {
                     window.renderLucide();
                 }
                 if (typeof showNotification === 'function') {
@@ -4453,6 +4461,73 @@
                 _headerSettingsMenuCloseHandler = null;
             }
         }
+
+        // =========================================================================
+        // التحكم في المركز المدمج: الرموز الرياضية وأيقونات الترويسة SVG
+        // =========================================================================
+        function closeCombinedMathSymbolsAndSvgModal() {
+            const modal = document.getElementById('combinedMathSymbolsAndSvgModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function openCombinedMathSymbolsAndSvgModal(e) {
+            if (e && typeof e.stopPropagation === 'function') {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+            if (typeof closeHeaderSettingsMenu === 'function') closeHeaderSettingsMenu();
+            const modal = document.getElementById('combinedMathSymbolsAndSvgModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                if (window.renderLucide) window.renderLucide(modal);
+            } else if (typeof openMathSymbolsPaletteModal === 'function') {
+                openMathSymbolsPaletteModal();
+            }
+        }
+
+        function toggleHeaderMathSvgDropdown(e) {
+            openCombinedMathSymbolsAndSvgModal(e);
+        }
+
+        function closeHeaderMathSvgDropdown() {
+            closeCombinedMathSymbolsAndSvgModal();
+        }
+
+        function quickCopyMathSymbol(sym) {
+            if (!sym) return;
+            const fallbackCopy = (text) => {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                try {
+                    document.execCommand('copy');
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(`تم نسخ الرمز (${text}) إلى الحافظة بنجاح`, 'success');
+                    }
+                } catch (err) {}
+                document.body.removeChild(ta);
+            };
+
+            if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(sym).then(() => {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(`تم نسخ الرمز (${sym}) إلى الحافظة بنجاح`, 'success');
+                    }
+                }).catch(() => fallbackCopy(sym));
+            } else {
+                fallbackCopy(sym);
+            }
+        }
+
+        window.openCombinedMathSymbolsAndSvgModal = openCombinedMathSymbolsAndSvgModal;
+        window.closeCombinedMathSymbolsAndSvgModal = closeCombinedMathSymbolsAndSvgModal;
+        window.toggleHeaderMathSvgDropdown = toggleHeaderMathSvgDropdown;
+        window.closeHeaderMathSvgDropdown = closeHeaderMathSvgDropdown;
+        window.quickCopyMathSymbol = quickCopyMathSymbol;
 
         function updateHeaderLiveDate() {
             const dateBadge = document.getElementById('headerLiveDateText');
@@ -8823,6 +8898,7 @@
         window.currentAnnualAnalysisSubView = 'analysis';
 
         function switchAnnualAnalysisSubView(subView) {
+            const isRemediation = (subView === 'remediation');
             const mode = (subView === 'annual') ? 'annual' : 'analysis';
             window.currentAnnualAnalysisSubView = mode;
 
@@ -8830,6 +8906,7 @@
             const analysisContainer = document.getElementById('analysisView');
             const btnAnnual = document.getElementById('btnSubViewAnnual');
             const btnAnalysis = document.getElementById('btnSubViewAnalysis');
+            const btnAuto = document.getElementById('btnSubViewAutoRemediation');
 
             const showAnnualPart = (mode === 'annual');
             const showAnalysisPart = (mode === 'analysis');
@@ -8838,14 +8915,19 @@
             if (analysisContainer) analysisContainer.style.display = showAnalysisPart ? 'block' : 'none';
 
             if (btnAnnual) {
-                btnAnnual.style.background = (mode === 'annual') ? '#ffffff' : 'transparent';
-                btnAnnual.style.color = (mode === 'annual') ? '#0284c7' : '#475569';
-                btnAnnual.style.boxShadow = (mode === 'annual') ? '0 2px 6px rgba(0,0,0,0.08)' : 'none';
+                btnAnnual.style.background = (mode === 'annual' && !isRemediation) ? '#ffffff' : 'transparent';
+                btnAnnual.style.color = (mode === 'annual' && !isRemediation) ? '#0284c7' : '#475569';
+                btnAnnual.style.boxShadow = (mode === 'annual' && !isRemediation) ? '0 2px 6px rgba(0,0,0,0.08)' : 'none';
             }
             if (btnAnalysis) {
-                btnAnalysis.style.background = (mode === 'analysis') ? '#ffffff' : 'transparent';
-                btnAnalysis.style.color = (mode === 'analysis') ? '#0f766e' : '#475569';
-                btnAnalysis.style.boxShadow = (mode === 'analysis') ? '0 2px 6px rgba(0,0,0,0.08)' : 'none';
+                btnAnalysis.style.background = (mode === 'analysis' && !isRemediation) ? '#ffffff' : 'transparent';
+                btnAnalysis.style.color = (mode === 'analysis' && !isRemediation) ? '#0f766e' : '#475569';
+                btnAnalysis.style.boxShadow = (mode === 'analysis' && !isRemediation) ? '0 2px 6px rgba(0,0,0,0.08)' : 'none';
+            }
+            if (btnAuto) {
+                btnAuto.style.background = isRemediation ? '#4f46e5' : 'transparent';
+                btnAuto.style.color = isRemediation ? '#ffffff' : '#4338ca';
+                btnAuto.style.boxShadow = isRemediation ? '0 2px 6px rgba(79,70,229,0.25)' : 'none';
             }
 
             if (showAnnualPart) {
@@ -8856,9 +8938,17 @@
                     window.renderAnalysisView();
                 }
                 window.dispatchEvent(new Event('analysisTabOpened'));
-                window.dispatchEvent(new CustomEvent('selectAnalysisWorkspace', {
-                    detail: { workspace: 'consolidated_annual' }
-                }));
+                if (isRemediation) {
+                    const classSelect = document.getElementById('annualClassSelect');
+                    const currentClass = classSelect ? classSelect.value : null;
+                    setTimeout(() => {
+                        window.dispatchEvent(new CustomEvent('openAiRemediationTab', { detail: { className: currentClass } }));
+                    }, 50);
+                } else {
+                    window.dispatchEvent(new CustomEvent('selectAnalysisWorkspace', {
+                        detail: { workspace: 'consolidated_annual' }
+                    }));
+                }
             }
             if (window.renderLucide) window.renderLucide();
         }
@@ -19367,6 +19457,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             if (classSelect && classSelect.value && typeof renderAnnualPerExamLessonAnalysis === 'function') {
                 renderAnnualPerExamLessonAnalysis(classSelect.value);
             }
+            if (classSelect && classSelect.value && typeof renderAnnualAutoRemediationPlan === 'function') {
+                renderAnnualAutoRemediationPlan(classSelect.value);
+            }
         }
 
         function onAnnualClassChange() {
@@ -19388,6 +19481,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             if (classSelect && classSelect.value) {
                 if (typeof renderAnnualPerExamLessonAnalysis === 'function') {
                     renderAnnualPerExamLessonAnalysis(classSelect.value);
+                }
+                if (typeof renderAnnualAutoRemediationPlan === 'function') {
+                    renderAnnualAutoRemediationPlan(classSelect.value);
                 }
                 window.dispatchEvent(new CustomEvent('annualClassChanged', { detail: { className: classSelect.value } }));
             }
@@ -19473,6 +19569,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             if (typeof renderAnnualPerExamLessonAnalysis === 'function') {
                 renderAnnualPerExamLessonAnalysis(classSelect.value);
             }
+            if (typeof renderAnnualAutoRemediationPlan === 'function') {
+                renderAnnualAutoRemediationPlan(classSelect.value);
+            }
             if (window.renderLucide) window.renderLucide();
         }
 
@@ -19486,6 +19585,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const classSelect = document.getElementById('annualClassSelect');
             if (classSelect && classSelect.value && typeof renderAnnualPerExamLessonAnalysis === 'function') {
                 renderAnnualPerExamLessonAnalysis(classSelect.value);
+            }
+            if (classSelect && classSelect.value && typeof renderAnnualAutoRemediationPlan === 'function') {
+                renderAnnualAutoRemediationPlan(classSelect.value);
             }
         }
 
@@ -21376,6 +21478,458 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         window.getExamsAndLessonAnalyticsData = getExamsAndLessonAnalyticsData;
         window.renderAnnualPerExamLessonAnalysis = renderAnnualPerExamLessonAnalysis;
+
+        let currentAnnualRemediationExamFilter = 'all';
+
+        function getStudentAnnualTrajectoryData(student, className) {
+            if (!student || !className) {
+                return { s1Avg: null, s2Avg: null, annualAvg: null, delta: null, allExams: [] };
+            }
+            const annualData = typeof calculateStudentAnnualData === 'function'
+                ? calculateStudentAnnualData(className, student.id)
+                : { s1Avg: null, s2Avg: null, annualAvg: null, delta: null };
+            const s1g = typeof getStudentGradesBySemester === 'function'
+                ? getStudentGradesBySemester(className, student.id, 's1')
+                : (student.grades || {});
+            const s2g = typeof getStudentGradesBySemester === 'function'
+                ? getStudentGradesBySemester(className, student.id, 's2')
+                : (student.s2Grades || {});
+            const examCount = typeof getExamsCountForClass === 'function' ? getExamsCountForClass(className) : 3;
+            const keys = examCount === 2 ? ['f1', 'f2'] : (examCount === 4 ? ['f1', 'f2', 'f3', 'f4'] : ['f1', 'f2', 'f3']);
+            const allExams = [];
+            keys.forEach(k => {
+                if (s1g && s1g[k] !== undefined && s1g[k] !== null && s1g[k] !== '' && !isNaN(Number(s1g[k]))) {
+                    allExams.push(Number(s1g[k]));
+                }
+            });
+            keys.forEach(k => {
+                if (s2g && s2g[k] !== undefined && s2g[k] !== null && s2g[k] !== '' && !isNaN(Number(s2g[k]))) {
+                    allExams.push(Number(s2g[k]));
+                }
+            });
+            return {
+                s1Avg: annualData.s1Avg ?? null,
+                s2Avg: annualData.s2Avg ?? null,
+                annualAvg: annualData.annualAvg ?? null,
+                delta: annualData.delta ?? null,
+                allExams
+            };
+        }
+        window.getStudentAnnualTrajectoryData = getStudentAnnualTrajectoryData;
+
+        function buildAnnualAutoRemediationTierData(className, examFilterKey) {
+            const students = (db && db.classes && db.classes[className]) ? db.classes[className] : [];
+            const levelKey = typeof getClassCurriculumKey === 'function' ? getClassCurriculumKey(className) : 'TCS';
+            const lessons = (typeof CURRICULUM_DATA !== 'undefined' && CURRICULUM_DATA[levelKey])
+                ? [ ...(CURRICULUM_DATA[levelKey].S1 || []), ...(CURRICULUM_DATA[levelKey].S2 || []) ]
+                : ['الحساب العددي والدوال', 'الهندسة المستوية والفضائية', 'المعادلات والمتراجحات'];
+
+            const getEffectiveScore = (s) => {
+                const g = typeof getStudentGradesBySemester === 'function' ? getStudentGradesBySemester(className, s.id, 's1') : (s.grades || {});
+                const s2 = typeof getStudentGradesBySemester === 'function' ? getStudentGradesBySemester(className, s.id, 's2') : (s.s2Grades || {});
+                if (examFilterKey === 'f1') {
+                    const v = s2.f1 !== undefined && s2.f1 !== null && s2.f1 !== '' ? Number(s2.f1) : (g.f1 !== undefined && g.f1 !== null && g.f1 !== '' ? Number(g.f1) : null);
+                    return v !== null && !isNaN(v) ? v : null;
+                }
+                if (examFilterKey === 'f2') {
+                    const v = s2.f2 !== undefined && s2.f2 !== null && s2.f2 !== '' ? Number(s2.f2) : (g.f2 !== undefined && g.f2 !== null && g.f2 !== '' ? Number(g.f2) : null);
+                    return v !== null && !isNaN(v) ? v : null;
+                }
+                if (examFilterKey === 'f3') {
+                    const v = s2.f3 !== undefined && s2.f3 !== null && s2.f3 !== '' ? Number(s2.f3) : (g.f3 !== undefined && g.f3 !== null && g.f3 !== '' ? Number(g.f3) : null);
+                    return v !== null && !isNaN(v) ? v : null;
+                }
+                const traj = getStudentAnnualTrajectoryData(s, className);
+                if (traj.annualAvg !== null && !isNaN(traj.annualAvg)) return traj.annualAvg;
+                if (traj.s2Avg !== null && !isNaN(traj.s2Avg)) return traj.s2Avg;
+                if (traj.s1Avg !== null && !isNaN(traj.s1Avg)) return traj.s1Avg;
+                return null;
+            };
+
+            const tierACritical = [];
+            const tierBModerate = [];
+            const tierCFragile = [];
+            const tierDDeclining = [];
+
+            students.forEach(s => {
+                const traj = getStudentAnnualTrajectoryData(s, className);
+                const score = getEffectiveScore(s);
+                const validExams = (traj.allExams || []).filter(v => v !== null && !isNaN(v));
+                const latestDelta = validExams.length >= 2 ? (validExams[validExams.length - 1] - validExams[validExams.length - 2]) : 0;
+
+                if (score !== null) {
+                    if (score < 7) {
+                        tierACritical.push({ student: s, score, delta: latestDelta });
+                    } else if (score < 9) {
+                        tierBModerate.push({ student: s, score, delta: latestDelta });
+                    } else if (score < 10) {
+                        tierCFragile.push({ student: s, score, delta: latestDelta });
+                    } else if (latestDelta <= -1.5) {
+                        tierDDeclining.push({ student: s, score, delta: latestDelta });
+                    }
+                }
+            });
+
+            const tiers = [
+                {
+                    key: 'tier_a',
+                    badge: 'الفئة أ (تعثر حاد وهيكلي)',
+                    rangeLabel: 'أقل من 07/20 في الفروض الممسوحة',
+                    diagnosticFocus: `تعثر عميق في المكتسبات القبلية والعمليات الأساسية مرتبط بمحور "${lessons[0] || 'الحساب العددي'}" (التمرين 1 و 2 من الفرض الممسوح).`,
+                    strategy: 'بيداغوجيا الفارقية + العقد الديداكتيكي المصغر + الاشتغال في مجموعات صغرى (3-4 تلاميذ)',
+                    hours: 'حصتان أسبوعياً (60 د × 2)',
+                    color: '#dc2626',
+                    bg: '#fef2f2',
+                    border: '#fecaca',
+                    students: tierACritical,
+                    activities: [
+                        `بطاقات التدرج الميسر لاستدراك القواعد الأساسية في "${lessons[0] || 'الحساب العددي'}" مع أمثلة محلولة خطوة بخطوة.`,
+                        'إعادة بناء التمرين الأول من الفرض الممسوح بتفكيك الأسئلة المركبة إلى أسئلة أولية مباشرة.',
+                        'ورشة تصحيح الأخطاء المتكررة المرصودة بالماسح الضوئي (الإشارات، التعميل، وحل المعادلات من الدرجة الأولى).'
+                    ]
+                },
+                {
+                    key: 'tier_b',
+                    badge: 'الفئة ب (تعثر متوسط / منهجي)',
+                    rangeLabel: 'بين 07/20 و 08.99/20',
+                    diagnosticFocus: `خلل في استثمار القواعد الرياضية وتوظيفها في الوضعيات القياسية بمحور "${lessons[1] || lessons[0] || 'الدوال العددية'}" (التمرين 2 من الفرض الممسوح).`,
+                    strategy: 'التعلم بالقرين (Tutorat par les pairs) + بيداغوجيا الخطأ',
+                    hours: 'حصة واحدة أسبوعياً (60 د)',
+                    color: '#d97706',
+                    bg: '#fffbeb',
+                    border: '#fde68a',
+                    students: tierBModerate,
+                    activities: [
+                        `تمارين تطبيقية موجهة متدرجة الصعوبة في "${lessons[1] || lessons[0] || 'الدوال العددية'}" مع شبكة تقييم ذاتي.`,
+                        'تحليل جماعي لأوراق الفرض الممسوحة ومقارنة الإجابات الخاطئة بالحل النموذجي في سلم التنقيط.',
+                        'ثنائيات عمل بيداغوجي (تلميذ متفوق + تلميذ من الفئة ب) لإنجاز وضعيات مماثلة للتمرين الثاني.'
+                    ]
+                },
+                {
+                    key: 'tier_c',
+                    badge: 'الفئة ج (هشاشة على عتبة التحكم)',
+                    rangeLabel: 'بين 09/20 و 09.99/20',
+                    diagnosticFocus: `نقص في الدقة البرهانية وصياغة التعليل الرياضي السليم في محور "${lessons[2] || lessons[0] || 'الهندسة والبرهان'}" (التمرين 3 من الفرض الممسوح).`,
+                    strategy: 'الدعم المندمج الفوري + التغذية الراجعة السريعة',
+                    hours: '30 دقيقة مدمجة أسبوعياً',
+                    color: '#4f46e5',
+                    bg: '#eef2ff',
+                    border: '#c7d2fe',
+                    students: tierCFragile,
+                    activities: [
+                        'تجويد التحرير الرياضي ومنهجية الإجابة لضمان عدم ضياع أنصاف النقط في سلم التنقيط.',
+                        `تمارين تركيز سريع (Flash Exercices) في بداية الحصة حول "${lessons[2] || lessons[0] || 'الهندسة والبرهان'}".`,
+                        'تدريب عملي على تدبير زمن الفرض المحروس والتحقق من صحة النتائج النهائية.'
+                    ]
+                },
+                {
+                    key: 'tier_d',
+                    badge: 'الفئة د (تراجع ظرفي مفاجئ)',
+                    rangeLabel: 'معدل ≥ 10 مع انخفاض حاد (Δ ≤ -1.5)',
+                    diagnosticFocus: 'تراجع ظرفي مرصود في آخر فرض ممسوح مقارنة بالمسار السنوي المعتاد للتلميذ.',
+                    strategy: 'المواكبة الفردية واليقظة التربوية + استدراك الثغرات الظرفية',
+                    hours: 'متابعة فردية موجهة (30 د)',
+                    color: '#0284c7',
+                    bg: '#f0f9ff',
+                    border: '#bae6fd',
+                    students: tierDDeclining,
+                    activities: [
+                        'مقابلة بيداغوجية تشخيصية قصيرة لتحديد أسباب التراجع في الفرض الممسوح الأخير (غياب، صعوبة محور جديد، إرهاق).',
+                        'بطاقة استدراك مركزة حول التمرين الأقل تحكماً في الفرض الأخير لاستعادة نسق التميز.',
+                        'إشراك التلميذ في شرح فقرة تطبيقية داخل القسم لتعزيز الثقة البيداغوجية.'
+                    ]
+                }
+            ];
+
+            return { tiers, totalStudents: students.length };
+        }
+
+        function renderAnnualAutoRemediationPlan(className, examFilterKey) {
+            const container = document.getElementById('annualAutoRemediationPlanContainer');
+            if (!container) return;
+
+            const targetClass = className || document.getElementById('annualClassSelect')?.value || Object.keys(db.classes || {})[0];
+            if (!targetClass || !db.classes || !db.classes[targetClass]) {
+                container.innerHTML = '';
+                return;
+            }
+
+            if (examFilterKey) {
+                currentAnnualRemediationExamFilter = examFilterKey;
+            }
+
+            const { tiers, totalStudents } = buildAnnualAutoRemediationTierData(targetClass, currentAnnualRemediationExamFilter);
+            const totalStruggling = tiers.reduce((acc, t) => acc + t.students.length, 0);
+
+            const filterButtons = [
+                { key: 'all', label: 'حصيلة كل الفروض الممسوحة' },
+                { key: 'f1', label: 'الفرض المحروس 1 (ممسوح)' },
+                { key: 'f2', label: 'الفرض المحروس 2 (ممسوح)' },
+                { key: 'f3', label: 'الفرض المحروس 3 (ممسوح)' }
+            ].map(btn => {
+                const active = currentAnnualRemediationExamFilter === btn.key;
+                return `<button type="button" onclick="renderAnnualAutoRemediationPlan('${targetClass.replace(/'/g, "\\'")}', '${btn.key}')" style="padding: 5px 12px; border-radius: 999px; font-size: 0.76rem; font-weight: 800; font-family: 'Cairo', sans-serif; cursor: pointer; border: 1px solid ${active ? '#4f46e5' : '#cbd5e1'}; background: ${active ? '#4f46e5' : '#ffffff'}; color: ${active ? '#ffffff' : '#475569'}; transition: all 0.2s;">${btn.label}</button>`;
+            }).join('');
+
+            const tierCardsHtml = tiers.map(tier => {
+                const count = tier.students.length;
+                const pct = totalStudents > 0 ? Math.round((count / totalStudents) * 100) : 0;
+                const studentsBadges = count > 0
+                    ? tier.students.slice(0, 8).map(item => `
+                        <span onclick="selectStudentForAnnualChart(${item.student.id})" title="انقر لمعاينة منحنى التلميذ" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px; background: #ffffff; border: 1px solid ${tier.border}; color: #1e293b; padding: 2px 8px; border-radius: 999px; font-size: 0.73rem; font-weight: 700;">
+                            <span>${item.student.name}</span>
+                            <strong style="color: ${tier.color}; font-family: monospace;">${item.score.toFixed(1)}</strong>
+                        </span>
+                    `).join('') + (count > 8 ? `<span style="font-size: 0.72rem; color: #64748b; font-weight: 700; padding: 2px 6px;">+${count - 8} آخرين</span>` : '')
+                    : `<span style="font-size: 0.76rem; color: #16a34a; font-weight: 700;">✓ لا يوجد متعثرون في هذه الفئة حالياً</span>`;
+
+                const activitiesHtml = tier.activities.map((act, idx) => `
+                    <li style="font-size: 0.78rem; color: #334155; margin-bottom: 5px; line-height: 1.5; display: flex; align-items: flex-start; gap: 6px;">
+                        <span style="background: ${tier.color}; color: #fff; min-width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 800; margin-top: 2px;">${idx + 1}</span>
+                        <span>${act}</span>
+                    </li>
+                `).join('');
+
+                return `
+                    <div style="background: ${tier.bg}; border: 1px solid ${tier.border}; border-right: 5px solid ${tier.color}; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px;">
+                                <div>
+                                    <span style="display: inline-block; font-size: 0.85rem; font-weight: 900; color: ${tier.color};">${tier.badge}</span>
+                                    <div style="font-size: 0.72rem; color: #64748b; font-weight: 700;">${tier.rangeLabel} • ${tier.hours}</div>
+                                </div>
+                                <div style="text-align: left;">
+                                    <span style="background: ${tier.color}; color: #ffffff; padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 900;">${count} تلميذ (${pct}%)</span>
+                                </div>
+                            </div>
+
+                            <div style="background: rgba(255,255,255,0.75); border: 1px dashed ${tier.border}; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font-size: 0.76rem; color: #1e293b;">
+                                <strong style="color: ${tier.color};">التشخيص الآلي (الفرض الممسوح):</strong> ${tier.diagnosticFocus}
+                            </div>
+
+                            <div style="margin-bottom: 8px;">
+                                <div style="font-size: 0.76rem; font-weight: 800; color: #0f172a; margin-bottom: 4px;">أنشطة الدعم والمعالجة المقترحة لهذه الفئة:</div>
+                                <ul style="list-style: none; padding: 0; margin: 0;">
+                                    ${activitiesHtml}
+                                </ul>
+                            </div>
+
+                            <div style="margin-top: 8px;">
+                                <div style="font-size: 0.72rem; font-weight: 800; color: #475569; margin-bottom: 4px;">التلاميذ المستهدفون في الفئة (${count}):</div>
+                                <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                                    ${studentsBadges}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; padding-top: 8px; border-top: 1px solid ${tier.border}; flex-wrap: wrap;">
+                            <span style="font-size: 0.7rem; color: #475569; font-weight: 700;">الاستراتيجية: ${tier.strategy}</span>
+                            <div style="display: flex; gap: 6px;">
+                                <button type="button" onclick="scheduleAnnualTierSupportSession('${targetClass.replace(/'/g, "\\'")}', '${tier.key}')" style="background: #ffffff; color: ${tier.color}; border: 1px solid ${tier.color}; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; font-family: 'Cairo', sans-serif; cursor: pointer;">
+                                    + برمجة حصة دعم في السجل
+                                </button>
+                                <button type="button" onclick="printAnnualAutoRemediationPlan('${targetClass.replace(/'/g, "\\'")}', '${tier.key}')" style="background: ${tier.color}; color: #ffffff; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; font-family: 'Cairo', sans-serif; cursor: pointer;">
+                                    طباعة بطاقة الفئة A4
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div style="background: #ffffff; border-radius: 14px; border: 2px solid #c7d2fe; padding: 18px; box-shadow: 0 4px 15px -3px rgba(79, 70, 229, 0.08);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: #ffffff; width: 42px; height: 42px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(79, 70, 229, 0.25);">
+                                <span data-lucide="sparkles" data-size="22"></span>
+                            </span>
+                            <div>
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <h3 style="margin: 0; font-size: 1.05rem; font-weight: 900; color: #1e1b4b;">التوليد التلقائي لخطط المعالجة البيداغوجية بناءً على نتائج الفروض الممسوحة</h3>
+                                    <span style="background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 2px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 800;">
+                                        المذكرة 142-08 • ${totalStruggling} مستهدف بالمعالجة من أصل ${totalStudents}
+                                    </span>
+                                </div>
+                                <p style="margin: 2px 0 0 0; font-size: 0.78rem; color: #64748b;">
+                                    تفييء آلي للتلاميذ المتعثرين استناداً إلى نتائج الفروض المصححة بالماسح الضوئي مع اقتراح أنشطة دعم وتمارين علاجية مخصصة لكل فئة.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <button type="button" onclick="openAnnualAutoRemediationWorkspace()" style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: #ffffff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 800; font-family: 'Cairo', sans-serif; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);">
+                                <span data-lucide="wand-2" data-size="15"></span>
+                                <span>فتح المختبر الذكي للمعالجة الفردية والتمارين</span>
+                            </button>
+                            <button type="button" onclick="printAnnualAutoRemediationPlan('${targetClass.replace(/'/g, "\\'")}', 'all')" style="background: #0f172a; color: #ffffff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 800; font-family: 'Cairo', sans-serif; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                                <span data-lucide="printer" data-size="15"></span>
+                                <span>طباعة خطة المعالجة الشاملة للقسم (A4)</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; background: #f8fafc; padding: 8px 12px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <span style="font-size: 0.76rem; font-weight: 800; color: #334155;">مصدر تشخيص الفروض الممسوحة:</span>
+                            ${filterButtons}
+                        </div>
+                        <button type="button" onclick="if (typeof openFastGrading === 'function') openFastGrading();" style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 4px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; font-family: 'Cairo', sans-serif; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                            <span data-lucide="scan-line" data-size="14"></span>
+                            <span>مسح أوراق فرض جديد بالماسح الضوئي</span>
+                        </button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px;">
+                        ${tierCardsHtml}
+                    </div>
+                </div>
+            `;
+
+            if (window.renderLucide) window.renderLucide();
+        }
+
+        function openAnnualAutoRemediationWorkspace() {
+            if (typeof switchAnnualAnalysisSubView === 'function') {
+                switchAnnualAnalysisSubView('analysis');
+            }
+            const btnAuto = document.getElementById('btnSubViewAutoRemediation');
+            const btnAnalysis = document.getElementById('btnSubViewAnalysis');
+            const btnAnnual = document.getElementById('btnSubViewAnnual');
+            if (btnAuto && btnAnalysis && btnAnnual) {
+                btnAuto.style.background = '#4f46e5';
+                btnAuto.style.color = '#ffffff';
+                btnAnalysis.style.background = 'transparent';
+                btnAnalysis.style.color = '#475569';
+                btnAnnual.style.background = 'transparent';
+                btnAnnual.style.color = '#475569';
+            }
+            const classSelect = document.getElementById('annualClassSelect');
+            const currentClass = classSelect ? classSelect.value : null;
+            setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('openAiRemediationTab', { detail: { className: currentClass } }));
+            }, 60);
+        }
+
+        function scrollToAnnualAutoRemediationPlan() {
+            const container = document.getElementById('annualAutoRemediationPlanContainer');
+            if (container) {
+                const classSelect = document.getElementById('annualClassSelect');
+                if (classSelect && classSelect.value) {
+                    renderAnnualAutoRemediationPlan(classSelect.value);
+                }
+                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                openAnnualAutoRemediationWorkspace();
+            }
+        }
+
+        function scheduleAnnualTierSupportSession(className, tierKey) {
+            const { tiers } = buildAnnualAutoRemediationTierData(className, currentAnnualRemediationExamFilter);
+            const tier = tiers.find(t => t.key === tierKey);
+            if (!tier) return;
+
+            if (typeof openExtraSupportSessionModal === 'function') {
+                openExtraSupportSessionModal(className);
+                setTimeout(() => {
+                    const notesInput = document.getElementById('extraSupportNotesInput') || document.querySelector('#extraSupportModal textarea');
+                    const studentNames = tier.students.map(s => s.student.name).join('، ');
+                    if (notesInput) {
+                        notesInput.value = `حصة دعم ومعالجة مخصصة لـ ${tier.badge} بناءً على نتائج الفروض الممسوحة.\nالأنشطة المبرمجة: ${tier.activities.join(' | ')}\nالتلاميذ المستهدفون (${tier.students.length}): ${studentNames || 'مجموعة الدعم'}`;
+                    }
+                }, 150);
+            } else if (typeof showToast === 'function') {
+                showToast(`تم تجهيز برمجة حصة الدعم لـ ${tier.badge} (${tier.students.length} تلميذ)`, '#4f46e5');
+            }
+        }
+
+        function printAnnualAutoRemediationPlan(className, tierKey) {
+            const { tiers, totalStudents } = buildAnnualAutoRemediationTierData(className, currentAnnualRemediationExamFilter);
+            const selectedTiers = tierKey && tierKey !== 'all' ? tiers.filter(t => t.key === tierKey) : tiers;
+            const teacherName = (db && db.settings && db.settings.teacherName) || 'إبراهيم قزيبر';
+            const schoolName = (db && db.settings && db.settings.schoolName) || 'الثانوية التأهيلية';
+            const schoolYear = (db && db.settings && db.settings.schoolYear) || '2025/2026';
+
+            const tiersRowsHtml = selectedTiers.map(tier => {
+                const names = tier.students.map(s => `${s.student.name} (${s.score.toFixed(2)})`).join(' ، ') || 'لا يوجد متعثرون في هذه الفئة';
+                const acts = tier.activities.map((a, i) => `<div>${i + 1}. ${a}</div>`).join('');
+                return `
+                    <tr>
+                        <td style="border: 1px solid #1e293b; padding: 8px; font-weight: 800; color: ${tier.color};">${tier.badge}<br><small style="color:#475569;">${tier.rangeLabel}</small></td>
+                        <td style="border: 1px solid #1e293b; padding: 8px; text-align: center; font-weight: 800;">${tier.students.length}</td>
+                        <td style="border: 1px solid #1e293b; padding: 8px; font-size: 11px;">${tier.diagnosticFocus}</td>
+                        <td style="border: 1px solid #1e293b; padding: 8px; font-size: 11px;">${acts}</td>
+                        <td style="border: 1px solid #1e293b; padding: 8px; font-size: 11px;">${tier.strategy}<br><strong>(${tier.hours})</strong></td>
+                        <td style="border: 1px solid #1e293b; padding: 8px; font-size: 11px;">${names}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const html = `
+                <!DOCTYPE html>
+                <html lang="ar" dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>خطة المعالجة البيداغوجية - ${className}</title>
+                    <style>
+                        body { font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; padding: 20px; color: #0f172a; direction: rtl; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+                        @media print { @page { size: A4 landscape; margin: 12mm; } }
+                    </style>
+                </head>
+                <body>
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 14px;">
+                        <div style="font-size: 12px; font-weight: 700;">
+                            <div>المملكة المغربية</div>
+                            <div>وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                            <div>المؤسسة: ${schoolName}</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <h2 style="margin: 0; font-size: 18px; font-weight: 900;">خطة المعالجة والدعم البيداغوجي المستخرجة من الفروض الممسوحة</h2>
+                            <div style="font-size: 12px; color: #334155; margin-top: 4px;">وفق المذكرة الوزارية 142-08 • القسم: <strong>${className}</strong> • عدد التلاميذ: <strong>${totalStudents}</strong></div>
+                        </div>
+                        <div style="font-size: 12px; font-weight: 700; text-align: left;">
+                            <div>الأستاذ: ${teacherName}</div>
+                            <div>المادة: الرياضيات</div>
+                            <div>الموسم الدراسي: ${schoolYear}</div>
+                        </div>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr style="background: #f1f5f9;">
+                                <th style="border: 1px solid #1e293b; padding: 8px; width: 14%;">فئة التعثر</th>
+                                <th style="border: 1px solid #1e293b; padding: 8px; width: 6%;">العدد</th>
+                                <th style="border: 1px solid #1e293b; padding: 8px; width: 20%;">التشخيص الآلي للفرض الممسوح</th>
+                                <th style="border: 1px solid #1e293b; padding: 8px; width: 28%;">أنشطة الدعم والتمارين المقترحة</th>
+                                <th style="border: 1px solid #1e293b; padding: 8px; width: 14%;">الاستراتيجية والغلاف الزمني</th>
+                                <th style="border: 1px solid #1e293b; padding: 8px; width: 18%;">التلاميذ المستهدفون</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tiersRowsHtml}
+                        </tbody>
+                    </table>
+
+                    <div style="display: flex; justify-content: space-between; margin-top: 28px; font-size: 12px; font-weight: 800;">
+                        <div>توقيع الأستاذ (${teacherName}): ...........................</div>
+                        <div>توقيع السيد(ة) الناظر(ة) / المدير(ة): ...........................</div>
+                        <div>توقيع السيد(ة) المفتش(ة) التربوي(ة): ...........................</div>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            if (typeof printDocumentDirectly === 'function') {
+                printDocumentDirectly(html);
+            }
+        }
+
+        window.renderAnnualAutoRemediationPlan = renderAnnualAutoRemediationPlan;
+        window.openAnnualAutoRemediationWorkspace = openAnnualAutoRemediationWorkspace;
+        window.scrollToAnnualAutoRemediationPlan = scrollToAnnualAutoRemediationPlan;
+        window.scheduleAnnualTierSupportSession = scheduleAnnualTierSupportSession;
+        window.printAnnualAutoRemediationPlan = printAnnualAutoRemediationPlan;
 
         function exportAnnualPerformanceToExcel() {
             if (typeof XLSX === 'undefined') {
@@ -33237,9 +33791,14 @@ window.isPresentationMode = isPresentationMode;
             const axesColHtml = formatPedagogicalAxesColumnForPrint(log, logInfo, true);
             const contentHtml = formatPedagogicalSessionContentForPrint(log, logInfo, { officialClean: true, showAxisHeader: true });
 
+            const lessonRawTitle = cleanPedagogicalLogText(log.number || log.title || "-", true);
+            const customSvgHtml = (typeof window.getCustomHeaderSvgBadgeHtml === 'function')
+                ? window.getCustomHeaderSvgBadgeHtml({ lessonTitle: lessonRawTitle, sessionType: log.sessionType || 'cours', size: 22 })
+                : '';
+
             const slipHtml = `
             <div style="font-family: 'Cairo', system-ui, sans-serif; direction: rtl; color: #0f172a; padding: 4px;">
-                ${buildOfficialMoroccanHeader("بطاقة تدوين وتوثيق حصة بيداغوجية (دفتر النصوص)", className, log.date || formatLocalDate(), { optHeader: true })}
+                ${buildOfficialMoroccanHeader("بطاقة تدوين وتوثيق حصة بيداغوجية (دفتر النصوص)", className, log.date || formatLocalDate(), { optHeader: true, lessonTitle: lessonRawTitle, sessionType: log.sessionType || 'cours' })}
 
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; font-size: 0.85rem;">
                     <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 6px 10px; border-radius: 6px;"><strong>رقم الحصة:</strong> #${log.sessionNum || "-"}</div>
@@ -33247,7 +33806,7 @@ window.isPresentationMode = isPresentationMode;
                     <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 6px 10px; border-radius: 6px;"><strong>التاريخ واليوم:</strong> ${dayName} ${log.date}</div>
                     <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 6px 10px; border-radius: 6px;"><strong>التوقيت والمدة:</strong> ${log.timeSlot || "-"} (${log.duration || "2"} س)</div>
                     <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 6px 10px; border-radius: 6px; grid-column: span 2;">
-                        <div><strong>عنوان الدرس:</strong> ${escapeHtml(cleanPedagogicalLogText(log.number || log.title || "-", true))}</div>
+                        <div style="display: flex; align-items: center; gap: 6px;">${customSvgHtml}<strong>عنوان الدرس:</strong> ${escapeHtml(lessonRawTitle)}</div>
                         ${axesColHtml}
                     </div>
                 </div>
@@ -33491,7 +34050,15 @@ window.isPresentationMode = isPresentationMode;
             // Main Content Header if enabled
             if (optHeader) {
                 const subScopeTitle = scope === 's1' ? ' - الأسدس الأول (S1)' : (scope === 's2' ? ' - الأسدس الثاني (S2)' : '');
-                html += buildOfficialMoroccanHeader(`سجل تدوين الحصص والأنشطة البيداغوجية (دفتر النصوص${subScopeTitle})`, className, formatLocalDate(), { optHeader: true });
+                const activeLessonSample = (lessonFilter && lessonFilter !== 'all' && logs[0])
+                    ? cleanPedagogicalLogText(logs[0].number || logs[0].title || '', true)
+                    : (logs.length === 1 ? cleanPedagogicalLogText(logs[0].number || logs[0].title || '', true) : '');
+                const activeSessionSample = (typeFilter === 'cours_ex') ? 'cours' : (typeFilter === 'controle' ? 'controle' : (typeFilter === 'soutien' ? 'soutien' : (logs[0]?.sessionType || 'cours')));
+                html += buildOfficialMoroccanHeader(`سجل تدوين الحصص والأنشطة البيداغوجية (دفتر النصوص${subScopeTitle})`, className, formatLocalDate(), {
+                    optHeader: true,
+                    lessonTitle: activeLessonSample,
+                    sessionType: activeSessionSample
+                });
             }
 
             // Pedagogical Progress KPI Bar
@@ -33581,7 +34148,10 @@ window.isPresentationMode = isPresentationMode;
                                 ` : ''}
                             </td>
                             <td style="border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: top; text-align: right;">
-                                <div style="font-weight: 900; color: #0f172a; margin-bottom: 2px;">${escapeHtml(cleanLessonTitle)}</div>
+                                <div style="font-weight: 900; color: #0f172a; margin-bottom: 2px; display: flex; align-items: center; gap: 5px;">
+                                    ${typeof window.getCustomHeaderSvgBadgeHtml === 'function' ? window.getCustomHeaderSvgBadgeHtml({ lessonTitle: cleanLessonTitle, sessionType: log.sessionType, size: 18 }) : ''}
+                                    <span>${escapeHtml(cleanLessonTitle)}</span>
+                                </div>
                                 ${axesColHtml}
                             </td>
                             <td style="border: 1px solid #cbd5e1; padding: 6px 10px; vertical-align: top; text-align: right;">
@@ -33620,10 +34190,13 @@ window.isPresentationMode = isPresentationMode;
                 });
 
                 lessonBuckets.forEach((bucket, bIdx) => {
+                    const bucketSvgBadge = typeof window.getCustomHeaderSvgBadgeHtml === 'function'
+                        ? window.getCustomHeaderSvgBadgeHtml({ lessonTitle: bucket.title, sessionType: 'cours', size: 22, lightBg: true })
+                        : '';
                     html += `
                         <div style="margin-bottom: 16px; page-break-inside: avoid;">
                             <div style="background: linear-gradient(135deg, #1e3a8a, #1d4ed8); color: #ffffff; padding: 7px 12px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; font-size: 0.84rem;">
-                                <div><strong>الدرس ${bIdx + 1}: ${escapeHtml(bucket.title)}</strong></div>
+                                <div style="display: flex; align-items: center; gap: 7px;">${bucketSvgBadge}<strong>الدرس ${bIdx + 1}: ${escapeHtml(bucket.title)}</strong></div>
                                 <div style="font-size: 0.75rem; font-weight: 700; background: rgba(255,255,255,0.18); padding: 1px 8px; border-radius: 4px;">
                                     عدد الحصص: ${bucket.logs.length} | الغلاف الزمني: ${bucket.totalHours} س
                                 </div>
@@ -33677,6 +34250,9 @@ window.isPresentationMode = isPresentationMode;
                     const axesColHtml = formatPedagogicalAxesColumnForPrint(log, logInfo, optOfficialClean);
                     const contentColHtml = formatPedagogicalSessionContentForPrint(log, logInfo, { officialClean: optOfficialClean, showAxisHeader: true });
                     const cleanHw = cleanPedagogicalLogText(log.homework || '', optOfficialClean);
+                    const cardSvgBadge = typeof window.getCustomHeaderSvgBadgeHtml === 'function'
+                        ? window.getCustomHeaderSvgBadgeHtml({ lessonTitle: cleanLessonTitle, sessionType: log.sessionType, size: 22 })
+                        : '';
 
                     html += `
                         <div style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; background: #ffffff; page-break-inside: avoid;">
@@ -33684,6 +34260,7 @@ window.isPresentationMode = isPresentationMode;
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <span style="background: #1e3a8a; color: white; padding: 2px 8px; border-radius: 5px; font-weight: 800; font-size: 0.78rem;">حصة #${log.sessionNum || (idx + 1)}</span>
                                     <span style="background: ${typeInfo.bg}; color: ${typeInfo.text}; border: 1px solid ${typeInfo.border}; padding: 2px 7px; border-radius: 5px; font-size: 0.74rem; font-weight: 800;">${typeInfo.label}</span>
+                                    ${cardSvgBadge}
                                     <strong style="color: #0f172a; font-size: 0.88rem;">${escapeHtml(cleanLessonTitle)}</strong>
                                 </div>
                                 <div style="font-size: 0.78rem; font-weight: 700; color: #475569;">
@@ -37113,10 +37690,219 @@ ${log.notes || 'سير الحصة عادي'}
             };
         })();
 
+        // =========================================================================
+        // Custom Lesson & Exercise SVG Icons Control Panel & Print Header Resolver
+        // =========================================================================
+        const CUSTOM_SVG_HEADER_STORAGE_KEY = 'math_custom_svg_header_icons_v1';
+
+        const BUILTIN_MATH_SVG_PRESETS = [
+            {
+                id: 'calculus_integral',
+                label: 'التحليل والتكامل',
+                keywords: ['اتصال', 'اشتقاق', 'دوال', 'تكامل', 'نهايات', 'أصلية'],
+                svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="30" fill="#eff6ff" stroke="#1e3a8a" stroke-width="2.5"/><path d="M12 46 C 22 46, 26 18, 36 18 C 44 18, 48 34, 54 24" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/><path d="M27 14 C 23 14, 22 20, 22 32 C 22 44, 21 50, 17 50" stroke="#d97706" stroke-width="3" stroke-linecap="round"/><text x="36" y="47" fill="#1e3a8a" font-size="14" font-weight="900" font-family="serif">f'(x)</text></svg>`
+            },
+            {
+                id: 'sequences_sigma',
+                label: 'المتتاليات العددية',
+                keywords: ['متتاليات', 'متتالية', 'ترجع', 'مجموع'],
+                svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="30" fill="#fef3c7" stroke="#b45309" stroke-width="2.5"/><path d="M44 16 H20 L33 32 L20 48 H44" stroke="#1e3a8a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><text x="35" y="37" fill="#b45309" font-size="13" font-weight="900" font-family="serif">Un</text></svg>`
+            },
+            {
+                id: 'geometry_3d',
+                label: 'الهندسة الفضائية',
+                keywords: ['هندسة', 'فضاء', 'فضائية', 'جداء', 'سلمي', 'فلكة', 'متجهات'],
+                svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="30" fill="#ecfdf5" stroke="#047857" stroke-width="2.5"/><polygon points="32,12 50,22 50,42 32,52 14,42 14,22" fill="rgba(16,185,129,0.12)" stroke="#047857" stroke-width="2.5" stroke-linejoin="round"/><path d="M32 12 L32 32 M32 32 L50 42 M32 32 L14 42" stroke="#1e3a8a" stroke-width="2" stroke-dasharray="3 2"/></svg>`
+            },
+            {
+                id: 'complex_plane',
+                label: 'الأعداد العقدية',
+                keywords: ['عقدية', 'عقدي', 'تخيلي', 'أسي', 'مرافق'],
+                svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="30" fill="#f5f3ff" stroke="#6d28d9" stroke-width="2.5"/><line x1="12" y1="36" x2="52" y2="36" stroke="#64748b" stroke-width="2"/><line x1="26" y1="50" x2="26" y2="14" stroke="#64748b" stroke-width="2"/><line x1="26" y1="36" x2="46" y2="20" stroke="#6d28d9" stroke-width="3" stroke-linecap="round"/><circle cx="46" cy="20" r="3.5" fill="#d97706"/><text x="34" y="19" fill="#1e3a8a" font-size="12" font-weight="900" font-family="serif">z=re^iθ</text></svg>`
+            },
+            {
+                id: 'probability_bell',
+                label: 'الاحتمالات والإحصاء',
+                keywords: ['احتمال', 'احتمالات', 'إحصاء', 'متغير', 'عشوائي', 'تعداد'],
+                svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="30" fill="#fff1f2" stroke="#be123c" stroke-width="2.5"/><path d="M12 46 C 20 46, 24 18, 32 18 C 40 18, 44 46, 52 46" fill="rgba(225,29,72,0.14)" stroke="#be123c" stroke-width="3" stroke-linecap="round"/><line x1="32" y1="18" x2="32" y2="46" stroke="#1e3a8a" stroke-width="2" stroke-dasharray="3 2"/><text x="23" y="55" fill="#1e3a8a" font-size="11" font-weight="900" font-family="serif">P(X)</text></svg>`
+            },
+            {
+                id: 'algebra_matrix',
+                label: 'الجبر والمعادلات',
+                keywords: ['جبر', 'معادلات', 'نظمات', 'حدوديات', 'حساب', 'منطق'],
+                svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="30" fill="#f0f9ff" stroke="#0369a1" stroke-width="2.5"/><path d="M14 34 L22 34 L27 46 L36 18 L50 18" stroke="#0369a1" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><text x="31" y="42" fill="#1e3a8a" font-size="15" font-weight="900" font-family="serif">x²</text></svg>`
+            },
+            {
+                id: 'exercise_sheet',
+                label: 'سلسلة تمارين',
+                keywords: ['تمرين', 'تمارين', 'تطبيقات', 'سلسلة', 'مسائل'],
+                svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="30" fill="#f0fdfa" stroke="#0d9488" stroke-width="2.5"/><rect x="18" y="14" width="28" height="36" rx="4" fill="#ffffff" stroke="#0d9488" stroke-width="2.5"/><line x1="23" y1="23" x2="41" y2="23" stroke="#1e3a8a" stroke-width="2.5" stroke-linecap="round"/><line x1="23" y1="31" x2="37" y2="31" stroke="#0d9488" stroke-width="2.5" stroke-linecap="round"/><path d="M24 41 L28 45 L39 36" stroke="#d97706" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+            },
+            {
+                id: 'exam_controle',
+                label: 'فرض محروس / تقويم',
+                keywords: ['فرض', 'تقويم', 'امتحان', 'تصحيح', 'اختبار'],
+                svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="30" fill="#fef2f2" stroke="#dc2626" stroke-width="2.5"/><path d="M32 12 L48 20 V32 C48 43 41 50 32 54 C23 50 16 43 16 32 V20 L32 12 Z" fill="#ffffff" stroke="#dc2626" stroke-width="2.5"/><path d="M24 33 L30 39 L41 26" stroke="#1e3a8a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+            }
+        ];
+
+        function loadCustomHeaderSvgConfig() {
+            try {
+                const raw = localStorage.getItem(CUSTOM_SVG_HEADER_STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && typeof parsed === 'object') {
+                        return {
+                            replaceDefaultLogo: parsed.replaceDefaultLogo !== false,
+                            items: parsed.items && typeof parsed.items === 'object' ? parsed.items : {}
+                        };
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to parse custom SVG header config:', e);
+            }
+            return { replaceDefaultLogo: true, items: {} };
+        }
+
+        function saveCustomHeaderSvgConfig(cfg) {
+            try {
+                localStorage.setItem(CUSTOM_SVG_HEADER_STORAGE_KEY, JSON.stringify(cfg));
+            } catch (e) {
+                console.warn('Failed to save custom SVG header config:', e);
+            }
+        }
+
+        function normalizeSvgTargetKey(str) {
+            return String(str || '')
+                .trim()
+                .replace(/[\u064B-\u065F\u0670]/g, '')
+                .replace(/[أإآ]/g, 'ا')
+                .replace(/ة/g, 'ه')
+                .replace(/ى/g, 'ي')
+                .replace(/\s+/g, ' ')
+                .toLowerCase();
+        }
+
+        function svgStringToDataUri(svgContent) {
+            const trimmed = String(svgContent || '').trim();
+            if (!trimmed) return '';
+            if (trimmed.startsWith('data:image/svg+xml')) return trimmed;
+            if (trimmed.startsWith('<svg') || trimmed.includes('<svg')) {
+                let cleanSvg = trimmed;
+                if (!cleanSvg.includes('xmlns=')) {
+                    cleanSvg = cleanSvg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+                }
+                return 'data:image/svg+xml;utf8,' + encodeURIComponent(cleanSvg);
+            }
+            return trimmed;
+        }
+
+        function resolveCustomHeaderSvgEntry(context = {}) {
+            const cfg = loadCustomHeaderSvgConfig();
+            const items = cfg.items || {};
+            const rawLesson = context.lessonTitle || '';
+            const rawExercise = context.exerciseTitle || '';
+            const rawTitle = context.title || '';
+            const sessionType = context.sessionType || '';
+
+            const normLesson = normalizeSvgTargetKey(rawLesson);
+            const normExercise = normalizeSvgTargetKey(rawExercise);
+            const normTitle = normalizeSvgTargetKey(rawTitle);
+
+            // 1. Exact or substring match on specific lesson
+            if (normLesson) {
+                if (items[`lesson:${normLesson}`]) return { entry: items[`lesson:${normLesson}`], replaceDefaultLogo: cfg.replaceDefaultLogo };
+                for (const k of Object.keys(items)) {
+                    if (k.startsWith('lesson:')) {
+                        const targetNorm = k.slice(7);
+                        if (targetNorm && (normLesson.includes(targetNorm) || targetNorm.includes(normLesson))) {
+                            return { entry: items[k], replaceDefaultLogo: cfg.replaceDefaultLogo };
+                        }
+                    }
+                }
+            }
+
+            // 2. Exact or substring match on specific exercise
+            if (normExercise) {
+                if (items[`exercise:${normExercise}`]) return { entry: items[`exercise:${normExercise}`], replaceDefaultLogo: cfg.replaceDefaultLogo };
+                for (const k of Object.keys(items)) {
+                    if (k.startsWith('exercise:')) {
+                        const targetNorm = k.slice(9);
+                        if (targetNorm && (normExercise.includes(targetNorm) || targetNorm.includes(normExercise))) {
+                            return { entry: items[k], replaceDefaultLogo: cfg.replaceDefaultLogo };
+                        }
+                    }
+                }
+            }
+
+            // 3. Match from general document title if it contains a saved lesson/exercise title
+            if (normTitle) {
+                for (const k of Object.keys(items)) {
+                    if (k.startsWith('lesson:') || k.startsWith('exercise:')) {
+                        const targetNorm = k.includes(':') ? k.split(':').slice(1).join(':') : k;
+                        if (targetNorm && targetNorm.length >= 3 && normTitle.includes(targetNorm)) {
+                            return { entry: items[k], replaceDefaultLogo: cfg.replaceDefaultLogo };
+                        }
+                    }
+                }
+            }
+
+            // 4. Session type default match
+            if (sessionType) {
+                if (sessionType === 'cours' && items['session_cours']) {
+                    return { entry: items['session_cours'], replaceDefaultLogo: cfg.replaceDefaultLogo };
+                }
+                if ((sessionType === 'exercices' || sessionType === 'problemes' || sessionType === 'homework') && items['session_exercices']) {
+                    return { entry: items['session_exercices'], replaceDefaultLogo: cfg.replaceDefaultLogo };
+                }
+                if ((sessionType === 'controle' || sessionType === 'correction') && items['session_controle']) {
+                    return { entry: items['session_controle'], replaceDefaultLogo: cfg.replaceDefaultLogo };
+                }
+                if ((sessionType === 'soutien' || sessionType === 'rattrapage') && items['session_soutien']) {
+                    return { entry: items['session_soutien'], replaceDefaultLogo: cfg.replaceDefaultLogo };
+                }
+            }
+
+            // 5. Global default icon
+            if (items['global_default']) {
+                return { entry: items['global_default'], replaceDefaultLogo: cfg.replaceDefaultLogo };
+            }
+
+            return null;
+        }
+        window.resolveCustomHeaderSvgEntry = resolveCustomHeaderSvgEntry;
+
+        function getCustomHeaderSvgBadgeHtml(context = {}) {
+            const resolved = resolveCustomHeaderSvgEntry(context);
+            if (!resolved || !resolved.entry || !resolved.entry.svg) return '';
+            const size = context.size || 20;
+            const uri = svgStringToDataUri(resolved.entry.svg);
+            if (!uri) return '';
+            const bg = context.lightBg ? '#ffffff' : 'transparent';
+            return `<img src="${uri}" alt="" style="width: ${size}px; height: ${size}px; object-fit: contain; border-radius: 50%; background: ${bg}; flex-shrink: 0; display: inline-block; vertical-align: middle;" />`;
+        }
+        window.getCustomHeaderSvgBadgeHtml = getCustomHeaderSvgBadgeHtml;
+
         function getDualLogosHTML(options = {}) {
             const size = options.size || 44;
             const sLogo = (db.teacherProfile && (db.teacherProfile.schoolLogo || db.teacherProfile.institutionLogo)) || '/institution-logo.svg';
-            const tLogo = (db.teacherProfile && (db.teacherProfile.teacherLogo || db.teacherProfile.photo)) || '/logo.svg';
+            let tLogo = (db.teacherProfile && (db.teacherProfile.teacherLogo || db.teacherProfile.photo)) || '/logo.svg';
+
+            const resolvedCustom = resolveCustomHeaderSvgEntry(options);
+            let extraCustomLogoHtml = '';
+            if (resolvedCustom && resolvedCustom.entry && resolvedCustom.entry.svg) {
+                const customUri = svgStringToDataUri(resolvedCustom.entry.svg);
+                if (customUri) {
+                    if (resolvedCustom.replaceDefaultLogo !== false) {
+                        tLogo = customUri;
+                    } else {
+                        extraCustomLogoHtml = `
+                        <div style="text-align: center; display: inline-flex; flex-direction: column; align-items: center;">
+                            <img src="${customUri}" alt="" style="width: ${size}px; height: ${size}px; object-fit: contain; border-radius: 50%; border: 1.5px solid #0d9488; padding: 2px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.12); display: block;">
+                        </div>`;
+                    }
+                }
+            }
 
             return `
             <div style="display: inline-flex; align-items: center; justify-content: flex-start; gap: 8px; direction: rtl; margin-bottom: 5px;" class="report-dual-logos">
@@ -37126,15 +37912,27 @@ ${log.notes || 'سير الحصة عادي'}
                 <div style="text-align: center; display: inline-flex; flex-direction: column; align-items: center;">
                     <img src="${tLogo}" alt="" style="width: ${size}px; height: ${size}px; object-fit: contain; border-radius: 50%; border: 1.5px solid #1e3a8a; padding: 2px; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.12); display: block;" onerror="this.onerror=null; this.src='/logo.svg';">
                 </div>
+                ${extraCustomLogoHtml}
             </div>`;
         }
         window.getDualLogosHTML = getDualLogosHTML;
 
         function buildOfficialMoroccanHeader(title, className, docDate, options) {
-            if (options && options.optHeader === false) {
+            const opts = options || {};
+            const resolvedCustom = resolveCustomHeaderSvgEntry({
+                title: title,
+                lessonTitle: opts.lessonTitle || '',
+                exerciseTitle: opts.exerciseTitle || '',
+                sessionType: opts.sessionType || ''
+            });
+            const customTitleIconHtml = (resolvedCustom && resolvedCustom.entry && resolvedCustom.entry.svg)
+                ? `<img src="${svgStringToDataUri(resolvedCustom.entry.svg)}" alt="" style="width: 24px; height: 24px; object-fit: contain; border-radius: 50%; background: #ffffff; padding: 1.5px; border: 1px solid #fbbf24; flex-shrink: 0;" />`
+                : '';
+
+            if (opts && opts.optHeader === false) {
                 return `
                 <div style="text-align: center; margin-bottom: 16px; border-bottom: 2.5px solid #1e3a8a; padding-bottom: 8px; font-family: 'Cairo', system-ui, sans-serif; direction: rtl;">
-                    <h2 style="font-size: 1.2rem; font-weight: 900; color: #1e3a8a; margin: 0 0 4px 0;">${title}</h2>
+                    <h2 style="font-size: 1.2rem; font-weight: 900; color: #1e3a8a; margin: 0 0 4px 0; display: inline-flex; align-items: center; gap: 8px;">${customTitleIconHtml}<span>${title}</span></h2>
                     <div style="font-size: 0.82rem; color: #475569; font-weight: 700;">
                         ${className ? `القسم: <strong>${className}</strong> | ` : ''} مادة الرياضيات · السلك الثانوي التأهيلي | المذكرة 142-08 | تاريخ الإصدار: ${docDate || formatLocalDate()}
                     </div>
@@ -37169,7 +37967,8 @@ ${log.notes || 'سير الحصة عادي'}
 
                     <!-- Center: Title Plate / Reference -->
                     <div style="text-align: center; width: 38%; display: flex; flex-direction: column; align-items: center;">
-                        <div style="background: linear-gradient(135deg, #1e3a8a, #1d4ed8); color: #ffffff; padding: 5px 14px; border-radius: 6px; box-shadow: 0 2px 4px rgba(30,58,138,0.18); width: 100%; box-sizing: border-box; border: 1px solid #1e40af;">
+                        <div style="background: linear-gradient(135deg, #1e3a8a, #1d4ed8); color: #ffffff; padding: 5px 14px; border-radius: 6px; box-shadow: 0 2px 4px rgba(30,58,138,0.18); width: 100%; box-sizing: border-box; border: 1px solid #1e40af; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            ${customTitleIconHtml}
                             <h2 style="margin: 0; font-size: 1.02rem; font-weight: 900; letter-spacing: -0.2px; color: #ffffff;">${title}</h2>
                         </div>
                         <div style="display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 4px; font-size: 0.71rem; font-weight: 800; color: #475569; flex-wrap: wrap;">
@@ -37181,10 +37980,10 @@ ${log.notes || 'سير الحصة عادي'}
                         </div>
                     </div>
 
-                    <!-- Left side: Dual Logos (Institution + Teacher) + Academic Credentials -->
+                    <!-- Left side: Dual Logos (Institution + Custom/Teacher) + Academic Credentials -->
                     <div style="text-align: left; font-size: 0.78rem; line-height: 1.45; color: #334155; font-weight: 700; width: 32%;">
                         <div style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 5px;">
-                            ${getDualLogosHTML({ size: 44 })}
+                            ${getDualLogosHTML({ size: 44, title: title, lessonTitle: opts.lessonTitle || '', exerciseTitle: opts.exerciseTitle || '', sessionType: opts.sessionType || '' })}
                         </div>
                         <div>المادة المدرسة: <strong style="color: #1e3a8a;">${pSubject} (Mathématiques)</strong></div>
                         <div>الأستاذ(ة): <strong style="color: #0f172a;">${pName}</strong></div>
@@ -37194,6 +37993,440 @@ ${log.notes || 'سير الحصة عادي'}
                 </div>
             </div>`;
         }
+
+        // --- Quick Control Panel Modal Functions for Custom SVG Header Icons ---
+        function collectKnownLessonsAndExercisesForSvgModal() {
+            const lessonsSet = new Set();
+            const exercisesSet = new Set();
+
+            if (db && db.lessonLogs && typeof db.lessonLogs === 'object') {
+                Object.values(db.lessonLogs).forEach(arr => {
+                    if (Array.isArray(arr)) {
+                        arr.forEach(log => {
+                            const raw = cleanPedagogicalLogText(log.number || log.title || '', true);
+                            if (raw && raw.length >= 2) {
+                                if (log.sessionType === 'exercices' || log.sessionType === 'problemes') {
+                                    exercisesSet.add(raw);
+                                } else {
+                                    lessonsSet.add(raw);
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Default curriculum lessons if none logged yet
+            [
+                'الاتصال والاشتقاق ودراسة الدوال',
+                'المتتاليات العددية',
+                'الدوال اللوغاريتمية والأسية',
+                'الأعداد العقدية',
+                'الهندسة الفضائية والجداء السلمي',
+                'حساب الاحتمالات',
+                'الحساب التكاملي والمعادلات التفاضلية',
+                'الحسابيات في Z والمنطق الرياضي'
+            ].forEach(l => lessonsSet.add(l));
+
+            [
+                'سلسلة تمارين الاتصال والاشتقاق',
+                'سلسلة تمارين المتتاليات العددية',
+                'سلسلة تمارين الأعداد العقدية',
+                'سلسلة تمارين الهندسة الفضائية',
+                'سلسلة تمارين الاحتمالات'
+            ].forEach(e => exercisesSet.add(e));
+
+            return {
+                lessons: Array.from(lessonsSet),
+                exercises: Array.from(exercisesSet)
+            };
+        }
+
+        function populateCustomSvgKnownTargetsDropdown() {
+            const scopeEl = document.getElementById('customSvgScopeType');
+            const selectEl = document.getElementById('customSvgKnownTargetsSelect');
+            const titleWrap = document.getElementById('customSvgTitleInputWrapper');
+            const targetSelectWrap = document.getElementById('customSvgTargetSelectWrapper');
+            if (!scopeEl || !selectEl) return;
+
+            const scope = scopeEl.value;
+            const isSpecific = (scope === 'lesson' || scope === 'exercise');
+            if (titleWrap) titleWrap.style.display = isSpecific ? 'block' : 'none';
+            if (targetSelectWrap) targetSelectWrap.style.display = isSpecific ? 'block' : 'none';
+
+            if (!isSpecific) return;
+
+            const known = collectKnownLessonsAndExercisesForSvgModal();
+            const list = scope === 'exercise' ? known.exercises : known.lessons;
+            let html = `<option value="">-- اختر ${scope === 'exercise' ? 'تمريناً' : 'درساً'} مسجلاً أو اكتب العنوان --</option>`;
+            list.forEach(item => {
+                html += `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`;
+            });
+            selectEl.innerHTML = html;
+        }
+
+        function renderBuiltInSvgPresetsGrid() {
+            const grid = document.getElementById('customSvgBuiltInPresetsGrid');
+            if (!grid) return;
+            grid.innerHTML = BUILTIN_MATH_SVG_PRESETS.map(p => {
+                const uri = svgStringToDataUri(p.svg);
+                return `
+                <button type="button" onclick="applyBuiltInMathSvgPreset('${p.id}')" style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 6px 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: all 0.15s;" onmouseover="this.style.borderColor='#2563eb'; this.style.background='#eff6ff';" onmouseout="this.style.borderColor='#cbd5e1'; this.style.background='#ffffff';">
+                    <img src="${uri}" alt="${escapeHtml(p.label)}" style="width: 30px; height: 30px; object-fit: contain; border-radius: 50%;" />
+                    <span style="font-size: 0.65rem; font-weight: 800; color: #1e293b; text-align: center; line-height: 1.15;">${escapeHtml(p.label)}</span>
+                </button>`;
+            }).join('');
+        }
+
+        function applyBuiltInMathSvgPreset(presetId) {
+            const preset = BUILTIN_MATH_SVG_PRESETS.find(p => p.id === presetId);
+            if (!preset) return;
+            const codeArea = document.getElementById('customSvgCodeTextarea');
+            if (codeArea) {
+                codeArea.value = preset.svg;
+            }
+            const statusEl = document.getElementById('customSvgUploadStatus');
+            if (statusEl) {
+                statusEl.textContent = `تم اختيار قالب: ${preset.label}`;
+                statusEl.style.color = '#059669';
+            }
+            updateCustomSvgLiveHeaderPreview();
+        }
+        window.applyBuiltInMathSvgPreset = applyBuiltInMathSvgPreset;
+
+        function handleCustomLessonSvgUpload(event) {
+            const file = event?.target?.files?.[0];
+            if (!file) return;
+            if (!file.name.toLowerCase().endsWith('.svg') && file.type !== 'image/svg+xml') {
+                if (typeof window.showToast === 'function') window.showToast('يرجى اختيار ملف بصيغة SVG صالحة (.svg)', 'warning');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = String(e.target?.result || '').trim();
+                if (!text.includes('<svg')) {
+                    if (typeof window.showToast === 'function') window.showToast('الملف المرفوع لا يحتوي على وسم <svg> صالح', 'error');
+                    return;
+                }
+                const codeArea = document.getElementById('customSvgCodeTextarea');
+                if (codeArea) codeArea.value = text;
+                const statusEl = document.getElementById('customSvgUploadStatus');
+                if (statusEl) {
+                    statusEl.textContent = `تم تحميل الملف: ${file.name}`;
+                    statusEl.style.color = '#059669';
+                }
+                updateCustomSvgLiveHeaderPreview();
+                if (typeof window.showToast === 'function') window.showToast(`تم قراءة أيقونة SVG (${file.name}) بنجاح — اضغط حفظ لتثبيتها`, 'info');
+            };
+            reader.readAsText(file);
+        }
+        window.handleCustomLessonSvgUpload = handleCustomLessonSvgUpload;
+
+        function onCustomSvgScopeTypeChange() {
+            populateCustomSvgKnownTargetsDropdown();
+            const scope = document.getElementById('customSvgScopeType')?.value || 'lesson';
+            const cfg = loadCustomHeaderSvgConfig();
+            if (scope !== 'lesson' && scope !== 'exercise') {
+                const existing = cfg.items[scope];
+                const codeArea = document.getElementById('customSvgCodeTextarea');
+                if (codeArea && existing && existing.svg) {
+                    codeArea.value = existing.svg;
+                }
+            }
+            updateCustomSvgLiveHeaderPreview();
+        }
+        window.onCustomSvgScopeTypeChange = onCustomSvgScopeTypeChange;
+
+        function onSelectKnownSvgTarget(val) {
+            const input = document.getElementById('customSvgTargetKeyInput');
+            if (input && val) {
+                input.value = val;
+                const scope = document.getElementById('customSvgScopeType')?.value || 'lesson';
+                const cfg = loadCustomHeaderSvgConfig();
+                const storageKey = `${scope}:${normalizeSvgTargetKey(val)}`;
+                if (cfg.items[storageKey]?.svg) {
+                    const codeArea = document.getElementById('customSvgCodeTextarea');
+                    if (codeArea) codeArea.value = cfg.items[storageKey].svg;
+                }
+                updateCustomSvgLiveHeaderPreview();
+            }
+        }
+        window.onSelectKnownSvgTarget = onSelectKnownSvgTarget;
+
+        function toggleCustomSvgReplaceMode(checked) {
+            const cfg = loadCustomHeaderSvgConfig();
+            cfg.replaceDefaultLogo = !!checked;
+            saveCustomHeaderSvgConfig(cfg);
+            updateCustomSvgLiveHeaderPreview();
+            if (typeof updateCahierPdfPreview === 'function' && document.getElementById('cahierDeTextesPdfModal')?.style.display === 'flex') {
+                updateCahierPdfPreview();
+            }
+            if (typeof window.updateSheetPreview === 'function') {
+                window.updateSheetPreview();
+            }
+        }
+        window.toggleCustomSvgReplaceMode = toggleCustomSvgReplaceMode;
+
+        function updateCustomSvgLiveHeaderPreview() {
+            const previewBox = document.getElementById('customSvgHeaderLivePreviewBox');
+            if (!previewBox) return;
+
+            const scope = document.getElementById('customSvgScopeType')?.value || 'lesson';
+            const targetTitle = (document.getElementById('customSvgTargetKeyInput')?.value || '').trim();
+            const svgCode = (document.getElementById('customSvgCodeTextarea')?.value || '').trim();
+            const replaceToggle = document.getElementById('customSvgReplaceTeacherLogoToggle')?.checked !== false;
+
+            const scopeLabels = {
+                lesson: targetTitle ? `درس: ${targetTitle}` : 'درس نموذجي في الرياضيات',
+                exercise: targetTitle ? `سلسلة تمارين: ${targetTitle}` : 'سلسلة تمارين تطبيقية',
+                session_cours: 'حصة درس وبناء مفاهيم',
+                session_exercices: 'حصة تمارين وتطبيقات',
+                session_controle: 'فرض محروس وتقويم',
+                session_soutien: 'حصة دعم ومعالجة بيداغوجية',
+                global_default: 'وثيقة تربوية رسمية - مادة الرياضيات'
+            };
+            const sampleDocTitle = scopeLabels[scope] || 'وثيقة تربوية رسمية';
+
+            const sLogo = (db.teacherProfile && (db.teacherProfile.schoolLogo || db.teacherProfile.institutionLogo)) || '/institution-logo.svg';
+            const defaultTLogo = (db.teacherProfile && (db.teacherProfile.teacherLogo || db.teacherProfile.photo)) || '/logo.svg';
+            const customUri = svgStringToDataUri(svgCode);
+            const activeRightLogo = (customUri && replaceToggle) ? customUri : defaultTLogo;
+            const extraCustomBadge = (customUri && !replaceToggle)
+                ? `<img src="${customUri}" alt="" style="width: 38px; height: 38px; object-fit: contain; border-radius: 50%; border: 1.5px solid #0d9488; padding: 2px; background: #fff;" />`
+                : '';
+            const titleIconHtml = customUri
+                ? `<img src="${customUri}" alt="" style="width: 22px; height: 22px; object-fit: contain; border-radius: 50%; background: #ffffff; padding: 1.5px; border: 1px solid #fbbf24;" />`
+                : '';
+
+            previewBox.innerHTML = `
+                <div style="border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; font-family: 'Cairo', sans-serif; direction: rtl; background: #fff; padding: 8px 10px; border-radius: 6px;">
+                    <div style="height: 3px; background: linear-gradient(90deg, #1e3a8a 0%, #d4af37 50%, #15803d 100%); border-radius: 2px; margin-bottom: 8px;"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                        <div style="font-size: 0.7rem; font-weight: 800; color: #1e293b; line-height: 1.35;">
+                            <div style="color: #0f172a; font-weight: 900;">المملكة المغربية</div>
+                            <div style="color: #1e3a8a;">وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                            <div style="color: #475569; font-size: 0.65rem;">${escapeHtml((db.teacherProfile && db.teacherProfile.school) || 'الثانوية التأهيلية')}</div>
+                        </div>
+                        <div style="text-align: center; flex: 1; max-width: 44%;">
+                            <div style="background: linear-gradient(135deg, #1e3a8a, #1d4ed8); color: #fff; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.78rem; font-weight: 900; width: 100%; box-sizing: border-box;">
+                                ${titleIconHtml}
+                                <span>${escapeHtml(sampleDocTitle)}</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <img src="${sLogo}" alt="" style="width: 38px; height: 38px; object-fit: contain; border-radius: 50%; border: 1.5px solid #d4af37; padding: 2px; background: #fff;" onerror="this.onerror=null; this.src='/institution-logo.svg';" />
+                            <img src="${activeRightLogo}" alt="" style="width: 38px; height: 38px; object-fit: contain; border-radius: 50%; border: 1.5px solid #1e3a8a; padding: 2px; background: #fff;" onerror="this.onerror=null; this.src='/logo.svg';" />
+                            ${extraCustomBadge}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        window.updateCustomSvgLiveHeaderPreview = updateCustomSvgLiveHeaderPreview;
+
+        function renderSavedCustomSvgMappingsList() {
+            const listEl = document.getElementById('customSvgSavedMappingsList');
+            const badgeEl = document.getElementById('customSvgSavedCountBadge');
+            if (!listEl) return;
+
+            const cfg = loadCustomHeaderSvgConfig();
+            const entries = Object.entries(cfg.items || {});
+            if (badgeEl) badgeEl.textContent = String(entries.length);
+
+            if (entries.length === 0) {
+                listEl.innerHTML = `
+                    <div style="text-align: center; color: #64748b; padding: 24px 12px; font-size: 0.78rem; border: 1px dashed #cbd5e1; border-radius: 8px; background: #ffffff;">
+                        لا توجد أيقونات SVG مخصصة محفوظة حالياً. اختر درساً أو تمريناً وارفع ملف SVG أو اختر من المكتبة الجاهزة ثم اضغط حفظ.
+                    </div>`;
+                return;
+            }
+
+            const scopeBadgeMap = {
+                lesson: { text: 'درس مخصص', bg: '#eff6ff', color: '#1d4ed8' },
+                exercise: { text: 'تمرين / سلسلة', bg: '#f0fdfa', color: '#0d9488' },
+                session_cours: { text: 'افتراضي الدروس', bg: '#eff6ff', color: '#1e3a8a' },
+                session_exercices: { text: 'افتراضي التمارين', bg: '#ecfdf5', color: '#047857' },
+                session_controle: { text: 'افتراضي الفروض', bg: '#fef2f2', color: '#dc2626' },
+                session_soutien: { text: 'افتراضي الدعم', bg: '#faf5ff', color: '#7e22ce' },
+                global_default: { text: 'الترويسة العامة', bg: '#fef3c7', color: '#b45309' }
+            };
+
+            listEl.innerHTML = entries.map(([key, item]) => {
+                const uri = svgStringToDataUri(item.svg);
+                const bInfo = scopeBadgeMap[item.scope] || { text: 'مخصص', bg: '#f1f5f9', color: '#334155' };
+                return `
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 10px;">
+                        <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                            <img src="${uri}" alt="" style="width: 30px; height: 30px; object-fit: contain; border-radius: 50%; border: 1px solid #94a3b8; padding: 2px; background: #f8fafc; flex-shrink: 0;" />
+                            <div style="min-width: 0;">
+                                <div style="font-size: 0.78rem; font-weight: 800; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(item.label || key)}</div>
+                                <span style="display: inline-block; font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; background: ${bInfo.bg}; color: ${bInfo.color};">${bInfo.text}</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                            <button type="button" onclick="editSavedCustomSvgIcon('${escapeHtml(key)}')" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">تعديل</button>
+                            <button type="button" onclick="deleteSavedCustomSvgIcon('${escapeHtml(key)}')" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">حذف</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function saveCustomLessonSvgIcon() {
+            const scope = document.getElementById('customSvgScopeType')?.value || 'lesson';
+            const rawTarget = (document.getElementById('customSvgTargetKeyInput')?.value || '').trim();
+            const svgCode = (document.getElementById('customSvgCodeTextarea')?.value || '').trim();
+            const replaceToggle = document.getElementById('customSvgReplaceTeacherLogoToggle')?.checked !== false;
+
+            if (!svgCode || (!svgCode.includes('<svg') && !svgCode.startsWith('data:image/svg+xml'))) {
+                if (typeof window.showToast === 'function') window.showToast('يرجى رفع ملف SVG أو اختيار أيقونة رياضية جاهزة أولاً', 'warning');
+                return;
+            }
+
+            if ((scope === 'lesson' || scope === 'exercise') && !rawTarget) {
+                if (typeof window.showToast === 'function') window.showToast('يرجى إدخال أو اختيار عنوان الدرس أو التمرين المستهدف', 'warning');
+                document.getElementById('customSvgTargetKeyInput')?.focus();
+                return;
+            }
+
+            const cfg = loadCustomHeaderSvgConfig();
+            cfg.replaceDefaultLogo = replaceToggle;
+
+            const scopeDefaultLabels = {
+                session_cours: 'جميع حصص الدروس وبناء المفاهيم',
+                session_exercices: 'جميع حصص التمارين والتطبيقات',
+                session_controle: 'جميع الفروض المحروسة والتصحيح',
+                session_soutien: 'جميع حصص الدعم والمعالجة',
+                global_default: 'الترويسة الرسمية العامة لكافة المطبوعات'
+            };
+
+            const storageKey = (scope === 'lesson' || scope === 'exercise')
+                ? `${scope}:${normalizeSvgTargetKey(rawTarget)}`
+                : scope;
+            const displayLabel = (scope === 'lesson' || scope === 'exercise')
+                ? rawTarget
+                : (scopeDefaultLabels[scope] || scope);
+
+            cfg.items[storageKey] = {
+                scope: scope,
+                label: displayLabel,
+                svg: svgCode,
+                updatedAt: new Date().toISOString()
+            };
+
+            saveCustomHeaderSvgConfig(cfg);
+            renderSavedCustomSvgMappingsList();
+            updateCustomSvgLiveHeaderPreview();
+
+            if (typeof updateCahierPdfPreview === 'function' && document.getElementById('cahierDeTextesPdfModal')?.style.display === 'flex') {
+                updateCahierPdfPreview();
+            }
+            if (typeof window.updateSheetPreview === 'function') {
+                window.updateSheetPreview();
+            }
+            if (typeof window.showToast === 'function') {
+                window.showToast(`تم حفظ أيقونة SVG المخصصة لـ «${displayLabel}» في التفضيلات المحلية!`, 'info');
+            }
+        }
+        window.saveCustomLessonSvgIcon = saveCustomLessonSvgIcon;
+
+        function editSavedCustomSvgIcon(key) {
+            const cfg = loadCustomHeaderSvgConfig();
+            const item = cfg.items?.[key];
+            if (!item) return;
+
+            const scopeEl = document.getElementById('customSvgScopeType');
+            const targetInput = document.getElementById('customSvgTargetKeyInput');
+            const codeArea = document.getElementById('customSvgCodeTextarea');
+
+            if (scopeEl) scopeEl.value = item.scope || 'lesson';
+            populateCustomSvgKnownTargetsDropdown();
+            if (targetInput) targetInput.value = (item.scope === 'lesson' || item.scope === 'exercise') ? (item.label || '') : '';
+            if (codeArea) codeArea.value = item.svg || '';
+            updateCustomSvgLiveHeaderPreview();
+        }
+        window.editSavedCustomSvgIcon = editSavedCustomSvgIcon;
+
+        function deleteSavedCustomSvgIcon(key) {
+            const cfg = loadCustomHeaderSvgConfig();
+            if (cfg.items && cfg.items[key]) {
+                delete cfg.items[key];
+                saveCustomHeaderSvgConfig(cfg);
+                renderSavedCustomSvgMappingsList();
+                updateCustomSvgLiveHeaderPreview();
+                if (typeof updateCahierPdfPreview === 'function' && document.getElementById('cahierDeTextesPdfModal')?.style.display === 'flex') {
+                    updateCahierPdfPreview();
+                }
+                if (typeof window.updateSheetPreview === 'function') {
+                    window.updateSheetPreview();
+                }
+                if (typeof window.showToast === 'function') {
+                    window.showToast('تم حذف الأيقونة المخصصة واستعادة الأيقونة الافتراضية', 'info');
+                }
+            }
+        }
+        window.deleteSavedCustomSvgIcon = deleteSavedCustomSvgIcon;
+
+        function resetAllCustomSvgHeaderIcons() {
+            saveCustomHeaderSvgConfig({ replaceDefaultLogo: true, items: {} });
+            renderSavedCustomSvgMappingsList();
+            updateCustomSvgLiveHeaderPreview();
+            if (typeof updateCahierPdfPreview === 'function' && document.getElementById('cahierDeTextesPdfModal')?.style.display === 'flex') {
+                updateCahierPdfPreview();
+            }
+            if (typeof window.updateSheetPreview === 'function') {
+                window.updateSheetPreview();
+            }
+            if (typeof window.showToast === 'function') {
+                window.showToast('تمت استعادة الأيقونات الافتراضية للترويسة المطبوعة بنجاح', 'info');
+            }
+        }
+        window.resetAllCustomSvgHeaderIcons = resetAllCustomSvgHeaderIcons;
+
+        function openCustomHeaderSvgIconsModal(prefillTargetTitle = '', prefillScopeOrSessionType = '') {
+            const modal = document.getElementById('customLessonSvgIconsModal');
+            if (!modal) return;
+
+            const cfg = loadCustomHeaderSvgConfig();
+            const replaceToggle = document.getElementById('customSvgReplaceTeacherLogoToggle');
+            if (replaceToggle) replaceToggle.checked = cfg.replaceDefaultLogo !== false;
+
+            const scopeEl = document.getElementById('customSvgScopeType');
+            if (scopeEl) {
+                if (prefillScopeOrSessionType === 'exercise' || prefillScopeOrSessionType === 'exercices') {
+                    scopeEl.value = prefillTargetTitle ? 'exercise' : 'session_exercices';
+                } else if (prefillScopeOrSessionType === 'lesson' || prefillScopeOrSessionType === 'cours') {
+                    scopeEl.value = 'lesson';
+                }
+            }
+
+            populateCustomSvgKnownTargetsDropdown();
+            renderBuiltInSvgPresetsGrid();
+
+            const targetInput = document.getElementById('customSvgTargetKeyInput');
+            if (targetInput && prefillTargetTitle) {
+                targetInput.value = prefillTargetTitle;
+            }
+
+            const codeArea = document.getElementById('customSvgCodeTextarea');
+            if (codeArea && !codeArea.value.trim()) {
+                const defaultPreset = BUILTIN_MATH_SVG_PRESETS[0];
+                if (defaultPreset) codeArea.value = defaultPreset.svg;
+            }
+
+            renderSavedCustomSvgMappingsList();
+            updateCustomSvgLiveHeaderPreview();
+
+            modal.style.display = 'flex';
+            if (window.renderLucide) window.renderLucide();
+        }
+        window.openCustomHeaderSvgIconsModal = openCustomHeaderSvgIconsModal;
+
+        function closeCustomHeaderSvgIconsModal() {
+            const modal = document.getElementById('customLessonSvgIconsModal');
+            if (modal) modal.style.display = 'none';
+        }
+        window.closeCustomHeaderSvgIconsModal = closeCustomHeaderSvgIconsModal;
 
         function buildOfficialVisasSection(options) {
             const footerBarHtml = `
@@ -38052,6 +39285,9 @@ ${log.notes || 'سير الحصة عادي'}
                 const axesColHtml = formatPedagogicalAxesColumnForPrint(log, logInfo, true);
                 const pedagogicalContentHtml = formatPedagogicalSessionContentForPrint(log, logInfo, { officialClean: true, showAxisHeader: (Array.isArray(log.axes) && log.axes.length > 1) });
                 const cleanHw = cleanPedagogicalLogText(log.homework || '', true);
+                const rowSvgBadge = typeof window.getCustomHeaderSvgBadgeHtml === 'function'
+                    ? window.getCustomHeaderSvgBadgeHtml({ lessonTitle: cleanLessonTitle, sessionType: log.sessionType, size: 18 })
+                    : '';
 
                 return `
                 <tr style="border-bottom: 1.5px solid #cbd5e1; page-break-inside: avoid; background: ${isRemedialSession ? '#fdf4ff' : (idx % 2 === 0 ? '#fff' : '#f8fafc')};">
@@ -38065,7 +39301,7 @@ ${log.notes || 'سير الحصة عادي'}
                         ${isRemedialSession ? `<div style="font-size: 0.66rem; color: #86198f; font-weight: 800; margin-top: 2px;">حصة استدراكية</div>` : ''}
                     </td>
                     <td style="padding: 7px 10px; text-align: right; border: 1px solid #cbd5e1; vertical-align: top;">
-                        <div style="font-weight: 900; color: #0f172a; margin-bottom: 2px;">${escapeHtml(cleanLessonTitle)}</div>
+                        <div style="font-weight: 900; color: #0f172a; margin-bottom: 2px; display: flex; align-items: center; gap: 5px;">${rowSvgBadge}<span>${escapeHtml(cleanLessonTitle)}</span></div>
                         ${axesColHtml}
                         ${(log.remedialReason || log.remedialBeneficiaries) ? `<div style="font-size: 0.7rem; color: #6b21a8; background: #faf5ff; border: 1px dashed #d8b4fe; border-radius: 4px; padding: 2px 6px; margin-top: 3px;"><b>${escapeHtml(log.remedialReason || 'معالجة بيداغوجية')}</b> [${escapeHtml(log.remedialBeneficiaries || 'القسم')}]</div>` : ''}
                     </td>

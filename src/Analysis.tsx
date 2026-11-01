@@ -2076,7 +2076,7 @@ export default function Analysis() {
               { id: 'consolidated_annual', label: 'مختبر التحليل الإحصائي والتفصيلي', icon: Activity },
               { id: 'comparison', label: 'مقارنة الفروض ومسار التلاميذ', icon: Users },
               { id: 'at_risk', label: 'رصد التعثر والتدخل', icon: AlertTriangle },
-              { id: 'ai_remediation', label: 'خطة المعالجة الذكية (AI)', icon: Sparkles }
+              { id: 'ai_remediation', label: 'التوليد التلقائي لخطط المعالجة (الفروض الممسوحة)', icon: Sparkles }
             ].map(p => {
               const Icon = p.icon;
               const isActive = activeTab === p.id || (p.id === 'consolidated_annual' && activeTab === 'overview');
@@ -2746,6 +2746,183 @@ export default function Analysis() {
                       إظهار جميع الفئات ({annualConsolidatedStats.studentProgressRows.length} تلميذ)
                     </button>
                   )}
+                </div>
+              </div>
+
+              {/* Automatic Pedagogical Remediation Plan by Struggling Categories Based on Scanned Exams */}
+              <div className="bg-white p-5 rounded-2xl border-2 border-purple-200/90 shadow-xs space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3.5">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="p-1.5 rounded-xl bg-purple-100 text-purple-700">
+                        <Sparkles className="w-4 h-4" />
+                      </span>
+                      <h3 className="text-sm md:text-base font-black text-slate-900">
+                        التوليد التلقائي لخطط المعالجة البيداغوجية بناءً على نتائج الفروض الممسوحة (تفييء المتعثرين)
+                      </h3>
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-800 border border-purple-200">
+                        المذكرة الوزارية 142-08 • أنشطة دعم مخصصة لكل فئة
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      يصنف النظام التلاميذ المتعثرين آلياً بناءً على نتائج الفروض الممسوحة إلى 4 فئات علاجية ويقترح أنشطة دعم مخصصة لكل فئة
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof (window as any).openFastGrading === 'function') {
+                          (window as any).openFastGrading();
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-extrabold cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <Target className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>ماسح الفروض السريع ⚡</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('ai_remediation')}
+                      className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-black shadow-2xs cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <span>فتح مختبر خطط المعالجة التفصيلي والطباعة (A4) ←</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                  {[
+                    {
+                      id: 'tier_a',
+                      badge: 'الفئة أ (< 7/20)',
+                      title: 'تعثر حاد وهيكلي في الأساسيات',
+                      colorCls: 'border-rose-200 bg-rose-50/40',
+                      badgeCls: 'bg-rose-600 text-white',
+                      chipCls: 'bg-white text-rose-800 border-rose-200',
+                      strategy: 'انغماس علاجي وتفريد التعلمات (2 × 60 د)',
+                      activities: [
+                        'عيادة الحساب الجبري في ℝ والإشارات والحدوديات',
+                        'تفكيك أسئلة الفرض الممسوح إلى مراحل أولية مبسطة'
+                      ],
+                      students: studentMetrics.filter(s => s.avg !== null && s.avg < 7)
+                    },
+                    {
+                      id: 'tier_b',
+                      badge: 'الفئة ب (7 إلى 8.99)',
+                      title: 'تعثر متوسط في التطبيق والاستدلال',
+                      colorCls: 'border-amber-200 bg-amber-50/40',
+                      badgeCls: 'bg-amber-600 text-white',
+                      chipCls: 'bg-white text-amber-900 border-amber-200',
+                      strategy: 'ورشات هياكل البراهين الموجهة (90 د أسبوعياً)',
+                      activities: [
+                        'ورشة هياكل البراهين (القيم الوسيطية، الترجع، الاشتقاق)',
+                        'معالجة الأخطاء الشائعة في التمرين 2 و 3 من الفرض الممسوح'
+                      ],
+                      students: studentMetrics.filter(s => s.avg !== null && s.avg >= 7 && s.avg < 9)
+                    },
+                    {
+                      id: 'tier_c',
+                      badge: 'الفئة ج (9 إلى 9.99)',
+                      title: 'هشاشة على عتبة التحكم والاستيفاء',
+                      colorCls: 'border-blue-200 bg-blue-50/40',
+                      badgeCls: 'bg-blue-600 text-white',
+                      chipCls: 'bg-white text-blue-900 border-blue-200',
+                      strategy: 'التعلم بالقرين وتثبيت الدقة المنهجية (45 د)',
+                      activities: [
+                        'تصحيح تعاوني بالقرين المتفوق لأوراق الفرض الممسوح',
+                        'بطاقات التثبيت السريع لاقتناص النقط الضائعة'
+                      ],
+                      students: studentMetrics.filter(s => s.avg !== null && s.avg >= 9 && s.avg < 10)
+                    },
+                    {
+                      id: 'tier_d',
+                      badge: 'الفئة د (Δ ≤ -1.5 ن)',
+                      title: 'تراجع ظرفي في الفرض الممسوح الأخير',
+                      colorCls: 'border-purple-200 bg-purple-50/40',
+                      badgeCls: 'bg-purple-700 text-white',
+                      chipCls: 'bg-white text-purple-900 border-purple-200',
+                      strategy: 'استدراك موضعي حسب المجزوءة وتفعيل الذروة',
+                      activities: [
+                        'ملخص مفهومي وخريطة ذهنية لمحور الفرض الأخير',
+                        'استثمار فجوة الطاقة الكامنة لاستعادة النسق التصاعدي'
+                      ],
+                      students: studentMetrics.filter(s => (s.avg === null || s.avg >= 10) && s.delta !== null && s.delta <= -1.5)
+                    }
+                  ].map(tier => (
+                    <div
+                      key={tier.id}
+                      className={`p-3.5 rounded-2xl border ${tier.colorCls} flex flex-col justify-between space-y-3`}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-full ${tier.badgeCls}`}>
+                            {tier.badge}
+                          </span>
+                          <span className="font-mono text-xs font-black text-slate-800">
+                            {tier.students.length} تلميذ(ة)
+                          </span>
+                        </div>
+                        <div className="text-xs font-black text-slate-900">{tier.title}</div>
+                        <div className="text-[11px] font-bold text-indigo-800 bg-white/80 px-2 py-1 rounded-lg border border-slate-200/70">
+                          🎯 {tier.strategy}
+                        </div>
+                        <div className="space-y-1 pt-0.5">
+                          <div className="text-[10px] font-extrabold text-slate-700">أنشطة الدعم المقترحة آلياً:</div>
+                          {tier.activities.map((act, i) => (
+                            <div key={i} className="text-[11px] text-slate-600 flex items-start gap-1 leading-snug">
+                              <span className="text-purple-600 font-black">•</span>
+                              <span>{act}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {tier.students.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 pt-1 max-h-20 overflow-y-auto">
+                            {tier.students.slice(0, 6).map(st => (
+                              <span key={st.id} className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${tier.chipCls}`}>
+                                {st.name} ({st.avg})
+                              </span>
+                            ))}
+                            {tier.students.length > 6 && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 text-slate-500">
+                                +{tier.students.length - 6} آخرين
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] font-bold text-emerald-700 bg-emerald-50/80 border border-emerald-200 rounded-lg p-1.5 text-center">
+                            ✓ لا يوجد تلاميذ في هذه الفئة حالياً
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const targetCls = selectedClass === 'all' ? (tier.students[0]?.className || Object.keys(db?.classes || {})[0] || '') : selectedClass;
+                          const studentNames = tier.students.map(s => s.name).join('، ');
+                          if (typeof (window as any).openExtraSupportSessionModal === 'function') {
+                            (window as any).openExtraSupportSessionModal(targetCls, {
+                              title: `معالجة بيداغوجية مخصصة: ${tier.badge} — ${tier.title}`,
+                              reason: `خطة دعم مولدة تلقائياً من نتائج الفروض الممسوحة (${tier.students.length} تلميذ)`,
+                              beneficiaries: `${tier.badge}: ${studentNames || 'تلاميذ الفئة المستهدفة'}`,
+                              type: 'soutien',
+                              summary: `• الفئة المستهدفة: ${tier.title} (${tier.badge}).\n• استراتيجية التدخل: ${tier.strategy}.\n• أنشطة الدعم المبرمجة:\n  1) ${tier.activities[0]}\n  2) ${tier.activities[1]}`,
+                              duration: '2'
+                            });
+                          } else {
+                            setActiveTab('ai_remediation');
+                          }
+                        }}
+                        className="w-full py-1.5 px-2.5 rounded-xl bg-white hover:bg-purple-50 text-purple-800 border border-purple-200 font-extrabold text-[11px] cursor-pointer transition-colors flex items-center justify-center gap-1"
+                      >
+                        <Calendar className="w-3 h-3 text-purple-600" />
+                        <span>برمجة حصة دعم لهذه الفئة 📅</span>
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
 

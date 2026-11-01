@@ -14,6 +14,13 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isDirectGmailSlot(userId) {
+      return userId is string && userId.size() >= 10 && userId.size() <= 128 && userId.matches('^gmail_[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAuthorizedBackupUser(userId) {
+      return isValidId(userId) && (isOwner(userId) || isDirectGmailSlot(userId));
+    }
 
     function isValidId(id) {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
@@ -56,14 +63,14 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get: if isOwner(userId) && isValidId(userId);
-      allow create, update: if isOwner(userId) && isValidId(userId) && isValidUserBackup(incoming());
-      allow delete: if isOwner(userId) && isValidId(userId);
+      allow get: if isAuthorizedBackupUser(userId);
+      allow create, update: if isAuthorizedBackupUser(userId) && isValidUserBackup(incoming());
+      allow delete: if isAuthorizedBackupUser(userId);
 
       match /chunks/{chunkId} {
-        allow get: if isOwner(userId) && isValidId(userId) && isValidId(chunkId);
-        allow create, update: if isOwner(userId) && isValidId(userId) && isValidId(chunkId) && isValidBackupChunk(incoming());
-        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(chunkId);
+        allow get: if isAuthorizedBackupUser(userId) && isValidId(chunkId);
+        allow create, update: if isAuthorizedBackupUser(userId) && isValidId(chunkId) && isValidBackupChunk(incoming());
+        allow delete: if isAuthorizedBackupUser(userId) && isValidId(chunkId);
       }
     }
   }

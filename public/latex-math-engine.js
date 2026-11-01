@@ -925,9 +925,16 @@ $$x * y = \\frac{x + y}{1 + xy}$$
         const duration = document.getElementById('latexSheetDurationInput')?.value || 'ساعتان';
         const ex = state.currentExercise;
 
+        const logosHtml = (typeof window.getDualLogosHTML === 'function')
+            ? window.getDualLogosHTML({ size: 42, title: title, exerciseTitle: ex.title, sessionType: 'exercices' })
+            : '';
+        const exBadgeSvg = (typeof window.getCustomHeaderSvgBadgeHtml === 'function')
+            ? window.getCustomHeaderSvgBadgeHtml({ exerciseTitle: ex.title, title: title, sessionType: 'exercices', size: 22 })
+            : '';
+
         container.innerHTML = `
             <div style="font-family: 'Cairo', system-ui, sans-serif; direction: rtl; color: #0f172a; line-height: 1.5;">
-                <!-- Official Moroccan Header -->
+                <!-- Official Moroccan Header with Custom SVG Exercise Icon -->
                 <div style="border-bottom: 2.5px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
                     <div style="font-size: 0.8rem; font-weight: 700; line-height: 1.4; color: #334155;">
                         <div style="font-size: 0.92rem; font-weight: 900; color: #0f172a;">المملكة المغربية</div>
@@ -936,11 +943,15 @@ $$x * y = \\frac{x + y}{1 + xy}$$
                         <div>${directorate} • ${school}</div>
                     </div>
                     <div style="text-align: center;">
-                        <div style="font-size: 1.25rem; font-weight: 900; color: #1e3a8a;">${title}</div>
+                        <div style="font-size: 1.2rem; font-weight: 900; color: #1e3a8a; display: inline-flex; align-items: center; gap: 7px;">
+                            ${exBadgeSvg}
+                            <span>${title}</span>
+                        </div>
                         <div style="font-size: 0.85rem; font-weight: 800; color: #0d9488; margin-top: 2px;">المستوى: ${ex.levelLabel}</div>
                         <div style="font-size: 0.76rem; color: #64748b; font-weight: 700;">الموسم الدراسي: ${academicYear}</div>
                     </div>
                     <div style="font-size: 0.8rem; font-weight: 700; line-height: 1.4; text-align: left; color: #334155;">
+                        ${logosHtml ? `<div style="display: flex; justify-content: flex-end; margin-bottom: 4px;">${logosHtml}</div>` : ''}
                         <div>المادة: <strong style="color: #1e3a8a;">${subject}</strong></div>
                         <div>الأستاذ: <strong>${teacherName}</strong></div>
                         <div>مدة الإنجاز: <strong>${duration}</strong></div>
@@ -959,7 +970,10 @@ $$x * y = \\frac{x + y}{1 + xy}$$
                 <!-- Exercise Content -->
                 <div style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 14px; background: #ffffff;">
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 10px;">
-                        <span style="font-weight: 900; font-size: 1.05rem; color: #1e3a8a;">【 ${ex.title} 】</span>
+                        <span style="font-weight: 900; font-size: 1.05rem; color: #1e3a8a; display: inline-flex; align-items: center; gap: 6px;">
+                            ${exBadgeSvg}
+                            <span>【 ${ex.title} 】</span>
+                        </span>
                         <span style="font-size: 0.8rem; font-weight: 800; color: #0d9488; background: #f0fdfa; border: 1px solid #ccfbf1; padding: 2px 8px; border-radius: 4px;">
                             ${ex.bareme}
                         </span>

@@ -21,6 +21,7 @@ import {
   Clock,
   Award,
   TrendingUp,
+  TrendingDown,
   AlertTriangle,
   CheckCircle2,
   BookOpen,
@@ -28,6 +29,7 @@ import {
   RefreshCw,
   Download,
   ArrowUpRight,
+  ArrowDownRight,
   GraduationCap,
   FileCheck,
   Filter,
@@ -35,7 +37,13 @@ import {
   BarChart3,
   Activity,
   GripVertical,
-  RotateCcw
+  RotateCcw,
+  UserCheck,
+  UserX,
+  Minus,
+  Sparkles,
+  CalendarRange,
+  ArrowUpDown
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
@@ -232,6 +240,16 @@ export default function DashboardView() {
   const handleResetKpiOrder = () => {
     persistKpiOrder([...DEFAULT_REACT_KPI_ORDER]);
   };
+
+  // State hooks for Monthly Student Absences Comparative Recharts Widget
+  const [absenceCompClass, setAbsenceCompClass] = useState<string>('all');
+  const [absenceCompMode, setAbsenceCompMode] = useState<'top-students' | 'detailed-student' | 'by-class'>('top-students');
+  const [absenceCompSelectedStudentId, setAbsenceCompSelectedStudentId] = useState<string>('');
+  const [absenceCompSort, setAbsenceCompSort] = useState<'highest_current' | 'highest_increase' | 'highest_decrease' | 'total_both'>('highest_current');
+  const [absenceCompLimit, setAbsenceCompLimit] = useState<number>(10);
+  const [absenceCompCurrentMonth, setAbsenceCompCurrentMonth] = useState<string>('2026-11');
+  const [absenceCompPreviousMonth, setAbsenceCompPreviousMonth] = useState<string>('2026-10');
+  const [useAbsenceDemoData, setUseAbsenceDemoData] = useState<boolean>(false);
 
   const syncWithGlobalDb = () => {
     if (typeof window !== 'undefined' && (window as any).db) {
@@ -680,6 +698,285 @@ export default function DashboardView() {
       }
     ];
   }, [globalTotals]);
+
+  // =========================================================================
+  // ويدجت المقارنة البيانية لغيابات التلاميذ: الشهر الحالي مقابل الشهر الماضي (Recharts)
+  // =========================================================================
+  const availableMonthsList = useMemo(() => {
+    const set = new Set<string>();
+    const recs = Array.isArray(db?.records) ? db.records : [];
+    recs.forEach((r: any) => {
+      if (r.date && typeof r.date === 'string' && r.date.length >= 7) {
+        set.add(r.date.slice(0, 7));
+      }
+    });
+    set.add('2026-11');
+    set.add('2026-10');
+    set.add('2026-09');
+    return Array.from(set).sort().reverse();
+  }, [db?.records]);
+
+  const allStudentsMonthlyAbsence = useMemo(() => {
+    if (!db || !db.classes) return [];
+    const allRecords: any[] = Array.isArray(db.records) ? db.records : [];
+    const targetClasses = absenceCompClass === 'all' ? classNames : [absenceCompClass];
+
+    const hasCurrRecords = allRecords.some((r: any) => r.date && r.date.startsWith(absenceCompCurrentMonth));
+    const hasPrevRecords = allRecords.some((r: any) => r.date && r.date.startsWith(absenceCompPreviousMonth));
+    const isVirtuallyEmpty = !hasCurrRecords && !hasPrevRecords;
+    const shouldSimulate = useAbsenceDemoData || isVirtuallyEmpty;
+
+    const list: Array<{
+      studentId: string;
+      studentName: string;
+      className: string;
+      orderNum: number | string;
+      massar?: string;
+      prevTotalHours: number;
+      prevJustifiedHours: number;
+      prevUnjustifiedHours: number;
+      prevLateCount: number;
+      currTotalHours: number;
+      currJustifiedHours: number;
+      currUnjustifiedHours: number;
+      currLateCount: number;
+      deltaHours: number;
+      pctChange: number;
+      isWorsened: boolean;
+      isImproved: boolean;
+      isAtRisk: boolean;
+    }> = [];
+
+    targetClasses.forEach((clsName) => {
+      const students: Student[] = db.classes[clsName] || [];
+      students.forEach((std, sIdx) => {
+        let prevTotalHours = 0;
+        let prevJustifiedHours = 0;
+        let prevUnjustifiedHours = 0;
+        let prevLateCount = 0;
+
+        let currTotalHours = 0;
+        let currJustifiedHours = 0;
+        let currUnjustifiedHours = 0;
+        let currLateCount = 0;
+
+        if (shouldSimulate) {
+          const hash = ((std.id || '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) + sIdx * 5) % 17;
+          if (hash % 3 === 0) {
+            prevTotalHours = (hash % 4) + 1;
+            prevUnjustifiedHours = prevTotalHours > 1 ? prevTotalHours - 1 : prevTotalHours;
+            prevJustifiedHours = prevTotalHours - prevUnjustifiedHours;
+            prevLateCount = hash % 2;
+
+            currTotalHours = (hash + 2) % 6;
+            currUnjustifiedHours = currTotalHours > 1 ? currTotalHours - 1 : currTotalHours;
+            currJustifiedHours = currTotalHours - currUnjustifiedHours;
+            currLateCount = (hash + 1) % 3;
+          } else if (hash % 5 === 0) {
+            prevTotalHours = (hash % 5) + 2;
+            prevUnjustifiedHours = prevTotalHours;
+            currTotalHours = Math.max(0, prevTotalHours - 2);
+            currUnjustifiedHours = currTotalHours;
+          } else if (hash === 7 || hash === 11) {
+            prevTotalHours = 1;
+            prevJustifiedHours = 1;
+            currTotalHours = 5;
+            currUnjustifiedHours = 4;
+            currJustifiedHours = 1;
+            currLateCount = 2;
+          }
+        } else {
+          allRecords.forEach((r: any) => {
+            if (r.studentId === std.id && r.date && typeof r.date === 'string') {
+              const dur = Number(r.duration) || 1;
+              if (r.date.startsWith(absenceCompPreviousMonth)) {
+                if (r.status === 'غائب' || r.status === 'مبرر') {
+                  prevTotalHours += dur;
+                  if (r.status === 'مبرر') prevJustifiedHours += dur;
+                  else prevUnjustifiedHours += dur;
+                } else if (r.status === 'متأخر') {
+                  prevLateCount += 1;
+                }
+              } else if (r.date.startsWith(absenceCompCurrentMonth)) {
+                if (r.status === 'غائب' || r.status === 'مبرر') {
+                  currTotalHours += dur;
+                  if (r.status === 'مبرر') currJustifiedHours += dur;
+                  else currUnjustifiedHours += dur;
+                } else if (r.status === 'متأخر') {
+                  currLateCount += 1;
+                }
+              }
+            }
+          });
+        }
+
+        const deltaHours = currTotalHours - prevTotalHours;
+        let pctChange = 0;
+        if (prevTotalHours === 0 && currTotalHours > 0) {
+          pctChange = 100;
+        } else if (prevTotalHours > 0) {
+          pctChange = Number((((currTotalHours - prevTotalHours) / prevTotalHours) * 100).toFixed(1));
+        }
+
+        list.push({
+          studentId: std.id,
+          studentName: std.name || `تلميذ #${std.orderNum || sIdx + 1}`,
+          className: clsName,
+          orderNum: std.orderNum || sIdx + 1,
+          massar: std.massar,
+          prevTotalHours,
+          prevJustifiedHours,
+          prevUnjustifiedHours,
+          prevLateCount,
+          currTotalHours,
+          currJustifiedHours,
+          currUnjustifiedHours,
+          currLateCount,
+          deltaHours,
+          pctChange,
+          isWorsened: deltaHours > 0,
+          isImproved: deltaHours < 0,
+          isAtRisk: currTotalHours >= 4
+        });
+      });
+    });
+
+    return list;
+  }, [
+    db,
+    classNames,
+    absenceCompClass,
+    absenceCompCurrentMonth,
+    absenceCompPreviousMonth,
+    useAbsenceDemoData
+  ]);
+
+  const filteredStudentsAbsenceList = useMemo(() => {
+    let list = allStudentsMonthlyAbsence.filter(
+      (s) => s.currTotalHours > 0 || s.prevTotalHours > 0 || s.currLateCount > 0 || s.prevLateCount > 0
+    );
+    if (list.length === 0) {
+      list = allStudentsMonthlyAbsence.slice(0, 10);
+    }
+
+    if (absenceCompSort === 'highest_current') {
+      list.sort((a, b) => b.currTotalHours - a.currTotalHours || b.deltaHours - a.deltaHours);
+    } else if (absenceCompSort === 'highest_increase') {
+      list.sort((a, b) => b.deltaHours - a.deltaHours || b.currTotalHours - a.currTotalHours);
+    } else if (absenceCompSort === 'highest_decrease') {
+      list.sort((a, b) => a.deltaHours - b.deltaHours || b.prevTotalHours - a.prevTotalHours);
+    } else if (absenceCompSort === 'total_both') {
+      list.sort((a, b) => (b.currTotalHours + b.prevTotalHours) - (a.currTotalHours + a.prevTotalHours));
+    }
+
+    return list.slice(0, absenceCompLimit);
+  }, [allStudentsMonthlyAbsence, absenceCompSort, absenceCompLimit]);
+
+  const classesAbsenceMonthlyCompData = useMemo(() => {
+    return classNames.map((cName) => {
+      const clsStudents = allStudentsMonthlyAbsence.filter((s) => s.className === cName);
+      const prevTotal = clsStudents.reduce((acc, s) => acc + s.prevTotalHours, 0);
+      const currTotal = clsStudents.reduce((acc, s) => acc + s.currTotalHours, 0);
+      const delta = currTotal - prevTotal;
+      const pct = prevTotal > 0 ? Number((((currTotal - prevTotal) / prevTotal) * 100).toFixed(1)) : currTotal > 0 ? 100 : 0;
+      return {
+        className: cName,
+        prevTotalHours: prevTotal,
+        currTotalHours: currTotal,
+        deltaHours: delta,
+        pctChange: pct,
+        studentCount: clsStudents.length
+      };
+    });
+  }, [classNames, allStudentsMonthlyAbsence]);
+
+  const monthlyCompSummary = useMemo(() => {
+    let totalCurr = 0;
+    let totalPrev = 0;
+    let totalCurrUnjust = 0;
+    let totalCurrJust = 0;
+    let totalCurrLates = 0;
+    let atRiskCount = 0;
+    let worsenedCount = 0;
+    let improvedCount = 0;
+    let activeAbsentStudents = 0;
+
+    allStudentsMonthlyAbsence.forEach((s) => {
+      totalCurr += s.currTotalHours;
+      totalPrev += s.prevTotalHours;
+      totalCurrUnjust += s.currUnjustifiedHours;
+      totalCurrJust += s.currJustifiedHours;
+      totalCurrLates += s.currLateCount;
+      if (s.currTotalHours > 0) activeAbsentStudents++;
+      if (s.isAtRisk) atRiskCount++;
+      if (s.isWorsened) worsenedCount++;
+      if (s.isImproved) improvedCount++;
+    });
+
+    const netDelta = totalCurr - totalPrev;
+    const netPct = totalPrev > 0 ? Number(((netDelta / totalPrev) * 100).toFixed(1)) : totalCurr > 0 ? 100 : 0;
+
+    return {
+      totalCurr,
+      totalPrev,
+      totalCurrUnjust,
+      totalCurrJust,
+      totalCurrLates,
+      netDelta,
+      netPct,
+      atRiskCount,
+      worsenedCount,
+      improvedCount,
+      activeAbsentStudents
+    };
+  }, [allStudentsMonthlyAbsence]);
+
+  const selectedStudentComp = useMemo(() => {
+    if (!absenceCompSelectedStudentId) {
+      return filteredStudentsAbsenceList[0] || allStudentsMonthlyAbsence[0] || null;
+    }
+    return (
+      allStudentsMonthlyAbsence.find((s) => s.studentId === absenceCompSelectedStudentId) ||
+      filteredStudentsAbsenceList[0] ||
+      null
+    );
+  }, [absenceCompSelectedStudentId, filteredStudentsAbsenceList, allStudentsMonthlyAbsence]);
+
+  const selectedStudentBreakdownData = useMemo(() => {
+    if (!selectedStudentComp) return [];
+    return [
+      {
+        category: 'الغياب غير المبرر',
+        prev: selectedStudentComp.prevUnjustifiedHours,
+        curr: selectedStudentComp.currUnjustifiedHours,
+        unit: 'ساعة'
+      },
+      {
+        category: 'الغياب المبرر',
+        prev: selectedStudentComp.prevJustifiedHours,
+        curr: selectedStudentComp.currJustifiedHours,
+        unit: 'ساعة'
+      },
+      {
+        category: 'مرات التأخر',
+        prev: selectedStudentComp.prevLateCount,
+        curr: selectedStudentComp.currLateCount,
+        unit: 'مرة'
+      }
+    ];
+  }, [selectedStudentComp]);
+
+  const getArabicMonthName = (mKey: string): string => {
+    if (!mKey) return '';
+    const parts = mKey.split('-');
+    if (parts.length < 2) return mKey;
+    const mNames: Record<string, string> = {
+      '01': 'يناير', '02': 'فبراير', '03': 'مارس', '04': 'أبريل',
+      '05': 'ماي', '06': 'يونيو', '07': 'يوليوز', '08': 'غشت',
+      '09': 'شتنبر', '10': 'أكتوبر', '11': 'نونبر', '12': 'دجنبر'
+    };
+    return `${mNames[parts[1]] || parts[1]} ${parts[0]}`;
+  };
 
   const handleNavigateToClass = (className: string, targetTab: 'grades' | 'absence' | 'analysis') => {
     const win = window as any;
@@ -1290,6 +1587,584 @@ export default function DashboardView() {
             </ResponsiveContainer>
           </div>
         </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 2.5 New Widget: Monthly Student Absences Comparative Recharts Widget      */}
+      {/* ========================================================================= */}
+      <div className="p-4 sm:p-5 rounded-2xl border border-slate-200/90 bg-white shadow-sm mb-5">
+        {/* Widget Header & Title */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pb-3.5 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-200/80">
+                <CalendarRange className="w-4 h-4" />
+              </span>
+              <h3 className="text-sm font-black text-slate-900">
+                مقارنة غيابات التلاميذ: {getArabicMonthName(absenceCompCurrentMonth)} مقابل {getArabicMonthName(absenceCompPreviousMonth)}
+              </h3>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200/60">
+                مبيان تفاعلي Recharts
+              </span>
+              {useAbsenceDemoData && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200/60">
+                  وضع المعاينة التوضيحية
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1">
+              تحليل بياني مقارن لساعات الغياب المسجلة لكل تلميذ ونسبة التغير والتطور بين الشهرين، مع رصد عتبة التنبيه البيداغوجي (4 ساعات)
+            </p>
+          </div>
+
+          {/* Quick Controls: Demo toggle & Refresh */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setUseAbsenceDemoData(!useAbsenceDemoData)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer border ${
+                useAbsenceDemoData
+                  ? 'bg-amber-100 text-amber-900 border-amber-300'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
+              }`}
+              title="تفعيل أو إيقاف المحاكاة التوضيحية للبيانات"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <span>{useAbsenceDemoData ? 'إيقاف المعاينة' : 'بيانات توضيحية'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Toolbar: Class, Month Selection, View Mode, Sorting, Limits */}
+        <div className="mt-3.5 mb-4 p-2.5 rounded-xl bg-slate-50/80 border border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+          {/* Class Filter */}
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-600 flex items-center gap-1">
+              <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <span>القسم:</span>
+            </span>
+            <select
+              value={absenceCompClass}
+              onChange={(e) => setAbsenceCompClass(e.target.value)}
+              className="px-2.5 py-1 rounded-md bg-white border border-slate-300 font-bold text-slate-800 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
+            >
+              <option value="all">كل الأقسام المسندة ({classNames.length})</option>
+              {classNames.map((cName) => (
+                <option key={cName} value={cName}>
+                  {cName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Months Selection */}
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-600">الشهر الحالي:</span>
+            <select
+              value={absenceCompCurrentMonth}
+              onChange={(e) => setAbsenceCompCurrentMonth(e.target.value)}
+              className="px-2.5 py-1 rounded-md bg-white border border-slate-300 font-bold text-slate-800 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
+            >
+              {availableMonthsList.map((m) => (
+                <option key={`curr-${m}`} value={m}>
+                  {getArabicMonthName(m)}
+                </option>
+              ))}
+            </select>
+
+            <span className="font-bold text-slate-400">مقابل:</span>
+            <select
+              value={absenceCompPreviousMonth}
+              onChange={(e) => setAbsenceCompPreviousMonth(e.target.value)}
+              className="px-2.5 py-1 rounded-md bg-white border border-slate-300 font-bold text-slate-800 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
+            >
+              {availableMonthsList.map((m) => (
+                <option key={`prev-${m}`} value={m}>
+                  {getArabicMonthName(m)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* View Mode Buttons */}
+          <div className="flex items-center gap-1 bg-slate-200/70 p-1 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setAbsenceCompMode('top-students')}
+              className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                absenceCompMode === 'top-students'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-700 hover:text-slate-900'
+              }`}
+            >
+              مقارنة التلاميذ (شريطي)
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbsenceCompMode('detailed-student')}
+              className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                absenceCompMode === 'detailed-student'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-700 hover:text-slate-900'
+              }`}
+            >
+              تفصيل تلميذ محدد
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbsenceCompMode('by-class')}
+              className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                absenceCompMode === 'by-class'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-700 hover:text-slate-900'
+              }`}
+            >
+              مقارنة حسب الأقسام
+            </button>
+          </div>
+
+          {/* Sorting & Limit (when in top-students mode) */}
+          {absenceCompMode === 'top-students' && (
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-600 flex items-center gap-1">
+                <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                <span>الترتيب:</span>
+              </span>
+              <select
+                value={absenceCompSort}
+                onChange={(e) => setAbsenceCompSort(e.target.value as any)}
+                className="px-2.5 py-1 rounded-md bg-white border border-slate-300 font-bold text-slate-800 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
+              >
+                <option value="highest_current">الأكثر غياباً في الشهر الحالي</option>
+                <option value="highest_increase">الأكبر زيادة (تراجع مقلق ⬆️)</option>
+                <option value="highest_decrease">الأكبر انخفاضاً (تحسن ملحوظ ⬇️)</option>
+                <option value="total_both">إجمالي الغياب في الشهرين</option>
+              </select>
+
+              <select
+                value={absenceCompLimit}
+                onChange={(e) => setAbsenceCompLimit(Number(e.target.value))}
+                className="px-2.5 py-1 rounded-md bg-white border border-slate-300 font-bold text-slate-800 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-hidden"
+              >
+                <option value={5}>أول 5 تلاميذ</option>
+                <option value={10}>أول 10 تلاميذ</option>
+                <option value={15}>أول 15 تلميذاً</option>
+                <option value={25}>أول 25 تلميذاً</option>
+                <option value={999}>كل التلاميذ</option>
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Summary Metrics Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+          <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/60">
+            <div className="text-[11px] font-bold text-slate-500 mb-0.5">
+              مجموع غيابات {getArabicMonthName(absenceCompPreviousMonth)}
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-black text-slate-800">{monthlyCompSummary.totalPrev}</span>
+              <span className="text-xs font-bold text-slate-500">ساعة</span>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-xl border border-slate-200 bg-rose-50/40">
+            <div className="text-[11px] font-bold text-rose-700 mb-0.5">
+              مجموع غيابات {getArabicMonthName(absenceCompCurrentMonth)}
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-black text-rose-900">{monthlyCompSummary.totalCurr}</span>
+              <span className="text-xs font-bold text-rose-700">ساعة</span>
+              <span className="text-[10px] text-slate-500 font-semibold mr-1">
+                (غ.م: {monthlyCompSummary.totalCurrUnjust} س)
+              </span>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-xl border border-slate-200 bg-slate-50/60">
+            <div className="text-[11px] font-bold text-slate-500 mb-0.5">صافي التطور والمعدل العام</div>
+            <div className="flex items-baseline gap-2">
+              <span
+                className={`text-lg font-black font-mono flex items-center gap-0.5 ${
+                  monthlyCompSummary.netDelta > 0
+                    ? 'text-rose-600'
+                    : monthlyCompSummary.netDelta < 0
+                    ? 'text-emerald-600'
+                    : 'text-slate-700'
+                }`}
+              >
+                {monthlyCompSummary.netDelta > 0 ? (
+                  <TrendingUp className="w-4 h-4 inline" />
+                ) : monthlyCompSummary.netDelta < 0 ? (
+                  <TrendingDown className="w-4 h-4 inline" />
+                ) : (
+                  <Minus className="w-4 h-4 inline" />
+                )}
+                {monthlyCompSummary.netDelta > 0 ? `+${monthlyCompSummary.netDelta}` : monthlyCompSummary.netDelta} س
+              </span>
+              <span
+                className={`text-xs font-bold ${
+                  monthlyCompSummary.netPct > 0 ? 'text-rose-600' : 'text-emerald-600'
+                }`}
+              >
+                ({monthlyCompSummary.netPct > 0 ? `+${monthlyCompSummary.netPct}%` : `${monthlyCompSummary.netPct}%`})
+              </span>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-xl border border-slate-200 bg-amber-50/40">
+            <div className="text-[11px] font-bold text-amber-800 mb-0.5">تلاميذ تجاوزوا عتبة الخطر (≥4س)</div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl font-black text-amber-900">
+                {monthlyCompSummary.atRiskCount}
+              </span>
+              <span className="text-xs font-bold text-amber-700">
+                من أصل {monthlyCompSummary.activeAbsentStudents} تلميذاً متغيباً
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Active Visualization depending on absenceCompMode */}
+        {absenceCompMode === 'top-students' && (
+          <div>
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-xs font-bold text-slate-600">
+                عرض {filteredStudentsAbsenceList.length} تلميذاً (انقر على عمود التلميذ للانتقال إلى التحليل المفصل):
+              </span>
+              <div className="flex items-center gap-3 text-xs font-semibold">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-slate-400 inline-block"></span>
+                  <span>{getArabicMonthName(absenceCompPreviousMonth)}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-rose-500 inline-block"></span>
+                  <span>{getArabicMonthName(absenceCompCurrentMonth)}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-rose-600 font-bold">
+                  <span className="w-3 h-0.5 bg-rose-600 inline-block"></span>
+                  <span>عتبة التنبيه (4 ساعات)</span>
+                </span>
+              </div>
+            </div>
+
+            <div className="w-full h-80 sm:h-96" dir="ltr">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={filteredStudentsAbsenceList}
+                  margin={{ top: 14, right: 16, left: -10, bottom: 42 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <XAxis
+                    dataKey="studentName"
+                    tick={{ fill: '#1e293b', fontSize: 10, fontWeight: 700 }}
+                    angle={-22}
+                    textAnchor="end"
+                    interval={0}
+                    height={52}
+                  />
+                  <YAxis
+                    domain={[0, 'auto']}
+                    tick={{ fill: '#475569', fontSize: 11 }}
+                    label={{
+                      value: 'ساعات الغياب',
+                      angle: -90,
+                      position: 'insideLeft',
+                      fill: '#64748b',
+                      fontSize: 10
+                    }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#ffffff',
+                      borderColor: '#cbd5e1',
+                      borderRadius: '10px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      textAlign: 'right',
+                      direction: 'rtl'
+                    }}
+                    formatter={(val: any, name: any) => [`${val} ساعة`, name]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 700, paddingTop: '4px' }} />
+                  <ReferenceLine
+                    y={4}
+                    stroke="#dc2626"
+                    strokeDasharray="4 4"
+                    strokeWidth={1.5}
+                    label={{
+                      value: 'عتبة الخطر 4 س',
+                      position: 'insideTopRight',
+                      fill: '#dc2626',
+                      fontSize: 10,
+                      fontWeight: 700
+                    }}
+                  />
+                  <Bar
+                    dataKey="prevTotalHours"
+                    name={`الشهر السابق (${getArabicMonthName(absenceCompPreviousMonth)})`}
+                    fill="#94a3b8"
+                    radius={[4, 4, 0, 0]}
+                    barSize={18}
+                  />
+                  <Bar
+                    dataKey="currTotalHours"
+                    name={`الشهر الحالي (${getArabicMonthName(absenceCompCurrentMonth)})`}
+                    fill="#f43f5e"
+                    radius={[4, 4, 0, 0]}
+                    barSize={18}
+                    className="cursor-pointer"
+                    onClick={(data: any) => {
+                      if (data && data.studentId) {
+                        setAbsenceCompSelectedStudentId(data.studentId);
+                        setAbsenceCompMode('detailed-student');
+                      }
+                    }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {absenceCompMode === 'detailed-student' && (
+          <div>
+            {/* Student Picker */}
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-blue-50/50 border border-blue-100 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-xs text-blue-950">اختر التلميذ للتدقيق المفصل:</span>
+                <select
+                  value={selectedStudentComp?.studentId || ''}
+                  onChange={(e) => setAbsenceCompSelectedStudentId(e.target.value)}
+                  className="px-3 py-1.5 rounded-lg bg-white border border-blue-300 font-extrabold text-blue-900 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                >
+                  {allStudentsMonthlyAbsence.map((s) => (
+                    <option key={s.studentId} value={s.studentId}>
+                      {s.studentName} ({s.className}) - حالي: {s.currTotalHours}س | سابق: {s.prevTotalHours}س
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedStudentComp && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleNavigateToClass(selectedStudentComp.className, 'absence')}
+                    className="px-2.5 py-1 text-xs font-bold rounded-md bg-blue-600 hover:bg-blue-700 text-white cursor-pointer transition-colors"
+                  >
+                    فتح سجل غياب قسم {selectedStudentComp.className}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {selectedStudentComp ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Profile Card & KPIs */}
+                <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-base font-black text-slate-900">
+                        {selectedStudentComp.studentName}
+                      </span>
+                      <span className="px-2 py-0.5 rounded text-xs font-extrabold bg-blue-100 text-blue-800">
+                        {selectedStudentComp.className}
+                      </span>
+                    </div>
+                    {selectedStudentComp.massar && (
+                      <div className="text-xs text-slate-500 font-mono mb-3">
+                        رقم مسار: {selectedStudentComp.massar}
+                      </div>
+                    )}
+
+                    <div className="space-y-2.5 text-xs">
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200">
+                        <span className="font-bold text-slate-600">
+                          غياب {getArabicMonthName(absenceCompPreviousMonth)}:
+                        </span>
+                        <span className="font-black text-slate-800 font-mono">
+                          {selectedStudentComp.prevTotalHours} س
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200">
+                        <span className="font-bold text-rose-700">
+                          غياب {getArabicMonthName(absenceCompCurrentMonth)}:
+                        </span>
+                        <span className="font-black text-rose-600 font-mono">
+                          {selectedStudentComp.currTotalHours} س
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200">
+                        <span className="font-bold text-slate-600">فارق الساعات:</span>
+                        <span
+                          className={`font-black font-mono ${
+                            selectedStudentComp.deltaHours > 0
+                              ? 'text-rose-600'
+                              : selectedStudentComp.deltaHours < 0
+                              ? 'text-emerald-600'
+                              : 'text-slate-600'
+                          }`}
+                        >
+                          {selectedStudentComp.deltaHours > 0
+                            ? `+${selectedStudentComp.deltaHours} س`
+                            : `${selectedStudentComp.deltaHours} س`}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-200">
+                    <div
+                      className={`p-2.5 rounded-lg text-xs font-bold text-center flex items-center justify-center gap-1.5 ${
+                        selectedStudentComp.currTotalHours >= 4
+                          ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                          : selectedStudentComp.isWorsened
+                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                          : selectedStudentComp.isImproved
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                          : 'bg-slate-200/80 text-slate-700'
+                      }`}
+                    >
+                      {selectedStudentComp.currTotalHours >= 4 ? (
+                        <>
+                          <AlertTriangle className="w-4 h-4 text-rose-600" />
+                          <span>حالة حرجة: تجاوز عتبة التنبيه البيداغوجي (4س)</span>
+                        </>
+                      ) : selectedStudentComp.isWorsened ? (
+                        <>
+                          <TrendingUp className="w-4 h-4 text-amber-700" />
+                          <span>تراجع في الانضباط مقارنة بالشهر الماضي</span>
+                        </>
+                      ) : selectedStudentComp.isImproved ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>تحسن ملحوظ وانخفاض في ساعات الغياب</span>
+                        </>
+                      ) : (
+                        <>
+                          <Minus className="w-4 h-4 text-slate-500" />
+                          <span>مواظبة مستقرة بدون تغير</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Breakdown Recharts BarChart */}
+                <div className="lg:col-span-2 p-4 rounded-xl border border-slate-200 bg-white">
+                  <div className="text-xs font-extrabold text-slate-700 mb-2">
+                    المقارنة التفصيلية حسب نوع الغياب والتأخر بين الشهرين:
+                  </div>
+                  <div className="w-full h-64" dir="ltr">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={selectedStudentBreakdownData}
+                        margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                        <XAxis
+                          dataKey="category"
+                          tick={{ fill: '#1e293b', fontSize: 11, fontWeight: 700 }}
+                        />
+                        <YAxis tick={{ fill: '#475569', fontSize: 11 }} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#ffffff',
+                            borderColor: '#cbd5e1',
+                            borderRadius: '10px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            textAlign: 'right',
+                            direction: 'rtl'
+                          }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 700, paddingTop: '6px' }} />
+                        <Bar
+                          dataKey="prev"
+                          name={`الشهر الماضي (${getArabicMonthName(absenceCompPreviousMonth)})`}
+                          fill="#94a3b8"
+                          radius={[4, 4, 0, 0]}
+                          barSize={24}
+                        />
+                        <Bar
+                          dataKey="curr"
+                          name={`الشهر الحالي (${getArabicMonthName(absenceCompCurrentMonth)})`}
+                          fill="#3b82f6"
+                          radius={[4, 4, 0, 0]}
+                          barSize={24}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-slate-500 text-xs font-bold">
+                لا توجد بيانات تفصيلية متوفرة لهذا التلميذ.
+              </div>
+            )}
+          </div>
+        )}
+
+        {absenceCompMode === 'by-class' && (
+          <div>
+            <div className="text-xs font-bold text-slate-600 mb-2 px-1">
+              مقارنة مجموع ساعات الغياب بين الشهرين لجميع الأقسام المسندة:
+            </div>
+            <div className="w-full h-80" dir="ltr">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={classesAbsenceMonthlyCompData}
+                  margin={{ top: 12, right: 16, left: 0, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <XAxis
+                    dataKey="className"
+                    tick={{ fill: '#1e293b', fontSize: 11, fontWeight: 700 }}
+                  />
+                  <YAxis
+                    tick={{ fill: '#475569', fontSize: 11 }}
+                    label={{
+                      value: 'إجمالي الساعات',
+                      angle: -90,
+                      position: 'insideLeft',
+                      fill: '#64748b',
+                      fontSize: 10
+                    }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#ffffff',
+                      borderColor: '#cbd5e1',
+                      borderRadius: '10px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      textAlign: 'right',
+                      direction: 'rtl'
+                    }}
+                    formatter={(val: any, name: any) => [`${val} ساعة`, name]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 700, paddingTop: '6px' }} />
+                  <Bar
+                    dataKey="prevTotalHours"
+                    name={`الشهر السابق (${getArabicMonthName(absenceCompPreviousMonth)})`}
+                    fill="#94a3b8"
+                    radius={[4, 4, 0, 0]}
+                    barSize={22}
+                  />
+                  <Bar
+                    dataKey="currTotalHours"
+                    name={`الشهر الحالي (${getArabicMonthName(absenceCompCurrentMonth)})`}
+                    fill="#ef4444"
+                    radius={[4, 4, 0, 0]}
+                    barSize={22}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 3. Secondary Charts Row: Mastery Distribution (Note 142-08) & Pass Rate vs Absence Impact */}

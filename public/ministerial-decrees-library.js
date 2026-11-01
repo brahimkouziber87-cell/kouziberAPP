@@ -102,15 +102,33 @@
      */
     function copyLegalCitation(decreeNumber, articleTitle, articleText) {
         const citation = `السند القانوني التنظيمي (${decreeNumber} - مادة: ${articleTitle}):\n«${articleText}»`;
-        navigator.clipboard.writeText(citation).then(() => {
-            if (typeof window.showToast === 'function') {
-                window.showToast('تم نسخ السند القانوني للحافظة بنجاح للاستشهاد به في تقاريرك!', 'success');
-            } else {
-                alert('تم نسخ السند القانوني بنجاح!');
+        const notify = () => {
+            const toastFn = window.showAppToast || window.showToast;
+            if (typeof toastFn === 'function') {
+                toastFn('📋 تم نسخ السند القانوني للحافظة بنجاح للاستشهاد به في تقاريرك!', 'success');
             }
-        }).catch(() => {
-            alert(citation);
-        });
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(citation).then(notify).catch(() => {
+                const ta = document.createElement('textarea');
+                ta.value = citation;
+                ta.style.cssText = 'position:fixed;left:-9999px;';
+                document.body.appendChild(ta);
+                ta.select();
+                try { document.execCommand('copy'); } catch (e) {}
+                document.body.removeChild(ta);
+                notify();
+            });
+        } else {
+            const ta = document.createElement('textarea');
+            ta.value = citation;
+            ta.style.cssText = 'position:fixed;left:-9999px;';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch (e) {}
+            document.body.removeChild(ta);
+            notify();
+        }
     }
 
     /**
