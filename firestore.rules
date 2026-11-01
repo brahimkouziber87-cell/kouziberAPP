@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidUserBackup(data) {
+      return data.keys().hasOnly([
+          'appData',
+          'isCompressed',
+          'isChunked',
+          'chunksCount',
+          'totalRawSize',
+          'compressedSize',
+          'lastUpdated',
+          'lastSavedTimestamp',
+          'userEmail'
+        ])
+        && (!('appData' in data) || (data.appData is string && data.appData.size() <= 900000))
+        && (!('isCompressed' in data) || data.isCompressed is bool)
+        && (!('isChunked' in data) || data.isChunked is bool)
+        && (!('chunksCount' in data) || (data.chunksCount is number && data.chunksCount >= 0 && data.chunksCount <= 500))
+        && (!('totalRawSize' in data) || (data.totalRawSize is number && data.totalRawSize >= 0))
+        && (!('compressedSize' in data) || (data.compressedSize is number && data.compressedSize >= 0))
+        && (!('lastUpdated' in data) || (data.lastUpdated is string && data.lastUpdated.size() <= 64))
+        && (!('lastSavedTimestamp' in data) || (data.lastSavedTimestamp is number && data.lastSavedTimestamp >= 0))
+        && (!('userEmail' in data) || (data.userEmail is string && data.userEmail.size() <= 256));
+    }
+
+    function isValidBackupChunk(data) {
+      return data.keys().hasAll(['chunk', 'index', 'totalChunks', 'lastUpdated'])
+        && data.keys().hasOnly(['chunk', 'index', 'totalChunks', 'lastUpdated'])
+        && data.chunk is string && data.chunk.size() <= 900000
+        && data.index is number && data.index >= 0 && data.index <= 500
+        && data.totalChunks is number && data.totalChunks >= 1 && data.totalChunks <= 500
+        && data.lastUpdated is string && data.lastUpdated.size() <= 64;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create, update: if isOwner(userId) && isValidId(userId) && isValidUserBackup(incoming());
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /chunks/{chunkId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(chunkId);
+        allow create, update: if isOwner(userId) && isValidId(userId) && isValidId(chunkId) && isValidBackupChunk(incoming());
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(chunkId);
+      }
+    }
+  }
+}
