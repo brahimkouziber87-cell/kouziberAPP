@@ -1008,7 +1008,7 @@ window.closeDriveSyncCenterModal = () => {
 // Direct Gmail Authentication & Multi-Device Sync Engine
 // -------------------------------------------------------------
 
-function activateDirectGmailSession(email, skipUpdateCheck = false) {
+function activateDirectGmailSession(email, skipUpdateCheck = false, displayName = '') {
   email = (email || '').trim();
   if (!email) {
     const saved = localStorage.getItem('gdrive_last_email');
@@ -1031,7 +1031,7 @@ function activateDirectGmailSession(email, skipUpdateCheck = false) {
   const token = 'direct_gmail_token_' + Date.now();
   updateCachedDriveToken(token);
 
-  const username = email.split('@')[0];
+  const username = displayName || email.split('@')[0];
   window._directGmailUser = {
     uid: 'gmail_' + btoa(email).replace(/=/g, ''),
     email: email,
@@ -1209,10 +1209,123 @@ function showDrivePopupRetryModal(emailHint, skipUpdateCheck = false) {
   return Promise.resolve(null);
 }
 
+
+const GOOGLE_CLIENT_ID = '198994308173-e380b2dhmmsocm7j4aiv2l5p8sk39mte.apps.googleusercontent.com';
+const GOOGLE_SCOPES = 'openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar.events';
+
+window.handleGoogleSignInOfficial = (options = {}) => {
+  const skipUpdateCheck = !!options.skipUpdateCheck;
+  return new Promise((resolve) => {
+    // 1. استخدام مكتبة Google Identity Services الرسمية إذا كانت متوفرة
+    if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+      try {
+        const client = window.google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: GOOGLE_SCOPES,
+          callback: async (tokenResponse) => {
+            if (tokenResponse && tokenResponse.access_token) {
+              const accessToken = tokenResponse.access_token;
+              updateCachedDriveToken(accessToken);
+
+              let userEmail = localStorage.getItem('gdrive_last_email') || '';
+              let displayName = '';
+              try {
+                const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${accessToken}` }
+                });
+                if (userRes.ok) {
+                  const info = await userRes.json();
+                  if (info && info.email) {
+                    userEmail = info.email;
+                    displayName = info.name || '';
+                  }
+                }
+              } catch (e) {
+                console.warn('UserInfo fetch error:', e);
+              }
+
+              if (!userEmail) userEmail = 'user@gmail.com';
+              activateDirectGmailSession(userEmail, skipUpdateCheck, displayName);
+
+              if (typeof window.showAppToast === 'function') {
+                window.showAppToast(`✅ تم الاتصال والربط بحساب Google (${userEmail}) بنجاح!`, 'success');
+              }
+              resolve(accessToken);
+            } else {
+              console.warn('GIS Token client returned empty response or cancelled');
+              resolve(null);
+            }
+          },
+          error_callback: (err) => {
+            console.warn('GIS Token Client error:', err);
+            resolve(null);
+          }
+        });
+
+        client.requestAccessToken({ prompt: '' });
+        return;
+      } catch (gisErr) {
+        console.warn('GIS init failed, attempting Firebase popup:', gisErr);
+      }
+    }
+
+    // 2. استخدام Firebase signInWithPopup كبديل معتمد
+    signInWithPopup(auth, provider)
+      .then(async (result) => {
+        const token = await processDriveSignInResult(result, skipUpdateCheck);
+        if (result.user && result.user.email) {
+          activateDirectGmailSession(result.user.email, skipUpdateCheck, result.user.displayName);
+        }
+        if (typeof window.showAppToast === 'function') {
+          window.showAppToast(`✅ تم الاتصال بحساب Google (${result.user.email}) بنجاح!`, 'success');
+        }
+        resolve(token);
+      })
+      .catch((err) => {
+        console.warn('signInWithPopup failed:', err?.message || err);
+        // Fallback to manual prompt if popup blocked
+        const fallback = prompt('يرجى إدخال عنوان بريدك الإلكتروني (Gmail) للمتابعة والربط الفوري:', localStorage.getItem('gdrive_last_email') || '');
+        if (fallback && fallback.trim()) {
+          const t = activateDirectGmailSession(fallback.trim(), skipUpdateCheck);
+          resolve(t);
+        } else {
+          resolve(null);
+        }
+      });
+  });
+};
+
+window.handleDriveLogoutSilently = () => {
+  updateCachedDriveToken(null);
+  window._directGmailUser = null;
+  localStorage.removeItem('gdrive_last_email');
+  localStorage.removeItem('gdrive_authenticated');
+  localStorage.removeItem('userLoggedIn');
+  try { signOut(auth); } catch(e) {}
+  syncBackupUI(null);
+  if (typeof window.syncLibraryDriveUIState === 'function') {
+    window.syncLibraryDriveUIState();
+  }
+  updateDriveSyncHeaderBadge('disconnected');
+};
+
 window.handleDriveLogin = async (emailHint, options = {}) => {
   const skipUpdateCheck = !!options.skipUpdateCheck;
 
-  // Resolve target email safely
+  // إذا تم تمرير البريد صراحة دون طلب تسجيل تفاعلي جديد
+  if (emailHint && typeof emailHint === 'string' && emailHint.includes('@') && !options.interactive) {
+    return activateDirectGmailSession(emailHint.trim(), skipUpdateCheck);
+  }
+
+  // محاولة تسجيل الدخول الرسمي عبر Google OAuth أولاً
+  try {
+    const token = await window.handleGoogleSignInOfficial(options);
+    if (token) return token;
+  } catch (err) {
+    console.warn('Official Google Sign-In attempt failed:', err);
+  }
+
+  // في حالة الإلغاء أو العمل دون اتصال: اعتماد البريد المسجل أو المدخل
   let targetEmail = (emailHint && typeof emailHint === 'string' && emailHint.includes('@')) ? emailHint.trim() : '';
   if (!targetEmail) {
     const active = auth.currentUser?.email || localStorage.getItem('gdrive_last_email');
@@ -1227,21 +1340,19 @@ window.handleDriveLogin = async (emailHint, options = {}) => {
   }
 
   if (!targetEmail) {
-    const entered = prompt('يرجى إدخال عنوان بريدك الإلكتروني (Gmail) للربط والمزامنة:');
+    const entered = prompt('يرجى إدخال عنوان بريدك الإلكتروني (Gmail) للربط والمزامنة:', localStorage.getItem('gdrive_last_email') || '');
     if (!entered || !entered.trim()) return null;
     targetEmail = entered.trim();
     if (!targetEmail.includes('@')) targetEmail += '@gmail.com';
   }
 
-  // Activate session immediately and safely without failing OAuth popups
   const token = activateDirectGmailSession(targetEmail, skipUpdateCheck);
-
   if (typeof window.syncLibraryDriveUIState === 'function') {
     window.syncLibraryDriveUIState();
   }
-
   return token;
 };
+
 
 window.handleDriveLogout = async () => {
   if (!confirm('هل تريد تسجيل الخروج من حساب Google؟')) return;

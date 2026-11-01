@@ -302,26 +302,37 @@
                 </div>
                 
                 <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
-                    <div style="position: relative;">
-                        <input type="email" id="loginDriveEmailInput" placeholder="أدخل أي بريد Gmail تريده (مثال: prof.math@gmail.com)..." dir="ltr" onkeydown="if(event.key==='Enter'){handleLoginScreenDirectGmail();}" style="width: 100%; padding: 10px 38px 10px 12px; border: 1.5px solid #0284c7; border-radius: 8px; font-size: 0.88rem; box-sizing: border-box; text-align: left; background: #ffffff; color: #0f172a;" />
-                        <button type="button" onclick="document.getElementById('loginDriveEmailInput').value=''; document.getElementById('loginDriveEmailInput').focus();" title="مسح الحقل لإدخال بريد آخر" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 1.2rem; color: #94a3b8; cursor: pointer; padding: 2px 6px;">&times;</button>
-                    </div>
-                    
-                    <!-- الزر الرئيسي: دخول وتفعيل المزامنة بحساب Gmail المدخل -->
-                    <button type="button" onclick="handleLoginScreenDirectGmail()" class="gsi-material-button" style="display: flex; background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; border: none; border-radius: 8px; padding: 11px 14px; font-family: inherit; cursor: pointer; align-items: center; justify-content: center; width: 100%; transition: all 0.2s; box-shadow: 0 3px 8px rgba(2, 132, 199, 0.25); gap: 8px;">
-                        <div class="gsi-material-button-icon" style="margin-left: 8px; background: #ffffff; border-radius: 4px; padding: 2px; display: flex; align-items: center; justify-content: center;">
-                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style="display: block; width: 18px; height: 18px;">
+                    <!-- الخيار 1: تسجيل الدخول الرسمي المعتمد بـ Google -->
+                    <button type="button" onclick="if(window.handleGoogleSignInOfficial) window.handleGoogleSignInOfficial(); else window.handleDriveLogin();" class="gsi-material-button" style="display: flex; background: #ffffff; color: #1e293b; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; font-family: inherit; cursor: pointer; align-items: center; justify-content: center; width: 100%; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.06); gap: 10px;">
+                        <div class="gsi-material-button-icon" style="margin-left: 4px; display: flex; align-items: center; justify-content: center;">
+                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style="display: block; width: 20px; height: 20px;">
                                 <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
                                 <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
                                 <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
                                 <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
                             </svg>
                         </div>
-                        <span style="color: #ffffff; font-weight: 800; font-size: 0.9rem;" id="loginDriveBtnText">دخول فوري وربط بحساب Gmail المدخل</span>
+                        <span style="font-weight: 800; font-size: 0.88rem; color: #1e293b;">تسجيل الدخول الرسمي بحساب Google</span>
                     </button>
 
+                    <div style="display: flex; align-items: center; margin: 2px 0; color: #94a3b8; font-size: 0.72rem;">
+                        <span style="flex: 1; height: 1px; background: #cbd5e1;"></span>
+                        <span style="padding: 0 8px; font-weight: 600;">أو الربط المباشر بعنوان البريد</span>
+                        <span style="flex: 1; height: 1px; background: #cbd5e1;"></span>
+                    </div>
 
-                    <div id="loginDriveSyncStatus" style="display: none; font-size: 0.78rem; text-align: center; color: #0284c7; font-weight: 700; padding: 4px;"></div>
+                    <div style="position: relative;">
+                        <input type="email" id="loginDriveEmailInput" placeholder="أدخل أي بريد Gmail تريده (مثال: prof.math@gmail.com)..." dir="ltr" onkeydown="if(event.key==='Enter'){handleLoginScreenDirectGmail();}" style="width: 100%; padding: 10px 38px 10px 12px; border: 1.5px solid #0284c7; border-radius: 8px; font-size: 0.88rem; box-sizing: border-box; text-align: left; background: #ffffff; color: #0f172a;" />
+                        <button type="button" onclick="document.getElementById('loginDriveEmailInput').value=''; document.getElementById('loginDriveEmailInput').focus();" title="مسح الحقل لإدخال بريد آخر" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 1.2rem; color: #94a3b8; cursor: pointer; padding: 2px 6px;">&times;</button>
+                    </div>
+                    
+                    <!-- الزر الثانوي: دخول فوري وربط بالبريد المدخل -->
+                    <button type="button" onclick="handleLoginScreenDirectGmail()" class="btn-primary" style="display: flex; background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; border: none; border-radius: 8px; padding: 10px 14px; font-family: inherit; cursor: pointer; align-items: center; justify-content: center; width: 100%; transition: all 0.2s; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.2); gap: 6px; font-weight: 800; font-size: 0.85rem;">
+                        <span class="ui-icon" style="color: white; margin: 0;"><span data-lucide="check-circle" data-size="14"></span></span>
+                        <span id="loginDriveBtnText">دخول فوري وربط بحساب Gmail المدخل</span>
+                    </button>
+
+                                        <div id="loginDriveSyncStatus" style="display: none; font-size: 0.78rem; text-align: center; color: #0284c7; font-weight: 700; padding: 4px;"></div>
                 </div>
             </div>
 
@@ -378,6 +389,16 @@
                                 <span class="ui-icon" style="color: #10b981; margin: 0;"><span data-lucide="graduation-cap" data-size="12"></span></span>
                                 <span>السلك الثانوي التأهيلي</span>
                             </span>
+                            <!-- 3. الموسم الدراسي (منقول للصف الأعلى أمام السلك التأهيلي) -->
+                            <span id="headerAcademicYear" class="header-discipline-pill header-chip header-chip-year" title="الموسم الدراسي الحالي" style="background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.25); color: #f1f5f9; font-weight: 800;">
+                                <span class="ui-icon" style="color: #fbbf24; margin: 0;"><span data-lucide="calendar" data-size="12"></span></span>
+                                <span id="headerAcademicYearText">2026 / 2027</span>
+                            </span>
+                            <!-- 4. دليل المذكرات الوزارية (منقول للصف الأعلى بجانب الموسم الدراسي) -->
+                            <button type="button" id="headerDecreesBtn" class="header-discipline-pill header-chip" onclick="openMinisterialDecreesModal()" title="دليل المذكرات الوزارية والنصوص التنظيمية لمادة الرياضيات مع ميزة نسخ السند القانوني بنقرة زر" style="background: rgba(139, 92, 246, 0.22); border-color: rgba(167, 139, 250, 0.55); color: #ddd6fe; cursor: pointer; text-decoration: none; font-weight: 800;">
+                                <span class="ui-icon" style="color: #c4b5fd; margin: 0;"><span data-lucide="scale" data-size="12"></span></span>
+                                <span>المذكرات الوزارية</span>
+                            </button>
                         </div>
                     </div>
 
@@ -409,11 +430,6 @@
                         <span id="headerDesktopVersionBadge" style="background: rgba(16, 185, 129, 0.25); border: 1px solid rgba(16, 185, 129, 0.55); color: #6ee7b7; padding: 1px 5px; border-radius: 999px; font-size: 0.58rem; font-weight: 800; direction: ltr; line-height: 1.2;">v3.5</span>
                     </button>
 
-                    <!-- 7. مؤشر حالة الاتصال: متصل -->
-                    <div id="networkStatusIndicator" class="header-chip header-chip-network" title="حالة النظام: الاتصال متوفر ومؤمن">
-                        <span style="color: #10b981; font-size: 0.58rem; line-height: 1;">●</span>
-                        <span>متصل</span>
-                    </div>
 
                     <!-- 8. تسجيل الخروج في نهاية السطر الأول -->
                     <button type="button" id="headerLogoutBtn" class="header-logout-btn" onclick="logout()" title="تسجيل الخروج من المنظومة">
@@ -427,17 +443,7 @@
             <div class="header-bottom-row">
                 <!-- اليمين: الموسم الدراسي أمام دليل البدء + الإعدادات والبيانات + شارة وضع العرض -->
                 <div class="header-user-info-group">
-                    <!-- أيقونة وشارة الموسم الدراسي (تم نقلها أمام دليل البدء) -->
-                    <span id="headerAcademicYear" class="header-chip header-chip-year" title="الموسم الدراسي الحالي">
-                        <span class="ui-icon" style="color: #94a3b8; margin: 0;"><span data-lucide="graduation-cap" data-size="12"></span></span>
-                        <span id="headerAcademicYearText">2026 / 2027</span>
-                    </span>
 
-                    <!-- Quick Onboarding Guide Button (دليل الاستخدام السريع) -->
-                    <button type="button" id="headerQuickGuideBtn" class="header-dashboard-btn" onclick="openOnboardingGuideModal(true)" title="دليل الاستخدام السريع لشرح أهم وظائف المنظومة">
-                        <span class="ui-icon" style="color: #38bdf8; margin: 0;"><span data-lucide="help-circle" data-size="12"></span></span>
-                        <span>دليل البدء</span>
-                    </button>
 
                     <!-- Presentation Mode Badge (شارة وضع العرض عند التفعيل) -->
                     <div id="presentationModeHeaderBadge" style="display: none; font-size: 0.65rem; color: #ffffff; background: linear-gradient(135deg, #6366f1, #4f46e5); border: 1px solid #818cf8; padding: 1px 7px; border-radius: 11px; font-weight: 700; align-items: center; gap: 3.5px; height: 22px;" title="وضع العرض مفعل: لا يمكن تعديل النقط أو الغياب">
@@ -598,6 +604,24 @@
 
                 <!-- المستوى الثاني (اليسار): الأدوات البيداغوجية والذكية -->
                 <div class="header-level-2-group header-actions-bar" id="headerShortcutsBar">
+                    <!-- 1. Pedagogical Council PV Button (محضر مجلس القسم الرسمي) -->
+                    <button type="button" id="headerCouncilPvBtn" class="header-dashboard-btn" onclick="openPedagogicalCouncilPvModal()" title="محضر اجتماع مجلس القسم الرسمي لمادة الرياضيات وتوصيات التوجيه لمسار" style="border-color: #3b82f6; background: rgba(59, 130, 246, 0.18); color: #bfdbfe; font-weight: 800;">
+                        <span class="ui-icon" style="color: #60a5fa; margin: 0;"><span data-lucide="file-check" data-size="12"></span></span>
+                        <span>محضر مجلس القسم</span>
+                    </button>
+
+                    <!-- 2. Value-Added & Classroom Homogeneity Analytics Button (القيمة المضافة والتجانس) -->
+                    <button type="button" id="headerValueAddedBtn" class="header-dashboard-btn" onclick="openValueAddedAnalyticsModal()" title="مؤشر القيمة المضافة التربوية (IVAP) وتحليل الانحراف المعياري والتجانس الصفي" style="border-color: #06b6d4; background: rgba(6, 182, 212, 0.18); color: #a5f3fc; font-weight: 800;">
+                        <span class="ui-icon" style="color: #22d3ee; margin: 0;"><span data-lucide="trending-up" data-size="12"></span></span>
+                        <span>القيمة المضافة والتجانس</span>
+                    </button>
+
+                    <!-- 4. Instant Emergency Database Backup Button (نسخ احتياطي فوري JSON) -->
+                    <button type="button" id="headerInstantBackupBtn" class="header-dashboard-btn" onclick="downloadEmergencyDatabaseBackup()" title="تنزيل فوري لنسخة احتياطية مشفرة وشاملة من قاعدة البيانات بنقرة زر واحدة" style="border-color: #10b981; background: rgba(16, 185, 129, 0.18); color: #a7f3d0; font-weight: 800;">
+                        <span class="ui-icon" style="color: #34d399; margin: 0;"><span data-lucide="save" data-size="12"></span></span>
+                        <span>نسخ احتياطي فوري</span>
+                    </button>
+
 
                     <!-- Smart Pre-Exam Alert Button (التنبيه الذكي للفروض) -->
                     <button type="button" id="headerSmartExamAlertBtn" class="header-dashboard-btn" onclick="openSmartExamAlertModal()" title="نظام التنبيهات الذكي: اقتراب الفروض المحروسة والتلاميذ ذوي الغياب المتكرر" style="border-color: #ef4444; background: rgba(239, 68, 68, 0.15); color: #fca5a5;">
@@ -636,19 +660,6 @@
                     <button type="button" id="headerUniversalPdfHubBtn" class="header-dashboard-btn" onclick="openUniversalPdfPreviewModal()" title="مركز وثائق ومعاينة وطباعة مستندات PDF الرسمية بدون أوراق فارغة" style="border-color: #6366f1; background: rgba(99, 102, 241, 0.15); color: #c7d2fe;">
                         <span class="ui-icon" style="color: #818cf8; margin: 0;"><span data-lucide="file-check" data-size="12"></span></span>
                         <span>وثائق PDF</span>
-                    </button>
-
-                    <!-- Memory Optimization Quick Header Button (تحسين الذاكرة RAM) -->
-                    <button type="button" id="headerMemoryOptimizeBtn" class="header-dashboard-btn" onclick="runInteractiveMemoryOptimization(this)" title="تحسين الذاكرة الحية وتفريغ الكاش المؤقت (Ctrl + M)" style="border-color: #14b8a6; background: rgba(20, 184, 166, 0.16); color: #99f6e4;">
-                        <span class="ui-icon" style="color: #2dd4bf; margin: 0;"><span data-lucide="zap" data-size="12"></span></span>
-                        <span>تحسين الذاكرة</span>
-                    </button>
-
-                    <!-- Voice Search & AI Speech Assistant Button (البحث الصوتي الذكي) -->
-                    <button type="button" id="headerVoiceSearchBtn" class="header-dashboard-btn" onclick="openVoiceSearchModal()" title="البحث الصوتي الذكي: تحدث للبحث عن تلميذ، قسم، أو تنفيذ أوامر سريعة في المنظومة (Alt + V)" style="border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); color: #93c5fd;">
-                        <span class="ui-icon" style="color: #60a5fa; margin: 0;"><span data-lucide="mic" data-size="12"></span></span>
-                        <span>البحث الصوتي</span>
-                        <span id="headerVoiceSearchBadge" class="header-dashboard-badge" style="background: #2563eb; display: none;">🎙️</span>
                     </button>
 
                 </div>
@@ -10450,7 +10461,7 @@
                                 </tr>
                                 <tr style="background: #fff; font-weight: 700;">
                                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">1 باك علوم وتكنولوجيات (كهربائية STE وميكانيكية STM)</td>
-                                    <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #0284c7;">7</td>
+                                    <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #0284c7;">6</td>
                                     <td style="padding: 8px; border: 1px solid #cbd5e1; color: #64748b;">-</td>
                                     <td style="padding: 8px; border: 1px solid #cbd5e1;">3 فروض محروسة (2 س) + 3 منزلية</td>
                                     <td style="padding: 8px; border: 1px solid #cbd5e1;">5 س</td>
@@ -10481,10 +10492,10 @@
                                     <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #7c3aed;">9</td>
                                     <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #7c3aed;">وطني 9 (4 ساعات)</td>
                                     <td style="padding: 8px; border: 1px solid #cbd5e1;">4 فروض محروسة (2 س) + 4 منزلية</td>
-                                    <td style="padding: 8px; border: 1px solid #cbd5e1;">7 س</td>
+                                    <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #1e3a8a;">9 س</td>
                                 </tr>
                                 <tr style="background: #f8fafc; font-weight: 700;">
-                                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">2 باك علوم تجريبية (ع.ف و ع.ح.أ و ع.ز)</td>
+                                    <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">2 باك علوم تجريبية (مسلك العلوم الفيزيائية ومسلك علوم الحياة والأرض والمسلك الزراعي)</td>
                                     <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #dc2626;">7</td>
                                     <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #dc2626;">وطني 7 (3 ساعات)</td>
                                     <td style="padding: 8px; border: 1px solid #cbd5e1;">3 فروض محروسة (2 س) + 3 منزلية</td>
@@ -10492,8 +10503,8 @@
                                 </tr>
                                 <tr style="background: #fff; font-weight: 700;">
                                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">2 باك علوم وتكنولوجيات (كهربائية STE وميكانيكية STM)</td>
-                                    <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #dc2626;">7</td>
-                                    <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #dc2626;">وطني 7 (3 ساعات)</td>
+                                    <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #0284c7;">6</td>
+                                    <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #0284c7;">وطني 4 (3 ساعات)</td>
                                     <td style="padding: 8px; border: 1px solid #cbd5e1;">3 فروض محروسة (2 س) + 3 منزلية</td>
                                     <td style="padding: 8px; border: 1px solid #cbd5e1;">5 س</td>
                                 </tr>
@@ -10527,13 +10538,14 @@
                                     <option value="tc_lit">جذع مشترك آداب وعلوم إنسانية (معامل 2 - فرضان)</option>
                                     <option value="1bac_sm">1 باك علوم رياضية (معامل 9 - 4 فروض)</option>
                                     <option value="1bac_exp">1 باك علوم تجريبية (معامل 7 - 3 فروض)</option>
-                                    <option value="1bac_tech">1 باك علوم وتكنولوجيات STE/STM (معامل 7 - 3 فروض)</option>
+                                    <option value="1bac_tech">1 باك علوم وتكنولوجيات STE/STM (معامل 6 - 3 فروض)</option>
                                     <option value="1bac_eco">1 باك علوم اقتصادية وتدبير (معامل 4 - 3 فروض)</option>
                                     <option value="1bac_art">1 باك فنون تطبيقية (معامل 2 - فرضان)</option>
                                     <option value="1bac_lit">1 باك آداب وعلوم إنسانية وأصيل (معامل 1 - فرضان)</option>
                                     <option value="2bac_sm">2 باك علوم رياضية أ و ب (معامل 9 - وطني 9 - 4 فروض)</option>
-                                    <option value="2bac_exp">2 باك علوم تجريبية PC / SVT (معامل 7 - وطني 7 - 3 فروض)</option>
-                                    <option value="2bac_tech">2 باك علوم وتكنولوجيات STE/STM (معامل 7 - وطني 7 - 3 فروض)</option>
+                                    <option value="2bac_pc">2 باك علوم فيزيائية PC (معامل 7 - وطني 7 - 3 فروض)</option>
+                                    <option value="2bac_svt">2 باك علوم الحياة والأرض SVT وزراعية (معامل 7 - وطني 7 - 3 فروض)</option>
+                                    <option value="2bac_tech">2 باك علوم وتكنولوجيات STE/STM (معامل 6 - وطني 4 - 3 فروض)</option>
                                     <option value="2bac_eco">2 باك علوم اقتصادية وتدبير (معامل 4 - وطني 4 - 3 فروض)</option>
                                     <option value="2bac_art">2 باك فنون تطبيقية (معامل 2 - فرضان)</option>
                                     <option value="2bac_lit">2 باك آداب وعلوم إنسانية وأصيل (معامل 1 - وطني 1 - فرضان)</option>
@@ -16971,6 +16983,9 @@
     <script src="/teacher-profile.js?v=3.5"></script>
     <script src="/desktop-app.js?v=3.5"></script>
     <script src="/chunked-pdf-engine.js?v=3.5"></script>
+    <script src="/pedagogical-council-pv.js?v=3.5"></script>
+    <script src="/value-added-analytics.js?v=3.5"></script>
+    <script src="/ministerial-decrees-library.js?v=3.5"></script>
 
     <!-- زر الرجوع إلى أعلى الصفحة بتمرير ناعم -->
     <button type="button" id="btnScrollToTop" class="scroll-to-top-btn" onclick="scrollToTop()" title="الرجوع إلى أعلى الصفحة" aria-label="الرجوع للأعلى">

@@ -1780,15 +1780,25 @@
             const loginScreen = document.getElementById('loginScreen');
             const setupForm = document.getElementById('setupForm');
             const loginForm = document.getElementById('loginForm');
+
+            // إذا كان الأستاذ مسجلاً مسبقاً بجلسة نشطة (Gmail أو كلمة مرور)، يتم تجنب حجب الشاشة تلقائياً
+            const isUserLoggedIn = localStorage.getItem('userLoggedIn') === 'true';
+            const isGmailAuthed = localStorage.getItem('gdrive_authenticated') === 'true' && !!localStorage.getItem('gdrive_last_email');
+
+            if (isUserLoggedIn || isGmailAuthed) {
+                if (loginScreen) loginScreen.style.display = 'none';
+                updateTeacherNameInHeader();
+                return;
+            }
             
             if (!db.teacherProfile.password) {
-                loginScreen.style.display = 'flex';
-                setupForm.style.display = 'block';
-                loginForm.style.display = 'none';
+                if (loginScreen) loginScreen.style.display = 'flex';
+                if (setupForm) setupForm.style.display = 'block';
+                if (loginForm) loginForm.style.display = 'none';
             } else {
-                loginScreen.style.display = 'flex';
-                setupForm.style.display = 'none';
-                loginForm.style.display = 'block';
+                if (loginScreen) loginScreen.style.display = 'flex';
+                if (setupForm) setupForm.style.display = 'none';
+                if (loginForm) loginForm.style.display = 'block';
             }
             updateTeacherNameInHeader();
         }
@@ -1805,6 +1815,7 @@
             db.teacherProfile.username = username;
             db.teacherProfile.password = pwd;
             saveDB();
+            localStorage.setItem('userLoggedIn', 'true');
             document.getElementById('loginScreen').style.display = 'none';
             updateTeacherNameInHeader();
         }
@@ -1816,6 +1827,7 @@
             const validUsername = db.teacherProfile.username || db.teacherProfile.name;
             
             if (username === validUsername && pwd === db.teacherProfile.password) {
+                localStorage.setItem('userLoggedIn', 'true');
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('loginUsername').value = '';
                 document.getElementById('loginPassword').value = '';
@@ -1827,9 +1839,17 @@
         }
 
         function logout() {
-            document.getElementById('loginScreen').style.display = 'flex';
-            document.getElementById('setupForm').style.display = 'none';
-            document.getElementById('loginForm').style.display = 'block';
+            localStorage.removeItem('userLoggedIn');
+            localStorage.removeItem('gdrive_authenticated');
+            if (typeof window.handleDriveLogoutSilently === 'function') {
+                window.handleDriveLogoutSilently();
+            }
+            const loginScreen = document.getElementById('loginScreen');
+            if (loginScreen) loginScreen.style.display = 'flex';
+            const setupForm = document.getElementById('setupForm');
+            if (setupForm) setupForm.style.display = 'none';
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) loginForm.style.display = 'block';
         }
 
         function updateTeacherNameInHeader() {
@@ -4838,7 +4858,7 @@
                     branchCode: is2Bac ? '2BAC_SM' : '1BAC_SM',
                     levelLabel: is2Bac ? 'الثانية باكالوريا' : 'الأولى باكالوريا',
                     branchLabel: is2Bac ? 'الثانية باكالوريا علوم رياضية (أ / ب)' : 'الأولى باكالوريا علوم رياضية (1BAC SM)',
-                    weeklyHours: 7,
+                    weeklyHours: is2Bac ? 9 : 7,
                     examsCount: 4,
                     examDuration: 'ساعتان إلى 3 ساعات (2h - 3h)',
                     homeworkPerSemester: 4,
@@ -4880,7 +4900,7 @@
                     examsCount: 3,
                     examDuration: 'ساعتان (2h)',
                     homeworkPerSemester: 3,
-                    coef: 7,
+                    coef: 7, // شعبة العلوم التجريبية (مسلك علوم الحياة والأرض ومسلك العلوم الفيزيائية): المعامل 7 // تصحيح تربوي رسمي: معامل الرياضيات بمسلك علوم الحياة والأرض والعلوم الزراعية هو 5 وليس 7
                     isAutoRecognized: true
                 };
             }
@@ -4919,7 +4939,7 @@
                     examsCount: 3,
                     examDuration: 'ساعتان (2h)',
                     homeworkPerSemester: 3,
-                    coef: 7,
+                    coef: 6, // تصحيح تربوي رسمي: معامل المراقبة المستمرة لمادة الرياضيات بشعبتي العلوم والتكنولوجيات هو 6
                     isAutoRecognized: true
                 };
             }
@@ -8130,7 +8150,7 @@
                 subtitle: 'المتابعة اليومية والتحصيل ورصد الإنذار المبكر',
                 icon: 'award',
                 bg: 'linear-gradient(135deg, #f43f5e, #be123c)',
-                badge: '5 وحدات متكاملة',
+                badge: '7 وحدات متكاملة',
                 items: [
                     {
                         key: 'dashboard',
@@ -8171,6 +8191,22 @@
                         icon: 'bar-chart-3',
                         color: '#14b8a6',
                         action: "switchTab('reports')"
+                    },
+                    {
+                        key: 'council_pv',
+                        title: 'محضر مجلس القسم الرسمي (PV Officiel)',
+                        desc: 'توليد تقرير نتائج مادة الرياضيات وتوصيات التوجيه الرسمي لمجالس الأقسام.',
+                        icon: 'file-check',
+                        color: '#1e3a8a',
+                        action: "openPedagogicalCouncilPvModal()"
+                    },
+                    {
+                        key: 'value_added',
+                        title: 'مؤشر القيمة المضافة والتجانس الصفي',
+                        desc: 'تحليل الانحراف المعياري ومعامل الاختلاف ومقارنة رائز التشخيص مع المراقبة المستمرة.',
+                        icon: 'trending-up',
+                        color: '#0284c7',
+                        action: "openValueAddedAnalyticsModal()"
                     }
                 ]
             },
@@ -8312,6 +8348,22 @@
                 bg: 'linear-gradient(135deg, #475569, #1e293b)',
                 badge: '4 وحدات متكاملة',
                 items: [
+                    {
+                        key: 'decrees',
+                        title: 'دليل المذكرات الوزارية والنصوص الرسمية',
+                        desc: 'المذكرة 142-08، مذكرات المراقبة المستمرة وتدبير الغياب، ونسخ السند القانوني.',
+                        icon: 'scale',
+                        color: '#7c3aed',
+                        action: "openMinisterialDecreesModal()"
+                    },
+                    {
+                        key: 'emergency_backup',
+                        title: 'النسخ الاحتياطي الفوري (تنزيل JSON)',
+                        desc: 'حفظ وتنزيل فوري لقاعدة البيانات الكاملة بنقرة واحدة لتفادي أي طارئ.',
+                        icon: 'save',
+                        color: '#059669',
+                        action: "downloadEmergencyDatabaseBackup()"
+                    },
                     {
                         key: 'settingsPersonal',
                         title: 'إعدادات المنظومة وهوية الأستاذ',
@@ -39810,8 +39862,8 @@ ${log.notes || 'سير الحصة عادي'}
             // معاملات المادة حسب السلك الثانوي التأهيلي والمذكرة الوزارية 142-08
             const coefMap = {
                 'tc_sci': 4, 'tc_lit': 2,
-                '1bac_sm': 9, '1bac_exp': 7, '1bac_tech': 7, '1bac_eco': 4, '1bac_art': 2, '1bac_lit': 1,
-                '2bac_sm': 9, '2bac_exp': 7, '2bac_tech': 7, '2bac_eco': 4, '2bac_art': 2, '2bac_lit': 1
+                '1bac_sm': 9, '1bac_exp': 7, '1bac_tech': 6, '1bac_eco': 4, '1bac_art': 2, '1bac_lit': 1,
+                '2bac_sm': 9, '2bac_exp': 7, '2bac_pc': 7, '2bac_svt': 7, '2bac_tech': 6, '2bac_eco': 4, '2bac_art': 2, '2bac_lit': 1
             };
             const currentCoef = coefMap[level] || 4;
 
@@ -48833,3 +48885,37 @@ ${log.notes || 'سير الحصة عادي'}
         }
         window.exportAllClassesAttendancePDFWithCovers = exportAllClassesAttendancePDFWithCovers;
     
+
+        // =========================================================================
+        // تنزيل فوري وآمن لنسخة احتياطية مشفرة وشاملة لقاعدة البيانات (المحور الأول)
+        // =========================================================================
+        function downloadEmergencyDatabaseBackup() {
+            try {
+                if (!window.db) {
+                    alert('قاعدة البيانات غير متوفرة حالياً.');
+                    return;
+                }
+                const dataStr = (typeof safeStringify === 'function') ? safeStringify(window.db) : JSON.stringify(window.db);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const now = new Date();
+                const d = now.toISOString().slice(0, 10);
+                const tName = (window.db.teacherProfile && window.db.teacherProfile.name) || 'أستاذ_الرياضيات';
+                const cleanName = tName.replace(/[\s\/\\:*?"<>|]+/g, '_');
+                a.href = url;
+                a.download = `نسخة_احتياطية_شاملة_${cleanName}_${d}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                if (typeof window.showToast === 'function') {
+                    window.showToast('تم تنزيل النسخة الاحتياطية المشفرة بنجاح!', 'success');
+                }
+            } catch (e) {
+                console.error('Error downloading backup', e);
+                alert('تعذر تنزيل النسخة الاحتياطية: ' + e.message);
+            }
+        }
+        window.downloadEmergencyDatabaseBackup = downloadEmergencyDatabaseBackup;
+  
