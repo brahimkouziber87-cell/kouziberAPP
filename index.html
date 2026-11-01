@@ -434,41 +434,20 @@
                         <span>تطبيق المكتب والأندرويد</span>
                         <span id="headerDesktopVersionBadge" style="background: rgba(16, 185, 129, 0.22); border: 1px solid rgba(52, 211, 153, 0.5); color: #6ee7b7; padding: 1px 5px; border-radius: 4px; font-size: 0.56rem; font-weight: 800; direction: ltr; line-height: 1.15;">v3.5</span>
                     </button>
-
-                    <span class="header-v-sep"></span>
-
-                    <!-- 5. تسجيل الخروج في نهاية السطر الأول -->
-                    <button type="button" id="headerLogoutBtn" class="header-logout-btn" onclick="logout()" title="تسجيل الخروج من المنظومة">
-                        <span class="ui-icon" style="margin: 0;"><span data-lucide="log-out" data-size="12"></span></span>
-                        <span>خروج</span>
-                    </button>
                 </div>
             </div>
 
             <!-- السطر الثاني (المستوى الثاني): أيقونة السنة الدراسية في الأول + الأدوات البيداغوجية والذكية المرتبة بتناسق -->
             <div class="header-bottom-row">
-                <!-- اليمين: أيقونة السنة الدراسية (في أول السطر الثاني) + شارة وضع العرض -->
-                <div class="header-user-info-group">
-                    <span id="headerAcademicYear" class="header-discipline-pill header-chip header-chip-year header-dashboard-btn" onclick="if(typeof openTeacherSettings==='function') openTeacherSettings('settingsPersonal');" title="الموسم الدراسي الحالي (انقر لضبط الموسم الدراسي في الإعدادات)" style="background: linear-gradient(135deg, rgba(217, 119, 6, 0.85), rgba(180, 83, 9, 0.95)); border: 1.5px solid rgba(251, 191, 36, 0.65); color: #fef3c7; font-weight: 800; cursor: pointer; height: 24px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; box-shadow: 0 2px 6px rgba(180, 83, 9, 0.35); flex-shrink: 0;">
+                <!-- اليمين: حزمة الأدوات المتناسقة في السطر الثاني (تبدأ بأيقونة السنة الدراسية ثم الأدوات البيداغوجية والذكية) -->
+                <div class="header-level-2-group header-actions-bar" id="headerShortcutsBar">
+                    <!-- 1. أيقونة السنة الدراسية في مقدمة السطر الثاني -->
+                    <span id="headerAcademicYear" class="header-dashboard-btn header-chip-year" onclick="if(typeof openTeacherSettings==='function') openTeacherSettings('settingsPersonal');" title="الموسم الدراسي الحالي (انقر لضبط الموسم الدراسي في الإعدادات)">
                         <span class="ui-icon" style="color: #fbbf24; margin: 0;"><span data-lucide="calendar" data-size="12"></span></span>
                         <span id="headerAcademicYearText">2026 / 2027</span>
                     </span>
 
-                    <!-- عناصر توافقية خفية للإعدادات ومادة الرياضيات لضمان التوافق البرمجي التام -->
-                    <span id="headerSettingsDataBtn" style="display: none;" onclick="openTeacherSettings()"></span>
-                    <span id="headerSettingsDropdownTrigger" style="display: none;"></span>
-                    <div id="headerSettingsDropdown" style="display: none;"></div>
-                    <span id="headerMathDisciplineBtn" style="display: none;" onclick="openMassarCoefficientsModal()"></span>
-
-                    <!-- Presentation Mode Badge (شارة وضع العرض عند التفعيل) -->
-                    <div id="presentationModeHeaderBadge" style="display: none; font-size: 0.65rem; color: #ffffff; background: linear-gradient(135deg, #6366f1, #4f46e5); border: 1px solid #818cf8; padding: 1px 8px; border-radius: 6px; font-weight: 700; align-items: center; gap: 4px; height: 23px;" title="وضع العرض مفعل: لا يمكن تعديل النقط أو الغياب">
-                        <span class="ui-icon" style="margin: 0;"><span data-lucide="eye" data-size="12"></span></span>
-                        <span>وضع العرض</span>
-                    </div>
-                </div>
-
-                <!-- المستوى الثاني (اليسار): الأدوات البيداغوجية والذكية مرتبة في 3 مجموعات متناسقة -->
-                <div class="header-level-2-group header-actions-bar" id="headerShortcutsBar">
+                    <span class="header-v-sep"></span>
                     <!-- المجموعة 1: أدوات الحصة والتدريس والرموز -->
                     <button type="button" id="headerTeachingModeBtn" class="header-dashboard-btn" onclick="toggleInteractiveTeachingMode()" title="تفعيل وضع التدريس التفاعلي: مؤقت الحصة المباشر والربط مع جدول الحصص والتنبيه الصوتي" style="border-color: rgba(167, 139, 250, 0.45); background: rgba(30, 41, 59, 0.82); color: #ede9fe;">
                         <span class="ui-icon" style="color: #c4b5fd; margin: 0;"><span data-lucide="timer" data-size="12"></span></span>
@@ -505,10 +484,8 @@
                         <span>مجلس القسم والقيمة المضافة</span>
                     </button>
 
-                    <button type="button" id="headerMassarCoefficientsBtn" class="header-dashboard-btn" onclick="openMassarCoefficientsModal()" title="دليل وحاسبة معاملات مسار لمادة الرياضيات حسب المستويات والشعب المغربية" style="border-color: rgba(52, 211, 153, 0.42); background: rgba(30, 41, 59, 0.82); color: #d1fae5;">
-                        <span class="ui-icon" style="color: #34d399; margin: 0;"><span data-lucide="calculator" data-size="12"></span></span>
-                        <span>معاملات مسار</span>
-                    </button>
+                    <!-- توافق خلفي لمعاملات مسار -->
+                    <span id="headerMassarCoefficientsBtn" style="display:none;" onclick="openMassarCoefficientsModal()"></span>
 
                     <button type="button" id="headerSmartExamAlertBtn" class="header-dashboard-btn" onclick="openSmartExamAlertModal()" title="نظام التنبيهات الذكي: اقتراب الفروض المحروسة والتلاميذ ذوي الغياب المتكرر" style="border-color: rgba(248, 113, 113, 0.45); background: rgba(30, 41, 59, 0.82); color: #fecaca;">
                         <span class="ui-icon" style="color: #f87171; margin: 0;"><span data-lucide="bell-ring" data-size="12"></span></span>
@@ -519,7 +496,7 @@
 
                     <span class="header-v-sep"></span>
 
-                    <!-- المجموعة 3: التوثيق والنسخ الاحتياطي -->
+                    <!-- المجموعة 3: التوثيق والنسخ الاحتياطي وتسجيل الخروج -->
                     <button type="button" id="headerUniversalPdfHubBtn" class="header-dashboard-btn" onclick="openUniversalPdfPreviewModal()" title="مركز وثائق ومعاينة وطباعة مستندات PDF الرسمية بدون أوراق فارغة" style="border-color: rgba(129, 140, 248, 0.45); background: rgba(30, 41, 59, 0.82); color: #e0e7ff;">
                         <span class="ui-icon" style="color: #818cf8; margin: 0;"><span data-lucide="printer" data-size="12"></span></span>
                         <span>وثائق PDF</span>
@@ -529,7 +506,27 @@
                         <span class="ui-icon" style="color: #34d399; margin: 0;"><span data-lucide="save" data-size="12"></span></span>
                         <span>نسخ احتياطي فوري</span>
                     </button>
+                </div>
 
+                <!-- اليسار: شارة وضع العرض + تسجيل الخروج في نهاية السطر الثاني -->
+                <div class="header-bottom-end-group">
+                    <!-- Presentation Mode Badge (شارة وضع العرض عند التفعيل) -->
+                    <div id="presentationModeHeaderBadge" style="display: none; font-size: 0.65rem; color: #ffffff; background: linear-gradient(135deg, #6366f1, #4f46e5); border: 1px solid #818cf8; padding: 1px 8px; border-radius: 6px; font-weight: 700; align-items: center; gap: 4px; height: 23px;" title="وضع العرض مفعل: لا يمكن تعديل النقط أو الغياب">
+                        <span class="ui-icon" style="margin: 0;"><span data-lucide="eye" data-size="12"></span></span>
+                        <span>وضع العرض</span>
+                    </div>
+
+                    <!-- عناصر توافقية خفية للإعدادات ومادة الرياضيات لضمان التوافق البرمجي التام -->
+                    <span id="headerSettingsDataBtn" style="display: none;" onclick="openTeacherSettings()"></span>
+                    <span id="headerSettingsDropdownTrigger" style="display: none;"></span>
+                    <div id="headerSettingsDropdown" style="display: none;"></div>
+                    <span id="headerMathDisciplineBtn" style="display: none;" onclick="openMassarCoefficientsModal()"></span>
+
+                    <!-- تسجيل الخروج في نهاية السطر الثاني -->
+                    <button type="button" id="headerLogoutBtn" class="header-logout-btn" onclick="logout()" title="تسجيل الخروج من المنظومة">
+                        <span class="ui-icon" style="margin: 0;"><span data-lucide="log-out" data-size="12"></span></span>
+                        <span>خروج</span>
+                    </button>
                 </div>
             </div>
             </div>

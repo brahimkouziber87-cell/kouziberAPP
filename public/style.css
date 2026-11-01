@@ -333,12 +333,10 @@
         .header-actions-bar {
             display: inline-flex !important;
             align-items: center !important;
-            gap: 5px !important;
+            gap: 4px !important;
             flex-wrap: nowrap !important;
-            justify-content: flex-end !important;
-            max-width: 100% !important;
-            min-width: 0 !important;
-            flex: 1 1 auto !important;
+            justify-content: flex-start !important;
+            flex: 0 1 auto !important;
             overflow-x: auto !important;
             overflow-y: hidden !important;
             scrollbar-width: none !important;
@@ -347,6 +345,17 @@
         .header-level-2-group::-webkit-scrollbar,
         .header-actions-bar::-webkit-scrollbar {
             display: none !important;
+        }
+
+        .header-bottom-end-group {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 5px !important;
+            flex-shrink: 0 !important;
+            flex-grow: 0 !important;
+            justify-content: flex-end !important;
+            height: 24px !important;
+            line-height: 1 !important;
         }
 
         .header-user-info-group {
@@ -479,10 +488,14 @@
             margin: 0 !important;
         }
 
-        /* Strict single horizontal straight line & vertical baseline alignment for all Row 1 items */
+        /* Strict single horizontal straight line & vertical baseline alignment for all Row 1 and Row 2 items */
         .header-top-row .header-discipline-pill,
         .header-top-row .header-chip,
-        .header-top-row .header-logout-btn {
+        .header-top-row .header-logout-btn,
+        .header-bottom-row .header-dashboard-btn,
+        .header-bottom-row .header-chip-year,
+        .header-bottom-row .header-logout-btn,
+        .header-bottom-row .header-chip {
             height: 23px !important;
             max-height: 23px !important;
             min-height: 23px !important;
@@ -493,7 +506,7 @@
             vertical-align: middle !important;
             line-height: 1 !important;
             margin: 0 !important;
-            padding: 1px 8px !important;
+            padding: 1px 7px !important;
             border-radius: 6px !important;
             font-size: 0.67rem !important;
             gap: 4px !important;
@@ -501,7 +514,8 @@
             white-space: nowrap !important;
         }
 
-        .header-top-row .ui-icon {
+        .header-top-row .ui-icon,
+        .header-bottom-row .ui-icon {
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
@@ -514,11 +528,31 @@
             vertical-align: middle !important;
         }
 
-        .header-top-row .ui-icon svg {
+        .header-top-row .ui-icon svg,
+        .header-bottom-row .ui-icon svg {
             width: 12px !important;
             height: 12px !important;
             display: block !important;
             flex-shrink: 0 !important;
+        }
+
+        .header-merged-btn-group {
+            display: inline-flex !important;
+            align-items: stretch !important;
+            height: 23px !important;
+            max-height: 23px !important;
+            min-height: 23px !important;
+            vertical-align: middle !important;
+            margin: 0 !important;
+            flex-shrink: 0 !important;
+        }
+
+        .header-merged-btn-group button {
+            height: 23px !important;
+            max-height: 23px !important;
+            min-height: 23px !important;
+            line-height: 1 !important;
+            box-sizing: border-box !important;
         }
 
         .header-top-row .chip-sub-label {
