@@ -200,6 +200,58 @@ const DIAGNOSTIC_BLUEPRINTS: Record<string, DiagnosticBlueprint> = {
       }
     ]
   },
+  '1BAC_LSH': {
+    code: '1BAC_LSH',
+    levelTitle: 'الأولى باكالوريا آداب وعلوم إنسانية (1BAC SH / 1BAC LSH)',
+    targetCycle: 'الانتقال من الجذع المشترك للآداب والعلوم الإنسانية إلى 1 باك',
+    duration: 'ساعة واحدة (60 دقيقة)',
+    prerequisites: [
+      {
+        domain: 'الحساب العددي، التناسبية، والنسب المئوية',
+        weightPct: 35,
+        skills: ['حساب النسب المئوية والتخفيض والزيادة', 'حل معادلات ومتراجحات من الدرجة الأولى والثانية', 'النظمات الخطية وترييض المسائل'],
+        epistemologicalObstacles: 'الخلط بين النسبة المئوية للجزء من الكل وبين الزيادة أو التخفيض المئوي.',
+        remediationActivity: 'أنشطة تطبيقية مباشرة مستوحاة من الوضعيات الحياتية والمالية.'
+      },
+      {
+        domain: 'مبادئ التعداد والتنظيم المنطقي',
+        weightPct: 30,
+        skills: ['المبدأ الأساسي للتعداد (مبدأ الجداء)', 'الترتيبات بتكرار وبدون تكرار والتأليفات C_n^p', 'نمذجة السحب العشوائي للكرات'],
+        epistemologicalObstacles: 'صعوبة التمييز بين أهمية الترتيب من عدمه وتكرار العناصر.',
+        remediationActivity: 'جدول مقارن تفاعلي للتمييز بين (في آن واحد / بالتتابع وبإحلال / بالتتابع وبدون إحلال).'
+      },
+      {
+        domain: 'عموميات حول الدوال والإحصاء',
+        weightPct: 35,
+        skills: ['قراءة جداول التغيرات والمنحنيات المبيانية', 'المتتاليات الحسابية والهندسية', 'المتسلسلات الإحصائية والمعدل والمنوال'],
+        epistemologicalObstacles: 'الخلط بين أساس المتتالية الحسابية والأساس الهندسي.',
+        remediationActivity: 'بطاقات تدريبية للتحقق من طبيعة المتتالية وحساب الحد العام بدلالة n.'
+      }
+    ],
+    sampleQuestions: [
+      {
+        num: 1,
+        domain: 'النسب المئوية والمعادلات',
+        points: 7,
+        questionText: 'خُفّض ثمن حاسوب بنسبة 15% ليصبح ثمنه الجديد 3825 درهماً. حدد الثمن الأصلي للحاسوب، ثم حل في IR المعادلة: x² - 7x + 12 = 0.',
+        expectedCompetency: 'توظيف التناسبية والنسب المئوية وحساب مميز ثلاثية الحدود.'
+      },
+      {
+        num: 2,
+        domain: 'مبادئ التعداد',
+        points: 6,
+        questionText: 'يحتوي صندوق على 4 كرات بيضاء و 3 كرات حمراء. نسحب عشوائياً وفي آن واحد 3 كرات. كم عدد السحبات الممكنة؟ وما عدد السحبات التي تحتوي على كرة حمراء واحدة فقط؟',
+        expectedCompetency: 'استعمال التأليفات C_n^p في سحب آني.'
+      },
+      {
+        num: 3,
+        domain: 'المتتاليات العددية',
+        points: 7,
+        questionText: 'نعتبر متتالية حسابية (u_n) حدها الأول u_0 = 3 وأساسها r = 4. احسب u_1 و u_10، ثم احسب المجموع: S = u_0 + u_1 + ... + u_10.',
+        expectedCompetency: 'تطبيق صيغة الحد العام ومجموع حدود متتالية حسابية.'
+      }
+    ]
+  },
   '1BAC_SM': {
     code: '1BAC_SM',
     levelTitle: 'الأولى باكالوريا علوم رياضية (1BAC SM)',
@@ -433,6 +485,23 @@ function computeStudentOrientation(student: StudentMetric, levelCode: string): O
     };
   }
 
+  if (levelCode === '1BAC_LSH') {
+    return {
+      primaryPath: 'الثانية باكالوريا مسلك الآداب أو مسلك العلوم الإنسانية (2BAC LSH / 2BAC SH)',
+      secondaryPath: 'الثانية باكالوريا مسلك العلوم الشرعية أو مسلك اللغة العربية (التعليم الأصيل)',
+      postBacTracks: [
+        'المعهد العالي للإعلام والاتصال (ISIC)',
+        'كليات العلوم القانونية والاقتصادية والاجتماعية (FSJES)',
+        'كليات الآداب والعلوم الإنسانية ومدارس الترجمة (ESRFT)',
+        'المدرسة العليا للأساتذة ومسارات التربية والتعليم (ENS)'
+      ],
+      profileBadge: 'توجيه ملائم لمسلك الآداب والعلوم الإنسانية',
+      profileColor: 'bg-amber-100 text-amber-900 border-amber-300',
+      confidencePct: 90,
+      counselorNote: 'تحكم إيجابي في الكفايات الرياضية المقررة لمسلك الآداب والعلوم الإنسانية يؤهل التلميذ(ة) للنجاح في الامتحان الجهوي الموحد ومتابعة دراسات جامعية واعدة في حقول الإعلام، القانون، اللغات والعلوم الاجتماعية.'
+    };
+  }
+
   if (levelCode.startsWith('1BAC')) {
     if (effectiveScore >= 15) {
       return {
@@ -524,15 +593,19 @@ export default function PedagogicalCouncilOrientationView({
   const [selectedDiagnosticLevel, setSelectedDiagnosticLevel] = useState<string>(() => {
     const upper = (selectedClass || '').toUpperCase();
     if (upper.includes('TCS') || upper.includes('TC') || selectedClass.includes('جذع')) return 'TCS';
-    if (upper.includes('1BAC') && upper.includes('SM')) return '1BAC_SM';
-    if (upper.includes('1BAC')) return '1BAC_EXP';
+    if (upper.includes('1BAC') || selectedClass.includes('أولى') || selectedClass.includes('اولى')) {
+      if (upper.includes('SM')) return '1BAC_SM';
+      if (upper.includes('LSH') || upper.includes('SH') || upper.includes('LET') || upper.includes('LIT') || selectedClass.includes('آداب') || selectedClass.includes('إنسانية')) return '1BAC_LSH';
+      return '1BAC_EXP';
+    }
     if (upper.includes('SM')) return '2BAC_SM';
+    if (upper.includes('LSH') || upper.includes('SH') || selectedClass.includes('آداب') || selectedClass.includes('إنسانية')) return '1BAC_LSH';
     return '2BAC_PC';
   });
   const [orientationLevel, setOrientationLevel] = useState<'TCS' | '1BAC' | '2BAC'>(() => {
     const upper = (selectedClass || '').toUpperCase();
     if (upper.includes('TC') || selectedClass.includes('جذع')) return 'TCS';
-    if (upper.includes('1BAC') || selectedClass.includes('أولى')) return '1BAC';
+    if (upper.includes('1BAC') || selectedClass.includes('أولى') || selectedClass.includes('اولى')) return '1BAC';
     return '2BAC';
   });
   const [orientationSearch, setOrientationSearch] = useState('');
@@ -554,11 +627,23 @@ export default function PedagogicalCouncilOrientationView({
     if (upper.includes('TCS') || upper.includes('TC') || selectedClass.includes('جذع')) {
       setSelectedDiagnosticLevel('TCS');
       setOrientationLevel('TCS');
-    } else if (upper.includes('1BAC') || selectedClass.includes('أولى')) {
-      setSelectedDiagnosticLevel(upper.includes('SM') ? '1BAC_SM' : '1BAC_EXP');
+    } else if (upper.includes('1BAC') || selectedClass.includes('أولى') || selectedClass.includes('اولى')) {
+      if (upper.includes('SM')) {
+        setSelectedDiagnosticLevel('1BAC_SM');
+      } else if (upper.includes('LSH') || upper.includes('SH') || upper.includes('LET') || upper.includes('LIT') || selectedClass.includes('آداب') || selectedClass.includes('إنسانية')) {
+        setSelectedDiagnosticLevel('1BAC_LSH');
+      } else {
+        setSelectedDiagnosticLevel('1BAC_EXP');
+      }
       setOrientationLevel('1BAC');
     } else {
-      setSelectedDiagnosticLevel(upper.includes('SM') ? '2BAC_SM' : '2BAC_PC');
+      if (upper.includes('SM')) {
+        setSelectedDiagnosticLevel('2BAC_SM');
+      } else if (upper.includes('LSH') || upper.includes('SH') || selectedClass.includes('آداب') || selectedClass.includes('إنسانية')) {
+        setSelectedDiagnosticLevel('1BAC_LSH');
+      } else {
+        setSelectedDiagnosticLevel('2BAC_PC');
+      }
       setOrientationLevel('2BAC');
     }
   }, [selectedClass]);

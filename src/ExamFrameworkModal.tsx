@@ -232,6 +232,52 @@ const PRESET_LEVELS: Record<string, {
       }
     ]
   },
+  '1BAC_LSH': {
+    name: 'الأولى باكالوريا آداب وعلوم إنسانية (1BAC SH / 1BAC LSH)',
+    stream: 'شعبة الآداب والعلوم الإنسانية والتعليم الأصيل',
+    coef: 1,
+    duration: 'ساعة واحدة (1h)',
+    domains: [
+      { name: 'المجال الأول: الحساب العددي والتناسبية والنسب المئوية والمعادلات', defaultPoints: 6, weightPct: 30 },
+      { name: 'المجال الثاني: المتتاليات العددية (الحسابية والهندسية)', defaultPoints: 5, weightPct: 25 },
+      { name: 'المجال الثالث: التعداد ومبدأ الجداء الأساسي', defaultPoints: 4, weightPct: 20 },
+      { name: 'المجال الرابع: الدوال العددية ونهايات الدوال البسيطة وقراءة المبيانات', defaultPoints: 5, weightPct: 25 }
+    ],
+    defaultExercises: [
+      {
+        order: 1,
+        title: 'التمرين الأول: الحساب العددي والنسب المئوية وحل المعادلات',
+        domain: 'المجال الأول: الحساب العددي والتناسبية والنسب المئوية والمعادلات',
+        points: 5.5,
+        skills: { directApplication: 3.5, familiarSituation: 1.5, complexReasoning: 0.5 },
+        competencies: 'تطبيق النسب المئوية والتخفيض/الزيادة، حل معادلات ومتراجحات من الدرجة الأولى والثانية بمجهول واحد.'
+      },
+      {
+        order: 2,
+        title: 'التمرين الثاني: المتتاليات الحسابية والهندسية',
+        domain: 'المجال الثاني: المتتاليات العددية (الحسابية والهندسية)',
+        points: 5,
+        skills: { directApplication: 3, familiarSituation: 1.5, complexReasoning: 0.5 },
+        competencies: 'تحديد الأساس والحد الأول، كتابة الحد العام بدلالة n، وحساب مجموع حدود متتابعة.'
+      },
+      {
+        order: 3,
+        title: 'التمرين الثالث: مبادئ التعداد والتأليفات والترتيبات',
+        domain: 'المجال الثالث: التعداد ومبدأ الجداء الأساسي',
+        points: 4.5,
+        skills: { directApplication: 2.5, familiarSituation: 1.5, complexReasoning: 0.5 },
+        competencies: 'استعمال المبدأ الأساسي للتعداد، الترتيبات بتكرار وبدون تكرار والتأليفات في وضعيات سحب كرات عشوائياً.'
+      },
+      {
+        order: 4,
+        title: 'التمرين الرابع: دراسة دالة عددية وقراءة مبيانها',
+        domain: 'المجال الرابع: الدوال العددية ونهايات الدوال البسيطة وقراءة المبيانات',
+        points: 5,
+        skills: { directApplication: 2.5, familiarSituation: 2, complexReasoning: 0.5 },
+        competencies: 'حساب النهايات البسيطة عند المحدات، إشارة المشتقة وتحديد الرتابة، واستنتاج مطاريف الدالة من التمثيل المبياني.'
+      }
+    ]
+  },
   '2BAC_ECO': {
     name: 'الثانية باكالوريا علوم اقتصادية وتدبير (SEG)',
     stream: 'شعبة العلوم الاقتصادية والتدبير',
@@ -359,7 +405,23 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
   onClose,
   initialClass = '2BAC_PC'
 }) => {
-  const [selectedLevel, setSelectedLevel] = useState<string>('2BAC_PC');
+  const [selectedLevel, setSelectedLevel] = useState<string>(() => {
+    const raw = (initialClass || '').toUpperCase();
+    if (raw.includes('TCS') || raw.includes('TCT')) return 'TCS';
+    if (raw.includes('TCL')) return 'TCL';
+    if (raw.includes('1BAC') || raw.includes('1 BAC') || raw.includes('1B') || raw.includes('أولى') || raw.includes('اولى')) {
+      if (raw.includes('SM')) return '1BAC_SM';
+      if (raw.includes('LSH') || raw.includes('SH') || raw.includes('LET') || raw.includes('LIT') || raw.includes('آداب') || raw.includes('إنسانية')) return '1BAC_LSH';
+      return '1BAC_EXP';
+    }
+    if (raw.includes('2BAC') || raw.includes('2 BAC') || raw.includes('2B') || raw.includes('ثانية') || raw.includes('الثانية')) {
+      if (raw.includes('SM')) return '2BAC_SM';
+      if (raw.includes('ECO')) return '2BAC_ECO';
+      return '2BAC_PC';
+    }
+    if (raw.includes('LSH') || raw.includes('SH') || raw.includes('آداب') || raw.includes('إنسانية')) return '1BAC_LSH';
+    return '2BAC_PC';
+  });
   const [examNumber, setExamNumber] = useState<'1' | '2' | '3' | '4'>('1');
   const [semester, setSemester] = useState<'s1' | 's2'>('s1');
   const [schoolYear, setSchoolYear] = useState<string>('2026 / 2027');

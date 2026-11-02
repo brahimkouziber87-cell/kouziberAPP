@@ -5426,12 +5426,14 @@
             else if (upperCls.includes('SVT')) inferredLevel = '2BAC-SVT';
             else if (upperCls.includes('ECO')) inferredLevel = '2BAC-ECO';
             else if (upperCls.includes('STE') || upperCls.includes('STM')) inferredLevel = '2BAC-STE';
+            else if (/\b(?:LSH|SH|LET|LIT)\b/i.test(upperCls) || upperCls.includes('آداب') || upperCls.includes('اداب') || upperCls.includes('إنسانية') || upperCls.includes('انسانية')) inferredLevel = '2BAC-LSH';
             else inferredLevel = '2BAC-PC';
         } else if (upperCls.includes('1BAC') || upperCls.includes('1 BAC')) {
             if (upperCls.includes('SM')) inferredLevel = '1BAC-SM';
             else if (upperCls.includes('ECO')) inferredLevel = '1BAC-ECO';
+            else if (/\b(?:LSH|SH|LET|LIT)\b/i.test(upperCls) || upperCls.includes('آداب') || upperCls.includes('اداب') || upperCls.includes('إنسانية') || upperCls.includes('انسانية')) inferredLevel = '1BAC-LSH';
             else inferredLevel = '1BAC-EX';
-        } else if (upperCls.includes('TCL') || upperCls.includes('آداب')) {
+        } else if (upperCls.includes('TCL') || upperCls.includes('آداب') || upperCls.includes('اداب') || upperCls.includes('إنسانية') || upperCls.includes('انسانية')) {
             inferredLevel = 'TC-LSH';
         } else if (upperCls.includes('TC') || upperCls.includes('TCS') || upperCls.includes('TCT')) {
             inferredLevel = 'TC-SC';

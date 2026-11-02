@@ -3635,6 +3635,9 @@
                     </div>
 
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="btn-action" id="btnDashAiClassDiagnostics" onclick="if (window._dashboardFocusModeActive && typeof toggleDashboardFocusMode === 'function') { toggleDashboardFocusMode(); } if (typeof window.renderDashboardView === 'function') { window.renderDashboardView(); } setTimeout(function() { if (typeof window.openDashboardAiClassDiagnostics === 'function') window.openDashboardAiClassDiagnostics(); }, 80);" style="background: linear-gradient(135deg, #4338ca 0%, #6d28d9 50%, #7c3aed 100%); color: white; border: 1px solid rgba(167, 139, 250, 0.5); font-weight: 900; display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(109, 40, 217, 0.4); cursor: pointer; transition: all 0.2s;" title="تحليل أداء جميع الأقسام بالذكاء الاصطناعي وتوليد تقارير تشخيصية مفصلة لمستوى كل قسم بناءً على نتائج الفروض المحروسة الممسوحة والمواظبة">
+                            <span data-lucide="brain-circuit" data-size="16"></span> <span>تحليل أداء الأقسام بالذكاء الاصطناعي 🤖</span>
+                        </button>
                         <button type="button" class="btn-action" id="btnDashboardFocusMode" onclick="toggleDashboardFocusMode()" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color: white; border: none; font-weight: 800; display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 8px; box-shadow: 0 3px 10px rgba(124, 58, 237, 0.35); cursor: pointer; transition: all 0.2s;" title="تفعيل وضع التركيز لإخفاء كافة البيانات غير الضرورية والتركيز التام على القسم المختار">
                             <span data-lucide="crosshair" data-size="16"></span> <span id="btnDashboardFocusModeText">وضع التركيز (Focus Mode) 🎯</span>
                         </button>
@@ -4511,11 +4514,6 @@
                         <span data-lucide="table" data-size="16"></span>
                         <span>2. سجل الحصيلة السنوية وجدول التتبع (د1 + د2)</span>
                         <span style="font-size: 0.68rem; padding: 1px 6px; border-radius: 999px; background: #cbd5e1; color: #1e293b; font-weight: 800;">الجدول التفاعلي + الذروة</span>
-                    </button>
-                    <button type="button" id="btnSubViewAutoRemediation" onclick="openAnnualAutoRemediationWorkspace()" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; border: none; font-family: inherit; font-size: 0.82rem; font-weight: 800; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #ffffff; box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);">
-                        <span data-lucide="sparkles" data-size="16"></span>
-                        <span>3. التوليد التلقائي لخطط المعالجة (الفروض الممسوحة)</span>
-                        <span style="font-size: 0.68rem; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.22); color: #ffffff; font-weight: 900;">تفييء المتعثرين</span>
                     </button>
                 </div>
             </div>
@@ -12999,6 +12997,10 @@
                             <span>⏱️ مؤقت تمرين</span>
                         </button>
 
+                        <button type="button" onclick="window.openMathQuickQuizModal()" class="btn-secondary" style="background: #fdf2f8; border: 1.5px solid #f472b6; color: #9d174d; padding: 4px 9px; font-size: 0.72rem; font-weight: 800; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="رائز المكتسبات القبلية والتقويم التكويني السريع (5 أسئلة تشخيصية بدون احتساب في النقط — الرياضيات تعتمد على الفروض المحروسة فقط)">
+                            <span>⚡ رائز قبلي سريع</span>
+                        </button>
+
                         <button type="button" onclick="window.saveBoardToLessonLog()" class="btn-secondary" style="background: #eff6ff; border: 1.5px solid #93c5fd; color: #1e40af; padding: 4px 8px; font-size: 0.72rem; font-weight: 800; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;" title="ترحيل ملخص السبورة والتمارين المنجزة مباشرة إلى دفتر النصوص">
                             <span>📓 لدفتر النصوص</span>
                         </button>
@@ -13006,6 +13008,19 @@
                         <button type="button" id="btnToggleProofRecord" onclick="window.toggleProofRecording()" class="btn-secondary" style="background: #faf5ff; border: 1.5px solid #d8b4fe; color: #6d28d9; padding: 4px 8px; font-size: 0.72rem; font-weight: 800; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="تسجيل البرهان الرياضي وإعادة تشغيله خطوة بخطوة للدرس">
                             <span id="proofRecordDot" style="width: 8px; height: 8px; border-radius: 50%; background: #6d28d9; display: inline-block;"></span>
                             <span id="btnProofRecordLabel">⏺️ تسجيل برهان</span>
+                        </button>
+
+                        <button type="button" id="btnToggleBoardVideoRec" onclick="window.toggleBoardVideoRecorder()" class="btn-secondary" style="background: #fef2f2; border: 1.5px solid #fca5a5; color: #b91c1c; padding: 4px 8px; font-size: 0.72rem; font-weight: 800; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="تسجيل فيديو وصوت للحصة مباشرة من السبورة بصيغة WebM لمشاركتها مع التلاميذ">
+                            <span id="boardVideoRecDot" style="width: 8px; height: 8px; border-radius: 50%; background: #dc2626; display: inline-block;"></span>
+                            <span id="btnBoardVideoRecLabel">🎥 تسجيل فيديو</span>
+                        </button>
+
+                        <button type="button" id="btnToggleBoardCurtain" onclick="window.toggleBoardCurtain()" class="btn-secondary" style="background: #f0f9ff; border: 1.5px solid #7dd3fc; color: #0369a1; padding: 4px 8px; font-size: 0.72rem; font-weight: 800; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="ستار الإخفاء التدريجي لكشف الحلول خطوة بخطوة أثناء الشرح">
+                            <span>🎭 ستار الإخفاء</span>
+                        </button>
+
+                        <button type="button" onclick="window.openBoardLiveShareModal()" class="btn-secondary" style="background: #eef2ff; border: 1.5px solid #a5b4fc; color: #3730a3; padding: 4px 8px; font-size: 0.72rem; font-weight: 800; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="مشاركة السبورة وحلول التمارين فوراً مع التلاميذ عبر رمز QR أو رابط مباشر">
+                            <span>📡 مشاركة QR</span>
                         </button>
 
                         <button type="button" onclick="window.openHomeworkCorrectionModal()" class="btn-secondary" style="background: #ecfdf5; border: 1.5px solid #6ee7b7; color: #047857; padding: 4px 8px; font-size: 0.72rem; font-weight: 800; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="تصحيح الفروض المنزلية مع أختام التقييم الديداكتيكي">
@@ -13164,7 +13179,7 @@
                             </div>
                             <button type="button" id="btnToggleStudentLock" onclick="window.toggleStudentPenLock()" style="background: #334155; border: 1px solid #64748b; color: #fff; border-radius: 6px; padding: 3px 8px; font-size: 0.68rem; font-weight: 800; cursor: pointer;" title="قفل / فتح إمكانية الكتابة للتلميذ">🔒 قفل القلم</button>
                             <button type="button" onclick="window.sendInstantMathGuidance()" style="background: #7c3aed; border: none; color: #fff; border-radius: 6px; padding: 3px 8px; font-size: 0.68rem; font-weight: 800; cursor: pointer;" title="إرسال توجيه رياضي فوري يظهر على الشاشة">💬 توجيه رياضي</button>
-                            <button type="button" onclick="window.awardStudentParticipationPoint()" style="background: #059669; border: none; color: #fff; border-radius: 6px; padding: 3px 8px; font-size: 0.68rem; font-weight: 800; cursor: pointer;" title="منح نقطة مشاركة صفية للتلميذ">+1 ⭐ مشاركة</button>
+                            <button type="button" onclick="window.awardStudentParticipationPoint()" style="background: #059669; border: none; color: #fff; border-radius: 6px; padding: 3px 8px; font-size: 0.68rem; font-weight: 800; cursor: pointer;" title="تشجيع بيداغوجي للتلميذ دون احتساب نقط مشاركة (الرياضيات تعتمد على الفروض المحروسة فقط)">👏 تشجيع تكويني</button>
                             <button type="button" onclick="window.endStudentCallSession()" style="background: #dc2626; border: none; color: #fff; border-radius: 6px; padding: 3px 8px; font-size: 0.68rem; font-weight: 800; cursor: pointer;" title="إنهاء صعود التلميذ للسبورة">🏁 إنهاء</button>
                         </div>
 
@@ -13253,11 +13268,17 @@
                         </div>
 
                         <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <button type="button" onclick="window.openMathQuickQuizModal()" class="btn-primary" style="background: linear-gradient(135deg, #be185d, #db2777); padding: 5px 6px; border-radius: 6px; font-size: 0.67rem; font-weight: 800; border: none; cursor: pointer;" title="رائز المكتسبات القبلية والتقويم التكويني السريع (بدون احتساب نقط مشاركة)">
+                                ⚡ رائز المكتسبات القبلية
+                            </button>
                             <button type="button" onclick="window.openVariationTableModal()" class="btn-primary" style="background: linear-gradient(135deg, #0f766e, #0d9488); padding: 5px 6px; border-radius: 6px; font-size: 0.67rem; font-weight: 800; border: none; cursor: pointer;" title="مولد جدول الإشارة وجدول تغيرات الدالة f(x) وفق المنهاج المغربي">
                                 📊 جدول التغيرات والإشارة
                             </button>
                             <button type="button" onclick="window.openCustomFunctionPlotterModal()" class="btn-primary" style="background: linear-gradient(135deg, #be123c, #e11d48); padding: 5px 6px; border-radius: 6px; font-size: 0.67rem; font-weight: 800; border: none; cursor: pointer;" title="رسم منحنى أي دالة مخصصة f(x) مع المماس (T) والتكامل">
                                 📈 راسم دالة f(x) ومماس
+                            </button>
+                            <button type="button" onclick="window.openRecursiveSequenceModal()" class="btn-primary" style="background: linear-gradient(135deg, #0369a1, #0284c7); padding: 5px 6px; border-radius: 6px; font-size: 0.66rem; font-weight: 800; border: none; cursor: pointer;" title="التمثيل المبياني للمتتالية الترجعية u_(n+1) = f(u_n) والمنصف الأول y = x">
+                                🌀 متتالية uₙ₊₁ = f(uₙ)
                             </button>
                             <button type="button" onclick="window.openMathFormulaModal()" class="btn-primary" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); padding: 5px 6px; border-radius: 6px; font-size: 0.67rem; font-weight: 800; border: none; cursor: pointer;" title="إدراج صيغ ومعادلات رياضية عالية الدقة (LaTeX / KaTeX)">
                                 ∛ صيغ رياضية (LaTeX)
@@ -13268,6 +13289,12 @@
                                 </button>
                                 <button type="button" onclick="window.drawTrigonometricCircle()" class="btn-primary" style="background: linear-gradient(135deg, #059669, #047857); padding: 4px 3px; border-radius: 6px; font-size: 0.64rem; font-weight: 800; border: none; cursor: pointer;" title="رسم الدائرة المثلثية مع الزوايا الشهيرة">
                                     ⭕ مثلثية
+                                </button>
+                                <button type="button" onclick="window.drawComplexPlane()" class="btn-primary" style="background: linear-gradient(135deg, #4338ca, #6366f1); padding: 4px 3px; border-radius: 6px; font-size: 0.63rem; font-weight: 800; border: none; cursor: pointer;" title="رسم المستوى العقدي (O, u, v) مع التمثيل المبياني لـ z و z̄ والمعيار والعمدة">
+                                    🔢 المستوى العقدي
+                                </button>
+                                <button type="button" onclick="window.openDidacticCalloutModal()" class="btn-primary" style="background: linear-gradient(135deg, #d97706, #b45309); padding: 4px 3px; border-radius: 6px; font-size: 0.63rem; font-weight: 800; border: none; cursor: pointer;" title="إدراج بطاقة تنبيه ديداكتيكي (خطأ شائع، مبرهنة، منهجية، خلاصة)">
+                                    📌 ملصق تربوي
                                 </button>
                             </div>
                             <select onchange="if(this.value) { window.drawMathCurve(this.value); this.value=''; }" style="width: 100%; padding: 4px 3px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 700; font-size: 0.65rem; background: #fff; color: #1e293b;" title="رسم منحنى دالة اعتيادية ومقارباتها ومماسها">

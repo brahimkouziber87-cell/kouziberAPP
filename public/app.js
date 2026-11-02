@@ -5057,15 +5057,16 @@
 
             // 8. شعبة الآداب والعلوم الإنسانية والتعليم الأصيل (1BAC / 2BAC LSH / LET / SH) - المذكرة 142-08: ساعتان أسبوعياً، المعامل 1، فرضان محروسان (1h) + فرضان منزليان
             if (
-                /\bLSH\b|\bLET\b|\bLIT\b|\bSH\b|\b1B?L\b|\b2B?L\b|\b1B?SH\b|\b2B?SH\b/i.test(upper) ||
-                upper.startsWith('1L') || upper.startsWith('2L') || upper.startsWith('LSH') || upper.startsWith('LET') ||
+                /\bLSH\b|\bLET\b|\bLIT\b|\bSH\b|\b1B?L\b|\b2B?L\b|\b1B?SH\b|\b2B?SH\b|\b1B?LSH\b|\b2B?LSH\b/i.test(upper) ||
+                /(?:^|[^a-zA-Z0-9])(?:1|2)?\s*BAC[-_\s]*(?:LSH|SH|LET|LIT)(?:[^a-zA-Z0-9]|$)/i.test(upper) ||
+                upper.startsWith('1L') || upper.startsWith('2L') || upper.startsWith('LSH') || upper.startsWith('LET') || upper.startsWith('1SH') || upper.startsWith('2SH') ||
                 raw.includes('آداب') || raw.includes('اداب') || raw.includes('أدبي') || raw.includes('إنسانية') || raw.includes('انسانية') || raw.includes('أصيل') || raw.includes('اصيل')
             ) {
-                const is2Bac = upper.includes('2') || raw.includes('ثانية');
+                const is2Bac = upper.includes('2BAC') || upper.includes('2 BAC') || upper.includes('2B') || upper.includes('2L') || upper.includes('2SH') || raw.includes('ثانية') || raw.includes('الثانية');
                 return {
                     branchCode: 'LSH',
                     levelLabel: is2Bac ? 'الثانية باكالوريا' : 'الأولى باكالوريا',
-                    branchLabel: 'الآداب والعلوم الإنسانية / التعليم الأصيل',
+                    branchLabel: is2Bac ? 'الثانية باك آداب وعلوم إنسانية (2BAC LSH / 2BAC SH)' : 'الأولى باك آداب وعلوم إنسانية (1BAC SH / 1BAC LSH)',
                     weeklyHours: 2,
                     examsCount: 2,
                     examDuration: 'ساعة واحدة (1h)',

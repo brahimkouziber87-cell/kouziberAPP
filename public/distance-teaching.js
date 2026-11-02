@@ -83,7 +83,28 @@
         x: 420,
         y: 300,
         angle: 0,       // in radians
-        radius: 120     // px (approx 6 cm at 20px/cm)
+        radius: 120,    // px (approx 6 cm at 20px/cm)
+        arcSpanDeg: 90  // Arc span for geometric constructions
+    };
+
+    // Pedagogical Reveal Curtain State (الستار البيداغوجي التدريجي)
+    let curtainState = {
+        visible: false,
+        y: 260,         // Top edge of curtain (hides everything from y to bottom)
+        opacity: 0.94
+    };
+
+    // Live Video + Audio Lesson Recorder State (استوديو تسجيل الحصة بالفيديو والصوت)
+    let videoRecorderState = {
+        isRecording: false,
+        mediaRecorder: null,
+        recordedChunks: [],
+        animFrameId: null,
+        audioStream: null,
+        compCanvas: null,
+        compCtx: null,
+        startTime: 0,
+        timerInterval: null
     };
 
     let exerciseTimerState = {
@@ -95,7 +116,7 @@
     let cachedProofBaseImg = null;
     let cachedProofBaseSrc = '';
 
-    let activeGeoInteraction = null; // { tool: 'ruler'|'protractor'|'setSquare'|'compass', mode: 'move'|'rotate'|'resize'|'ray'|'compass_arc', startX, startY, origX, origY, origAngle, origLength, origSize, origRadius }
+    let activeGeoInteraction = null; // { tool: 'ruler'|'protractor'|'setSquare'|'compass'|'curtain', mode: 'move'|'rotate'|'resize'|'ray'|'compass_arc', startX, startY, origX, origY, origAngle, origLength, origSize, origRadius }
     let laserPointerPos = null;      // Decoupled 120fps laser pointer overlay pos: { x, y }
     let strokePoints = [];           // Points history for smooth midpoint quadratic bezier curves
     let activeStylusId = null;       // Active pointer ID for Palm Rejection
@@ -153,6 +174,7 @@
     // Undo / Redo Stacks (stores dataURLs of the ink canvas with memory optimization)
     let undoStack = [];
     let redoStack = [];
+    let redoVectorStack = [];
     const MAX_HISTORY = 15;
 
     // PDF & Worksheet Integration State
@@ -974,12 +996,14 @@
             undoStack.push(snapshot);
             if (undoStack.length > MAX_HISTORY) undoStack.shift();
             redoStack = [];
+            redoVectorStack = [];
         } catch (e) {
             try {
                 const snapshot = canvas.toDataURL('image/png');
                 undoStack.push(snapshot);
                 if (undoStack.length > MAX_HISTORY) undoStack.shift();
                 redoStack = [];
+                redoVectorStack = [];
             } catch (err) {}
         }
     }
@@ -1031,7 +1055,7 @@
 
             const pos = getCoords(e);
 
-            // 1. Check if clicking on an interactive geometric tool (Ruler, Protractor, Set Square, Compass)
+            // 1. Check if clicking on an interactive geometric tool (Ruler, Protractor, Set Square, Compass, Curtain)
             const geoHit = hitTestGeometricTools(pos.x, pos.y);
             if (geoHit) {
                 if (geoHit.mode === 'close') {
@@ -1039,6 +1063,7 @@
                     if (geoHit.tool === 'protractor') toggleInteractiveProtractor(false);
                     if (geoHit.tool === 'setSquare') toggleInteractiveSetSquare(false);
                     if (geoHit.tool === 'compass') toggleInteractiveCompass(false);
+                    if (geoHit.tool === 'curtain') toggleBoardCurtain(false);
                     return;
                 }
                 if (geoHit.mode === 'stamp_angle' && geoHit.tool === 'protractor') {
@@ -1053,25 +1078,29 @@
                     stampCompassCircleToInk();
                     return;
                 }
+                if (geoHit.mode === 'stamp_compass_arc' && geoHit.tool === 'compass') {
+                    stampCompassArcToInk();
+                    return;
+                }
                 if (geoHit.mode === 'draw_edge' && geoHit.tool === 'ruler') {
                     drawFullRulerEdgeToInk();
                     return;
                 }
-                const targetState = geoHit.tool === 'ruler' ? rulerState : (geoHit.tool === 'protractor' ? protractorState : (geoHit.tool === 'compass' ? compassState : setSquareState));
+                const targetState = geoHit.tool === 'ruler' ? rulerState : (geoHit.tool === 'protractor' ? protractorState : (geoHit.tool === 'compass' ? compassState : (geoHit.tool === 'curtain' ? curtainState : setSquareState)));
                 activeGeoInteraction = {
                     tool: geoHit.tool,
                     mode: geoHit.mode,
                     startX: pos.x,
                     startY: pos.y,
-                    origX: targetState.x,
-                    origY: targetState.y,
+                    origX: targetState.x || 0,
+                    origY: targetState.y || 0,
                     origAngle: targetState.angle || 0,
                     origLength: targetState.length || 440,
                     origSize: targetState.size || 260,
                     origRadius: targetState.radius || 120,
-                    startPointerAngle: Math.atan2(pos.y - targetState.y, pos.x - targetState.x)
+                    startPointerAngle: Math.atan2(pos.y - (targetState.y || 0), pos.x - (targetState.x || 0))
                 };
-                canvas.style.cursor = geoHit.mode === 'rotate' ? 'grabbing' : 'move';
+                canvas.style.cursor = geoHit.mode === 'rotate' ? 'grabbing' : (geoHit.tool === 'curtain' ? 'ns-resize' : 'move');
                 return;
             }
 
@@ -1179,9 +1208,15 @@
 
             const pos = getCoords(e);
 
-            // Active geometric tool transformation (moving, rotating, resizing, measuring angle)
+            // Active geometric tool transformation (moving, rotating, resizing, measuring angle, curtain)
             if (activeGeoInteraction) {
                 e.preventDefault();
+                if (activeGeoInteraction.tool === 'curtain') {
+                    const h = lastValidHeight || (canvas && parseFloat(canvas.style.height)) || 640;
+                    curtainState.y = Math.max(40, Math.min(h - 36, activeGeoInteraction.origY + (pos.y - activeGeoInteraction.startY)));
+                    renderGeometricToolsOverlay();
+                    return;
+                }
                 const target = activeGeoInteraction.tool === 'ruler' ? rulerState : (activeGeoInteraction.tool === 'protractor' ? protractorState : (activeGeoInteraction.tool === 'compass' ? compassState : setSquareState));
                 if (activeGeoInteraction.mode === 'move') {
                     target.x = activeGeoInteraction.origX + (pos.x - activeGeoInteraction.startX);
@@ -1232,8 +1267,13 @@
 
             if (isPanning) {
                 e.preventDefault();
-                pdfPanOffset.x = pos.x - panStartX;
-                pdfPanOffset.y = pos.y - panStartY;
+                const nextX = pos.x - panStartX;
+                const nextY = pos.y - panStartY;
+                const dx = nextX - pdfPanOffset.x;
+                const dy = nextY - pdfPanOffset.y;
+                pdfPanOffset.x = nextX;
+                pdfPanOffset.y = nextY;
+                shiftInkCanvasAndVectorsByDelta(dx, dy);
                 drawBackground();
                 syncPdfVerticalSliderUI();
                 return;
@@ -1420,12 +1460,16 @@
         canvas.addEventListener('wheel', (e) => {
             const pos = getCoords(e);
             const hoverHit = hitTestGeometricTools(pos.x, pos.y);
-            if (hoverHit) {
+            if (hoverHit && hoverHit.tool !== 'curtain') {
                 e.preventDefault();
-                const target = hoverHit.tool === 'ruler' ? rulerState : (hoverHit.tool === 'protractor' ? protractorState : setSquareState);
-                const stepDeg = e.shiftKey ? 5 : 1;
-                const deltaRad = ((e.deltaY < 0 ? stepDeg : -stepDeg) * Math.PI) / 180;
-                target.angle += deltaRad;
+                const target = hoverHit.tool === 'ruler' ? rulerState : (hoverHit.tool === 'protractor' ? protractorState : (hoverHit.tool === 'compass' ? compassState : setSquareState));
+                if (hoverHit.tool === 'compass' && e.ctrlKey) {
+                    target.radius = Math.max(30, Math.min(340, (target.radius || 120) + (e.deltaY < 0 ? 6 : -6)));
+                } else {
+                    const stepDeg = e.shiftKey ? 5 : 1;
+                    const deltaRad = ((e.deltaY < 0 ? stepDeg : -stepDeg) * Math.PI) / 180;
+                    target.angle = (target.angle || 0) + deltaRad;
+                }
                 renderGeometricToolsOverlay();
                 return;
             }
@@ -2480,11 +2524,57 @@
         slider.value = String(Math.max(0, Math.min(100, pct)));
     }
 
+    /**
+     * إزاحة طبقة الحبر والتأشيرات بنفس مقدار تحريك صفحة الـ PDF لضمان ثبات الحلول فوق التمارين
+     */
+    function shiftInkCanvasAndVectorsByDelta(dx, dy) {
+        if (!ctx || !canvas || (!dx && !dy)) return;
+        const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
+        const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
+
+        // 1. Shift raster pixels on #mathWhiteboardCanvas
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.drawImage(canvas, 0, 0);
+
+        clearInkCanvasInternal();
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height, dx, dy, w, h);
+        ctx.restore();
+
+        // 2. Shift vector stroke coordinates for current PDF page so persistence stays aligned
+        if (isPdfOrWorksheetActive() && Array.isArray(pdfPageVectorStrokes[currentPdfPageNum])) {
+            pdfPageVectorStrokes[currentPdfPageNum].forEach(st => {
+                if (!st) return;
+                if (Array.isArray(st.pts)) {
+                    st.pts.forEach(pt => {
+                        if (Array.isArray(pt) && pt.length >= 2) {
+                            pt[0] = Math.round((pt[0] + dx) * 10) / 10;
+                            pt[1] = Math.round((pt[1] + dy) * 10) / 10;
+                        }
+                    });
+                } else if (typeof st.x1 === 'number') {
+                    st.x1 = Math.round((st.x1 + dx) * 10) / 10;
+                    st.y1 = Math.round((st.y1 + dy) * 10) / 10;
+                    st.x2 = Math.round((st.x2 + dx) * 10) / 10;
+                    st.y2 = Math.round((st.y2 + dy) * 10) / 10;
+                }
+            });
+        }
+    }
+
     function scrollWhiteboardPdfVertical(deltaY) {
         if (!isPdfOrWorksheetActive()) return;
         const bounds = getPdfVerticalScrollBounds();
+        const oldY = pdfPanOffset.y;
         // Positive deltaY means moving down the page (towards bottom -> decrease pdfPanOffset.y)
-        pdfPanOffset.y = Math.max(bounds.minOffsetY, Math.min(bounds.maxOffsetY, pdfPanOffset.y - Number(deltaY || 0)));
+        const newY = Math.max(bounds.minOffsetY, Math.min(bounds.maxOffsetY, oldY - Number(deltaY || 0)));
+        const dy = newY - oldY;
+        pdfPanOffset.y = newY;
+        if (dy !== 0) shiftInkCanvasAndVectorsByDelta(0, dy);
         drawBackground();
         syncPdfVerticalSliderUI();
     }
@@ -2494,7 +2584,11 @@
         const w = lastValidWidth || (canvas && parseFloat(canvas.style.width)) || 800;
         const pageW = (pdfRenderPos && pdfRenderPos.width) ? pdfRenderPos.width : w;
         const maxShiftX = Math.max(200, Math.abs(pageW - w) + 120);
-        pdfPanOffset.x = Math.max(-maxShiftX, Math.min(maxShiftX, pdfPanOffset.x + Number(deltaX || 0)));
+        const oldX = pdfPanOffset.x;
+        const newX = Math.max(-maxShiftX, Math.min(maxShiftX, oldX + Number(deltaX || 0)));
+        const dx = newX - oldX;
+        pdfPanOffset.x = newX;
+        if (dx !== 0) shiftInkCanvasAndVectorsByDelta(dx, 0);
         drawBackground();
     }
 
@@ -2502,7 +2596,11 @@
         if (!isPdfOrWorksheetActive()) return;
         const pct = Math.max(0, Math.min(100, Number(sliderVal) || 0)) / 100;
         const bounds = getPdfVerticalScrollBounds();
-        pdfPanOffset.y = Math.round(bounds.minOffsetY * pct);
+        const oldY = pdfPanOffset.y;
+        const newY = Math.round(bounds.minOffsetY * pct);
+        const dy = newY - oldY;
+        pdfPanOffset.y = newY;
+        if (dy !== 0) shiftInkCanvasAndVectorsByDelta(0, dy);
         drawBackground();
     }
 
@@ -2866,8 +2964,12 @@
         if (undoStack.length === 0 || !canvas) return;
         const currentUrl = canvas.toDataURL('image/webp', 0.85);
         redoStack.push(currentUrl);
-        if (!isPdfOrWorksheetActive() && Array.isArray(pageVectorStrokes[currentPageIndex]) && pageVectorStrokes[currentPageIndex].length > 0) {
-            pageVectorStrokes[currentPageIndex].pop();
+        if (isPdfOrWorksheetActive()) {
+            const arr = pdfPageVectorStrokes[currentPdfPageNum];
+            redoVectorStack.push(Array.isArray(arr) && arr.length > 0 ? arr.pop() : null);
+        } else {
+            const arr = pageVectorStrokes[currentPageIndex];
+            redoVectorStack.push(Array.isArray(arr) && arr.length > 0 ? arr.pop() : null);
         }
         const prevUrl = undoStack.pop();
         restoreDataUrlToInkCanvas(prevUrl, () => {
@@ -2879,6 +2981,16 @@
         if (redoStack.length === 0 || !canvas) return;
         const currentUrl = canvas.toDataURL('image/webp', 0.85);
         undoStack.push(currentUrl);
+        const restoredVec = redoVectorStack.pop();
+        if (restoredVec) {
+            if (isPdfOrWorksheetActive()) {
+                if (!Array.isArray(pdfPageVectorStrokes[currentPdfPageNum])) pdfPageVectorStrokes[currentPdfPageNum] = [];
+                pdfPageVectorStrokes[currentPdfPageNum].push(restoredVec);
+            } else {
+                if (!Array.isArray(pageVectorStrokes[currentPageIndex])) pageVectorStrokes[currentPageIndex] = [];
+                pageVectorStrokes[currentPageIndex].push(restoredVec);
+            }
+        }
         const nextUrl = redoStack.pop();
         restoreDataUrlToInkCanvas(nextUrl, () => {
             persistWhiteboardState();
@@ -3125,17 +3237,35 @@
      * فحص النقر أو التحويم فوق المسطرة أو المنقلة أو الكوس أو البركار ومقابض التحكم
      */
     function hitTestGeometricTools(px, py) {
-        // 0. Check Compass first (if visible)
+        // 0-A. Check Pedagogical Curtain handle if visible
+        if (curtainState.visible) {
+            const w = lastValidWidth || (canvas && parseFloat(canvas.style.width)) || 800;
+            const cy = curtainState.y || 260;
+            // Close button on curtain bar at right side (w - 32, cy + 16)
+            if (Math.hypot(px - (w - 32), py - (cy + 16)) <= 16) {
+                return { tool: 'curtain', mode: 'close' };
+            }
+            // Drag handle bar along top of curtain (cy - 12 to cy + 28)
+            if (py >= cy - 12 && py <= cy + 32) {
+                return { tool: 'curtain', mode: 'move' };
+            }
+        }
+
+        // 0-B. Check Compass first (if visible)
         if (compassState.visible) {
             const loc = toLocalToolCoords(px, py, compassState);
             const r = compassState.radius || 120;
-            // Close handle at top hinge (r/2, -108)
+            // Close handle at top hinge (r/2 + 24, -105)
             if (Math.hypot(loc.x - (r / 2 + 24), loc.y - (-105)) <= 14) {
                 return { tool: 'compass', mode: 'close' };
             }
-            // Stamp circle button at (r/2, -55)
-            if (Math.abs(loc.x - r / 2) <= 46 && Math.abs(loc.y - (-55)) <= 13) {
+            // Stamp full circle button at (r/2 - 26, -55)
+            if (Math.abs(loc.x - (r / 2 - 26)) <= 26 && Math.abs(loc.y - (-55)) <= 13) {
                 return { tool: 'compass', mode: 'stamp_compass_circle' };
+            }
+            // Stamp construction arc button at (r/2 + 28, -55)
+            if (Math.abs(loc.x - (r / 2 + 28)) <= 26 && Math.abs(loc.y - (-55)) <= 13) {
+                return { tool: 'compass', mode: 'stamp_compass_arc' };
             }
             // Resize / Pencil tip at (r, 0)
             if (Math.hypot(loc.x - r, loc.y) <= 18) {
@@ -3475,7 +3605,100 @@
     }
 
     /**
-     * رسم المسطرة والمنقلة والكوس والبركار ومؤشر الليزر على طبقة الأدوات (#whiteboardToolsCanvas)
+     * رسم قوس إنشاء هندسي بالبركار (زاوية 70 درجة حول اتجاه إبرة القلم) للإنشاءات الهندسية والواسطات
+     */
+    function stampCompassArcToInk() {
+        if (!ctx || !compassState.visible) return;
+        saveStateForUndo();
+        const r = compassState.radius || 120;
+        const cx = compassState.x;
+        const cy = compassState.y;
+        const baseAngle = compassState.angle || 0;
+        const halfArc = (35 * Math.PI) / 180; // 70° construction arc
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = currentColor;
+        ctx.fillStyle = currentColor;
+        ctx.lineWidth = Math.max(2, currentSize);
+        ctx.lineCap = 'round';
+
+        // رسم قوس الإنشاء الهندسي
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, baseAngle - halfArc, baseAngle + halfArc);
+        ctx.stroke();
+
+        // علامة المركز الخفيفة (+)
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(cx - 4, cy);
+        ctx.lineTo(cx + 4, cy);
+        ctx.moveTo(cx, cy - 4);
+        ctx.lineTo(cx, cy + 4);
+        ctx.stroke();
+
+        ctx.restore();
+        persistWhiteboardState();
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('🧭 تم رسم قوس الإنشاء الهندسي بالبركار بنجاح', 'success');
+        }
+    }
+
+    /**
+     * رسم الستار البيداغوجي للإخفاء التدريجي على طبقة الأدوات (#whiteboardToolsCanvas)
+     */
+    function drawPedagogicalCurtain(tCtx, w, h) {
+        const cy = Math.max(40, Math.min(h - 36, curtainState.y || 260));
+        tCtx.save();
+
+        // Curtain body covering from cy to bottom h
+        const grad = tCtx.createLinearGradient(0, cy, 0, h);
+        grad.addColorStop(0, 'rgba(15, 23, 42, 0.96)');
+        grad.addColorStop(1, 'rgba(30, 58, 138, 0.97)');
+        tCtx.fillStyle = grad;
+        tCtx.fillRect(0, cy, w, h - cy);
+
+        // Top golden/blue handle bar
+        tCtx.fillStyle = '#0284c7';
+        tCtx.fillRect(0, cy, w, 6);
+
+        // Center grab pill
+        const pillW = 240;
+        const pillH = 26;
+        const pillX = (w - pillW) / 2;
+        const pillY = cy + 6;
+        tCtx.fillStyle = '#0f172a';
+        tCtx.strokeStyle = '#38bdf8';
+        tCtx.lineWidth = 1.5;
+        tCtx.beginPath();
+        if (typeof tCtx.roundRect === 'function') {
+            tCtx.roundRect(pillX, pillY, pillW, pillH, 12);
+        } else {
+            tCtx.rect(pillX, pillY, pillW, pillH);
+        }
+        tCtx.fill();
+        tCtx.stroke();
+
+        tCtx.fillStyle = '#e0f2fe';
+        tCtx.font = 'bold 11px "Cairo", sans-serif';
+        tCtx.textAlign = 'center';
+        tCtx.textBaseline = 'middle';
+        tCtx.fillText('🎭 اسحب الستار للأسفل لكشف مراحل الحل تدريجياً ↕', w / 2, pillY + pillH / 2);
+
+        // Close button at right
+        tCtx.fillStyle = '#ef4444';
+        tCtx.beginPath();
+        tCtx.arc(w - 32, cy + 18, 11, 0, Math.PI * 2);
+        tCtx.fill();
+        tCtx.fillStyle = '#ffffff';
+        tCtx.font = 'bold 12px sans-serif';
+        tCtx.fillText('×', w - 32, cy + 18);
+
+        tCtx.restore();
+    }
+
+    /**
+     * رسم المسطرة والمنقلة والكوس والبركار والستار ومؤشر الليزر على طبقة الأدوات (#whiteboardToolsCanvas)
      */
     function renderGeometricToolsOverlay() {
         if (!toolsCanvas) {
@@ -3490,6 +3713,9 @@
         toolsCtx.save();
         toolsCtx.clearRect(0, 0, w, h);
 
+        if (curtainState.visible) {
+            drawPedagogicalCurtain(toolsCtx, w, h);
+        }
         if (rulerState.visible) {
             drawInteractiveRuler(toolsCtx);
         }
@@ -3522,11 +3748,20 @@
 
         // Preview dashed circle around needle center (0,0)
         tCtx.save();
-        tCtx.strokeStyle = 'rgba(217, 119, 6, 0.55)';
-        tCtx.lineWidth = 1.6;
+        tCtx.strokeStyle = 'rgba(217, 119, 6, 0.45)';
+        tCtx.lineWidth = 1.4;
         tCtx.setLineDash([6, 4]);
         tCtx.beginPath();
         tCtx.arc(0, 0, r, 0, Math.PI * 2);
+        tCtx.stroke();
+        tCtx.restore();
+
+        // Highlighted construction arc preview (-35° to +35°)
+        tCtx.save();
+        tCtx.strokeStyle = '#ea580c';
+        tCtx.lineWidth = 2.6;
+        tCtx.beginPath();
+        tCtx.arc(0, 0, r, -(35 * Math.PI) / 180, (35 * Math.PI) / 180);
         tCtx.stroke();
         tCtx.restore();
 
@@ -3580,18 +3815,29 @@
         tCtx.textBaseline = 'middle';
         tCtx.fillText('↔', r, 0);
 
-        // Radius badge & Stamp Circle button at (r/2, -55)
+        // Two action buttons: 1) Full Circle (⭕ دائرة)  2) Construction Arc (✏️ قوس)
         tCtx.fillStyle = '#d97706';
         tCtx.beginPath();
         if (typeof tCtx.roundRect === 'function') {
-            tCtx.roundRect(hingeX - 44, -67, 88, 22, 8);
+            tCtx.roundRect(hingeX - 52, -67, 50, 22, 6);
         } else {
-            tCtx.rect(hingeX - 44, -67, 88, 22);
+            tCtx.rect(hingeX - 52, -67, 50, 22);
         }
         tCtx.fill();
         tCtx.fillStyle = '#ffffff';
-        tCtx.font = 'bold 9.5px "Cairo", sans-serif';
-        tCtx.fillText(`⭕ رسم (${rCm}cm)`, hingeX, -56);
+        tCtx.font = 'bold 8.5px "Cairo", sans-serif';
+        tCtx.fillText(`⭕ ${rCm}cm`, hingeX - 27, -56);
+
+        tCtx.fillStyle = '#059669';
+        tCtx.beginPath();
+        if (typeof tCtx.roundRect === 'function') {
+            tCtx.roundRect(hingeX + 2, -67, 50, 22, 6);
+        } else {
+            tCtx.rect(hingeX + 2, -67, 50, 22);
+        }
+        tCtx.fill();
+        tCtx.fillStyle = '#ffffff';
+        tCtx.fillText('✏️ قوس', hingeX + 27, -56);
 
         // Close button at (hingeX + 24, -105)
         tCtx.fillStyle = '#ef4444';
@@ -5275,18 +5521,8 @@
     }
 
     function exportCorrectedHomeworkCopy() {
-        if (!canvas || !bgCanvas) return;
-        const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
-        const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
-
-        const offscreen = document.createElement('canvas');
-        offscreen.width = w;
-        offscreen.height = h;
-        const oCtx = offscreen.getContext('2d');
-
-        oCtx.drawImage(bgCanvas, 0, 0, w, h);
-        oCtx.drawImage(canvas, 0, 0, w, h);
-
+        if (!canvas) return;
+        const offscreen = createCompositedCanvas();
         const dataUrl = offscreen.toDataURL('image/png');
         const link = document.createElement('a');
         const sName = (homeworkCorrectionState.currentStudent || 'تلميذ').replace(/[\s()]/g, '_');
@@ -5295,7 +5531,7 @@
         link.click();
 
         if (typeof window.showNotification === 'function') {
-            window.showNotification('💾 تم تصدير ورقة التلميذ المصححة مع الملاحظات بنجاح!', 'success');
+            window.showNotification('💾 تم تصدير ورقة التلميذ المصححة بجودة عالية (High-DPI) بنجاح!', 'success');
         }
     }
 
@@ -5342,11 +5578,19 @@
         try {
             if (window.db && window.db.classes) {
                 const found = [];
-                for (const cKey in window.db.classes) {
+                const activeClassKey = window.currentClass || (document.getElementById('classSelect') && document.getElementById('classSelect').value) || '';
+                const classKeys = (activeClassKey && window.db.classes[activeClassKey]) ? [activeClassKey, ...Object.keys(window.db.classes).filter(k => k !== activeClassKey)] : Object.keys(window.db.classes);
+                for (const cKey of classKeys) {
                     const c = window.db.classes[cKey];
                     const arr = Array.isArray(c) ? c : (c && Array.isArray(c.students) ? c.students : []);
+                    const absMap = (window.db.absences && window.db.absences[cKey]) ? window.db.absences[cKey] : {};
                     arr.forEach(s => {
-                        if (s && s.name) found.push(`${s.name} (${cKey})`);
+                        if (s && s.name) {
+                            const isAbs = absMap[s.id] && absMap[s.id].status && absMap[s.id].status !== 'present' && absMap[s.id].status !== 'حاضر';
+                            if (!isAbs) {
+                                found.push(`${s.name} (${cKey})`);
+                            }
+                        }
                     });
                 }
                 if (found.length > 0) studentList = found;
@@ -5376,7 +5620,7 @@
                     </div>
 
                     <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px 14px; font-size: 0.74rem; color: #9a3412;">
-                        💡 <strong>الميزة الديداكتيكية:</strong> يتيح هذا الوضع للتلميذ الكتابة على السبورة بقلم مميز (أخضر زمردي) مع إمكانية تحكم الأستاذ الكاملة: قفل القلم للشرح، إرسال توجيهات رياضية فورية، ومنح نقطة مشاركة صفية (+1) تُسجّل مباشرة!
+                        💡 <strong>الميزة الديداكتيكية (تقويم تكويني خالص):</strong> يتيح هذا الوضع للتلميذ الكتابة على السبورة بقلم مميز (أخضر زمردي) مع إمكانية تحكم الأستاذ الكاملة: قفل القلم للشرح، إرسال توجيهات رياضية فورية، وتقديم تشجيع تربوي وتكويني دون احتساب أي نقط مشاركة (اعتماداً على المذكرة الوزارية الخاصة بمادة الرياضيات التي ترتكز حصرياً على الفروض المحروسة).
                     </div>
 
                     <div style="display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid #e2e8f0; padding-top: 12px;">
@@ -5532,25 +5776,33 @@
     }
 
     function awardStudentParticipationPoint() {
+        const rawLabel = studentCallState.studentName || 'التلميذ(ة)';
+        const praises = [
+            '👏 أحسنت! خطوات برهنة رياضية سليمة ومنظمة على السبورة.',
+            '🌟 ممتاز! تحكم جيد في القواعد الرياضية وسلاسة في التحرير.',
+            '💡 مبادرة طيبة! محاولة موفقة تعكس استيعاباً جيداً للفقرة.',
+            '🎯 عمل متميز على السبورة التفاعلية! واصل بنفس التركيز.'
+        ];
+        const msg = praises[studentCallState.participationCount % praises.length];
         studentCallState.participationCount++;
-        const sName = studentCallState.studentName;
 
-        try {
-            if (window.db) {
-                window.db.behaviors = window.db.behaviors || {};
-                const today = new Date().toISOString().slice(0, 10);
-                window.db.behaviors[today] = window.db.behaviors[today] || [];
-                window.db.behaviors[today].push({
-                    studentName: sName,
-                    type: 'participation',
-                    points: 1,
-                    note: 'مشاركة ممتازة على السبورة التفاعلية'
-                });
-            }
-        } catch (e) {}
+        // Show an encouraging pedagogical badge briefly on the board viewport without affecting grades or participation points
+        const vp = document.getElementById('whiteboardViewport');
+        if (vp) {
+            const oldToast = document.getElementById('wbFormativePraiseBanner');
+            if (oldToast) oldToast.remove();
+            const badge = document.createElement('div');
+            badge.id = 'wbFormativePraiseBanner';
+            badge.style.cssText = 'position:absolute;top:52px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#065f46,#059669);color:#fff;padding:8px 18px;border-radius:999px;font-weight:800;font-size:0.82rem;box-shadow:0 10px 25px rgba(5,150,105,0.35);border:1.5px solid #6ee7b7;z-index:85;display:flex;align-items:center;gap:8px;direction:rtl;pointer-events:none;';
+            badge.innerHTML = `<span>${msg}</span> <span style="background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:999px;font-size:0.7rem;">تقويم تكويني — ${rawLabel}</span>`;
+            vp.appendChild(badge);
+            setTimeout(() => {
+                if (badge && badge.parentNode) badge.remove();
+            }, 4000);
+        }
 
         if (typeof window.showNotification === 'function') {
-            window.showNotification(`⭐ تم منح نقطة مشاركة صفية (+1) للتلميذ(ة): ${sName}!`, 'success');
+            window.showNotification(`👏 تشجيع بيداغوجي وتكويني للتلميذ(ة): ${rawLabel} (دون احتساب نقط مشاركة — التقويم في الرياضيات يعتمد حصرياً على الفروض المحروسة).`, 'success');
         }
     }
 
@@ -6345,24 +6597,32 @@
 
         const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
         const todayStr = new Date().toLocaleDateString('ar-MA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        let className = '2BAC-PC-1';
+        let className = window.currentClass || '2BAC-PC-1';
         let lessonTitle = 'الاتصال والاشتقاق ودراسة الدوال العددية';
 
         try {
-            const logClassEl = document.getElementById('logClass');
-            const logTopicEl = document.getElementById('logTopic');
-            if (logClassEl && logClassEl.value) className = logClassEl.value;
-            else if (window.db && window.db.classes && Object.keys(window.db.classes).length > 0) {
+            const clsSel = document.getElementById('lessonLogClassSelect') || document.getElementById('classSelect') || document.getElementById('logClass');
+            if (clsSel && clsSel.value) className = clsSel.value;
+            else if (window.db && window.db.classes && Object.keys(window.db.classes).length > 0 && !window.db.classes[className]) {
                 className = Object.keys(window.db.classes)[0];
             }
-            if (logTopicEl && logTopicEl.value.trim()) lessonTitle = logTopicEl.value.trim();
+
+            const logTopicEl = document.getElementById('logTopic');
+            if (logTopicEl && logTopicEl.value && logTopicEl.value.trim()) {
+                lessonTitle = logTopicEl.value.trim();
+            } else if (window.db && window.db.lessonLogs && Array.isArray(window.db.lessonLogs[className]) && window.db.lessonLogs[className].length > 0) {
+                const latestLog = window.db.lessonLogs[className][window.db.lessonLogs[className].length - 1];
+                if (latestLog && (latestLog.topic || latestLog.unit)) {
+                    lessonTitle = latestLog.topic || latestLog.unit;
+                }
+            }
         } catch (e) {}
 
         ctx.save();
         ctx.globalCompositeOperation = 'source-over';
 
         // شريط ترويسة الدرس أعلى السبورة
-        ctx.fillStyle = 'rgba(239, 246, 255, 0.94)';
+        ctx.fillStyle = 'rgba(239, 246, 255, 0.96)';
         ctx.strokeStyle = '#1e3a8a';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -6388,32 +6648,40 @@
         ctx.restore();
         persistWhiteboardState();
         if (typeof window.showNotification === 'function') {
-            window.showNotification('📌 تم إدراج ترويسة الحصة والدرس أعلى السبورة!', 'success');
+            window.showNotification(`📌 تم إدراج ترويسة الحصة (${className} — ${lessonTitle}) أعلى السبورة!`, 'success');
         }
     }
 
     function updateBoardExerciseTimerUI() {
-        const disp = document.getElementById('wbTimerDisplay');
+        const disp = document.getElementById('wbExerciseTimerDisplay') || document.getElementById('wbTimerDisplay');
         if (disp) {
             const m = String(Math.floor(exerciseTimerState.secondsLeft / 60)).padStart(2, '0');
             const s = String(exerciseTimerState.secondsLeft % 60).padStart(2, '0');
             disp.textContent = `${m}:${s}`;
-            disp.style.color = exerciseTimerState.secondsLeft <= 30 ? '#f87171' : '#fde047';
+            disp.style.color = exerciseTimerState.secondsLeft <= 30 ? '#f87171' : '#fef08a';
         }
         const btn = document.getElementById('btnWbTimerStartPause');
         if (btn) {
-            btn.textContent = exerciseTimerState.running ? '⏸ إيقاف مؤقت' : '▶️ تشغيل';
-            btn.style.background = exerciseTimerState.running ? '#d97706' : '#16a34a';
+            btn.textContent = exerciseTimerState.running ? '⏸' : '▶';
+            btn.style.background = exerciseTimerState.running ? '#d97706' : '#eab308';
+            btn.style.color = exerciseTimerState.running ? '#ffffff' : '#0f172a';
         }
     }
 
-    function toggleBoardExerciseTimer() {
+    function toggleBoardExerciseTimer(forceState) {
         const overlay = document.getElementById('wbExerciseTimerOverlay');
         if (!overlay) return;
         const isVisible = overlay.style.display === 'flex';
-        overlay.style.display = isVisible ? 'none' : 'flex';
-        if (!isVisible) {
+        const nextState = (typeof forceState === 'boolean') ? forceState : !isVisible;
+        overlay.style.display = nextState ? 'flex' : 'none';
+        if (nextState) {
             updateBoardExerciseTimerUI();
+        } else if (exerciseTimerState.running) {
+            exerciseTimerState.running = false;
+            if (exerciseTimerState.intervalId) {
+                clearInterval(exerciseTimerState.intervalId);
+                exerciseTimerState.intervalId = null;
+            }
         }
     }
 
@@ -6453,6 +6721,9 @@
                 clearInterval(exerciseTimerState.intervalId);
                 exerciseTimerState.intervalId = null;
                 updateBoardExerciseTimerUI();
+                if (typeof window.playTeachingSessionChime === 'function') {
+                    try { window.playTeachingSessionChime('subtimer_end'); } catch (e) {}
+                }
                 if (typeof window.showNotification === 'function') {
                     window.showNotification('⏱️ انتهى الوقت المخصص لإنجاز التمرين التطبيقي! لنمر إلى التصحيح الجماعي على السبورة.', 'warning');
                 }
@@ -6465,31 +6736,1620 @@
     function saveBoardToLessonLog() {
         try {
             const pageCount = isPdfOrWorksheetActive() ? pdfTotalPages : pageDataUrls.length;
-            const summaryNote = `تم إنجاز الحصة وشرح الفقرات والتمارين التطبيقية على السبورة التفاعلية (${pageCount} صفحات سبورة مسجلة).`;
-            const logNoteEl = document.getElementById('logNotes') || document.getElementById('logActivities') || document.getElementById('logTopic');
-            if (logNoteEl) {
-                logNoteEl.value = logNoteEl.value
-                    ? `${logNoteEl.value} — ${summaryNote}`
-                    : summaryNote;
+            const docLabel = isPdfOrWorksheetActive() ? `مع تصحيح مستند (${currentPdfFileName || 'سلسلة تمارين'})` : `(${pageCount} صفحات سبورة تفاعلية)`;
+            const summaryNote = `إنجاز الحصة وشرح الفقرات والتمارين التطبيقية على السبورة الرقمية التفاعلية ${docLabel}.`;
+
+            let targetClass = window.currentClass || '';
+            const clsSel = document.getElementById('lessonLogClassSelect') || document.getElementById('classSelect');
+            if (!targetClass && clsSel && clsSel.value) targetClass = clsSel.value;
+            if (!targetClass && window.db && window.db.classes) {
+                targetClass = Object.keys(window.db.classes)[0] || '';
             }
-            if (window.db) {
-                window.db.whiteboardLogs = window.db.whiteboardLogs || [];
-                window.db.whiteboardLogs.unshift({
-                    date: new Date().toISOString().slice(0, 10),
-                    pages: pageCount,
-                    note: summaryNote
+
+            if (typeof window.addQuickSession === 'function' && targetClass) {
+                window.addQuickSession(targetClass, {
+                    type: 'درس وتطبيقات (سبورة رقمية)',
+                    summary: summaryNote,
+                    homework: 'مراجعة التمارين المصححة على السبورة الرقمية وإنجاز التمرين التطبيقي الموالي.'
                 });
-                if (typeof window.saveData === 'function') {
-                    window.saveData();
-                }
+                return;
             }
+
+            if (window.db && targetClass) {
+                window.db.lessonLogs = window.db.lessonLogs || {};
+                if (!Array.isArray(window.db.lessonLogs[targetClass])) {
+                    window.db.lessonLogs[targetClass] = [];
+                }
+                const now = new Date();
+                const h = String(now.getHours()).padStart(2, '0');
+                const nextH = String((now.getHours() + 1) % 24).padStart(2, '0');
+                window.db.lessonLogs[targetClass].push({
+                    id: 'log_wb_' + Date.now(),
+                    date: now.toISOString().slice(0, 10),
+                    time: `من ${h}:00 إلى ${nextH}:00`,
+                    type: 'درس نظري وتطبيقات',
+                    unit: 'السبورة التفاعلية',
+                    topic: isPdfOrWorksheetActive() ? `تصحيح: ${currentPdfFileName || 'سلسلة تمارين'}` : 'حصة تفاعلية على السبورة الرقمية',
+                    summary: summaryNote,
+                    homework: 'مراجعة الحلول المنجزة على السبورة الرقمية',
+                    signature: 'ذ. ابراهيم كوزيبر (توثيق رقمي من السبورة)',
+                    completionRate: 100
+                });
+                if (typeof window.saveDB === 'function') window.saveDB();
+                if (typeof window.renderLessonLogs === 'function') window.renderLessonLogs();
+            }
+
             if (typeof window.showNotification === 'function') {
-                window.showNotification('📓 تم إرسال وتوثيق ملخص السبورة التفاعلية في دفتر النصوص بنجاح!', 'success');
+                window.showNotification(`📓 تم توثيق ملخص السبورة التفاعلية في دفتر نصوص القسم (${targetClass || 'الحالي'}) بنجاح!`, 'success');
             }
         } catch (e) {
             if (typeof window.showNotification === 'function') {
-                window.showNotification('📓 تم حفظ ملخص السبورة.', 'info');
+                window.showNotification('📓 تم حفظ ملخص السبورة في دفتر النصوص.', 'info');
             }
+        }
+    }
+
+    /* ====================================================================
+     * 9. الميزات التربوية المتقدمة للتدريس عن بعد والرياضيات (Upgrades)
+     * ==================================================================== */
+
+    /**
+     * أ. ستار الإخفاء التدريجي (Pedagogical Reveal Curtain)
+     */
+    function toggleBoardCurtain(forceState) {
+        const next = (typeof forceState === 'boolean') ? forceState : !curtainState.visible;
+        curtainState.visible = next;
+        if (next) {
+            const h = lastValidHeight || (canvas && parseFloat(canvas.style.height)) || 640;
+            if (!curtainState.y || curtainState.y < 50 || curtainState.y > h - 40) {
+                curtainState.y = Math.floor(h * 0.38);
+            }
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('🎭 تم تفعيل ستار الإخفاء التدريجي — اسحب الشريط الأزرق للأسفل لكشف مراحل الحل خطوة بخطوة.', 'info');
+            }
+        }
+        const btn = document.getElementById('btnToggleBoardCurtain');
+        if (btn) {
+            btn.style.background = next ? '#0284c7' : '#f0f9ff';
+            btn.style.color = next ? '#ffffff' : '#0369a1';
+        }
+        renderGeometricToolsOverlay();
+    }
+
+    /**
+     * ب. استوديو تسجيل الحصة بالفيديو والصوت (Live Video + Audio Lesson Recorder .webm)
+     */
+    async function toggleBoardVideoRecorder() {
+        if (videoRecorderState.isRecording) {
+            stopBoardVideoRecorder();
+            return;
+        }
+        await startBoardVideoRecorder();
+    }
+
+    async function startBoardVideoRecorder() {
+        if (!canvas) return;
+        try {
+            const compCanvas = document.createElement('canvas');
+            compCanvas.width = canvas.width || 1280;
+            compCanvas.height = canvas.height || 720;
+            const compCtx = compCanvas.getContext('2d');
+            videoRecorderState.compCanvas = compCanvas;
+            videoRecorderState.compCtx = compCtx;
+            videoRecorderState.recordedChunks = [];
+
+            const renderCompositeFrame = () => {
+                if (!videoRecorderState.isRecording) return;
+                if (compCanvas.width !== canvas.width || compCanvas.height !== canvas.height) {
+                    compCanvas.width = canvas.width;
+                    compCanvas.height = canvas.height;
+                }
+                compCtx.clearRect(0, 0, compCanvas.width, compCanvas.height);
+                if (bgCanvas) {
+                    compCtx.drawImage(bgCanvas, 0, 0);
+                } else {
+                    compCtx.fillStyle = '#ffffff';
+                    compCtx.fillRect(0, 0, compCanvas.width, compCanvas.height);
+                }
+                compCtx.drawImage(canvas, 0, 0);
+                if (toolsCanvas) {
+                    compCtx.drawImage(toolsCanvas, 0, 0);
+                }
+                videoRecorderState.animFrameId = requestAnimationFrame(renderCompositeFrame);
+            };
+
+            videoRecorderState.isRecording = true;
+            renderCompositeFrame();
+
+            const canvasStream = compCanvas.captureStream ? compCanvas.captureStream(30) : null;
+            if (!canvasStream) {
+                videoRecorderState.isRecording = false;
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification('المتصفح الحالي لا يدعم تسجيل الفيديو المباشر من الكانفاس.', 'warning');
+                }
+                return;
+            }
+
+            // Try to attach teacher microphone audio if available (gracefully fallback to silent video if denied)
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    videoRecorderState.audioStream = audioStream;
+                    audioStream.getAudioTracks().forEach(track => canvasStream.addTrack(track));
+                }
+            } catch (micErr) {
+                // Continue recording board video without microphone if user declines or no mic exists
+            }
+
+            let mimeType = 'video/webm;codecs=vp9,opus';
+            if (typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.isTypeSupported === 'function') {
+                if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8,opus';
+                if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+            }
+
+            const recorder = new MediaRecorder(canvasStream, mimeType ? { mimeType } : undefined);
+            videoRecorderState.mediaRecorder = recorder;
+
+            recorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) {
+                    videoRecorderState.recordedChunks.push(e.data);
+                }
+            };
+
+            recorder.onstop = () => {
+                const blob = new Blob(videoRecorderState.recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const dateTag = new Date().toISOString().slice(0, 10);
+                a.href = url;
+                a.download = `تسجيل_حصة_الرياضيات_السبورة_${dateTag}.webm`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 10000);
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification('🎬 تم حفظ وتحميل فيديو الحصة المشروحة (.webm) بنجاح! يمكنك مشاركته مع التلاميذ.', 'success');
+                }
+            };
+
+            recorder.start(1000);
+            videoRecorderState.startTime = Date.now();
+            updateVideoRecorderButtonUI();
+
+            videoRecorderState.timerInterval = setInterval(() => {
+                updateVideoRecorderButtonUI();
+            }, 1000);
+
+            if (typeof window.showNotification === 'function') {
+                const hasMic = !!(videoRecorderState.audioStream && videoRecorderState.audioStream.getAudioTracks().length);
+                window.showNotification(hasMic ? '🎥 بدأ تسجيل فيديو الحصة مع الصوت (الميكروفون نشط)...' : '🎥 بدأ تسجيل فيديو السبورة التفاعلية (انقر مرة أخرى للإيقاف والحفظ).', 'success');
+            }
+        } catch (err) {
+            videoRecorderState.isRecording = false;
+            updateVideoRecorderButtonUI();
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('تعذر بدء تسجيل الفيديو: ' + (err.message || ''), 'error');
+            }
+        }
+    }
+
+    function stopBoardVideoRecorder() {
+        videoRecorderState.isRecording = false;
+        if (videoRecorderState.animFrameId) {
+            cancelAnimationFrame(videoRecorderState.animFrameId);
+            videoRecorderState.animFrameId = null;
+        }
+        if (videoRecorderState.timerInterval) {
+            clearInterval(videoRecorderState.timerInterval);
+            videoRecorderState.timerInterval = null;
+        }
+        if (videoRecorderState.audioStream) {
+            try {
+                videoRecorderState.audioStream.getTracks().forEach(t => t.stop());
+            } catch (e) {}
+            videoRecorderState.audioStream = null;
+        }
+        if (videoRecorderState.mediaRecorder && videoRecorderState.mediaRecorder.state !== 'inactive') {
+            try {
+                videoRecorderState.mediaRecorder.stop();
+            } catch (e) {}
+        }
+        updateVideoRecorderButtonUI();
+    }
+
+    function updateVideoRecorderButtonUI() {
+        const btn = document.getElementById('btnToggleBoardVideoRec');
+        const lbl = document.getElementById('btnBoardVideoRecLabel');
+        const dot = document.getElementById('boardVideoRecDot');
+        if (!btn || !lbl) return;
+
+        if (videoRecorderState.isRecording) {
+            const elapsed = Math.max(0, Math.floor((Date.now() - videoRecorderState.startTime) / 1000));
+            const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+            const s = String(elapsed % 60).padStart(2, '0');
+            btn.style.background = '#dc2626';
+            btn.style.color = '#ffffff';
+            btn.style.borderColor = '#b91c1c';
+            lbl.textContent = `⏹ إيقاف (${m}:${s})`;
+            if (dot) dot.style.background = '#fef08a';
+        } else {
+            btn.style.background = '#fef2f2';
+            btn.style.color = '#b91c1c';
+            btn.style.borderColor = '#fca5a5';
+            lbl.textContent = '🎥 تسجيل فيديو';
+            if (dot) dot.style.background = '#dc2626';
+        }
+    }
+
+    /**
+     * ج. البث والمشاركة الفورية للسبورة عبر رمز QR ورابط مباشر للتلاميذ (`openBoardLiveShareModal`)
+     */
+    async function openBoardLiveShareModal() {
+        if (!canvas) return;
+        persistWhiteboardState();
+
+        const comp = createCompositedCanvas();
+        const imgDataUrl = comp.toDataURL('image/webp', 0.86);
+
+        let modal = document.getElementById('wbLiveShareQrModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'wbLiveShareQrModal';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.72);backdrop-filter:blur(5px);z-index:10060;display:flex;align-items:center;justify-content:center;padding:14px;direction:rtl;font-family:"Cairo",sans-serif;';
+            document.body.appendChild(modal);
+        }
+
+        const clsName = window.currentClass || '2BAC-PC-1';
+        const pageTitle = isPdfOrWorksheetActive()
+            ? `تصحيح ${currentPdfFileName || 'سلسلة تمارين'} - صفحة ${currentPdfPageNum}`
+            : `ملخص السبورة التفاعلية - صفحة ${currentPageIndex + 1}`;
+
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div style="background:#ffffff;border-radius:16px;max-width:520px;width:100%;box-shadow:0 25px 50px rgba(0,0,0,0.35);border:1.5px solid #cbd5e1;overflow:hidden;">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:linear-gradient(135deg,#3730a3,#4f46e5);color:#fff;">
+                    <div style="font-weight:800;font-size:0.96rem;">📡 مشاركة السبورة والحلول مع التلاميذ عبر QR</div>
+                    <button type="button" id="wbShareCloseX" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;">✕</button>
+                </div>
+                <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;">
+                    <div style="font-size:0.8rem;font-weight:800;color:#1e293b;">${pageTitle} (${clsName})</div>
+                    <img src="${imgDataUrl}" alt="معاينة السبورة" style="max-height:150px;width:auto;border-radius:8px;border:1.5px solid #cbd5e1;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+                    <div id="wbShareQrBox" style="min-height:165px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:#f8fafc;border:1.5px dashed #94a3b8;border-radius:12px;padding:12px;width:100%;box-sizing:border-box;">
+                        <span style="font-size:0.78rem;color:#475569;font-weight:700;">⏳ جاري توليد رابط المشاركة ورمز الاستجابة السريعة QR...</span>
+                    </div>
+                    <div style="display:flex;gap:8px;width:100%;">
+                        <input type="text" id="wbShareDirectUrlInput" readonly value="" placeholder="رابط السبورة المباشر للتلاميذ..." dir="ltr" style="flex:1;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:0.76rem;font-weight:700;color:#1e293b;background:#f8fafc;">
+                        <button type="button" id="wbShareCopyLinkBtn" style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:0.76rem;font-weight:800;cursor:pointer;">📋 نسخ الرابط</button>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;gap:8px;width:100%;border-top:1px solid #e2e8f0;padding-top:10px;">
+                        <button type="button" onclick="window.exportBoardImage()" style="flex:1;background:#059669;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:0.78rem;font-weight:800;cursor:pointer;">💾 تحميل الصورة PNG</button>
+                        <button type="button" id="wbShareCloseBtn" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:8px;padding:8px 16px;font-size:0.78rem;font-weight:800;cursor:pointer;">إغلاق</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const close = () => { modal.style.display = 'none'; };
+        document.getElementById('wbShareCloseX').onclick = close;
+        document.getElementById('wbShareCloseBtn').onclick = close;
+
+        let shareUrl = window.location.origin;
+        try {
+            const htmlDoc = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${pageTitle}</title><style>body{margin:0;padding:16px;background:#0f172a;color:#fff;font-family:sans-serif;text-align:center;}img{max-width:100%;height:auto;border-radius:10px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,0.4);}</style></head><body><h3 style="margin:0 0 12px 0;">📐 ${pageTitle} — ${clsName}</h3><img src="${imgDataUrl}" alt="السبورة التفاعلية"></body></html>`;
+            const resp = await fetch('/api/share/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: `${pageTitle} (${clsName})`,
+                    htmlContent: htmlDoc,
+                    expiresInDays: 30
+                })
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                if (data && data.shareId) {
+                    shareUrl = `${window.location.origin}/s/${data.shareId}`;
+                }
+            }
+        } catch (err) {}
+
+        const urlInput = document.getElementById('wbShareDirectUrlInput');
+        if (urlInput) urlInput.value = shareUrl;
+
+        const qrBox = document.getElementById('wbShareQrBox');
+        if (qrBox) {
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(shareUrl)}`;
+            qrBox.innerHTML = `
+                <img src="${qrApiUrl}" alt="QR Code" style="width:145px;height:145px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;padding:4px;" onerror="this.style.display='none'">
+                <div style="font-size:0.72rem;font-weight:800;color:#3730a3;">📱 يمسح التلاميذ هذا الرمز بهواتفهم لفتح السبورة وحفظ الحلول فوراً</div>
+            `;
+        }
+
+        const copyBtn = document.getElementById('wbShareCopyLinkBtn');
+        if (copyBtn) {
+            copyBtn.onclick = () => {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(shareUrl).catch(() => {});
+                } else if (urlInput) {
+                    urlInput.select();
+                    document.execCommand('copy');
+                }
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification('🔗 تم نسخ رابط السبورة المباشر لمشاركته مع التلاميذ!', 'success');
+                }
+            };
+        }
+    }
+
+    /**
+     * د. رسم المستوى العقدي (O, u⃗, v⃗) مع التمثيل المبياني للعدد العقدي z ومرافقه z̄ والمعيار والعمدة
+     */
+    function drawComplexPlane() {
+        if (!ctx || !canvas) return;
+        saveStateForUndo();
+
+        const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
+        const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
+        const cx = Math.floor(w / 2);
+        const cy = Math.floor(h / 2);
+        const unit = 55; // 1 unit = 55px
+
+        const isDarkBg = (currentBg === 'green' || currentBg === 'dark');
+        const axisClr = isDarkBg ? '#f8fafc' : '#1e293b';
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = axisClr;
+        ctx.fillStyle = axisClr;
+        ctx.lineWidth = 2;
+
+        // 1. المحور الحقيقي Re(z) والمحور التخيلي Im(z)
+        ctx.beginPath();
+        ctx.moveTo(60, cy);
+        ctx.lineTo(w - 60, cy);
+        ctx.moveTo(cx, h - 50);
+        ctx.lineTo(cx, 50);
+        ctx.stroke();
+
+        // الأسهم
+        ctx.beginPath();
+        ctx.moveTo(w - 60, cy); ctx.lineTo(w - 70, cy - 5); ctx.lineTo(w - 70, cy + 5); ctx.closePath();
+        ctx.moveTo(cx, 50); ctx.lineTo(cx - 5, 60); ctx.lineTo(cx + 5, 60); ctx.closePath();
+        ctx.fill();
+
+        // 2. الدائرة المثلثية الواحدة |z| = 1
+        ctx.save();
+        ctx.strokeStyle = 'rgba(99, 102, 241, 0.45)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.arc(cx, cy, unit, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // 3. المتجهتان الواحديتان u⃗ و v⃗
+        ctx.save();
+        ctx.strokeStyle = '#dc2626';
+        ctx.fillStyle = '#dc2626';
+        ctx.lineWidth = 2.8;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy); ctx.lineTo(cx + unit, cy);
+        ctx.moveTo(cx, cy); ctx.lineTo(cx, cy - unit);
+        ctx.stroke();
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText('u⃗', cx + unit / 2 - 4, cy + 18);
+        ctx.fillText('v⃗', cx - 18, cy - unit / 2 + 4);
+        ctx.restore();
+
+        // 4. تمثيل النقطة M(z = a + ib) ومرافقها M'(z̄ = a - ib)
+        const a = 2.4;
+        const b = 1.6;
+        const mx = cx + a * unit;
+        const my = cy - b * unit;
+        const myConj = cy + b * unit;
+
+        // إسقاطات متقطعة على المحورين
+        ctx.save();
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 1.3;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.moveTo(mx, cy); ctx.lineTo(mx, my);
+        ctx.moveTo(cx, my); ctx.lineTo(mx, my);
+        ctx.moveTo(mx, cy); ctx.lineTo(mx, myConj);
+        ctx.moveTo(cx, myConj); ctx.lineTo(mx, myConj);
+        ctx.stroke();
+        ctx.restore();
+
+        // المسافة OM = |z| = r
+        ctx.save();
+        ctx.strokeStyle = '#0284c7';
+        ctx.fillStyle = '#0284c7';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(mx, my);
+        ctx.stroke();
+
+        // قوس العمدة θ = arg(z)
+        const theta = Math.atan2(b, a);
+        ctx.beginPath();
+        ctx.arc(cx, cy, 36, -theta, 0);
+        ctx.stroke();
+        ctx.font = 'bold 13px sans-serif';
+        ctx.fillText('θ = arg(z)', cx + 42, cy - 12);
+        ctx.fillText('r = |z|', (cx + mx) / 2 - 22, (cy + my) / 2 - 10);
+
+        // النقطة M(z)
+        ctx.beginPath();
+        ctx.arc(mx, my, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.font = 'bold 14px "Cairo", sans-serif';
+        ctx.fillText('M(z = a + ib)', mx + 10, my - 6);
+        ctx.restore();
+
+        // النقطة M'(z̄)
+        ctx.save();
+        ctx.strokeStyle = '#059669';
+        ctx.fillStyle = '#059669';
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(mx, myConj);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(mx, myConj, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.font = 'bold 13px "Cairo", sans-serif';
+        ctx.fillText("M'(z̄ = a - ib)", mx + 10, myConj + 14);
+        ctx.restore();
+
+        // تسميات المحاور
+        ctx.font = 'bold 13px "Cairo", sans-serif';
+        ctx.fillText('O', cx - 16, cy + 16);
+        ctx.fillText('a = Re(z)', mx - 24, cy + 20);
+        ctx.fillText('ib', cx - 24, my + 4);
+        ctx.fillText('-ib', cx - 28, myConj + 4);
+        ctx.fillText('المحور الحقيقي (Re)', w - 165, cy - 10);
+        ctx.fillText('المحور التخيلي (i·Im)', cx + 12, 62);
+
+        ctx.restore();
+        persistWhiteboardState();
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('🔢 تم رسم المستوى العقدي (O, u⃗, v⃗) مع التمثيل المبياني لـ z و z̄ والمعيار والعمدة!', 'success');
+        }
+    }
+
+    /**
+     * هـ. التمثيل المبياني للمتتالية الترجعية u_{n+1} = f(u_n) (Cobweb / Staircase Construction)
+     */
+    function openRecursiveSequenceModal() {
+        let modal = document.getElementById('wbRecursiveSeqModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'wbRecursiveSeqModal';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.72);backdrop-filter:blur(5px);z-index:10055;display:flex;align-items:center;justify-content:center;padding:14px;direction:rtl;font-family:"Cairo",sans-serif;';
+            document.body.appendChild(modal);
+        }
+
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div style="background:#fff;border-radius:14px;max-width:520px;width:100%;box-shadow:0 25px 50px rgba(0,0,0,0.35);border:1.5px solid #cbd5e1;overflow:hidden;">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:linear-gradient(135deg,#0369a1,#0284c7);color:#fff;">
+                    <div style="font-weight:800;font-size:0.95rem;">🌀 التمثيل المبياني للمتتالية الترجعية uₙ₊₁ = f(uₙ)</div>
+                    <button type="button" id="wbSeqCloseX" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;">✕</button>
+                </div>
+                <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px;">
+                    <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;">
+                        <span style="font-size:0.74rem;font-weight:800;color:#475569;">أمثلة المقرر (2 باك):</span>
+                        <button type="button" class="wb-seq-ex" data-fn="sqrt(2*x + 3)" data-u0="0.5" style="background:#e0f2fe;border:1px solid #7dd3fc;color:#0369a1;border-radius:5px;padding:2px 8px;font-size:0.72rem;font-weight:800;cursor:pointer;" dir="ltr">√(2x+3) , u₀=0.5</button>
+                        <button type="button" class="wb-seq-ex" data-fn="0.5*x + 2" data-u0="0.5" style="background:#e0f2fe;border:1px solid #7dd3fc;color:#0369a1;border-radius:5px;padding:2px 8px;font-size:0.72rem;font-weight:800;cursor:pointer;" dir="ltr">0.5x + 2 , u₀=0.5</button>
+                        <button type="button" class="wb-seq-ex" data-fn="4/(x + 1)" data-u0="0.5" style="background:#e0f2fe;border:1px solid #7dd3fc;color:#0369a1;border-radius:5px;padding:2px 8px;font-size:0.72rem;font-weight:800;cursor:pointer;" dir="ltr">4/(x+1) , u₀=0.5</button>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.76rem;font-weight:800;color:#1e293b;margin-bottom:4px;">تعبير الدالة المرفقة f(x):</label>
+                        <input type="text" id="wbSeqFnInput" value="sqrt(2*x + 3)" dir="ltr" style="width:100%;padding:8px 12px;border:1.5px solid #0284c7;border-radius:8px;font-weight:800;font-size:0.86rem;box-sizing:border-box;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div>
+                            <label style="display:block;font-size:0.76rem;font-weight:800;color:#1e293b;margin-bottom:4px;">الحد الأول u₀:</label>
+                            <input type="number" id="wbSeqU0Input" value="0.5" step="0.5" dir="ltr" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-weight:800;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:0.76rem;font-weight:800;color:#1e293b;margin-bottom:4px;">عدد الحدود الممثلة (n):</label>
+                            <input type="number" id="wbSeqTermsInput" value="4" min="2" max="7" dir="ltr" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-weight:800;box-sizing:border-box;">
+                        </div>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">
+                        <button type="button" id="wbSeqCancelBtn" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#475569;padding:7px 14px;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer;">إلغاء</button>
+                        <button type="button" id="wbSeqDrawBtn" style="background:linear-gradient(135deg,#0369a1,#0284c7);border:none;color:#fff;padding:7px 18px;border-radius:8px;font-weight:800;font-size:0.82rem;cursor:pointer;">🌀 إنشاء التمثيل المبياني على السبورة</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const close = () => { modal.style.display = 'none'; };
+        document.getElementById('wbSeqCloseX').onclick = close;
+        document.getElementById('wbSeqCancelBtn').onclick = close;
+        modal.querySelectorAll('.wb-seq-ex').forEach(btn => {
+            btn.onclick = () => {
+                document.getElementById('wbSeqFnInput').value = btn.getAttribute('data-fn');
+                document.getElementById('wbSeqU0Input').value = btn.getAttribute('data-u0');
+            };
+        });
+
+        document.getElementById('wbSeqDrawBtn').onclick = () => {
+            const expr = document.getElementById('wbSeqFnInput').value.trim();
+            const u0 = parseFloat(document.getElementById('wbSeqU0Input').value) || 0.5;
+            const steps = Math.max(2, Math.min(7, parseInt(document.getElementById('wbSeqTermsInput').value, 10) || 4));
+            close();
+            drawRecursiveSequenceCobweb(expr, u0, steps);
+        };
+    }
+
+    function drawRecursiveSequenceCobweb(expr, u0, steps) {
+        if (!ctx || !canvas) return;
+        drawCartesianAxes();
+
+        const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
+        const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
+        const cx = Math.floor(w / 2);
+        const cy = Math.floor(h / 2);
+        const scale = 40;
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+
+        // 1. رسم المنصف الأول (Δ): y = x
+        ctx.save();
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(cx - 6 * scale, cy + 6 * scale);
+        ctx.lineTo(cx + 6 * scale, cy - 6 * scale);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#475569';
+        ctx.font = 'bold 12px "Cairo", sans-serif';
+        ctx.fillText('(Δ): y = x', cx + 4.2 * scale, cy - 4.4 * scale);
+        ctx.restore();
+
+        // 2. رسم منحنى الدالة (Cf)
+        ctx.save();
+        ctx.strokeStyle = '#2563eb';
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        let penDown = false;
+        for (let px = 40; px < w - 40; px += 2) {
+            const x = (px - cx) / scale;
+            const y = evalMathExprSafe(expr, x);
+            if (isNaN(y) || Math.abs(y) > 15) {
+                penDown = false;
+                continue;
+            }
+            const py = cy - y * scale;
+            if (!penDown) {
+                ctx.moveTo(px, py);
+                penDown = true;
+            } else {
+                ctx.lineTo(px, py);
+            }
+        }
+        ctx.stroke();
+        ctx.fillStyle = '#1d4ed8';
+        ctx.font = 'bold 13px "Cairo", sans-serif';
+        ctx.fillText(`(Cf): f(x) = ${expr}`, 45, 52);
+        ctx.restore();
+
+        // 3. إنشاء درج/حلزون المتتالية الترجعية u_{n+1} = f(u_n) وإسقاط الحدود على محور الأفاصيل
+        let currU = u0;
+        ctx.save();
+        for (let i = 0; i < steps; i++) {
+            const nextU = evalMathExprSafe(expr, currU);
+            if (isNaN(nextU) || Math.abs(nextU) > 15) break;
+
+            const xCurr = cx + currU * scale;
+            const yCurrOnLine = (i === 0) ? cy : (cy - currU * scale);
+            const yNext = cy - nextU * scale;
+            const xNext = cx + nextU * scale;
+
+            // خط عمودي نحو المنحنى (Cf) ثم أفقي نحو المنصف (Δ): y = x
+            ctx.strokeStyle = '#dc2626';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(xCurr, yCurrOnLine);
+            ctx.lineTo(xCurr, yNext);
+            ctx.lineTo(xNext, yNext);
+            ctx.stroke();
+
+            // إسقاط متقطع نحو محور الأفاصيل لتعيين u_n
+            ctx.save();
+            ctx.strokeStyle = '#059669';
+            ctx.lineWidth = 1.3;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(xCurr, yNext);
+            ctx.lineTo(xCurr, cy);
+            ctx.moveTo(xNext, yNext);
+            ctx.lineTo(xNext, cy);
+            ctx.stroke();
+            ctx.restore();
+
+            // كتابة اسم الحد u_i على محور الأفاصيل
+            ctx.fillStyle = '#dc2626';
+            ctx.beginPath();
+            ctx.arc(xCurr, cy, 3.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.font = 'bold 12px sans-serif';
+            ctx.fillText(`u${i}`, xCurr - 6, cy + 18 + (i % 2) * 12);
+
+            if (i === steps - 1) {
+                ctx.beginPath();
+                ctx.arc(xNext, cy, 3.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillText(`u${i + 1}`, xNext - 6, cy + 18 + ((i + 1) % 2) * 12);
+            }
+
+            currU = nextU;
+        }
+        ctx.restore();
+
+        ctx.restore();
+        persistWhiteboardState();
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(`🌀 تم تمثيل حدود المتتالية الترجعية uₙ₊₁ = f(uₙ) انطلاقاً من u₀ = ${u0}!`, 'success');
+        }
+    }
+
+    /**
+     * و. بطاقات التنبيه الديداكتيكي السريعة (Didactic Callout Cards)
+     */
+    function openDidacticCalloutModal() {
+        let modal = document.getElementById('wbDidacticCalloutModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'wbDidacticCalloutModal';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.72);backdrop-filter:blur(5px);z-index:10055;display:flex;align-items:center;justify-content:center;padding:14px;direction:rtl;font-family:"Cairo",sans-serif;';
+            document.body.appendChild(modal);
+        }
+
+        const presets = [
+            { type: 'theorem', badge: '💡 خاصية / مبرهنة أساسية', color: '#1d4ed8', bg: '#eff6ff', text: 'إذا كانت الدالة f متصلة ورتيبة قطعا على مجال I فإنها تقبل دالة عكسية f⁻¹ معرفة على J = f(I).' },
+            { type: 'warning', badge: '⚠️ انتبه: خطأ شائع يجب تفاديه!', color: '#dc2626', bg: '#fef2f2', text: 'لا تخلط بين اشتقاق دالة مركبة u(v(x)) واشتقاق الجداء: (f∘g)\'(x) = g\'(x) × f\'(g(x)).' },
+            { type: 'method', badge: '📌 منهجية الإجابة في الامتحان الوطني', color: '#047857', bg: '#ecfdf5', text: 'لإثبات أن المستقيم (Δ): y = ax + b مقارب مائل بجوار +∞، نحسب النهاية: lim [f(x) - (ax + b)] = 0.' },
+            { type: 'question', badge: '🎯 سؤال للتفكير والبحث الآني', color: '#7c3aed', bg: '#faf5ff', text: 'حدد مجموعة تعريف الدالة f(x) ثم ادرس اتصالها في النقطة x₀ قبل الشروع في حساب المشتقة.' }
+        ];
+
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div style="background:#fff;border-radius:14px;max-width:520px;width:100%;box-shadow:0 25px 50px rgba(0,0,0,0.35);border:1.5px solid #cbd5e1;overflow:hidden;">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:linear-gradient(135deg,#d97706,#b45309);color:#fff;">
+                    <div style="font-weight:800;font-size:0.95rem;">📌 إدراج بطاقة تنبيه أو قاعدة ديداكتيكية على السبورة</div>
+                    <button type="button" id="wbCalloutCloseX" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;">✕</button>
+                </div>
+                <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px;">
+                    <div style="font-size:0.75rem;font-weight:800;color:#475569;">اختر نوع البطاقة التربوية:</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                        ${presets.map((p, idx) => `<button type="button" class="wb-callout-type-btn" data-idx="${idx}" style="background:${p.bg};border:1.5px solid ${p.color};color:${p.color};border-radius:8px;padding:6px 8px;font-size:0.73rem;font-weight:800;cursor:pointer;text-align:right;">${p.badge}</button>`).join('')}
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.75rem;font-weight:800;color:#1e293b;margin-bottom:3px;">عنوان البطاقة:</label>
+                        <input type="text" id="wbCalloutTitleInput" value="${presets[0].badge}" style="width:100%;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:800;font-size:0.82rem;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:0.75rem;font-weight:800;color:#1e293b;margin-bottom:3px;">محتوى التوجيه أو القاعدة الرياضية:</label>
+                        <textarea id="wbCalloutBodyInput" rows="2" style="width:100%;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:700;font-size:0.8rem;box-sizing:border-box;font-family:inherit;">${presets[0].text}</textarea>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px;">
+                        <button type="button" id="wbCalloutCancelBtn" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#475569;padding:7px 14px;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer;">إلغاء</button>
+                        <button type="button" id="wbCalloutStampBtn" style="background:linear-gradient(135deg,#d97706,#b45309);border:none;color:#fff;padding:7px 18px;border-radius:8px;font-weight:800;font-size:0.82rem;cursor:pointer;">📌 تثبيت البطاقة على السبورة</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        let activePreset = presets[0];
+        const close = () => { modal.style.display = 'none'; };
+        document.getElementById('wbCalloutCloseX').onclick = close;
+        document.getElementById('wbCalloutCancelBtn').onclick = close;
+
+        modal.querySelectorAll('.wb-callout-type-btn').forEach(btn => {
+            btn.onclick = () => {
+                const idx = Number(btn.getAttribute('data-idx')) || 0;
+                activePreset = presets[idx] || presets[0];
+                document.getElementById('wbCalloutTitleInput').value = activePreset.badge;
+                document.getElementById('wbCalloutBodyInput').value = activePreset.text;
+            };
+        });
+
+        document.getElementById('wbCalloutStampBtn').onclick = () => {
+            const title = document.getElementById('wbCalloutTitleInput').value.trim() || activePreset.badge;
+            const body = document.getElementById('wbCalloutBodyInput').value.trim() || activePreset.text;
+            close();
+            stampDidacticCalloutToBoard(title, body, activePreset.color, activePreset.bg);
+        };
+    }
+
+    function stampDidacticCalloutToBoard(title, body, borderColor, bgColor) {
+        if (!ctx || !canvas) return;
+        saveStateForUndo();
+
+        const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
+        const cardW = Math.min(560, w - 60);
+        const cardH = 82;
+        const x0 = Math.floor((w - cardW) / 2);
+        const y0 = 72;
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = bgColor || '#eff6ff';
+        ctx.strokeStyle = borderColor || '#1d4ed8';
+        ctx.lineWidth = 2.2;
+
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+            ctx.roundRect(x0, y0, cardW, cardH, 10);
+        } else {
+            ctx.rect(x0, y0, cardW, cardH);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        // Right accent stripe (RTL)
+        ctx.fillStyle = borderColor || '#1d4ed8';
+        ctx.fillRect(x0 + cardW - 6, y0 + 4, 6, cardH - 8);
+
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'top';
+        ctx.font = 'bold 13.5px "Cairo", sans-serif';
+        ctx.fillStyle = borderColor || '#1d4ed8';
+        ctx.fillText(title, x0 + cardW - 18, y0 + 12);
+
+        ctx.font = 'bold 12.5px "Cairo", sans-serif';
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText(body, x0 + cardW - 18, y0 + 40, cardW - 32);
+
+        ctx.restore();
+        persistWhiteboardState();
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('📌 تم تثبيت البطاقة الديداكتيكية على السبورة بنجاح!', 'success');
+        }
+    }
+
+    // =========================================================================
+    // 10. Interactive Prerequisite & Formative Math Quiz (رائز المكتسبات القبلية والتقويم التكويني السريع)
+    //     Strictly Diagnostic & Formative — Zero Participation/Grade Impact
+    // =========================================================================
+    const MATH_PREREQUISITE_QUIZ_BANKS = {
+        tcs_1bac_foundations: {
+            title: 'المكتسبات القبلية الأساسية (الإشارة، المميز Δ، الحساب المثلثي)',
+            level: 'جذع مشترك / 1 و 2 باكالوريا',
+            questions: [
+                {
+                    concept: 'إشارة الحدية ax + b',
+                    q: 'ما هي إشارة التعبير 2x - 6 على المجال ]-∞, 3[ ؟',
+                    options: [
+                        'سالبة قطعا لأنها على يسار الجذر x = 3 وعكس إشارة a = 2',
+                        'موجبة قطعا لأن المعامل a = 2 موجب',
+                        'تنعدم على جميع عناصر المجال',
+                        'سالبة فقط إذا كان x سالباً'
+                    ],
+                    correct: 0,
+                    explanation: 'الحدية ax + b تنعدم في x = -b/a = 3. على يسار الجذر ]-∞, 3[ تكون إشارتها عكس إشارة a (أي سالبة لأن a = 2 > 0).',
+                    pitfall: 'الخلط بين إشارة العدد x وإشارة التعبير ax + b، أو نسيان قاعدة (عكس إشارة a على يسار الجذر).'
+                },
+                {
+                    concept: 'المميز Δ وإشارة ثلاثية الحدود ax² + bx + c',
+                    q: 'إذا كان المميز Δ < 0 لثلاثية الحدود P(x) = -x² + 2x - 5، فإن إشارة P(x) على ℝ هي:',
+                    options: [
+                        'سالبة قطعا على ℝ بأكملها (نفس إشارة a = -1)',
+                        'موجبة قطعا على ℝ بأكملها',
+                        'تتغير حسب قيمة x',
+                        'ليس لها إشارة لأن المعادلة لا تقبل حلولاً في ℝ'
+                    ],
+                    correct: 0,
+                    explanation: 'بما أن Δ = 4 - 20 = -16 < 0، فإن ثلاثية الحدود لا تقبل جذوراً حقيقية، وإشارتها على ℝ بأكملها هي إشارة معامل أعلى درجة a = -1 < 0.',
+                    pitfall: 'اعتقاد التلميذ أن عدم وجود حلول للمعادلة P(x)=0 يعني عدم إمكانية تحديد إشارة P(x).'
+                },
+                {
+                    concept: 'متطابقات هامة ومرافق الجذر المربع',
+                    q: 'ما هو مرافق التعبير A = √(x + 3) - 2 المستعمل لإزالة الشكل غير المحدد؟',
+                    options: [
+                        '√(x + 3) + 2   وحاصل ضربهما هو x - 1',
+                        '√(x - 3) + 2   وحاصل ضربهما هو x - 7',
+                        'x + 3 - 4   مباشرة دون ضرب',
+                        '-√(x + 3) - 2'
+                    ],
+                    correct: 0,
+                    explanation: 'مرافق (a - b) هو (a + b)، وحاصل الجداء يعطي a² - b² = (x + 3) - 2² = x + 3 - 4 = x - 1.',
+                    pitfall: 'نسيان تربيع العدد الثاني (كتابة 2 بدل 4) أو تغيير الإشارة داخل الجذر المربع.'
+                },
+                {
+                    concept: 'الحساب المثلثي الأساسي',
+                    q: 'مهما يكن x من ℝ، فإن التعبير cos²(x) + sin²(x) يساوي دائماً:',
+                    options: [
+                        '1',
+                        'cos(2x)',
+                        '2 sin(x) cos(x)',
+                        '0'
+                    ],
+                    correct: 0,
+                    explanation: 'العلاقة الأساسية في الحساب المثلثي على الدائرة المثلثية (مبرهنة فيثاغورس): cos²(x) + sin²(x) = 1.',
+                    pitfall: 'الخلط بين cos²(x) + sin²(x) = 1 وصيغة cos(2x) = cos²(x) - sin²(x).'
+                },
+                {
+                    concept: 'مجموعة تعريف دالة جذرية ولاجذرية',
+                    q: 'ما هو شرط انتماء العدد الحقيقي x إلى مجموعة تعريف الدالة f(x) = √(x - 1) / (x - 4) ؟',
+                    options: [
+                        'x - 1 ≥ 0   و   x - 4 ≠ 0   أي   [1, 4[ ∪ ]4, +∞[',
+                        'x - 1 > 0 فقط',
+                        'x ≠ 4 فقط',
+                        ']1, 4['
+                    ],
+                    correct: 0,
+                    explanation: 'ما بداخل الجذر المربع في البسط يجب أن يكون موجباً أو منعدماً (x ≥ 1)، والمقام يجب أن يخالف الصفر (x ≠ 4).',
+                    pitfall: 'إغفال أحد الشرطين أو وضع قطعا (>) مكان (≥) لِما بداخل الجذر المربع الموجود في البسط.'
+                }
+            ]
+        },
+        limits_continuity: {
+            title: 'النهايات والاتصال ومبرهنة القيم الوسيطية (2 باك)',
+            level: 'الثانية باكالوريا علوم',
+            questions: [
+                {
+                    concept: 'نهاية دالة حدودية ودالة جذرية عند ±∞',
+                    q: 'نهاية الدالة الجذرية f(x) = (3x³ - 5x + 1) / (2x³ + x² - 4) عندما يؤول x إلى +∞ تساوي:',
+                    options: [
+                        '3 / 2   (نهاية خارج الحدين الأعلى درجة)',
+                        '+∞   لأن البسط يؤول إلى +∞',
+                        '0',
+                        'شكل غير محدد لا يمكن حسابه'
+                    ],
+                    correct: 0,
+                    explanation: 'عند ±∞ فقط، نهاية دالة جذرية هي نهاية خارج الحد الأعلى درجة في البسط على الحد الأعلى درجة في المقام: lim (3x³ / 2x³) = 3/2.',
+                    pitfall: 'تطبيق قاعدة الحد الأعلى درجة عند عدد منتهٍ x → x₀ بدل بجوار ±∞ فقط!'
+                },
+                {
+                    concept: 'الاتصال في نقطة x₀',
+                    q: 'تكون الدالة f متصلة في النقطة x₀ إذا وفقط إذا كان:',
+                    options: [
+                        'lim (x→x₀) f(x) = f(x₀)',
+                        'lim (x→x₀) f(x) = +∞',
+                        'f معرفة فقط في x₀',
+                        'f(x₀) = 0'
+                    ],
+                    correct: 0,
+                    explanation: 'تعريف الاتصال في نقطة x₀ يقتضي أن تكون الدالة معرفة في x₀ وأن تكون نهايتها عند x₀ مساوية لصورة x₀.',
+                    pitfall: 'الاكتفاء بحساب النهاية دون مقارنتها بصورة العدد f(x₀)، أو عدم التحقق من تساوي النهاية على اليمين واليسار.'
+                },
+                {
+                    concept: 'مبرهنة القيم الوسيطية (TVI)',
+                    q: 'لإثبات أن المعادلة f(x) = 0 تقبل حلاً وحيداً α في المجال ]a, b[ نتحقق من:',
+                    options: [
+                        'f متصلة على [a,b] + رتيبة قطعا على [a,b] + f(a)×f(b) < 0',
+                        'f متصلة فقط على [a,b]',
+                        'f(a) + f(b) = 0 فقط',
+                        'f قابلة للاشتقاق عند a و b فقط'
+                    ],
+                    correct: 0,
+                    explanation: 'الاتصال وشرط f(a)×f(b) < 0 يضمنان وجود حل على الأقل، والرتابة القطعية تضمن وحدانية هذا الحل.',
+                    pitfall: 'نسيان شرط الرتابة القطعية عند السؤال عن "حل وحيد" أو نسيان ذكر الاتصال.'
+                },
+                {
+                    concept: 'التأويل الهندسي للنهايات (المقاربات)',
+                    q: 'إذا كان lim (x→+∞) f(x) = 2، فإن التأويل الهندسي هو أن المنحنى (Cf) يقبل:',
+                    options: [
+                        'مقارباً أفقياً معادلته y = 2 بجوار +∞',
+                        'مقارباً عمودياً معادلته x = 2',
+                        'فرعاً شلجمياً في اتجاه محور الأفاصيل',
+                        'مماساً أفقياً في النقطة 2'
+                    ],
+                    correct: 0,
+                    explanation: 'عندما يؤول x إلى ±∞ وتؤول f(x) إلى عدد منتهٍ b، فإن المستقيم ذا المعادلة y = b مقارب أفقي للمنحنى.',
+                    pitfall: 'الخلط بين معادلة المقارب الأفقي (y = b) ومعادلة المقارب العمودي (x = a).'
+                },
+                {
+                    concept: 'قابلية العكس ودالة الجذر من الرتبة n',
+                    q: 'إذا كانت f متصلة وتناقصية قطعا على المجال [a, b] فإن صورة المجال f([a, b]) هي:',
+                    options: [
+                        '[ f(b) , f(a) ]   (ينعكس ترتيب الطرفين)',
+                        '[ f(a) , f(b) ]',
+                        '] -∞ , f(a) ]',
+                        '[ a , b ]'
+                    ],
+                    correct: 0,
+                    explanation: 'بما أن الدالة تناقصية قطعا، فإن a < b يستلزم f(a) > f(b)، وبالتالي الحد الأصغر للمجال الصورة هو f(b).',
+                    pitfall: 'كتابة [f(a), f(b)] دون مراعاة أن الدالة تناقصية تعكس الترتيب.'
+                }
+            ]
+        },
+        derivatives_study: {
+            title: 'الاشتقاق ودراسة الدوال والفروع اللانهائية',
+            level: 'الأولى والثانية باكالوريا',
+            questions: [
+                {
+                    concept: 'التأويل الهندسي للعدد المشتق',
+                    q: 'إذا كانت f قابلة للاشتقاق في x₀ وكان f\'(x₀) = 0، فإن المنحنى (Cf) يقبل في النقطة A(x₀, f(x₀)):',
+                    options: [
+                        'مماساً أفقياً موازياً لمحور الأفاصيل معادلته y = f(x₀)',
+                        'مقارباً أفقياً بجوار +∞',
+                        'مماساً عمودياً موازياً لمحور الأراتيب',
+                        'نقطة غير قابلة للرسم'
+                    ],
+                    correct: 0,
+                    explanation: 'المعامل الموجه للمماس في x₀ هو f\'(x₀). عندما ينعدم يصبح المماس أفقياً ومعادلته y = f(x₀).',
+                    pitfall: 'الخلط بين المماس الأفقي في نقطة (خاصية محلية) والمقارب الأفقي بجوار مالانهاية.'
+                },
+                {
+                    concept: 'إشارة المشتقة ورتابة الدالة',
+                    q: 'تكون الدالة f القابلة للاشتقاق على مجال I تزايدية على I إذا وفقط إذا كان:',
+                    options: [
+                        'لكل x من I :   f\'(x) ≥ 0',
+                        'لكل x من I :   f(x) ≥ 0',
+                        'lim f(x) = +∞',
+                        'f\'\'(x) ≥ 0'
+                    ],
+                    correct: 0,
+                    explanation: 'رتابة الدالة f ترتبط بإشارة مشتقتها f\'(x) وليس بإشارة f(x) نفسها.',
+                    pitfall: 'دراسة إشارة f(x) بدل إشارة المشتقة f\'(x) لاستنتاج جدول التغيرات.'
+                },
+                {
+                    concept: 'اشتقاق مركب دالتين (uⁿ)\' و (√u)\'',
+                    q: 'مشتقة الدالة f(x) = √(u(x)) على مجال تكون فيه u موجبة قطعا وقابلة للاشتقاق هي:',
+                    options: [
+                        'u\'(x) / ( 2 √(u(x)) )',
+                        '1 / ( 2 √(u(x)) )   دون ضرب في u\'(x)',
+                        'u\'(x) × √(u(x))',
+                        '2 u\'(x) √(u(x))'
+                    ],
+                    correct: 0,
+                    explanation: 'حسب قاعدة اشتقاق مركب دالتين، نضرب دائماً في مشتقة ما بداخل الجذر u\'(x) في البسط.',
+                    pitfall: 'نسيان الضرب في مشتقة الدالة الداخلية u\'(x) في البسط.'
+                },
+                {
+                    concept: 'تقعر المنحنى ونقطة الانعطاف',
+                    q: 'تكون النقطة I(x₀, f(x₀)) نقطة انعطاف للمنحنى (Cf) إذا:',
+                    options: [
+                        'انعدمت المشتقة الثانية f\'\'(x) في x₀ مع تغير إشارتها بجوار x₀',
+                        'انعدمت المشتقة الأولى f\'(x) فقط',
+                        'انعدمت الدالة f(x₀) = 0',
+                        'كانت f\'\'(x₀) > 0'
+                    ],
+                    correct: 0,
+                    explanation: 'نقطة الانعطاف هي النقطة التي يغير فيها المنحنى تقعره، أي تنعدم فيها f\'\' وتغير إشارتها على يمين ويسار x₀.',
+                    pitfall: 'الاكتفاء بحل المعادلة f\'\'(x) = 0 دون التحقق من تغير إشارة f\'\'(x) بجوار الحل.'
+                },
+                {
+                    concept: 'الوضع النسبي للمنحنى (Cf) والمستقيم (Δ): y = ax + b',
+                    q: 'لدراسة الوضع النسبي للمنحنى (Cf) والمستقيم (Δ) ذي المعادلة y = ax + b ندرس:',
+                    options: [
+                        'إشارة الفرق f(x) - (ax + b)',
+                        'إشارة المشتقة f\'(x)',
+                        'نهاية f(x) / x',
+                        'إشارة f(x) × (ax + b)'
+                    ],
+                    correct: 0,
+                    explanation: 'إذا كان الفرق f(x) - y > 0 فإن (Cf) يوجد فوق المستقيم (Δ)، وإذا كان سالباً فإن (Cf) يوجد تحت (Δ).',
+                    pitfall: 'حساب النهاية بدل دراسة إشارة الفرق f(x) - (ax + b) في جدول الإشارة.'
+                }
+            ]
+        },
+        sequences: {
+            title: 'المتتاليات العددية والبرهان بالترجع والتقارب',
+            level: 'الأولى والثانية باكالوريا',
+            questions: [
+                {
+                    concept: 'مراحل البرهان بالترجع',
+                    q: 'في مرحلة الوراثة للبرهان بالترجع على الخاصية P(n) لكل n ≥ n₀:',
+                    options: [
+                        'نفترض أن P(n) صحيحة لعدد n ثابت ونبرهن على صحة P(n+1)',
+                        'نعوض n بقيمتين عدديتين فقط مثل n=0 و n=1',
+                        'نفترض أن P(n+1) صحيحة ونستنتج P(n)',
+                        'نحسب نهاية المتتالية مباشرة'
+                    ],
+                    correct: 0,
+                    explanation: 'البرهان بالترجع يقوم على التحقق من الحد الأول n₀، ثم افتراض صحة الخاصية عند رتبة n والبرهنة على صحتها عند الرتبة الموالية n+1.',
+                    pitfall: 'كتابة "نفترض أنه لكل n..." في الفرضية بدل تثبيت عدد طبيعي n، أو الانطلاق من النتيجة المطلوبة P(n+1).'
+                },
+                {
+                    concept: 'رتابة متتالية عددية (Un)',
+                    q: 'لدراسة رتابة المتتالية (Un) في الحالة العامة، ندرس إشارة:',
+                    options: [
+                        'الفرق   U_{n+1} - U_n',
+                        'المجموع   U_{n+1} + U_n',
+                        'الحد العام   U_n   لوحده',
+                        'مشتقة الحد العام دائماً حتى لو كانت تراجعية'
+                    ],
+                    correct: 0,
+                    explanation: 'إذا كان U_{n+1} - U_n ≥ 0 لكل n فإن المتتالية تزايدية، وإذا كان ≤ 0 فهي تناقصية.',
+                    pitfall: 'محاولة اشتقاق متتالية معرفة بعلاقة تراجعية U_{n+1} = f(U_n) مباشرة بالنسبة لـ n.'
+                },
+                {
+                    concept: 'مصاديق تقارب متتالية مطردة',
+                    q: 'كل متتالية تناقصية ومصغورة بعدد حقيقي m هي متتالية:',
+                    options: [
+                        'متقاربة (تقبل نهاية منتهية L ≥ m)',
+                        'متباعدة نحو -∞',
+                        'نهايتها تساوي بالضرورة الصفر',
+                        'ثابتة'
+                    ],
+                    correct: 0,
+                    explanation: 'حسب مبرهنة التقارب المطرد: كل متتالية تزايدية ومكبورة متقاربة، وكل متتالية تناقصية ومصغورة متقاربة.',
+                    pitfall: 'استنتاج أن النهاية تساوي العدد m مباشرة؛ العدد m هو فقط حاد سفلي أما النهاية فنحددها بحل المعادلة f(L) = L.'
+                },
+                {
+                    concept: 'المتتالية الهندسية ونهاية qⁿ',
+                    q: 'إذا كان أساس المتتالية الهندسية يحقق -1 < q < 1 (مثلاً q = 1/3)، فإن lim (n→+∞) qⁿ تساوي:',
+                    options: [
+                        '0',
+                        '+∞',
+                        '1',
+                        'لا تقبل نهاية'
+                    ],
+                    correct: 0,
+                    explanation: 'كلما كان الأساس q محصوراً قطعا بين -1 و 1، فإن qⁿ يؤول إلى 0 عندما يؤول n إلى +∞.',
+                    pitfall: 'الخلط بين الحالة |q| < 1 (النهاية 0) والحالة q > 1 (النهاية +∞).'
+                },
+                {
+                    concept: 'نهاية متتالية تراجعية U_{n+1} = f(U_n)',
+                    q: 'إذا كانت (Un) متقاربة نحو L وكانت f متصلة في L و U_{n+1} = f(U_n)، فإن L يحقق:',
+                    options: [
+                        'المعادلة   f(L) = L',
+                        'المعادلة   f\'(L) = 0',
+                        'المعادلة   f(L) = 0',
+                        'L = U₀'
+                    ],
+                    correct: 0,
+                    explanation: 'بما أن المتتالية متقاربة والدالة f متصلة على المجال المستقر، فإن النهاية L هي حل للمعادلة f(x) = x.',
+                    pitfall: 'حل المعادلة f(x) = 0 بدل المعادلة f(x) = x، أو إغفال ذكر شروط المبرهنة (اتصال f، استقرار المجال f(I)⊂I، تقارب المتتالية).'
+                }
+            ]
+        },
+        ln_exp_integrals: {
+            title: 'الدوال اللوغاريتمية والأسية والحساب التكاملي (2 باك)',
+            level: 'الثانية باكالوريا علوم',
+            questions: [
+                {
+                    concept: 'مجموعة تعريف الدالة اللوغاريتمية النبيرية',
+                    q: 'تكون الدالة f(x) = ln(u(x)) معرفة إذا وفقط إذا كان:',
+                    options: [
+                        'u(x) > 0   (موجباً قطعا)',
+                        'u(x) ≥ 0',
+                        'x > 0   فقط مهما كانت u(x)',
+                        'u(x) ≠ 0'
+                    ],
+                    correct: 0,
+                    explanation: 'دالة اللوغاريتم النبيري ln معرفـة فقط للأعداد الحقيقية الموجبة قطعا، لذا يجب أن يكون ما بداخل اللوغاريتم u(x) > 0.',
+                    pitfall: 'كتابة x > 0 بدل حل المتراجحة u(x) > 0، أو قبول القيمة 0 داخل ln.'
+                },
+                {
+                    concept: 'النهايات الاعتيادية لدالتي ln و exp',
+                    q: 'ما هي قيمة النهايتين الأساسيتين:   lim (x→+∞) ln(x)/x   و   lim (x→0⁺) x·ln(x) ؟',
+                    options: [
+                        'كلاهما يساوي 0',
+                        'الأولى 1 والثانية -∞',
+                        'الأولى +∞ والثانية 0',
+                        'شكلان غير محددين لا يمكن حسابهما'
+                    ],
+                    correct: 0,
+                    explanation: 'حسب خاصيات التزايد المقارن، القوة x تغلب اللوغاريتم ln(x) بجوار +∞ وبجوار 0⁺، فتكون النهايتان معاً منعدمتين (0).',
+                    pitfall: 'الخلط بين lim (x→+∞) ln(x)/x = 0 وبين lim (x→+∞) eˣ/x = +∞.'
+                },
+                {
+                    concept: 'اشتقاق ln(|u(x)|) و e^{u(x)}',
+                    q: 'مشتقة الدالة f(x) = e^{u(x)} ومشتقة الدالة g(x) = ln(u(x)) (حيث u>0) هما على التوالي:',
+                    options: [
+                        'f\'(x) = u\'(x)·e^{u(x)}   و   g\'(x) = u\'(x) / u(x)',
+                        'f\'(x) = e^{u\'(x)}   و   g\'(x) = 1 / u(x)',
+                        'f\'(x) = u(x)·e^{u(x)-1}   و   g\'(x) = u\'(x)·ln(u(x))',
+                        'f\'(x) = e^{u(x)}   دون ضرب في u\'(x)'
+                    ],
+                    correct: 0,
+                    explanation: 'مشتقة مركب الدالة الأسية هي u\'·e^u، ومشتقة مركب اللوغاريتم هي المشتقة على الدالة نفسها u\'/u.',
+                    pitfall: 'نسيان الضرب في مشتقة الأس u\'(x) عند اشتقاق e^{u(x)} (مثلاً مشتقة e^{-x} هي -e^{-x}).'
+                },
+                {
+                    concept: 'المكاملة بالأجزاء وحساب المساحة',
+                    q: 'مساحة حيز المستوى المحصور بين المنحنى (Cf) ومحور الأفاصيل والمستقيمين x=a و x=b (مع a<b) هي:',
+                    options: [
+                        '∫_a^b |f(x)| dx × ||i|| × ||j||   (تُدرس إشارة f(x) لإزالة القيمة المطلقة)',
+                        '∫_a^b f(x) dx   مباشرة دون قيمة مطلقة ودون وحدة المساحة',
+                        'f(b) - f(a)',
+                        '∫_a^b f\'(x) dx'
+                    ],
+                    correct: 0,
+                    explanation: 'المساحة الهندسية موجبة دائماً، لذلك نضع القيمة المطلقة |f(x)| داخل التكامل ونضرب في وحدة المساحة u.a = ||i||×||j||.',
+                    pitfall: 'نسيان القيمة المطلقة عندما يكون المنحنى تحت محور الأفاصيل (حيث تصبح f(x) < 0 أي |f(x)| = -f(x)) أو نسيان وحدة المساحة cm².'
+                },
+                {
+                    concept: 'الدوال الأصلية الاعتيادية',
+                    q: 'الدوال الأصلية للتعبير   u\'(x) / u(x)   على مجال تكون فيه u(x) غير منعدمة هي:',
+                    options: [
+                        'ln( |u(x)| ) + c',
+                        '1 / u²(x) + c',
+                        'u(x)·ln(u(x)) + c',
+                        'e^{u(x)} + c'
+                    ],
+                    correct: 0,
+                    explanation: 'بما أن مشتقة ln(|u(x)|) هي u\'(x)/u(x)، فإن الدوال الأصلية لـ u\'/u هي ln(|u|) + c.',
+                    pitfall: 'نسيان القيمة المطلقة داخل اللوغاريتم عندما تكون u(x) سالبة قطعا على مجال التكامل.'
+                }
+            ]
+        },
+        complex_numbers: {
+            title: 'الأعداد العقدية والشكل المثلثي والهندسة (2 باك)',
+            level: 'الثانية باكالوريا علوم',
+            questions: [
+                {
+                    concept: 'المعيار والشكل المثلثي لعدد عقدي',
+                    q: 'ما هو معيار وعمدة العدد العقدي   z = 1 + i √3 ؟',
+                    options: [
+                        '|z| = 2   و   arg(z) ≡ π/3 [2π]',
+                        '|z| = 4   و   arg(z) ≡ π/6 [2π]',
+                        '|z| = √2   و   arg(z) ≡ π/4 [2π]',
+                        '|z| = 2   و   arg(z) ≡ -π/3 [2π]'
+                    ],
+                    correct: 0,
+                    explanation: '|z| = √(1² + (√3)²) = √4 = 2. بالتعميل بـ 2 نجد z = 2(1/2 + i √3/2) = 2(cos(π/3) + i sin(π/3)).',
+                    pitfall: 'نسيان الجذر المربع عند حساب المعيار أو الخلط بين π/3 و π/6.'
+                },
+                {
+                    concept: 'شرط الكتابة على الشكل المثلثي',
+                    q: 'هل الكتابة   z = -2 ( cos(π/4) + i sin(π/4) )   تمثل شكلاً مثلثياً مباشراً للعدد z؟',
+                    options: [
+                        'لا، لأن العدد -2 سالب؛ يجب إدخال الإشارة السالبة باستعمال cos(π + θ) + i sin(π + θ)',
+                        'نعم، معياره هو -2 وعمدته π/4',
+                        'نعم، يكفي حذف الإشارة السالبة دون تغيير الزاوية',
+                        'معياره 2 وعمدته -π/4'
+                    ],
+                    correct: 0,
+                    explanation: 'المعيار r في الشكل المثلثي r(cos θ + i sin θ) يجب أن يكون موجباً قطعا (r > 0). وبما أن -cos θ - i sin θ = cos(θ+π) + i sin(θ+π) فإن العمدة تصبح 5π/4.',
+                    pitfall: 'اعتبار العدد السالب المضروب في القوس معياراً للعدد العقدي!'
+                },
+                {
+                    concept: 'المسافة والزاوية الموجهة باستعمال الألحاق',
+                    q: 'المسافة AB وقياس الزاوية الموجهة (AB→ , AC→) يرتبطان بالخارج العقدي K = (z_C - z_A) / (z_B - z_A) عبر:',
+                    options: [
+                        'AC / AB = |K|   و   (AB→ , AC→) ≡ arg(K) [2π]',
+                        'AB = |z_A - z_B| فقط ولا علاقة للزاوية بالعمدة',
+                        '(AB→ , AC→) ≡ |K|',
+                        'K = z_A + z_B + z_C'
+                    ],
+                    correct: 0,
+                    explanation: 'معيار الخارج (z_C - z_A)/(z_B - z_A) يعطي النسبة AC/AB، وعمدته تعطي قياس الزاوية الموجهة (AB→, AC→).',
+                    pitfall: 'عكس ترتيب المتجهتين بين البسط والمقام (البدء بالمتجهة الموجودة في المقام دائماً).'
+                },
+                {
+                    concept: 'استقامية ثلاث نقط وتعامد متجهتين',
+                    q: 'تكون النقط A و B و C مستقيمية إذا وفقط إذا كان الخارج   (z_C - z_A) / (z_B - z_A) :',
+                    options: [
+                        'عدداً حقيقياً (ينتمي إلى ℝ)',
+                        'عدداً تخيلياً صرفاً (ينتمي إلى iℝ)',
+                        'معياره يساوي 1',
+                        'يساوي i'
+                    ],
+                    correct: 0,
+                    explanation: 'استقامية النقط تعني أن الزاوية (AB→, AC→) تساوي 0 أو π بترديد 2π، أي أن الخارج عدد حقيقي. أما إذا كان تخيلياً صرفاً فالمستقيمان متعامدان.',
+                    pitfall: 'الخلط بين شرط الاستقامية (عدد حقيقي ∈ ℝ) وشرط التعامد (عدد تخيلي صرف ∈ iℝ*).'
+                },
+                {
+                    concept: 'التمثيل العقدي للدوران',
+                    q: 'الكتابة العقدية للدوران R الذي مركزه Ω(ω) وزاويته θ هي:',
+                    options: [
+                        'z\' - ω = e^{iθ} (z - ω)',
+                        'z\' = z + ω',
+                        'z\' - ω = θ (z - ω)',
+                        'z\' = e^{iθ} z'
+                    ],
+                    correct: 0,
+                    explanation: 'صيغة الدوران: z\' - ω = e^{iθ}(z - ω). أما z\' = z + b فهي صيغة الإزاحة، و z\' - ω = k(z - ω) (مع k∈ℝ*) صيغة التحاكي.',
+                    pitfall: 'الخلط بين الكتابة العقدية للدوران (ضرب في e^{iθ}) والكتابة العقدية للتحاكي (ضرب في عدد حقيقي k).'
+                }
+            ]
+        }
+    };
+
+    const mathQuickQuizState = {
+        bankKey: 'tcs_1bac_foundations',
+        qIndex: 0,
+        selectedOption: null,
+        revealed: false,
+        timerSeconds: 45,
+        timerRemaining: 45,
+        timerRunning: false,
+        timerInterval: null,
+        // Purely diagnostic concept status per question key ("bankKey:qIndex": 'mastered' | 'needs_review')
+        diagnosticStatus: {}
+    };
+
+    function stopMathQuickQuizTimer() {
+        if (mathQuickQuizState.timerInterval) {
+            clearInterval(mathQuickQuizState.timerInterval);
+            mathQuickQuizState.timerInterval = null;
+        }
+        mathQuickQuizState.timerRunning = false;
+    }
+
+    function openMathQuickQuizModal() {
+        let modal = document.getElementById('wbMathQuickQuizModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'wbMathQuickQuizModal';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.78);backdrop-filter:blur(5px);z-index:10075;display:flex;align-items:center;justify-content:center;padding:14px;direction:rtl;font-family:"Cairo",sans-serif;';
+            document.body.appendChild(modal);
+        }
+        modal.style.display = 'flex';
+        renderMathQuickQuizModalContent();
+    }
+
+    function renderMathQuickQuizModalContent() {
+        const modal = document.getElementById('wbMathQuickQuizModal');
+        if (!modal) return;
+
+        const bank = MATH_PREREQUISITE_QUIZ_BANKS[mathQuickQuizState.bankKey] || MATH_PREREQUISITE_QUIZ_BANKS.tcs_1bac_foundations;
+        const questions = bank.questions || [];
+        if (mathQuickQuizState.qIndex >= questions.length) mathQuickQuizState.qIndex = 0;
+        const currentQ = questions[mathQuickQuizState.qIndex];
+        const statusKey = `${mathQuickQuizState.bankKey}:${mathQuickQuizState.qIndex}`;
+        const currentDiag = mathQuickQuizState.diagnosticStatus[statusKey] || '';
+
+        const letters = ['أ', 'ب', 'ج', 'د'];
+        let masteredCount = 0;
+        let reviewCount = 0;
+        questions.forEach((_, idx) => {
+            const st = mathQuickQuizState.diagnosticStatus[`${mathQuickQuizState.bankKey}:${idx}`];
+            if (st === 'mastered') masteredCount++;
+            else if (st === 'needs_review') reviewCount++;
+        });
+
+        modal.innerHTML = `
+            <div style="background:#ffffff;border-radius:16px;max-width:740px;width:100%;max-height:92vh;overflow-y:auto;padding:18px 22px;box-shadow:0 25px 60px rgba(0,0,0,0.4);border:2px solid #f59e0b;">
+                <!-- Top Header -->
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1.5px solid #fde68a;padding-bottom:10px;margin-bottom:10px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="background:linear-gradient(135deg,#b45309,#d97706);color:#fff;padding:5px 11px;border-radius:8px;font-weight:900;font-size:0.85rem;">⚡ رائز المكتسبات القبلية والتقويم التكويني</span>
+                        <span style="background:#ecfdf5;color:#065f46;border:1px solid #6ee7b7;padding:3px 10px;border-radius:999px;font-size:0.72rem;font-weight:800;">🎯 تقويم تشخيصي وتكويني غير محتسب في النقط (الرياضيات تعتمد 100% على الفروض المحروسة)</span>
+                    </div>
+                    <button type="button" id="btnCloseQuickQuizModal" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:4px 10px;font-size:0.85rem;font-weight:800;color:#475569;cursor:pointer;">✕ إغلاق</button>
+                </div>
+
+                <!-- Axis Selector & Timer Bar -->
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;background:#fffbeb;padding:8px 12px;border-radius:10px;border:1px solid #fde68a;">
+                    <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:240px;">
+                        <label style="font-size:0.78rem;font-weight:800;color:#92400e;white-space:nowrap;">📚 المحور الديداكتيكي:</label>
+                        <select id="wbQuizBankSelect" style="flex:1;padding:6px 10px;border-radius:8px;border:1.5px solid #f59e0b;font-family:inherit;font-size:0.8rem;font-weight:800;color:#0f172a;background:#fff;">
+                            ${Object.keys(MATH_PREREQUISITE_QUIZ_BANKS).map(k => `
+                                <option value="${k}" ${k === mathQuickQuizState.bankKey ? 'selected' : ''}>${MATH_PREREQUISITE_QUIZ_BANKS[k].title}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span id="wbQuizTimerDisplay" style="background:#0f172a;color:#fde047;font-family:monospace;font-weight:900;font-size:0.95rem;padding:4px 10px;border-radius:8px;min-width:56px;text-align:center;">${String(Math.floor(mathQuickQuizState.timerRemaining / 60)).padStart(2, '0')}:${String(mathQuickQuizState.timerRemaining % 60).padStart(2, '0')}</span>
+                        <button type="button" id="btnToggleQuizTimer" style="background:${mathQuickQuizState.timerRunning ? '#dc2626' : '#0284c7'};color:#fff;border:none;padding:5px 10px;border-radius:7px;font-size:0.74rem;font-weight:800;cursor:pointer;">${mathQuickQuizState.timerRunning ? '⏸ إيقاف' : '▶ عداد'}</button>
+                        <button type="button" class="wb-quiz-dur-btn" data-sec="30" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#334155;padding:4px 7px;border-radius:6px;font-size:0.7rem;font-weight:800;cursor:pointer;">30ث</button>
+                        <button type="button" class="wb-quiz-dur-btn" data-sec="45" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#334155;padding:4px 7px;border-radius:6px;font-size:0.7rem;font-weight:800;cursor:pointer;">45ث</button>
+                        <button type="button" class="wb-quiz-dur-btn" data-sec="60" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#334155;padding:4px 7px;border-radius:6px;font-size:0.7rem;font-weight:800;cursor:pointer;">60ث</button>
+                    </div>
+                </div>
+
+                <!-- Question Tabs (1..5) + Diagnostic Summary Pill -->
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        ${questions.map((qItem, idx) => {
+                            const st = mathQuickQuizState.diagnosticStatus[`${mathQuickQuizState.bankKey}:${idx}`];
+                            const badgeDot = st === 'mastered' ? '✅ ' : (st === 'needs_review' ? '🛠️ ' : '');
+                            const isCurr = idx === mathQuickQuizState.qIndex;
+                            return `<button type="button" class="wb-quiz-qtab-btn" data-qidx="${idx}" style="padding:5px 12px;border-radius:8px;border:1.5px solid ${isCurr ? '#d97706' : '#cbd5e1'};background:${isCurr ? '#fef3c7' : '#f8fafc'};color:${isCurr ? '#92400e' : '#334155'};font-weight:800;font-size:0.76rem;cursor:pointer;">${badgeDot}سؤال ${idx + 1}</button>`;
+                        }).join('')}
+                    </div>
+                    <div style="font-size:0.73rem;font-weight:800;color:#475569;display:flex;gap:8px;align-items:center;">
+                        <span style="color:#059669;">✅ متحكم فيه: ${masteredCount}</span>
+                        <span style="color:#dc2626;">🛠️ يحتاج تذكيراً: ${reviewCount}</span>
+                    </div>
+                </div>
+
+                <!-- Concept Tag & Question Card -->
+                <div style="background:linear-gradient(135deg,#0f172a,#1e293b);color:#ffffff;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 6px 18px rgba(15,23,42,0.18);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
+                        <span style="background:rgba(245,158,11,0.22);border:1px solid #f59e0b;color:#fde68a;padding:2px 10px;border-radius:999px;font-size:0.72rem;font-weight:800;">🎯 المفهوم المستهدف: ${currentQ.concept}</span>
+                        <span style="font-size:0.7rem;color:#94a3b8;font-weight:700;">${bank.level}</span>
+                    </div>
+                    <div style="font-size:1rem;font-weight:900;line-height:1.65;color:#f8fafc;direction:rtl;">${currentQ.q}</div>
+                </div>
+
+                <!-- Options Grid -->
+                <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:12px;">
+                    ${currentQ.options.map((optText, oIdx) => {
+                        const isSelected = mathQuickQuizState.selectedOption === oIdx;
+                        const isCorrect = oIdx === currentQ.correct;
+                        let bg = '#f8fafc';
+                        let border = '#cbd5e1';
+                        let textCol = '#0f172a';
+                        let statusIcon = '';
+
+                        if (mathQuickQuizState.revealed) {
+                            if (isCorrect) {
+                                bg = '#ecfdf5';
+                                border = '#10b981';
+                                textCol = '#065f46';
+                                statusIcon = '✅ الجواب الصحيح';
+                            } else if (isSelected && !isCorrect) {
+                                bg = '#fef2f2';
+                                border = '#ef4444';
+                                textCol = '#991b1b';
+                                statusIcon = '❌ اختيار غير صائب';
+                            }
+                        } else if (isSelected) {
+                            bg = '#eff6ff';
+                            border = '#2563eb';
+                            textCol = '#1e3a8a';
+                            statusIcon = '👈 اختيار القسم';
+                        }
+
+                        return `
+                            <button type="button" class="wb-quiz-opt-btn" data-opt="${oIdx}" style="display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:right;padding:10px 14px;border-radius:10px;border:2px solid ${border};background:${bg};color:${textCol};font-family:inherit;font-size:0.84rem;font-weight:800;cursor:pointer;transition:all 0.15s;">
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <span style="width:26px;height:26px;border-radius:7px;background:#e2e8f0;color:#0f172a;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:0.8rem;flex-shrink:0;">${letters[oIdx] || (oIdx + 1)}</span>
+                                    <span style="direction:rtl;">${optText}</span>
+                                </div>
+                                ${statusIcon ? `<span style="font-size:0.72rem;font-weight:900;white-space:nowrap;">${statusIcon}</span>` : ''}
+                            </button>
+                        `;
+                    }).join('')}
+                </div>
+
+                <!-- Mathematical Justification & Common Pitfall Box (Shown when revealed) -->
+                ${mathQuickQuizState.revealed ? `
+                    <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 14px;margin-bottom:12px;">
+                        <div style="font-size:0.8rem;font-weight:900;color:#166534;margin-bottom:4px;">💡 التعليل الرياضي الدقيق:</div>
+                        <div style="font-size:0.79rem;font-weight:700;color:#14532d;line-height:1.55;margin-bottom:6px;">${currentQ.explanation}</div>
+                        <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:6px 10px;font-size:0.75rem;font-weight:800;color:#9f1239;">
+                            ⚠️ <strong>الخطأ الشائع لدى التلاميذ:</strong> ${currentQ.pitfall}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- Formative Diagnostic Decision (Purely Pedagogical, No Grades) -->
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;margin-bottom:12px;flex-wrap:wrap;">
+                    <span style="font-size:0.76rem;font-weight:800;color:#334155;">🩺 تشخيص الأستاذ لدرجة تحكم القسم في هذا المفهوم:</span>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button type="button" id="btnDiagMastered" style="background:${currentDiag === 'mastered' ? '#059669' : '#ecfdf5'};color:${currentDiag === 'mastered' ? '#fff' : '#065f46'};border:1.5px solid #10b981;padding:5px 11px;border-radius:8px;font-size:0.74rem;font-weight:800;cursor:pointer;">✅ مكتسب متحكم فيه جماعياً</button>
+                        <button type="button" id="btnDiagNeedsReview" style="background:${currentDiag === 'needs_review' ? '#dc2626' : '#fef2f2'};color:${currentDiag === 'needs_review' ? '#fff' : '#991b1b'};border:1.5px solid #ef4444;padding:5px 11px;border-radius:8px;font-size:0.74rem;font-weight:800;cursor:pointer;">🛠️ يحتاج تذكيراً سريعاً على السبورة</button>
+                    </div>
+                </div>
+
+                <!-- Bottom Action Buttons -->
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid #e2e8f0;padding-top:10px;flex-wrap:wrap;">
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button type="button" id="btnRevealQuizAnswer" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;padding:7px 14px;border-radius:8px;font-weight:800;font-size:0.79rem;cursor:pointer;">
+                            ${mathQuickQuizState.revealed ? '🙈 إخفاء الجواب والتعليل' : '👁️ كشف الجواب والتعليل الرياضي'}
+                        </button>
+                        <button type="button" id="btnStampQuizToBoard" style="background:linear-gradient(135deg,#059669,#047857);color:#fff;border:none;padding:7px 14px;border-radius:8px;font-weight:800;font-size:0.79rem;cursor:pointer;">
+                            📌 تثبيت السؤال وتعليله على السبورة للشرح
+                        </button>
+                    </div>
+                    <div style="display:flex;gap:6px;">
+                        <button type="button" id="btnPrevQuizQ" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#334155;padding:6px 12px;border-radius:8px;font-weight:800;font-size:0.78rem;cursor:pointer;">▶ السابق</button>
+                        <button type="button" id="btnNextQuizQ" style="background:#fef3c7;border:1.5px solid #f59e0b;color:#92400e;padding:6px 14px;border-radius:8px;font-weight:800;font-size:0.78rem;cursor:pointer;">السؤال التالي ◀</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Wire up events
+        const closeBtn = document.getElementById('btnCloseQuickQuizModal');
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                stopMathQuickQuizTimer();
+                modal.style.display = 'none';
+            };
+        }
+
+        const bankSel = document.getElementById('wbQuizBankSelect');
+        if (bankSel) {
+            bankSel.onchange = () => {
+                stopMathQuickQuizTimer();
+                mathQuickQuizState.bankKey = bankSel.value;
+                mathQuickQuizState.qIndex = 0;
+                mathQuickQuizState.selectedOption = null;
+                mathQuickQuizState.revealed = false;
+                mathQuickQuizState.timerRemaining = mathQuickQuizState.timerSeconds;
+                renderMathQuickQuizModalContent();
+            };
+        }
+
+        modal.querySelectorAll('.wb-quiz-qtab-btn').forEach(btn => {
+            btn.onclick = () => {
+                stopMathQuickQuizTimer();
+                mathQuickQuizState.qIndex = parseInt(btn.getAttribute('data-qidx'), 10) || 0;
+                mathQuickQuizState.selectedOption = null;
+                mathQuickQuizState.revealed = false;
+                mathQuickQuizState.timerRemaining = mathQuickQuizState.timerSeconds;
+                renderMathQuickQuizModalContent();
+            };
+        });
+
+        modal.querySelectorAll('.wb-quiz-opt-btn').forEach(btn => {
+            btn.onclick = () => {
+                mathQuickQuizState.selectedOption = parseInt(btn.getAttribute('data-opt'), 10);
+                mathQuickQuizState.revealed = true;
+                stopMathQuickQuizTimer();
+                renderMathQuickQuizModalContent();
+            };
+        });
+
+        modal.querySelectorAll('.wb-quiz-dur-btn').forEach(btn => {
+            btn.onclick = () => {
+                stopMathQuickQuizTimer();
+                const sec = parseInt(btn.getAttribute('data-sec'), 10) || 45;
+                mathQuickQuizState.timerSeconds = sec;
+                mathQuickQuizState.timerRemaining = sec;
+                renderMathQuickQuizModalContent();
+            };
+        });
+
+        const toggleTimerBtn = document.getElementById('btnToggleQuizTimer');
+        if (toggleTimerBtn) {
+            toggleTimerBtn.onclick = () => {
+                if (mathQuickQuizState.timerRunning) {
+                    stopMathQuickQuizTimer();
+                    renderMathQuickQuizModalContent();
+                } else {
+                    if (mathQuickQuizState.timerRemaining <= 0) {
+                        mathQuickQuizState.timerRemaining = mathQuickQuizState.timerSeconds;
+                    }
+                    mathQuickQuizState.timerRunning = true;
+                    renderMathQuickQuizModalContent();
+                    mathQuickQuizState.timerInterval = setInterval(() => {
+                        if (mathQuickQuizState.timerRemaining > 0) {
+                            mathQuickQuizState.timerRemaining--;
+                            const disp = document.getElementById('wbQuizTimerDisplay');
+                            if (disp) {
+                                disp.textContent = `${String(Math.floor(mathQuickQuizState.timerRemaining / 60)).padStart(2, '0')}:${String(mathQuickQuizState.timerRemaining % 60).padStart(2, '0')}`;
+                            }
+                        } else {
+                            stopMathQuickQuizTimer();
+                            mathQuickQuizState.revealed = true;
+                            renderMathQuickQuizModalContent();
+                            if (typeof window.showNotification === 'function') {
+                                window.showNotification('⏰ انتهى وقت التفكير في السؤال! تم كشف الجواب والتعليل الرياضي للنقاش الجماعي.', 'info');
+                            }
+                        }
+                    }, 1000);
+                }
+            };
+        }
+
+        const revealBtn = document.getElementById('btnRevealQuizAnswer');
+        if (revealBtn) {
+            revealBtn.onclick = () => {
+                mathQuickQuizState.revealed = !mathQuickQuizState.revealed;
+                stopMathQuickQuizTimer();
+                renderMathQuickQuizModalContent();
+            };
+        }
+
+        const stampBtn = document.getElementById('btnStampQuizToBoard');
+        if (stampBtn) {
+            stampBtn.onclick = () => {
+                stopMathQuickQuizTimer();
+                stampQuizQuestionToBoard(currentQ);
+                modal.style.display = 'none';
+            };
+        }
+
+        const masteredBtn = document.getElementById('btnDiagMastered');
+        if (masteredBtn) {
+            masteredBtn.onclick = () => {
+                mathQuickQuizState.diagnosticStatus[statusKey] = 'mastered';
+                renderMathQuickQuizModalContent();
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification(`✅ تم تسجيل المفهوم "${currentQ.concept}" كمكتسب متحكم فيه جماعياً لدى القسم.`, 'success');
+                }
+            };
+        }
+
+        const reviewBtn = document.getElementById('btnDiagNeedsReview');
+        if (reviewBtn) {
+            reviewBtn.onclick = () => {
+                mathQuickQuizState.diagnosticStatus[statusKey] = 'needs_review';
+                renderMathQuickQuizModalContent();
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification(`🛠️ تم تحديد المفهوم "${currentQ.concept}" كعنصر يحتاج تذكيراً سريعاً على السبورة قبل الشروع في الدرس.`, 'info');
+                }
+            };
+        }
+
+        const prevBtn = document.getElementById('btnPrevQuizQ');
+        if (prevBtn) {
+            prevBtn.onclick = () => {
+                stopMathQuickQuizTimer();
+                mathQuickQuizState.qIndex = (mathQuickQuizState.qIndex - 1 + questions.length) % questions.length;
+                mathQuickQuizState.selectedOption = null;
+                mathQuickQuizState.revealed = false;
+                mathQuickQuizState.timerRemaining = mathQuickQuizState.timerSeconds;
+                renderMathQuickQuizModalContent();
+            };
+        }
+
+        const nextBtn = document.getElementById('btnNextQuizQ');
+        if (nextBtn) {
+            nextBtn.onclick = () => {
+                stopMathQuickQuizTimer();
+                mathQuickQuizState.qIndex = (mathQuickQuizState.qIndex + 1) % questions.length;
+                mathQuickQuizState.selectedOption = null;
+                mathQuickQuizState.revealed = false;
+                mathQuickQuizState.timerRemaining = mathQuickQuizState.timerSeconds;
+                renderMathQuickQuizModalContent();
+            };
+        }
+    }
+
+    function stampQuizQuestionToBoard(questionObj) {
+        if (!canvas || !ctx || !questionObj) return;
+        saveStateToHistory();
+        const w = canvas.width / currentCanvasScale;
+        const cardW = Math.min(620, w - 50);
+        const cardH = 195;
+        const x0 = Math.max(25, (w - cardW) / 2);
+        const y0 = 85;
+
+        ctx.save();
+        ctx.fillStyle = '#fffbeb';
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(x0, y0, cardW, cardH, 12);
+        } else {
+            ctx.rect(x0, y0, cardW, cardH);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        // Top accent bar
+        ctx.fillStyle = '#d97706';
+        ctx.fillRect(x0 + cardW - 8, y0 + 8, 5, cardH - 16);
+
+        ctx.direction = 'rtl';
+        ctx.textAlign = 'right';
+
+        // Header
+        ctx.font = 'bold 13px "Cairo", sans-serif';
+        ctx.fillStyle = '#92400e';
+        ctx.fillText(`⚡ تذكير بالمكتسبات القبلية: ${questionObj.concept}`, x0 + cardW - 18, y0 + 26, cardW - 34);
+
+        // Question
+        ctx.font = 'bold 13.5px "Cairo", sans-serif';
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText(`❓ ${questionObj.q}`, x0 + cardW - 18, y0 + 54, cardW - 34);
+
+        // Correct Answer
+        const correctText = questionObj.options[questionObj.correct] || '';
+        ctx.font = 'bold 13px "Cairo", sans-serif';
+        ctx.fillStyle = '#065f46';
+        ctx.fillText(`✅ الجواب الصحيح: ${correctText}`, x0 + cardW - 18, y0 + 86, cardW - 34);
+
+        // Explanation
+        ctx.font = 'bold 12px "Cairo", sans-serif';
+        ctx.fillStyle = '#1e3a8a';
+        ctx.fillText(`💡 التعليل: ${questionObj.explanation}`, x0 + cardW - 18, y0 + 118, cardW - 34);
+
+        // Common Pitfall
+        ctx.font = 'bold 11.5px "Cairo", sans-serif';
+        ctx.fillStyle = '#9f1239';
+        ctx.fillText(`⚠️ انتبه (خطأ شائع): ${questionObj.pitfall}`, x0 + cardW - 18, y0 + 150, cardW - 34);
+
+        // Footer note
+        ctx.font = '11px "Cairo", sans-serif';
+        ctx.fillStyle = '#64748b';
+        ctx.fillText('🎯 تقويم تشخيصي وتكويني فوري على السبورة الرقمية (غير محتسب في النقط)', x0 + cardW - 18, y0 + 178, cardW - 34);
+
+        ctx.restore();
+        persistWhiteboardState();
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('📌 تم تثبيت بطاقة السؤال القبلي وتعليله الرياضي على السبورة للشرح!', 'success');
         }
     }
 
@@ -6511,6 +8371,14 @@
     window.stampKaTeXFormulaToCanvas = stampKaTeXFormulaToCanvas;
     window.drawCartesianAxes = drawCartesianAxes;
     window.drawTrigonometricCircle = drawTrigonometricCircle;
+    window.drawComplexPlane = drawComplexPlane;
+    window.openRecursiveSequenceModal = openRecursiveSequenceModal;
+    window.openDidacticCalloutModal = openDidacticCalloutModal;
+    window.openMathQuickQuizModal = openMathQuickQuizModal;
+    window.stampQuizQuestionToBoard = stampQuizQuestionToBoard;
+    window.toggleBoardCurtain = toggleBoardCurtain;
+    window.toggleBoardVideoRecorder = toggleBoardVideoRecorder;
+    window.openBoardLiveShareModal = openBoardLiveShareModal;
     window.drawMathCurve = drawMathCurve;
     window.openVariationTableModal = openVariationTableModal;
     window.stampVariationTableToCanvas = stampVariationTableToCanvas;
