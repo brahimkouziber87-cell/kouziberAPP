@@ -28817,6 +28817,9 @@ window.isPresentationMode = isPresentationMode;
             if (typeof renderCalendarExamSuggestions === 'function') {
                 renderCalendarExamSuggestions();
             }
+            if (typeof window.updateLessonLogSmartLegalCard === 'function') {
+                window.updateLessonLogSmartLegalCard();
+            }
         }
 
         function fillMathTemplateForCurrentType() {
@@ -29611,6 +29614,9 @@ window.isPresentationMode = isPresentationMode;
                 renderLessonLogs();
             }
             autoAlignLessonLogWithTimetable(null, { isClassChange: true, showToast: false });
+            if (typeof window.updateLessonLogSmartLegalCard === 'function') {
+                window.updateLessonLogSmartLegalCard();
+            }
         }
 
         function onLessonLogDateChanged() {
@@ -32367,6 +32373,9 @@ window.isPresentationMode = isPresentationMode;
         function onLessonLogNumberChanged(val) {
             updateLessonLogTitleHidden();
             renumberLessonLogAxesAndParagraphs();
+            if (typeof window.updateLessonLogSmartLegalCard === 'function') {
+                window.updateLessonLogSmartLegalCard();
+            }
 
             const className = document.getElementById('lessonLogClassSelect')?.value || '';
             const hint = document.getElementById('lessonLogLessonSequenceHint');
@@ -32448,6 +32457,9 @@ window.isPresentationMode = isPresentationMode;
             const numInput = document.getElementById('lessonLogNumber');
             if (numInput && numInput.value) {
                 onLessonLogNumberChanged(numInput.value);
+            }
+            if (typeof window.updateLessonLogSmartLegalCard === 'function') {
+                window.updateLessonLogSmartLegalCard();
             }
         }
 
@@ -33093,6 +33105,9 @@ window.isPresentationMode = isPresentationMode;
                         </button>
                     </div>
 
+                    <!-- Smart Auto-Linked Legal & Ministerial Reference Strip (السند القانوني والمذكرة الوزارية المرتبطة بالدرس) -->
+                    ${typeof window.renderSessionLegalReferenceHtml === 'function' ? window.renderSessionLegalReferenceHtml(className, log, 'card') : ''}
+
                     <!-- Visual Progress Bar for Lesson (نسبة إنجاز المحاور المحددة في التوزيع السنوي لهذا الدرس) -->
                     ${(lessonProg && (log.number || log.title)) ? `
                         <div style="background: linear-gradient(135deg, #f8fafc, ${lessonProg.bg}); border: 1px solid ${lessonProg.color}33; border-radius: 9px; padding: 7px 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
@@ -33275,6 +33290,7 @@ window.isPresentationMode = isPresentationMode;
             const calendarExamBox = document.getElementById('lessonLogCalendarExamBox');
             if (calendarExamBox) calendarExamBox.style.display = 'none';
             if (typeof renderLessonResourcesSidebar === 'function') renderLessonResourcesSidebar();
+            if (typeof window.updateLessonLogSmartLegalCard === 'function') window.updateLessonLogSmartLegalCard();
         }
 
         function cancelEditLessonLog() {
@@ -33371,6 +33387,7 @@ window.isPresentationMode = isPresentationMode;
                 formCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
             if (typeof renderLessonResourcesSidebar === 'function') renderLessonResourcesSidebar();
+            if (typeof window.updateLessonLogSmartLegalCard === 'function') window.updateLessonLogSmartLegalCard();
         }
 
         function autoFillSessionFromRecentAttendance() {
@@ -33530,6 +33547,10 @@ window.isPresentationMode = isPresentationMode;
                 linkedCalendarEventDate: linkedDate,
                 updatedAt: new Date().toISOString()
             };
+
+            if (typeof window.resolveLessonLegalReference === 'function') {
+                sessionRecord.legalReference = window.resolveLessonLegalReference(className, sessionRecord, sessionType);
+            }
 
             if (window._editingLessonLog && window._editingLessonLog.className === className) {
                 const idx = db.lessonLogs[className].findIndex(l => l.id === window._editingLessonLog.logId);
@@ -33779,16 +33800,21 @@ window.isPresentationMode = isPresentationMode;
             `;
         }
 
-        // --- Single Session Printable Slip ---
-        function printSingleSessionSlip(className, id) {
+        // --- Single Session Printable Slip (يدعم الحصص المحفوظة والمسودات قيد التحرير) ---
+        function printSingleSessionSlip(className, idOrLogObj) {
             const logs = (db.lessonLogs && db.lessonLogs[className]) ? db.lessonLogs[className] : [];
-            const log = logs.find(l => l.id === id);
-            if (!log) return;
+            const log = (idOrLogObj && typeof idOrLogObj === 'object')
+                ? idOrLogObj
+                : logs.find(l => l.id === idOrLogObj);
+            if (!log) {
+                if (typeof showAppToast === 'function') showAppToast('لم يتم العثور على بيانات هذه الحصة للطباعة.', 'warning');
+                return;
+            }
 
             const dayName = getArabicDayName(log.date);
             const typeInfo = (typeof LESSON_LOG_TYPES !== "undefined" && LESSON_LOG_TYPES[log.sessionType]) ? LESSON_LOG_TYPES[log.sessionType] : { label: log.sessionType || "حصة رياضيات" };
             const seqInfo = (typeof getLessonAxesSequenceInfo === 'function') ? getLessonAxesSequenceInfo(className) : null;
-            const logInfo = seqInfo?.byLogId ? seqInfo.byLogId[log.id] : null;
+            const logInfo = (log.id && seqInfo?.byLogId) ? seqInfo.byLogId[log.id] : null;
             const axesColHtml = formatPedagogicalAxesColumnForPrint(log, logInfo, true);
             const contentHtml = formatPedagogicalSessionContentForPrint(log, logInfo, { officialClean: true, showAxisHeader: true });
 
@@ -33799,18 +33825,20 @@ window.isPresentationMode = isPresentationMode;
 
             const slipHtml = `
             <div style="font-family: 'Cairo', system-ui, sans-serif; direction: rtl; color: #0f172a; padding: 4px;">
-                ${buildOfficialMoroccanHeader("بطاقة تدوين وتوثيق حصة بيداغوجية (دفتر النصوص)", className, log.date || formatLocalDate(), { optHeader: true, lessonTitle: lessonRawTitle, sessionType: log.sessionType || 'cours' })}
+                ${buildOfficialMoroccanHeader("بطاقة تدوين وتوثيق حصة بيداغوجية (دفتر النصوص)", className || 'القسم', log.date || formatLocalDate(), { optHeader: true, lessonTitle: lessonRawTitle, sessionType: log.sessionType || 'cours' })}
 
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; font-size: 0.85rem;">
                     <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 6px 10px; border-radius: 6px;"><strong>رقم الحصة:</strong> #${log.sessionNum || "-"}</div>
                     <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 6px 10px; border-radius: 6px;"><strong>طبيعة الحصة:</strong> ${typeInfo.label || typeInfo.name || "حصة"}</div>
-                    <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 6px 10px; border-radius: 6px;"><strong>التاريخ واليوم:</strong> ${dayName} ${log.date}</div>
+                    <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 6px 10px; border-radius: 6px;"><strong>التاريخ واليوم:</strong> ${dayName} ${log.date || formatLocalDate()}</div>
                     <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 6px 10px; border-radius: 6px;"><strong>التوقيت والمدة:</strong> ${log.timeSlot || "-"} (${log.duration || "2"} س)</div>
                     <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 6px 10px; border-radius: 6px; grid-column: span 2;">
                         <div style="display: flex; align-items: center; gap: 6px;">${customSvgHtml}<strong>عنوان الدرس:</strong> ${escapeHtml(lessonRawTitle)}</div>
                         ${axesColHtml}
                     </div>
                 </div>
+
+                ${typeof window.renderSessionLegalReferenceHtml === 'function' ? window.renderSessionLegalReferenceHtml(className, log, 'print_slip') : ''}
 
                 <div style="margin-top: 10px; margin-bottom: 4px; font-weight: 800; color: #1e3a8a; font-size: 0.92rem;">المضامين البيداغوجية والأنشطة المنجزة في الحصة:</div>
                 <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px; font-size: 0.86rem; line-height: 1.6; min-height: 80px;">${contentHtml}</div>
@@ -33821,12 +33849,57 @@ window.isPresentationMode = isPresentationMode;
             </div>`;
 
             if (typeof window.openCustomPrintPreviewModal === 'function') {
-                window.openCustomPrintPreviewModal(slipHtml, `بطاقة حصة - ${className} #${log.sessionNum || ""}`, "portrait");
+                window.openCustomPrintPreviewModal(slipHtml, `بطاقة حصة - ${className || 'القسم'} #${log.sessionNum || ""}`, "portrait");
             } else {
-                printDocumentDirectly(slipHtml, `بطاقة حصة - ${className} #${log.sessionNum || ""}`, "portrait");
+                printDocumentDirectly(slipHtml, `بطاقة حصة - ${className || 'القسم'} #${log.sessionNum || ""}`, "portrait");
             }
         }
         window.printSingleSessionSlip = printSingleSessionSlip;
+
+        // أدوات التحكم التفاعلي في معاينة دفتر النصوص (تكبير، توفير الحبر، تعديل مباشر)
+        let _cahierPreviewZoom = 100;
+        function setCahierPreviewZoom(delta) {
+            _cahierPreviewZoom = Math.min(135, Math.max(70, _cahierPreviewZoom + (Number(delta) || 0)));
+            const container = document.getElementById('cahierPdfPrintableContainer');
+            const badge = document.getElementById('cahierPreviewZoomBadge');
+            if (container) container.style.zoom = `${_cahierPreviewZoom}%`;
+            if (badge) badge.textContent = `${_cahierPreviewZoom}%`;
+        }
+        window.setCahierPreviewZoom = setCahierPreviewZoom;
+
+        function toggleCahierPreviewEcoBw() {
+            const container = document.getElementById('cahierPdfPrintableContainer');
+            const btn = document.getElementById('btnCahierEcoBw');
+            if (!container) return;
+            const active = container.classList.toggle('print-eco-bw-mode');
+            if (btn) {
+                btn.style.background = active ? '#0f172a' : '#f8fafc';
+                btn.style.color = active ? '#ffffff' : '#334155';
+                btn.style.borderColor = active ? '#0f172a' : '#cbd5e1';
+            }
+            if (typeof showAppToast === 'function') {
+                showAppToast(active ? '🖨️ تم تفعيل وضع توفير الحبر (أبيض وأسود عالي التباين)' : '🎨 تمت استعادة الألوان الرسمية للوثيقة', 'info');
+            }
+        }
+        window.toggleCahierPreviewEcoBw = toggleCahierPreviewEcoBw;
+
+        function toggleCahierPreviewDirectEdit() {
+            const container = document.getElementById('cahierPdfPrintableContainer');
+            const btn = document.getElementById('btnCahierDirectEdit');
+            if (!container) return;
+            const isEditable = container.getAttribute('contenteditable') === 'true';
+            const nextState = !isEditable;
+            container.setAttribute('contenteditable', nextState ? 'true' : 'false');
+            container.style.outline = nextState ? '2.5px dashed #d97706' : 'none';
+            if (btn) {
+                btn.style.background = nextState ? '#d97706' : '#fffbeb';
+                btn.style.color = nextState ? '#ffffff' : '#92400e';
+            }
+            if (typeof showAppToast === 'function') {
+                showAppToast(nextState ? '✏️ وضع التعديل المباشر مفعل: انقر على أي نص في الورقة لتعديله قبل الطبع' : '🔒 تم قفل التعديل المباشر واعتماد النص المعدل للطباعة', 'info');
+            }
+        }
+        window.toggleCahierPreviewDirectEdit = toggleCahierPreviewDirectEdit;
 
         // --- Cahier de Textes Official PDF Printing & Export ---
         function populateCahierPdfLessonsDropdown(className) {
@@ -33914,6 +33987,7 @@ window.isPresentationMode = isPresentationMode;
             const optHeader = document.getElementById('cahierPdfOptHeader')?.checked !== false;
             const optCover = document.getElementById('cahierPdfOptCover')?.checked === true;
             const optVisas = document.getElementById('cahierPdfOptVisas')?.checked !== false;
+            const optLegalRef = document.getElementById('cahierPdfOptLegalRef')?.checked !== false;
             const optHomework = document.getElementById('cahierPdfOptHomework')?.checked !== false;
 
             if (!className) {
@@ -34154,6 +34228,7 @@ window.isPresentationMode = isPresentationMode;
                                     <span>${escapeHtml(cleanLessonTitle)}</span>
                                 </div>
                                 ${axesColHtml}
+                                ${(optLegalRef && typeof window.renderSessionLegalReferenceHtml === 'function') ? window.renderSessionLegalReferenceHtml(className, log, 'print_compact') : ''}
                             </td>
                             <td style="border: 1px solid #cbd5e1; padding: 6px 10px; vertical-align: top; text-align: right;">
                                 ${contentColHtml}
@@ -34194,6 +34269,7 @@ window.isPresentationMode = isPresentationMode;
                     const bucketSvgBadge = typeof window.getCustomHeaderSvgBadgeHtml === 'function'
                         ? window.getCustomHeaderSvgBadgeHtml({ lessonTitle: bucket.title, sessionType: 'cours', size: 22, lightBg: true })
                         : '';
+                    const sampleLog = bucket.logs[0] || { number: bucket.title, sessionType: 'cours' };
                     html += `
                         <div style="margin-bottom: 16px; page-break-inside: avoid;">
                             <div style="background: linear-gradient(135deg, #1e3a8a, #1d4ed8); color: #ffffff; padding: 7px 12px; border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center; font-size: 0.84rem;">
@@ -34202,6 +34278,7 @@ window.isPresentationMode = isPresentationMode;
                                     عدد الحصص: ${bucket.logs.length} | الغلاف الزمني: ${bucket.totalHours} س
                                 </div>
                             </div>
+                            ${(optLegalRef && typeof window.renderSessionLegalReferenceHtml === 'function') ? `<div style="background:#f8fafc; border-right:1px solid #cbd5e1; border-left:1px solid #cbd5e1; padding:4px 10px;">${window.renderSessionLegalReferenceHtml(className, sampleLog, 'print_compact')}</div>` : ''}
                             <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem;">
                                 <thead>
                                     <tr style="background: #eff6ff; color: #1e3a8a; text-align: center;">
@@ -34269,6 +34346,7 @@ window.isPresentationMode = isPresentationMode;
                                 </div>
                             </div>
                             ${axesColHtml ? `<div style="margin-bottom: 6px;">${axesColHtml}</div>` : ''}
+                            ${(optLegalRef && typeof window.renderSessionLegalReferenceHtml === 'function') ? `<div style="margin-bottom: 6px;">${window.renderSessionLegalReferenceHtml(className, log, 'print_compact')}</div>` : ''}
                             <div style="background: #f8fafc; padding: 8px 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
                                 ${contentColHtml}
                             </div>
@@ -34334,6 +34412,12 @@ window.isPresentationMode = isPresentationMode;
             const scrollParent = container.closest('.card') || container.parentElement;
             if (scrollParent) scrollParent.scrollTop = 0;
 
+            const exportClone = container.cloneNode(true);
+            exportClone.style.zoom = '100%';
+            exportClone.style.outline = 'none';
+            exportClone.removeAttribute('contenteditable');
+            exportClone.classList.remove('print-page-break-guide');
+
             const opt = {
                 margin: (orientation === 'landscape') ? [6, 8, 6, 8] : [8, 10, 8, 10],
                 filename: `دفتر_النصوص_${className}_${academicYear}.pdf`,
@@ -34344,7 +34428,7 @@ window.isPresentationMode = isPresentationMode;
             };
 
             if (typeof html2pdf !== 'undefined') {
-                html2pdf().set(opt).from(container).save().then(() => {
+                html2pdf().set(opt).from(exportClone).save().then(() => {
                     if (btn) {
                         btn.innerHTML = '✅ تم التحميل بنجاح';
                         setTimeout(() => {
@@ -34376,12 +34460,10 @@ window.isPresentationMode = isPresentationMode;
             const format = document.getElementById('cahierPdfFormat')?.value || 'landscape';
             const className = document.getElementById('cahierPdfClassSelect')?.value || document.getElementById('lessonLogClassSelect')?.value || 'القسم';
             const orientation = (format === 'landscape' || format === 'grouped_lessons') ? 'landscape' : 'portrait';
+            const isEcoBw = container.classList.contains('print-eco-bw-mode');
+            const printableHtml = isEcoBw ? `<div class="print-eco-bw-mode">${container.innerHTML}</div>` : container.innerHTML;
 
-            if (typeof window.openCustomPrintPreviewModal === 'function') {
-                window.openCustomPrintPreviewModal(container.innerHTML, `دفتر النصوص الرسمي - ${className}`, orientation);
-            } else {
-                printDocumentDirectly(container.innerHTML, `دفتر النصوص الرسمي - ${className}`, orientation);
-            }
+            printDocumentDirectly(printableHtml, `دفتر النصوص الرسمي - ${className}`, orientation);
         }
 
         function copyCahierDeTextesSummaryText() {
@@ -34398,6 +34480,7 @@ window.isPresentationMode = isPresentationMode;
             });
 
             const seqInfo = (typeof getLessonAxesSequenceInfo === 'function') ? getLessonAxesSequenceInfo(className) : null;
+            const optLegalRef = document.getElementById('cahierPdfOptLegalRef')?.checked !== false;
 
             let text = `*دفتر النصوص الرسمي - قسم: ${className}*\n`;
             text += `*المؤسسة:* ${(db.teacherProfile && db.teacherProfile.school) || ''}\n`;
@@ -34411,6 +34494,13 @@ window.isPresentationMode = isPresentationMode;
                 const logInfo = seqInfo?.byLogId ? seqInfo.byLogId[log.id] : null;
                 text += `*الحصة #${log.sessionNum || (idx + 1)}* (${dayName} ${log.date}) [${log.timeSlot || '08:00 - 10:00'}]\n`;
                 text += `• *عنوان الدرس:* ${cleanPedagogicalLogText(log.number || '-', true)}\n`;
+
+                if (optLegalRef && typeof window.resolveLessonLegalReference === 'function') {
+                    const legalRef = log.legalReference || window.resolveLessonLegalReference(className, log, log.sessionType);
+                    if (legalRef && legalRef.memoNumber) {
+                        text += `• *السند القانوني والمرجعي:* ${legalRef.memoNumber}${legalRef.guidelineRef ? ' | ' + legalRef.guidelineRef : ''}\n`;
+                    }
+                }
 
                 if (Array.isArray(log.axes) && log.axes.length > 0) {
                     const hasStructured = log.axes.some(a => a && typeof a === 'object' && Array.isArray(a.paragraphs));
@@ -36647,7 +36737,7 @@ window.isPresentationMode = isPresentationMode;
             const logs = (db.lessonLogs && db.lessonLogs[className]) ? db.lessonLogs[className] : [];
             const log = logs.find(item => item.id === id);
             if (!log) {
-                alert('لم يتم العثور على بيانات هذه الحصة.');
+                if (typeof showAppToast === 'function') showAppToast('لم يتم العثور على بيانات هذه الحصة.', 'warning');
                 return;
             }
 
@@ -36715,6 +36805,9 @@ window.isPresentationMode = isPresentationMode;
                             ${log.number || 'غير محدد'}
                         </div>
                     </div>
+
+                    <!-- Auto-Linked Legal & Ministerial Reference -->
+                    ${typeof window.renderSessionLegalReferenceHtml === 'function' ? window.renderSessionLegalReferenceHtml(className, log, 'modal') : ''}
 
                     <!-- Structured Axes with Paragraphs & Specific Content -->
                     ${buildPedagogicalAxesPreviewHtml(log.axes, log.title)}
@@ -36807,7 +36900,7 @@ window.isPresentationMode = isPresentationMode;
             const notes = document.getElementById('lessonLogNotes')?.value;
 
             if (!number && !summary && structuredAxes.length === 0) {
-                alert('يرجى كتابة عنوان الدرس أو ملخص المحتوى أولاً للمعاينة.');
+                if (typeof showAppToast === 'function') showAppToast('يرجى كتابة عنوان الدرس أو ملخص المحتوى أولاً للمعاينة.', 'info');
                 return;
             }
 
@@ -36862,6 +36955,9 @@ window.isPresentationMode = isPresentationMode;
                         </div>
                     </div>
 
+                    <!-- Auto-Linked Legal & Ministerial Reference -->
+                    ${typeof window.renderSessionLegalReferenceHtml === 'function' ? window.renderSessionLegalReferenceHtml(className, { number, title, sessionType }, 'modal') : ''}
+
                     <!-- Structured Axes with Paragraphs & Specific Content -->
                     ${buildPedagogicalAxesPreviewHtml(structuredAxes.length > 0 ? structuredAxes : axesList, title)}
 
@@ -36894,7 +36990,8 @@ window.isPresentationMode = isPresentationMode;
             const btnSlip = document.getElementById('btnDetailPrintSlip');
             if (btnSlip) {
                 btnSlip.onclick = () => {
-                    const tempLog = { id: 'draft', date, timeSlot, duration, sessionType, number, title, summary, homework, notes };
+                    const sessionNum = document.getElementById('lessonLogSessionNum')?.value || '1';
+                    const tempLog = { id: 'draft', sessionNum, date, timeSlot, duration, sessionType, number, title, axes: structuredAxes, summary, homework, notes };
                     printSlipForObject(className, tempLog);
                 };
             }
@@ -36975,6 +37072,13 @@ window.isPresentationMode = isPresentationMode;
                 axesText = `• المحور: ${log.title}`;
             }
 
+            const resolvedLegal = (typeof window.resolveLessonLegalReference === 'function')
+                ? window.resolveLessonLegalReference(className, log, log.sessionType)
+                : null;
+            const legalTextBlock = resolvedLegal
+                ? `\n• السند القانوني والمذكرة الوزارية: ${resolvedLegal.decreeNumber}\n• التأطير بالمنهاج والإطار المرجعي: ${resolvedLegal.curriculumPositionStr} | ${resolvedLegal.examFrameworkStr}`
+                : '';
+
             const text = `══════════════════════════════════════════
 📖 بطاقة محتوى الحصة - دفتر النصوص لمادة الرياضيات
 ══════════════════════════════════════════
@@ -36982,7 +37086,7 @@ window.isPresentationMode = isPresentationMode;
 • اليوم والتاريخ: ${dayName ? dayName + ' ' : ''}${log.date || ''}
 • التوقيت والمدة: ${log.timeSlot || ''} (${log.duration || '2'} ساعات)
 • نوع الحصة: ${typeLabel}
-• عنوان الدرس: ${log.number || ''}
+• عنوان الدرس: ${log.number || ''}${legalTextBlock}
 ------------------------------------------
 📑 محاور وفقرات الحصة ومحتواها الخاص:
 ${axesText || 'غير محدد'}
@@ -37002,9 +37106,59 @@ ${log.notes || 'سير الحصة عادي'}
 
         function printSlipForObject(className, log) {
             if (!log) return;
-            printSingleSessionSlip(className, log.id);
+            printSingleSessionSlip(className, log);
         }
         window.printSlipForObject = printSlipForObject;
+
+        // أدوات التحكم التفاعلي في نافذة المعاينة والطباعة الشاملة (Universal PDF Studio)
+        let _universalPreviewZoom = 100;
+        function setUniversalPreviewZoom(deltaOrVal, isExact = false) {
+            if (isExact) {
+                _universalPreviewZoom = Number(deltaOrVal) || 100;
+            } else {
+                _universalPreviewZoom = Math.min(140, Math.max(65, _universalPreviewZoom + (Number(deltaOrVal) || 0)));
+            }
+            const sheet = document.getElementById('universalPdfPrintableSheet');
+            const badge = document.getElementById('universalPreviewZoomBadge');
+            if (sheet) sheet.style.zoom = `${_universalPreviewZoom}%`;
+            if (badge) badge.textContent = `${_universalPreviewZoom}%`;
+        }
+        window.setUniversalPreviewZoom = setUniversalPreviewZoom;
+
+        function toggleUniversalPreviewEcoBw(checked) {
+            const sheet = document.getElementById('universalPdfPrintableSheet');
+            if (!sheet) return;
+            sheet.classList.toggle('print-eco-bw-mode', Boolean(checked));
+            if (typeof showAppToast === 'function') {
+                showAppToast(checked ? '🖨️ تم تفعيل وضع توفير الحبر (أبيض وأسود عالي التباين)' : '🎨 تمت استعادة الألوان الرسمية للوثيقة', 'info');
+            }
+        }
+        window.toggleUniversalPreviewEcoBw = toggleUniversalPreviewEcoBw;
+
+        function toggleUniversalPreviewPageGuide(checked) {
+            const sheet = document.getElementById('universalPdfPrintableSheet');
+            if (!sheet) return;
+            sheet.classList.toggle('print-page-break-guide', Boolean(checked));
+        }
+        window.toggleUniversalPreviewPageGuide = toggleUniversalPreviewPageGuide;
+
+        function toggleUniversalPreviewDirectEdit() {
+            const sheet = document.getElementById('universalPdfPrintableSheet');
+            const btn = document.getElementById('btnUniversalDirectEdit');
+            if (!sheet) return;
+            const isEditable = sheet.getAttribute('contenteditable') === 'true';
+            const nextState = !isEditable;
+            sheet.setAttribute('contenteditable', nextState ? 'true' : 'false');
+            sheet.style.outline = nextState ? '2.5px dashed #d97706' : 'none';
+            if (btn) {
+                btn.style.background = nextState ? '#d97706' : '#fffbeb';
+                btn.style.color = nextState ? '#ffffff' : '#92400e';
+            }
+            if (typeof showAppToast === 'function') {
+                showAppToast(nextState ? '✏️ وضع التعديل المباشر مفعل: انقر فوق أي فقرة أو خلية بالورقة لتعديلها قبل الطباعة' : '🔒 تم اعتماد التعديلات وقفل المحرر المباشر', 'info');
+            }
+        }
+        window.toggleUniversalPreviewDirectEdit = toggleUniversalPreviewDirectEdit;
 
         function setUniversalPdfMarginPreset(top, bottom, right, left) {
             const elTop = document.getElementById('universalPdfMarginTop');
@@ -37433,6 +37587,19 @@ ${log.notes || 'سير الحصة عادي'}
             direction: rtl;
             z-index: 999999;
         }
+        .print-eco-bw-mode, .print-eco-bw-mode * {
+            background: #ffffff !important;
+            background-image: none !important;
+            color: #000000 !important;
+            border-color: #000000 !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+        }
+        .print-eco-bw-mode th {
+            background: #f1f5f9 !important;
+            font-weight: 900 !important;
+            border: 1.5px solid #000000 !important;
+        }
         @media print {
             .no-print, button, input, select { display: none !important; }
             .print-system-footer-fixed {
@@ -37475,16 +37642,18 @@ ${log.notes || 'سير الحصة عادي'}
         window.printDocumentDirectly = printDocumentDirectly;
 
         /**
-         * نافذة معاينة وطباعة وتصدير التقارير الاحترافية (A4 Portrait / Landscape)
-         * تدعم: الطباعة الورقية الفورية، التحميل كملف PDF، وتغيير الخط المغربي وخط اليد مباشرة
+         * نافذة معاينة وطباعة وتصدير التقارير الاحترافية (A4 / A5 Portrait & Landscape)
+         * تدعم: الطباعة الورقية الفورية، التحميل كملف PDF، التكبير، توفير الحبر (B&W)، والتعديل المباشر قبل الطبع
          */
         function openCustomPrintPreviewModal(htmlContent, options = {}, legacyOrientation = null, legacySubtitle = null) {
             const normalizedOpts = (typeof options === 'string')
                 ? { title: options, orientation: legacyOrientation || 'portrait', subtitle: legacySubtitle }
                 : (options || {});
             const docTitle = normalizedOpts.title || 'تقرير_رسمي_A4';
-            const subtitle = normalizedOpts.subtitle || 'معاينة الوثيقة الرسمية قبل الطباعة الورقية أو التصدير الرقمي (PDF)';
+            const subtitle = normalizedOpts.subtitle || 'معاينة الوثيقة الرسمية وتخصيصها قبل الطباعة الورقية أو التصدير الرقمي (PDF)';
             let currentOrientation = normalizedOpts.orientation === 'landscape' ? 'landscape' : 'portrait';
+            let currentPageSize = String(normalizedOpts.pageSize || 'A4').toUpperCase() === 'A5' ? 'A5' : 'A4';
+            let currentZoom = 100;
 
             let bodyHtml = String(htmlContent || '');
             let extractedStyles = '';
@@ -37503,16 +37672,16 @@ ${log.notes || 'سير الحصة عادي'}
 
             modal = document.createElement('div');
             modal.id = 'customReportPreviewModal';
-            modal.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.88); backdrop-filter:blur(6px); z-index:999999; display:flex; flex-direction:column; align-items:center; overflow-y:auto; padding:18px; direction:rtl; font-family:"Cairo",sans-serif;';
+            modal.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.88); backdrop-filter:blur(6px); z-index:999999; display:flex; flex-direction:column; align-items:center; overflow-y:auto; padding:16px; direction:rtl; font-family:"Cairo",sans-serif;';
 
-            const updateSheetDimensions = (sheetEl, orient) => {
+            const updateSheetDimensions = (sheetEl, orient, pageSize) => {
                 if (!sheetEl) return;
-                if (orient === 'landscape') {
-                    sheetEl.style.width = '297mm';
-                    sheetEl.style.minHeight = '210mm';
+                if (pageSize === 'A5') {
+                    sheetEl.style.width = orient === 'landscape' ? '210mm' : '148mm';
+                    sheetEl.style.minHeight = orient === 'landscape' ? '148mm' : '210mm';
                 } else {
-                    sheetEl.style.width = '210mm';
-                    sheetEl.style.minHeight = '297mm';
+                    sheetEl.style.width = orient === 'landscape' ? '297mm' : '210mm';
+                    sheetEl.style.minHeight = orient === 'landscape' ? '210mm' : '297mm';
                 }
             };
 
@@ -37520,43 +37689,58 @@ ${log.notes || 'سير الحصة عادي'}
             const curHwFont = getSelectedHandwritingFontFamily();
 
             modal.innerHTML = `
-                <div id="customReportPreviewToolbar" class="no-print" style="width:100%; max-width:1160px; background:linear-gradient(135deg,#0f172a,#1e293b); border:1px solid #334155; border-radius:14px; padding:12px 18px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow:0 12px 30px rgba(0,0,0,0.4); position:sticky; top:0; z-index:20;">
+                <div id="customReportPreviewToolbar" class="no-print" style="width:100%; max-width:1200px; background:linear-gradient(135deg,#0f172a,#1e293b); border:1px solid #334155; border-radius:14px; padding:12px 16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; box-shadow:0 12px 30px rgba(0,0,0,0.4); position:sticky; top:0; z-index:20;">
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <span style="background:rgba(59,130,246,0.2); color:#60a5fa; border:1px solid rgba(96,165,250,0.35); width:38px; height:38px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; font-size:1.2rem;">🖨️</span>
+                        <span style="background:rgba(59,130,246,0.2); color:#60a5fa; border:1px solid rgba(96,165,250,0.35); width:38px; height:38px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; font-size:1.15rem;">🖨️</span>
                         <div>
-                            <div style="color:#ffffff; font-weight:900; font-size:1rem;">${docTitle.replace(/_/g, ' ')}</div>
-                            <div style="color:#94a3b8; font-size:0.75rem; font-weight:600;">${subtitle}</div>
+                            <div style="color:#ffffff; font-weight:900; font-size:0.98rem;">${docTitle.replace(/_/g, ' ')}</div>
+                            <div style="color:#94a3b8; font-size:0.74rem; font-weight:600;">${subtitle}</div>
                         </div>
                     </div>
-                    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                        <select id="selCustomPreviewPrintFont" title="اختيار الخط المغربي الرسمي للوثيقة" style="background:#1e293b; color:#f8fafc; border:1px solid #475569; padding:7px 10px; border-radius:8px; font-weight:700; font-size:0.78rem; cursor:pointer; font-family:'Cairo',sans-serif;">
-                            <option value="'Cairo', 'Amiri', sans-serif" ${curPrintFont.includes('Cairo') ? 'selected' : ''}>🖨️ خط القاهرة الرسمي (Cairo)</option>
-                            <option value="'Amiri', 'Cairo', serif" ${curPrintFont.includes('Amiri') && !curPrintFont.includes('Cairo') ? 'selected' : ''}>🕌 الخط المغربي الأميري (Amiri)</option>
-                            <option value="'Scheherazade New', 'Amiri', serif" ${curPrintFont.includes('Scheherazade') ? 'selected' : ''}>📜 خط شهرزاد المغربي (Scheherazade)</option>
-                            <option value="'Noto Naskh Arabic', 'Amiri', serif" ${curPrintFont.includes('Noto Naskh') ? 'selected' : ''}>📖 خط النسخ الأكاديمي (Noto Naskh)</option>
-                            <option value="'Reem Kufi', 'Cairo', sans-serif" ${curPrintFont.includes('Reem Kufi') ? 'selected' : ''}>🏛️ الخط الكوفي المغربي (Reem Kufi)</option>
+                    <div style="display:flex; gap:7px; flex-wrap:wrap; align-items:center;">
+                        <select id="selCustomPreviewPrintFont" title="اختيار الخط المغربي الرسمي للوثيقة" style="background:#1e293b; color:#f8fafc; border:1px solid #475569; padding:6px 9px; border-radius:8px; font-weight:700; font-size:0.76rem; cursor:pointer; font-family:'Cairo',sans-serif;">
+                            <option value="'Cairo', 'Amiri', sans-serif" ${curPrintFont.includes('Cairo') ? 'selected' : ''}>🖨️ خط القاهرة (Cairo)</option>
+                            <option value="'Amiri', 'Cairo', serif" ${curPrintFont.includes('Amiri') && !curPrintFont.includes('Cairo') ? 'selected' : ''}>🕌 الخط الأميري (Amiri)</option>
+                            <option value="'Scheherazade New', 'Amiri', serif" ${curPrintFont.includes('Scheherazade') ? 'selected' : ''}>📜 خط شهرزاد (Scheherazade)</option>
+                            <option value="'Noto Naskh Arabic', 'Amiri', serif" ${curPrintFont.includes('Noto Naskh') ? 'selected' : ''}>📖 خط النسخ (Noto Naskh)</option>
+                            <option value="'Reem Kufi', 'Cairo', sans-serif" ${curPrintFont.includes('Reem Kufi') ? 'selected' : ''}>🏛️ الخط الكوفي (Reem Kufi)</option>
                         </select>
-                        <select id="selCustomPreviewHwFont" title="اختيار خط اليد للملاحظات والتوقيع" style="background:#451a03; color:#fef3c7; border:1px solid #d97706; padding:7px 10px; border-radius:8px; font-weight:700; font-size:0.78rem; cursor:pointer; font-family:'Cairo',sans-serif;">
-                            <option value="'Aref Ruqaa', serif" ${curHwFont.includes('Aref Ruqaa') ? 'selected' : ''}>✍️ خط الرقعة اليدوي (Aref Ruqaa)</option>
-                            <option value="'Marhey', cursive" ${curHwFont.includes('Marhey') ? 'selected' : ''}>✍️ خط اليد التربوي (Marhey)</option>
-                            <option value="'Harmattan', serif" ${curHwFont.includes('Harmattan') ? 'selected' : ''}>✍️ الخط المغربي المخطوط (Harmattan)</option>
-                            <option value="'Lemonada', cursive" ${curHwFont.includes('Lemonada') ? 'selected' : ''}>✍️ خط ليموناضة اليدوي (Lemonada)</option>
+                        <select id="selCustomPreviewHwFont" title="اختيار خط اليد للملاحظات والتوقيع" style="background:#451a03; color:#fef3c7; border:1px solid #d97706; padding:6px 9px; border-radius:8px; font-weight:700; font-size:0.76rem; cursor:pointer; font-family:'Cairo',sans-serif;">
+                            <option value="'Aref Ruqaa', serif" ${curHwFont.includes('Aref Ruqaa') ? 'selected' : ''}>✍️ خط الرقعة (Aref Ruqaa)</option>
+                            <option value="'Marhey', cursive" ${curHwFont.includes('Marhey') ? 'selected' : ''}>✍️ خط اليد (Marhey)</option>
+                            <option value="'Harmattan', serif" ${curHwFont.includes('Harmattan') ? 'selected' : ''}>✍️ المغربي المخطوط (Harmattan)</option>
+                            <option value="'Lemonada', cursive" ${curHwFont.includes('Lemonada') ? 'selected' : ''}>✍️ خط ليموناضة (Lemonada)</option>
                         </select>
-                        <button type="button" id="btnToggleCustomPreviewOrient" style="background:#334155; color:#e2e8f0; border:1px solid #475569; padding:8px 12px; border-radius:9px; font-weight:800; font-size:0.8rem; cursor:pointer; font-family:'Cairo',sans-serif; display:inline-flex; align-items:center; gap:5px;">
+                        <select id="selCustomPreviewPageSize" title="حجم الورقة (A4 أو A5)" style="background:#1e293b; color:#e2e8f0; border:1px solid #475569; padding:6px 8px; border-radius:8px; font-weight:800; font-size:0.76rem; cursor:pointer; font-family:'Cairo',sans-serif;">
+                            <option value="A4" ${currentPageSize === 'A4' ? 'selected' : ''}>📄 ورق A4</option>
+                            <option value="A5" ${currentPageSize === 'A5' ? 'selected' : ''}>📑 ورق A5 (نصف ورقة)</option>
+                        </select>
+                        <button type="button" id="btnToggleCustomPreviewOrient" style="background:#334155; color:#e2e8f0; border:1px solid #475569; padding:6px 10px; border-radius:8px; font-weight:800; font-size:0.76rem; cursor:pointer; font-family:'Cairo',sans-serif; display:inline-flex; align-items:center; gap:4px;">
                             📐 <span id="lblCustomPreviewOrient">${currentOrientation === 'landscape' ? 'أفقي (Landscape)' : 'عمودي (Portrait)'}</span>
                         </button>
-                        <button type="button" id="btnDirectPrintCustomPreview" style="background:linear-gradient(135deg,#2563eb,#1d4ed8); color:#fff; border:none; padding:8px 16px; border-radius:9px; font-weight:800; font-size:0.83rem; cursor:pointer; font-family:'Cairo',sans-serif; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(37,99,235,0.35);">
-                            🖨️ طباعة فورية (A4)
+                        <div style="display:inline-flex; align-items:center; gap:3px; background:#1e293b; border:1px solid #475569; padding:3px 6px; border-radius:8px;">
+                            <button type="button" id="btnCustomPreviewZoomOut" style="background:#334155; color:#fff; border:none; width:22px; height:22px; border-radius:5px; font-weight:900; cursor:pointer;" title="تصغير">−</button>
+                            <span id="lblCustomPreviewZoom" style="color:#e2e8f0; font-size:0.73rem; font-weight:800; min-width:36px; text-align:center;">100%</span>
+                            <button type="button" id="btnCustomPreviewZoomIn" style="background:#334155; color:#fff; border:none; width:22px; height:22px; border-radius:5px; font-weight:900; cursor:pointer;" title="تكبير">+</button>
+                        </div>
+                        <button type="button" id="btnCustomPreviewEcoBw" style="background:#334155; color:#e2e8f0; border:1px solid #475569; padding:6px 10px; border-radius:8px; font-weight:800; font-size:0.76rem; cursor:pointer; font-family:'Cairo',sans-serif;" title="تفعيل وضع توفير الحبر (أبيض وأسود عالي التباين)">
+                            ◑ توفير الحبر
                         </button>
-                        <button type="button" id="btnDownloadPdfCustomPreview" style="background:linear-gradient(135deg,#059669,#047857); color:#fff; border:none; padding:8px 16px; border-radius:9px; font-weight:800; font-size:0.83rem; cursor:pointer; font-family:'Cairo',sans-serif; display:inline-flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(5,150,105,0.35);">
+                        <button type="button" id="btnCustomPreviewLiveEdit" style="background:#78350f; color:#fef3c7; border:1px solid #d97706; padding:6px 10px; border-radius:8px; font-weight:800; font-size:0.76rem; cursor:pointer; font-family:'Cairo',sans-serif;" title="تعديل النص مباشرة على الورقة قبل الطباعة">
+                            ✏️ تعديل مباشر
+                        </button>
+                        <button type="button" id="btnDirectPrintCustomPreview" style="background:linear-gradient(135deg,#2563eb,#1d4ed8); color:#fff; border:none; padding:7px 14px; border-radius:9px; font-weight:800; font-size:0.8rem; cursor:pointer; font-family:'Cairo',sans-serif; display:inline-flex; align-items:center; gap:5px; box-shadow:0 4px 12px rgba(37,99,235,0.35);">
+                            🖨️ طباعة فورية
+                        </button>
+                        <button type="button" id="btnDownloadPdfCustomPreview" style="background:linear-gradient(135deg,#059669,#047857); color:#fff; border:none; padding:7px 14px; border-radius:9px; font-weight:800; font-size:0.8rem; cursor:pointer; font-family:'Cairo',sans-serif; display:inline-flex; align-items:center; gap:5px; box-shadow:0 4px 12px rgba(5,150,105,0.35);">
                             📥 تحميل PDF
                         </button>
-                        <button type="button" id="btnCloseCustomPreview" style="background:#ef4444; color:#fff; border:none; padding:8px 13px; border-radius:9px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">
+                        <button type="button" id="btnCloseCustomPreview" style="background:#ef4444; color:#fff; border:none; padding:7px 12px; border-radius:9px; font-weight:800; font-size:0.78rem; cursor:pointer; font-family:'Cairo',sans-serif;">
                             ✖ إغلاق
                         </button>
                     </div>
                 </div>
-                <div id="customReportPrintableSheet" style="background:#ffffff; color:#0f172a; padding:10mm 12mm; border-radius:6px; box-shadow:0 20px 50px rgba(0,0,0,0.5); box-sizing:border-box; margin:0 auto 30px auto; direction:rtl; transition:width 0.2s ease; font-family:${curPrintFont}; position:relative;">
+                <div id="customReportPrintableSheet" class="print-live-editable-sheet" style="background:#ffffff; color:#0f172a; padding:10mm 12mm; border-radius:6px; box-shadow:0 20px 50px rgba(0,0,0,0.5); box-sizing:border-box; margin:0 auto 30px auto; direction:rtl; transition:width 0.2s ease; font-family:${curPrintFont}; position:relative;">
                     ${extractedStyles}
                     ${bodyHtml}
                     <div style="margin-top:24px; padding-top:8px; border-top:1.5px solid #cbd5e1; text-align:center; font-size:0.8rem; font-weight:800; color:#1e3a8a; font-family:'Cairo',sans-serif;">
@@ -37567,7 +37751,7 @@ ${log.notes || 'سير الحصة عادي'}
 
             document.body.appendChild(modal);
             const sheetEl = document.getElementById('customReportPrintableSheet');
-            updateSheetDimensions(sheetEl, currentOrientation);
+            updateSheetDimensions(sheetEl, currentOrientation, currentPageSize);
 
             const applyLivePreviewFonts = () => {
                 const pFont = document.getElementById('selCustomPreviewPrintFont')?.value || getSelectedPrintFontFamily();
@@ -37595,16 +37779,58 @@ ${log.notes || 'سير الحصة عادي'}
             document.getElementById('selCustomPreviewPrintFont').onchange = applyLivePreviewFonts;
             document.getElementById('selCustomPreviewHwFont').onchange = applyLivePreviewFonts;
 
+            document.getElementById('selCustomPreviewPageSize').onchange = function () {
+                currentPageSize = this.value === 'A5' ? 'A5' : 'A4';
+                updateSheetDimensions(sheetEl, currentOrientation, currentPageSize);
+            };
+
             document.getElementById('btnToggleCustomPreviewOrient').onclick = function () {
                 currentOrientation = currentOrientation === 'landscape' ? 'portrait' : 'landscape';
                 const lbl = document.getElementById('lblCustomPreviewOrient');
                 if (lbl) lbl.textContent = currentOrientation === 'landscape' ? 'أفقي (Landscape)' : 'عمودي (Portrait)';
-                updateSheetDimensions(sheetEl, currentOrientation);
+                updateSheetDimensions(sheetEl, currentOrientation, currentPageSize);
             };
 
-            document.getElementById('btnDirectPrintCustomPreview').onclick = function () {
-                printDocumentDirectly(sheetEl ? sheetEl.innerHTML : (extractedStyles + bodyHtml), docTitle, currentOrientation);
+            const applyZoom = (delta) => {
+                currentZoom = Math.min(140, Math.max(65, currentZoom + delta));
+                if (sheetEl) sheetEl.style.zoom = `${currentZoom}%`;
+                const zLbl = document.getElementById('lblCustomPreviewZoom');
+                if (zLbl) zLbl.textContent = `${currentZoom}%`;
             };
+            document.getElementById('btnCustomPreviewZoomOut').onclick = () => applyZoom(-10);
+            document.getElementById('btnCustomPreviewZoomIn').onclick = () => applyZoom(10);
+
+            document.getElementById('btnCustomPreviewEcoBw').onclick = function () {
+                if (!sheetEl) return;
+                const active = sheetEl.classList.toggle('print-eco-bw-mode');
+                this.style.background = active ? '#f8fafc' : '#334155';
+                this.style.color = active ? '#0f172a' : '#e2e8f0';
+            };
+
+            document.getElementById('btnCustomPreviewLiveEdit').onclick = function () {
+                if (!sheetEl) return;
+                const isEdit = sheetEl.getAttribute('contenteditable') === 'true';
+                const next = !isEdit;
+                sheetEl.setAttribute('contenteditable', next ? 'true' : 'false');
+                sheetEl.style.outline = next ? '2.5px dashed #f59e0b' : 'none';
+                this.style.background = next ? '#f59e0b' : '#78350f';
+                this.style.color = next ? '#0f172a' : '#fef3c7';
+                if (typeof showAppToast === 'function') {
+                    showAppToast(next ? '✏️ وضع التعديل المباشر مفعل: انقر على أي نص لتعديله قبل الطبع' : '🔒 تم اعتماد النص وقفل التعديل المباشر', 'info');
+                }
+            };
+
+            const triggerModalDirectPrint = () => {
+                const isEco = sheetEl && sheetEl.classList.contains('print-eco-bw-mode');
+                const rawHtml = sheetEl ? sheetEl.innerHTML : (extractedStyles + bodyHtml);
+                const wrappedHtml = isEco ? `<div class="print-eco-bw-mode">${rawHtml}</div>` : rawHtml;
+                printDocumentDirectly(wrappedHtml, docTitle, {
+                    orientation: currentOrientation,
+                    pageSize: currentPageSize
+                });
+            };
+
+            document.getElementById('btnDirectPrintCustomPreview').onclick = triggerModalDirectPrint;
 
             document.getElementById('btnDownloadPdfCustomPreview').onclick = function () {
                 const btn = this;
@@ -37612,34 +37838,50 @@ ${log.notes || 'سير الحصة عادي'}
                 btn.disabled = true;
                 btn.innerHTML = '⏳ جاري تجهيز PDF...';
                 if (typeof window.html2pdf === 'function' && sheetEl) {
+                    const prevZoom = sheetEl.style.zoom;
+                    sheetEl.style.zoom = '100%';
                     const opt = {
                         margin: [6, 6, 6, 6],
                         filename: `${docTitle.replace(/\s+/g, '_')}.pdf`,
                         image: { type: 'jpeg', quality: 0.98 },
                         html2canvas: { scale: 2, useCORS: true, logging: false },
-                        jsPDF: { unit: 'mm', format: 'a4', orientation: currentOrientation },
+                        jsPDF: { unit: 'mm', format: currentPageSize.toLowerCase(), orientation: currentOrientation },
                         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
                     };
                     window.html2pdf().set(opt).from(sheetEl).save().then(() => {
+                        sheetEl.style.zoom = prevZoom;
                         btn.disabled = false;
                         btn.innerHTML = origText;
                         if (typeof showToast === 'function') showToast('✅ تم تحميل التقرير بصيغة PDF بنجاح', 'success');
                     }).catch(() => {
+                        sheetEl.style.zoom = prevZoom;
                         btn.disabled = false;
                         btn.innerHTML = origText;
-                        printDocumentDirectly(sheetEl ? sheetEl.innerHTML : (extractedStyles + bodyHtml), docTitle, currentOrientation);
+                        triggerModalDirectPrint();
                     });
                 } else {
                     btn.disabled = false;
                     btn.innerHTML = origText;
-                    printDocumentDirectly(sheetEl ? sheetEl.innerHTML : (extractedStyles + bodyHtml), docTitle, currentOrientation);
+                    triggerModalDirectPrint();
                 }
             };
 
-            document.getElementById('btnCloseCustomPreview').onclick = function () {
+            const closeCustomModal = () => {
+                document.removeEventListener('keydown', onModalKeyDown);
                 modal.remove();
                 document.body.classList.remove('printing-custom-preview');
             };
+
+            const onModalKeyDown = (e) => {
+                if (e.key === 'Escape') {
+                    closeCustomModal();
+                } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+                    e.preventDefault();
+                    triggerModalDirectPrint();
+                }
+            };
+            document.addEventListener('keydown', onModalKeyDown);
+            document.getElementById('btnCloseCustomPreview').onclick = closeCustomModal;
         }
         window.openCustomPrintPreviewModal = openCustomPrintPreviewModal;
 
@@ -38540,6 +38782,11 @@ ${log.notes || 'سير الحصة عادي'}
             }
 
             sheet.innerHTML = html;
+            sheet.classList.toggle('print-eco-bw-mode', Boolean(document.getElementById('universalPdfOptEcoBw')?.checked));
+            sheet.classList.toggle('print-page-break-guide', Boolean(document.getElementById('universalPdfOptPageGuide')?.checked));
+            if (window.renderMathInContainer) {
+                try { window.renderMathInContainer(sheet); } catch (e) {}
+            }
             updateUniversalPdfMarginsAndPages();
             if (window.renderLucide) window.renderLucide();
             if (window.lucide) window.lucide.createIcons();
@@ -39304,6 +39551,7 @@ ${log.notes || 'سير الحصة عادي'}
                     <td style="padding: 7px 10px; text-align: right; border: 1px solid #cbd5e1; vertical-align: top;">
                         <div style="font-weight: 900; color: #0f172a; margin-bottom: 2px; display: flex; align-items: center; gap: 5px;">${rowSvgBadge}<span>${escapeHtml(cleanLessonTitle)}</span></div>
                         ${axesColHtml}
+                        ${typeof window.renderSessionLegalReferenceHtml === 'function' ? window.renderSessionLegalReferenceHtml(className, log, 'print_compact') : ''}
                         ${(log.remedialReason || log.remedialBeneficiaries) ? `<div style="font-size: 0.7rem; color: #6b21a8; background: #faf5ff; border: 1px dashed #d8b4fe; border-radius: 4px; padding: 2px 6px; margin-top: 3px;"><b>${escapeHtml(log.remedialReason || 'معالجة بيداغوجية')}</b> [${escapeHtml(log.remedialBeneficiaries || 'القسم')}]</div>` : ''}
                     </td>
                     <td style="padding: 7px 10px; text-align: right; font-size: 0.82rem; line-height: 1.5; color: #1e293b; border: 1px solid #cbd5e1; vertical-align: top;">${pedagogicalContentHtml}</td>
@@ -40483,6 +40731,10 @@ ${log.notes || 'سير الحصة عادي'}
             exportClone.style.margin = '0';
             exportClone.style.boxShadow = 'none';
             exportClone.style.border = 'none';
+            exportClone.style.outline = 'none';
+            exportClone.style.zoom = '100%';
+            exportClone.removeAttribute('contenteditable');
+            exportClone.classList.remove('print-page-break-guide');
             exportClone.style.minHeight = 'auto';
             exportClone.style.width = '100%';
             exportClone.style.maxWidth = '100%';
@@ -40554,7 +40806,31 @@ ${log.notes || 'سير الحصة عادي'}
             const sheet = document.getElementById('universalPdfPrintableSheet');
             if (!sheet) return;
 
-            const isLandscape = document.getElementById('universalPdfOrientLandscape')?.checked;
+            const orientSel = document.getElementById('universalPdfOrientation');
+            const isLandscape = orientSel ? (orientSel.value === 'landscape') : Boolean(document.getElementById('universalPdfOrientLandscape')?.checked);
+            const { top, bottom, right, left } = getUniversalPdfMargins();
+            const fontScale = document.getElementById('universalPdfFontScale')?.value || '100';
+            const rangeType = document.getElementById('universalPdfPageRangeType')?.value || 'all';
+            const isEcoBw = Boolean(document.getElementById('universalPdfOptEcoBw')?.checked) || sheet.classList.contains('print-eco-bw-mode');
+            const activePrintFont = getSelectedPrintFontFamily();
+            const activeHandwritingFont = getSelectedHandwritingFontFamily();
+
+            const printClone = sheet.cloneNode(true);
+            printClone.style.zoom = '100%';
+            printClone.style.outline = 'none';
+            printClone.removeAttribute('contenteditable');
+            printClone.classList.remove('print-page-break-guide');
+            if (rangeType === 'first') {
+                const table = printClone.querySelector('table');
+                if (table) {
+                    const rows = table.querySelectorAll('tbody tr');
+                    if (rows.length > 28) {
+                        for (let i = 28; i < rows.length; i++) {
+                            rows[i].remove();
+                        }
+                    }
+                }
+            }
 
             let iframe = document.getElementById('universalDocPrintIframe');
             if (!iframe) {
@@ -40574,7 +40850,8 @@ ${log.notes || 'سير الحصة عادي'}
 <head>
     <meta charset="UTF-8">
     <title>${document.title || 'وثيقة رسمية - مادة الرياضيات'}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    <link href="${MOROCCAN_GOOGLE_FONTS_LINK}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <style>
         @page {
             size: A4 ${isLandscape ? 'landscape' : 'portrait'};
@@ -40586,16 +40863,19 @@ ${log.notes || 'سير الحصة عادي'}
             print-color-adjust: exact !important;
         }
         body {
-            font-family: 'Cairo', 'Amiri', 'Traditional Arabic', Tahoma, sans-serif;
+            font-family: ${activePrintFont}, 'Cairo', 'Amiri', 'Traditional Arabic', Tahoma, sans-serif !important;
             color: #0f172a;
             background: #ffffff;
             margin: 0 !important;
-            padding: ${isLandscape ? '6mm 8mm' : '8mm 10mm'} !important;
+            padding: ${top}mm ${right}mm ${bottom}mm ${left}mm !important;
             direction: rtl;
-            font-size: 8.5pt;
-            line-height: 1.35;
+            font-size: calc(8.5pt * ${Number(fontScale) / 100});
+            line-height: 1.38;
+            font-variant-numeric: tabular-nums;
         }
-        /* Suppress printed browser URLs from links and footers */
+        .teacher-handwritten-note, .font-handwriting, .signature-handwritten {
+            font-family: ${activeHandwritingFont}, 'Aref Ruqaa', serif !important;
+        }
         a[href]:after, a:after {
             content: none !important;
             display: none !important;
@@ -40604,9 +40884,11 @@ ${log.notes || 'سير الحصة عادي'}
             width: 100%;
             border-collapse: collapse;
             page-break-inside: auto;
+            font-variant-numeric: tabular-nums;
         }
         tr {
             page-break-inside: avoid;
+            break-inside: avoid;
             page-break-after: auto;
         }
         thead {
@@ -40616,15 +40898,28 @@ ${log.notes || 'سير الحصة عادي'}
             display: table-footer-group;
         }
         th, td {
-            border: 1px solid #cbd5e1;
+            border: 1px solid #475569;
         }
         .hide-in-print, button, input, select {
             display: none !important;
         }
+        .print-eco-bw-mode, .print-eco-bw-mode * {
+            background: #ffffff !important;
+            background-image: none !important;
+            color: #000000 !important;
+            border-color: #000000 !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+        }
+        .print-eco-bw-mode th {
+            background: #f1f5f9 !important;
+            font-weight: 900 !important;
+            border: 1.5px solid #000000 !important;
+        }
     </style>
 </head>
-<body>
-    ${sheet.innerHTML}
+<body class="${isEcoBw ? 'print-eco-bw-mode' : ''}">
+    ${printClone.innerHTML}
 </body>
 </html>`;
 
@@ -40644,7 +40939,7 @@ ${log.notes || 'سير الحصة عادي'}
                             iframe.parentNode.removeChild(iframe);
                         }
                     }, 4000);
-                }, 300);
+                }, 380);
             } catch (err) {
                 document.body.classList.add('printing-universal-doc');
                 window.print();
@@ -44042,12 +44337,12 @@ ${log.notes || 'سير الحصة عادي'}
                         btnFocus.style.background = 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)';
                         btnFocus.style.boxShadow = '0 0 16px rgba(220, 38, 38, 0.45)';
                         btnFocus.title = 'إلغاء وضع التركيز والعودة إلى لوحة القيادة الشاملة لكافة الأقسام';
-                        btnFocus.innerHTML = '<span data-lucide="x-circle" data-size="16"></span> <span id="btnDashboardFocusModeText">إلغاء وضع التركيز (عرض الكل)</span>';
+                        btnFocus.innerHTML = '<span class="dash-ew-btn-icon"><span data-lucide="x-circle" data-size="16"></span></span><span class="dash-ew-btn-label" id="btnDashboardFocusModeText">إلغاء وضع التركيز</span>';
                     } else {
                         btnFocus.style.background = 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)';
-                        btnFocus.style.boxShadow = '0 3px 10px rgba(124, 58, 237, 0.35)';
+                        btnFocus.style.boxShadow = '0 3px 10px rgba(124, 58, 237, 0.25)';
                         btnFocus.title = 'تفعيل وضع التركيز لإخفاء كافة البيانات غير الضرورية والتركيز التام على القسم المختار';
-                        btnFocus.innerHTML = '<span data-lucide="crosshair" data-size="16"></span> <span id="btnDashboardFocusModeText">وضع التركيز (Focus Mode) 🎯</span>';
+                        btnFocus.innerHTML = '<span class="dash-ew-btn-icon"><span data-lucide="crosshair" data-size="16"></span></span><span class="dash-ew-btn-label" id="btnDashboardFocusModeText">وضع التركيز 🎯</span>';
                     }
                 }
 
@@ -44078,7 +44373,16 @@ ${log.notes || 'سير الحصة عادي'}
                 ];
                 hideElemIds.forEach(id => {
                     const el = document.getElementById(id);
-                    if (el) el.style.display = _isDashboardFocusMode ? 'none' : '';
+                    if (!el) return;
+                    if (_isDashboardFocusMode) {
+                        el.style.display = 'none';
+                    } else if (id === 'dashGlobalKpiGrid' || id === 'dashGlobalAnalyticsGrid') {
+                        el.style.display = 'grid';
+                    } else if (id === 'dashGlobalKpiHeaderBar') {
+                        el.style.display = 'flex';
+                    } else {
+                        el.style.display = '';
+                    }
                 });
 
                 // تطبيق الترتيب المفضل لبطاقات المؤشرات وتفعيل السحب والإفلات

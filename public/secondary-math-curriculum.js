@@ -2469,6 +2469,12 @@
             const lessonTitleInput = document.getElementById('lessonLogNumber');
             if (lessonTitleInput) {
                 lessonTitleInput.value = title;
+                if (typeof window.onLessonLogNumberChanged === 'function') {
+                    window.onLessonLogNumberChanged(title);
+                }
+            }
+            if (typeof window.updateLessonLogSmartLegalCard === 'function') {
+                window.updateLessonLogSmartLegalCard();
             }
 
             const titleHiddenInput = document.getElementById('lessonLogTitle');
@@ -3433,6 +3439,12 @@
         const numInput = document.getElementById('lessonLogNumber');
         if (numInput) {
             numInput.value = lesson.title;
+            if (typeof window.onLessonLogNumberChanged === 'function') {
+                window.onLessonLogNumberChanged(lesson.title);
+            }
+        }
+        if (typeof window.updateLessonLogSmartLegalCard === 'function') {
+            window.updateLessonLogSmartLegalCard();
         }
         const titleHidden = document.getElementById('lessonLogTitle');
         if (titleHidden) {

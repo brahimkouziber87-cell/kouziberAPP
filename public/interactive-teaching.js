@@ -140,6 +140,9 @@
         }
 
         modal.style.display = 'flex';
+        if (typeof window.updateLessonLogSmartLegalCard === 'function') {
+            window.updateLessonLogSmartLegalCard();
+        }
         setTimeout(() => {
             if (titleInput) titleInput.focus();
             if (window.renderLucide) window.renderLucide(modal);
@@ -163,6 +166,9 @@
         if (numInput && cls) {
             const logs = (db.lessonLogs && db.lessonLogs[cls]) ? db.lessonLogs[cls] : [];
             numInput.value = logs.length + 1;
+        }
+        if (typeof window.updateLessonLogSmartLegalCard === 'function') {
+            window.updateLessonLogSmartLegalCard();
         }
     };
 
@@ -250,6 +256,10 @@
             notes: notes,
             createdAt: new Date().toISOString()
         };
+
+        if (typeof window.resolveLessonLegalReference === 'function') {
+            newLog.legalReference = window.resolveLessonLegalReference(className, newLog, sessionType);
+        }
 
         db.lessonLogs[className].push(newLog);
 

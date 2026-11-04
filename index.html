@@ -3619,57 +3619,79 @@
                 </div>
             </div>
 
-            <!-- Header Card -->
-            <div class="card hide-in-presentation" style="margin-bottom: 16px; border-top: 3px solid #dc2626; padding: 18px 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
-                    <div>
-                        <h2 style="color: #0f172a; font-size: 1.25rem; font-weight: 800; margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px;">
-                            <span style="background: linear-gradient(135deg, #dc2626, #991b1b); color: #fff; padding: 7px; border-radius: 9px; display: inline-flex; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.3);">
-                                <span data-lucide="layout-dashboard" data-size="20"></span>
-                            </span>
-                            لوحة قيادة التتبع والإنذار المبكر (Dashboard)
-                        </h2>
-                        <p style="color: #64748b; font-size: 0.84rem; margin: 0; line-height: 1.5;">
-                            رصد مركزي وموحد لجميع التلاميذ ذوي الغيابات المتكررة، السلوكيات غير المنضبطة، وإهمال الواجبات في <strong>كافة الأقسام معاً</strong> لمساعدة الأستاذ في اتخاذ قرارات تربوية وإدارية فورية وسريعة.
-                        </p>
+            <!-- Header Card: لوحة قيادة التتبع والإنذار المبكر (أيقونات مرتبة في سطرين متناسقين 6×2) -->
+            <div class="card hide-in-presentation" style="margin-bottom: 16px; border-top: 3px solid #dc2626; padding: 16px 20px;">
+                <div style="display: flex; flex-direction: column; gap: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid #f1f5f9;">
+                        <div>
+                            <h2 style="color: #0f172a; font-size: 1.22rem; font-weight: 800; margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px;">
+                                <span style="background: linear-gradient(135deg, #dc2626, #991b1b); color: #fff; width: 34px; height: 34px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.3);">
+                                    <span data-lucide="layout-dashboard" data-size="19"></span>
+                                </span>
+                                <span>لوحة قيادة التتبع والإنذار المبكر (Dashboard)</span>
+                            </h2>
+                            <p style="color: #64748b; font-size: 0.82rem; margin: 0; line-height: 1.5;">
+                                رصد مركزي وموحد لجميع التلاميذ ذوي الغيابات المتكررة، السلوكيات غير المنضبطة، وإهمال الواجبات في <strong>كافة الأقسام معاً</strong> لمساعدة الأستاذ في اتخاذ قرارات تربوية وإدارية فورية وسريعة.
+                            </p>
+                        </div>
+                        <span style="font-size: 0.73rem; font-weight: 800; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px;">
+                            <span data-lucide="layout-grid" data-size="13" style="color: #dc2626;"></span>
+                            <span>أدوات التحكم السريع (12 أداة في سطرين)</span>
+                        </span>
                     </div>
 
-                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" class="btn-action" id="btnDashAiClassDiagnostics" onclick="if (window._dashboardFocusModeActive && typeof toggleDashboardFocusMode === 'function') { toggleDashboardFocusMode(); } if (typeof window.renderDashboardView === 'function') { window.renderDashboardView(); } setTimeout(function() { if (typeof window.openDashboardAiClassDiagnostics === 'function') window.openDashboardAiClassDiagnostics(); }, 80);" style="background: linear-gradient(135deg, #4338ca 0%, #6d28d9 50%, #7c3aed 100%); color: white; border: 1px solid rgba(167, 139, 250, 0.5); font-weight: 900; display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(109, 40, 217, 0.4); cursor: pointer; transition: all 0.2s;" title="تحليل أداء جميع الأقسام بالذكاء الاصطناعي وتوليد تقارير تشخيصية مفصلة لمستوى كل قسم بناءً على نتائج الفروض المحروسة الممسوحة والمواظبة">
-                            <span data-lucide="brain-circuit" data-size="16"></span> <span>تحليل أداء الأقسام بالذكاء الاصطناعي 🤖</span>
+                    <!-- شبكة أزرار وأيقونات لوحة قيادة التتبع والإنذار المبكر: سطران متناسقان (6 أزرار في كل سطر) -->
+                    <div id="dashEarlyWarningActionsGrid" class="dash-early-warning-actions-grid" style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-template-rows: repeat(2, 1fr); gap: 8px; width: 100%;">
+                        <!-- السطر الأول (6 أيقونات) -->
+                        <button type="button" class="btn-action dash-ew-action-btn" id="btnDashAiClassDiagnostics" onclick="if (window._dashboardFocusModeActive && typeof toggleDashboardFocusMode === 'function') { toggleDashboardFocusMode(); } if (typeof window.renderDashboardView === 'function') { window.renderDashboardView(); } setTimeout(function() { if (typeof window.openDashboardAiClassDiagnostics === 'function') window.openDashboardAiClassDiagnostics(); }, 80);" style="background: linear-gradient(135deg, #4338ca 0%, #6d28d9 50%, #7c3aed 100%); color: white; border: 1px solid rgba(167, 139, 250, 0.5); box-shadow: 0 3px 10px rgba(109, 40, 217, 0.28);" title="تحليل أداء جميع الأقسام بالذكاء الاصطناعي وتوليد تقارير تشخيصية مفصلة لمستوى كل قسم بناءً على نتائج الفروض المحروسة الممسوحة والمواظبة">
+                            <span class="dash-ew-btn-icon"><span data-lucide="brain-circuit" data-size="16"></span></span>
+                            <span class="dash-ew-btn-label">تحليل الأقسام ذكياً 🤖</span>
                         </button>
-                        <button type="button" class="btn-action" id="btnDashboardFocusMode" onclick="toggleDashboardFocusMode()" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color: white; border: none; font-weight: 800; display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 8px; box-shadow: 0 3px 10px rgba(124, 58, 237, 0.35); cursor: pointer; transition: all 0.2s;" title="تفعيل وضع التركيز لإخفاء كافة البيانات غير الضرورية والتركيز التام على القسم المختار">
-                            <span data-lucide="crosshair" data-size="16"></span> <span id="btnDashboardFocusModeText">وضع التركيز (Focus Mode) 🎯</span>
+                        <button type="button" class="btn-action dash-ew-action-btn" id="btnDashboardFocusMode" onclick="toggleDashboardFocusMode()" style="background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color: white; border: none; box-shadow: 0 3px 10px rgba(124, 58, 237, 0.25);" title="تفعيل وضع التركيز لإخفاء كافة البيانات غير الضرورية والتركيز التام على القسم المختار">
+                            <span class="dash-ew-btn-icon"><span data-lucide="crosshair" data-size="16"></span></span>
+                            <span class="dash-ew-btn-label" id="btnDashboardFocusModeText">وضع التركيز 🎯</span>
                         </button>
-                        <button type="button" class="btn-action" id="btnDashAutoRemediation" onclick="openAutoRemediationWithTimetableSync()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; font-weight: 800; display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 8px; box-shadow: 0 3px 10px rgba(16, 185, 129, 0.35); cursor: pointer; transition: all 0.2s;" title="اقتراح أنشطة دعم تربوي تلقائية للمتعثرين مع ربطها بجدول الحصص المبرمج">
-                            <span data-lucide="sparkles" data-size="16"></span> <span>أنشطة الدعم وجدول الحصص 🎯</span>
+                        <button type="button" class="btn-action dash-ew-action-btn" id="btnDashAutoRemediation" onclick="openAutoRemediationWithTimetableSync()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25);" title="اقتراح أنشطة دعم تربوي تلقائية للمتعثرين مع ربطها بجدول الحصص المبرمج">
+                            <span class="dash-ew-btn-icon"><span data-lucide="sparkles" data-size="16"></span></span>
+                            <span class="dash-ew-btn-label">أنشطة الدعم والحصص 🎯</span>
                         </button>
-                        <button type="button" class="btn-action" id="btnDashBatchMassarImport" onclick="openBatchMassarImportModal()" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; border: none; font-weight: 800; display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 8px; box-shadow: 0 3px 10px rgba(2, 132, 199, 0.35); cursor: pointer; transition: all 0.2s;" title="استيراد بيانات جميع التلاميذ من ملفات مسار Excel دفعة واحدة لكافة الأقسام بدلاً من استيراد كل قسم على حدة">
-                            <span data-lucide="layers" data-size="16"></span> <span>استيراد جميع الأقسام دفعة واحدة (Excel) ⚡</span>
+                        <button type="button" class="btn-action dash-ew-action-btn" id="btnDashBatchMassarImport" onclick="openBatchMassarImportModal()" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; border: none; box-shadow: 0 3px 10px rgba(2, 132, 199, 0.25);" title="استيراد بيانات جميع التلاميذ من ملفات مسار Excel دفعة واحدة لكافة الأقسام بدلاً من استيراد كل قسم على حدة">
+                            <span class="dash-ew-btn-icon"><span data-lucide="layers" data-size="16"></span></span>
+                            <span class="dash-ew-btn-label">استيراد جميع الأقسام ⚡</span>
                         </button>
-                        <button type="button" class="btn-action" id="btnDashMassarImport" onclick="openMassarImportModal()" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; border: none; font-weight: 800; display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 8px; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.35); cursor: pointer; transition: all 0.2s;" title="استيراد قسم فردي من ملف مسار Excel مع استخراج رقم مسار وتاريخ الازدياد وتوزيع المجموعات">
-                            <span data-lucide="file-spreadsheet" data-size="16"></span> <span>استيراد قسم فردي</span>
+                        <button type="button" class="btn-action dash-ew-action-btn" id="btnDashMassarImport" onclick="openMassarImportModal()" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; border: none; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.25);" title="استيراد قسم فردي من ملف مسار Excel مع استخراج رقم مسار وتاريخ الازدياد وتوزيع المجموعات">
+                            <span class="dash-ew-btn-icon"><span data-lucide="file-spreadsheet" data-size="16"></span></span>
+                            <span class="dash-ew-btn-label">استيراد قسم فردي</span>
                         </button>
-                        <button type="button" class="btn-action" id="btnDashQuickAddStudent" onclick="openQuickAddStudentModal()" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; border: none; font-weight: 800; display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 8px; box-shadow: 0 3px 10px rgba(37, 99, 235, 0.35); cursor: pointer; transition: all 0.2s;" title="إضافة تلميذ جديد سريعاً وإسناد الحصص دون الحاجة للذهاب للإعدادات">
-                            <span data-lucide="user-plus" data-size="16"></span> <span>+ إضافة تلميذ</span>
+                        <button type="button" class="btn-action dash-ew-action-btn" id="btnDashQuickAddStudent" onclick="openQuickAddStudentModal()" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; border: none; box-shadow: 0 3px 10px rgba(37, 99, 235, 0.25);" title="إضافة تلميذ جديد سريعاً وإسناد الحصص دون الحاجة للذهاب للإعدادات">
+                            <span class="dash-ew-btn-icon"><span data-lucide="user-plus" data-size="16"></span></span>
+                            <span class="dash-ew-btn-label">+ إضافة تلميذ</span>
                         </button>
-                        <button type="button" class="btn-action" id="btnDashWeeklyTrackingMatrixJump" onclick="document.getElementById('dashWeeklyTrackingMatrixCard')?.scrollIntoView({behavior:'smooth', block:'start'});" style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%); color: white; border: none; font-weight: 800; display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 8px; box-shadow: 0 3px 10px rgba(15, 118, 110, 0.35); cursor: pointer; transition: all 0.2s;" title="الانتقال إلى جدول التتبع الأسبوعي للساعات المفقودة لكل تلميذ عبر أيام الأسبوع الدراسي الحالي مع إمكانية التصدير">
-                            <span data-lucide="table-2" data-size="16"></span> <span>جدول التتبع الأسبوعي (الساعات المفقودة) 📊</span>
+
+                        <!-- السطر الثاني (6 أيقونات) -->
+                        <button type="button" class="btn-action dash-ew-action-btn" id="btnDashWeeklyTrackingMatrixJump" onclick="document.getElementById('dashWeeklyTrackingMatrixCard')?.scrollIntoView({behavior:'smooth', block:'start'});" style="background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%); color: white; border: none; box-shadow: 0 3px 10px rgba(15, 118, 110, 0.25);" title="الانتقال إلى جدول التتبع الأسبوعي للساعات المفقودة لكل تلميذ عبر أيام الأسبوع الدراسي الحالي مع إمكانية التصدير">
+                            <span class="dash-ew-btn-icon"><span data-lucide="table-2" data-size="16"></span></span>
+                            <span class="dash-ew-btn-label">جدول التتبع الأسبوعي 📊</span>
                         </button>
-                        <button type="button" class="btn-action" id="btnDashWeeklyAbsenceReport" onclick="openWeeklyAbsenceSummaryModal()" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; border: none; font-weight: 800; display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 8px; box-shadow: 0 3px 10px rgba(2, 132, 199, 0.35); cursor: pointer; transition: all 0.2s;" title="توليد ملخص أسبوعي آلي لحالات الغياب (7 أيام) وإرساله للإدارة بنقرة واحدة">
-                            <span data-lucide="file-check-2" data-size="16"></span> <span>الملخص الأسبوعي للإدارة (7 أيام) ⚡</span>
+                        <button type="button" class="btn-action dash-ew-action-btn" id="btnDashWeeklyAbsenceReport" onclick="openWeeklyAbsenceSummaryModal()" style="background: linear-gradient(135deg, #0369a1 0%, #1e40af 100%); color: white; border: none; box-shadow: 0 3px 10px rgba(3, 105, 161, 0.25);" title="توليد ملخص أسبوعي آلي لحالات الغياب (7 أيام) وإرساله للإدارة بنقرة واحدة">
+                            <span class="dash-ew-btn-icon"><span data-lucide="file-check-2" data-size="16"></span></span>
+                            <span class="dash-ew-btn-label">الملخص الأسبوعي (7 أيام) ⚡</span>
                         </button>
-                        <button type="button" class="btn-action" onclick="printDashboardActionReport()" style="background: #1e293b; color: white; border: none; font-weight: 700; display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; box-shadow: 0 2px 5px rgba(30, 41, 59, 0.2); cursor: pointer;" title="طباعة تقرير الحالات المستعجلة لإدارة المؤسسة">
-                            <span data-lucide="printer" data-size="15"></span> <span>طباعة كشف المتابعة الإداري</span>
+                        <button type="button" class="btn-action dash-ew-action-btn" onclick="printDashboardActionReport()" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: white; border: none; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.22);" title="طباعة تقرير الحالات المستعجلة لإدارة المؤسسة">
+                            <span class="dash-ew-btn-icon"><span data-lucide="printer" data-size="15"></span></span>
+                            <span class="dash-ew-btn-label">طباعة كشف المتابعة</span>
                         </button>
-                        <button type="button" class="btn-action" onclick="exportDashboardToExcel()" style="background: #059669; color: white; border: none; font-weight: 700; display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; box-shadow: 0 2px 5px rgba(5, 150, 105, 0.2); cursor: pointer;" title="تصدير كشف التلاميذ المتعثرين بصيغة Excel">
-                            <span data-lucide="file-spreadsheet" data-size="15"></span> <span>تصدير Excel</span>
+                        <button type="button" class="btn-action dash-ew-action-btn" onclick="exportDashboardToExcel()" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: white; border: none; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.22);" title="تصدير كشف التلاميذ المتعثرين بصيغة Excel">
+                            <span class="dash-ew-btn-icon"><span data-lucide="file-spreadsheet" data-size="15"></span></span>
+                            <span class="dash-ew-btn-label">تصدير Excel</span>
                         </button>
-                        <button type="button" class="btn-action" onclick="copyDashboardSummaryText()" style="background: #4f46e5; color: white; border: none; font-weight: 700; display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; box-shadow: 0 2px 5px rgba(79, 70, 229, 0.2); cursor: pointer;" title="نسخ ملخص الحالات كنص منسق للمراسلات">
-                            <span data-lucide="copy" data-size="15"></span> <span>نسخ الملخص</span>
+                        <button type="button" class="btn-action dash-ew-action-btn" onclick="copyDashboardSummaryText()" style="background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%); color: white; border: none; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.22);" title="نسخ ملخص الحالات كنص منسق للمراسلات">
+                            <span class="dash-ew-btn-icon"><span data-lucide="copy" data-size="15"></span></span>
+                            <span class="dash-ew-btn-label">نسخ الملخص</span>
                         </button>
-                        <button type="button" class="btn-action" onclick="renderDashboard()" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; font-weight: 700; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 8px; cursor: pointer;" title="تحديث البيانات فوراً">
-                            <span data-lucide="refresh-cw" data-size="14"></span> <span>تحديث</span>
+                        <button type="button" class="btn-action dash-ew-action-btn" onclick="renderDashboard()" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); color: #1e293b; border: 1px solid #cbd5e1; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);" title="تحديث البيانات فوراً">
+                            <span class="dash-ew-btn-icon"><span data-lucide="refresh-cw" data-size="15"></span></span>
+                            <span class="dash-ew-btn-label">تحديث البيانات</span>
                         </button>
                     </div>
                 </div>
@@ -3756,7 +3778,7 @@
                     <span style="font-size: 0.88rem; font-weight: 900; color: #0f172a;">بطاقات المؤشرات الإحصائية الرئيسية (KPIs)</span>
                     <span style="font-size: 0.73rem; font-weight: 700; color: #1e40af; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px;">
                         <span data-lucide="move" data-size="12"></span>
-                        <span>اسحب البطاقات وأفلتها لإعادة ترتيب المؤشرات حسب الأهمية</span>
+                        <span>مرتبة في سطرين متناسقين (4×2) — اسحب لإعادة الترتيب</span>
                     </span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -3770,8 +3792,8 @@
                 </div>
             </div>
 
-            <!-- KPI Metric Cards Grid (Draggable & Reorderable) -->
-            <div id="dashGlobalKpiGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px;">
+            <!-- KPI Metric Cards Grid: مرتبة في سطرين اثنين فقط (4 بطاقات في كل سطر) -->
+            <div id="dashGlobalKpiGrid" class="dash-global-kpi-two-rows-grid" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
                 <!-- 1. Total Cumulative Absence Hours across All Classes with Month-over-Month Change -->
                 <div class="card dash-kpi-draggable-card" id="dashKpiCard_totalAbsenceHours" data-kpi-id="total-absence-hours" draggable="true" style="padding: 12px 15px; border-right: 4px solid #2563eb; display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);">
                     <div class="kpi-card-drag-bar">
@@ -3785,24 +3807,24 @@
                             <button type="button" class="kpi-move-btn" onclick="event.stopPropagation(); window.moveDashboardKpiCard && window.moveDashboardKpiCard('total-absence-hours', 1)" title="تأخير للأسفل / اليسار">›</button>
                         </div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                         <div>
                             <div style="font-size: 0.76rem; color: #1e40af; font-weight: 800;">إجمالي ساعات الغياب التراكمية</div>
                             <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 4px;">
-                                <div id="dashKpiTotalAbsenceHours" style="font-size: 1.8rem; font-weight: 900; color: #1e3a8a; line-height: 1.2;">0</div>
-                                <span style="font-size: 0.85rem; font-weight: 800; color: #3b82f6;">ساعة</span>
+                                <div id="dashKpiTotalAbsenceHours" style="font-size: 1.75rem; font-weight: 900; color: #1e3a8a; line-height: 1.2;">0</div>
+                                <span style="font-size: 0.82rem; font-weight: 800; color: #3b82f6;">ساعة</span>
                             </div>
                         </div>
-                        <span style="background: #dbeafe; color: #1d4ed8; padding: 7px; border-radius: 9px; display: inline-flex; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.15);">
+                        <span class="dash-kpi-icon-box" style="background: #dbeafe; color: #1d4ed8; width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(37, 99, 235, 0.15);">
                             <span data-lucide="history" data-size="18"></span>
                         </span>
                     </div>
                     <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #bfdbfe; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px;">
-                        <span id="dashKpiAbsenceMoMBadge" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.73rem; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: #f1f5f9; color: #475569;">
-                            <span id="dashKpiAbsenceMoMIcon"><span data-lucide="minus" data-size="13"></span></span>
+                        <span id="dashKpiAbsenceMoMBadge" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.71rem; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: #f1f5f9; color: #475569;">
+                            <span id="dashKpiAbsenceMoMIcon"><span data-lucide="minus" data-size="12"></span></span>
                             <span id="dashKpiAbsenceMoMText">0% مقارنة بالشهر السابق</span>
                         </span>
-                        <span id="dashKpiAbsenceMonthDetail" style="font-size: 0.7rem; color: #64748b; font-weight: 600;">(هذا الشهر: 0 س)</span>
+                        <span id="dashKpiAbsenceMonthDetail" style="font-size: 0.69rem; color: #64748b; font-weight: 700;">(هذا الشهر: 0 س)</span>
                     </div>
                 </div>
 
@@ -3819,24 +3841,24 @@
                             <button type="button" class="kpi-move-btn" onclick="event.stopPropagation(); window.moveDashboardKpiCard && window.moveDashboardKpiCard('upcoming-exams', 1)" title="تأخير للأسفل / اليسار">›</button>
                         </div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                         <div>
                             <div style="font-size: 0.76rem; color: #c2410c; font-weight: 800;">الفروض المحروسة القادمة</div>
                             <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 4px;">
-                                <div id="dashKpiUpcomingExamsCount" style="font-size: 1.8rem; font-weight: 900; color: #c2410c; line-height: 1.2;">0</div>
+                                <div id="dashKpiUpcomingExamsCount" style="font-size: 1.75rem; font-weight: 900; color: #c2410c; line-height: 1.2;">0</div>
                                 <span style="font-size: 0.82rem; font-weight: 800; color: #ea580c;">محطة</span>
                             </div>
                         </div>
-                        <span id="dashKpiUpcomingExamsIconBadge" style="background: #ffedd5; color: #ea580c; padding: 7px; border-radius: 9px; display: inline-flex; box-shadow: 0 2px 4px rgba(234, 88, 12, 0.15);">
+                        <span id="dashKpiUpcomingExamsIconBadge" class="dash-kpi-icon-box" style="background: #ffedd5; color: #ea580c; width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(234, 88, 12, 0.15);">
                             <span data-lucide="bell-ring" data-size="18"></span>
                         </span>
                     </div>
                     <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #fed7aa; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px;">
-                        <span id="dashKpiUpcomingExamsBadge" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.73rem; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: #fff; color: #ea580c; border: 1px solid #fed7aa;">
+                        <span id="dashKpiUpcomingExamsBadge" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.71rem; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: #fff; color: #ea580c; border: 1px solid #fed7aa;">
                             <span data-lucide="calendar" data-size="12"></span>
                             <span id="dashKpiUpcomingExamsText">التقويم السنوي</span>
                         </span>
-                        <span id="dashKpiUpcomingExamsDaysLeft" style="font-size: 0.7rem; color: #9a3412; font-weight: 700;">فحص المواعيد...</span>
+                        <span id="dashKpiUpcomingExamsDaysLeft" style="font-size: 0.69rem; color: #9a3412; font-weight: 700;">فحص المواعيد...</span>
                     </div>
                 </div>
 
@@ -3853,29 +3875,29 @@
                             <button type="button" class="kpi-move-btn" onclick="event.stopPropagation(); window.moveDashboardKpiCard && window.moveDashboardKpiCard('academic-evolution', 1)" title="تأخير للأسفل / اليسار">›</button>
                         </div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                         <div>
                             <div style="font-size: 0.76rem; color: #047857; font-weight: 800;">مؤشر تطور الأداء الدراسي</div>
                             <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 4px;">
-                                <div id="dashKpiEvolutionAvgDelta" style="font-size: 1.8rem; font-weight: 900; color: #065f46; line-height: 1.2;">+0.0</div>
+                                <div id="dashKpiEvolutionAvgDelta" style="font-size: 1.75rem; font-weight: 900; color: #065f46; line-height: 1.2;">+0.0</div>
                                 <span style="font-size: 0.82rem; font-weight: 800; color: #059669;">نقطة</span>
                             </div>
                         </div>
-                        <span style="background: #d1fae5; color: #059669; padding: 7px; border-radius: 9px; display: inline-flex; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.15);">
+                        <span class="dash-kpi-icon-box" style="background: #d1fae5; color: #059669; width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.15);">
                             <span data-lucide="trending-up" data-size="18"></span>
                         </span>
                     </div>
                     <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #a7f3d0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px;">
-                        <span id="dashKpiEvolutionBadge" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.73rem; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: #fff; color: #047857; border: 1px solid #a7f3d0;">
+                        <span id="dashKpiEvolutionBadge" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.71rem; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: #fff; color: #047857; border: 1px solid #a7f3d0;">
                             <span data-lucide="award" data-size="12"></span>
                             <span id="dashKpiEvolutionText">أبطال التقدم</span>
                         </span>
-                        <span id="dashKpiEvolutionSub" style="font-size: 0.7rem; color: #047857; font-weight: 700; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">فحص النقط...</span>
+                        <span id="dashKpiEvolutionSub" style="font-size: 0.69rem; color: #047857; font-weight: 700; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">فحص النقط...</span>
                     </div>
                 </div>
 
                 <!-- 4. Total At-Risk -->
-                <div class="card dash-kpi-draggable-card" id="dashKpiCard_totalAtRisk" data-kpi-id="total-at-risk" draggable="true" style="padding: 12px 15px; border-right: 4px solid #dc2626; display: flex; flex-direction: column; justify-content: space-between; background: #fff;">
+                <div class="card dash-kpi-draggable-card" id="dashKpiCard_totalAtRisk" data-kpi-id="total-at-risk" draggable="true" style="padding: 12px 15px; border-right: 4px solid #dc2626; display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);">
                     <div class="kpi-card-drag-bar">
                         <span class="kpi-drag-handle" title="اسحب لإعادة ترتيب هذا المؤشر حسب الأهمية">
                             <span data-lucide="grip-vertical" data-size="13"></span>
@@ -3887,20 +3909,25 @@
                             <button type="button" class="kpi-move-btn" onclick="event.stopPropagation(); window.moveDashboardKpiCard && window.moveDashboardKpiCard('total-at-risk', 1)" title="تأخير للأسفل / اليسار">›</button>
                         </div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                         <div>
-                            <div style="font-size: 0.76rem; color: #64748b; font-weight: 700;">إجمالي الحالات قيد المتابعة</div>
-                            <div id="dashKpiTotalCount" style="font-size: 1.8rem; font-weight: 800; color: #0f172a; line-height: 1.2; margin-top: 4px;">0</div>
+                            <div style="font-size: 0.76rem; color: #991b1b; font-weight: 800;">إجمالي الحالات قيد المتابعة</div>
+                            <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 4px;">
+                                <div id="dashKpiTotalCount" style="font-size: 1.75rem; font-weight: 900; color: #0f172a; line-height: 1.2;">0</div>
+                                <span style="font-size: 0.82rem; font-weight: 800; color: #dc2626;">حالة</span>
+                            </div>
                         </div>
-                        <span style="background: #fee2e2; color: #dc2626; padding: 6px; border-radius: 8px; display: inline-flex;">
+                        <span class="dash-kpi-icon-box" style="background: #fee2e2; color: #dc2626; width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.14);">
                             <span data-lucide="users" data-size="18"></span>
                         </span>
                     </div>
-                    <div id="dashKpiTotalSub" style="font-size: 0.72rem; color: #94a3b8; font-weight: 600; margin-top: 6px;">في جميع الأقسام المسجلة</div>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #fecaca; display: flex; align-items: center; justify-content: space-between;">
+                        <div id="dashKpiTotalSub" style="font-size: 0.71rem; color: #64748b; font-weight: 700;">في جميع الأقسام المسجلة</div>
+                    </div>
                 </div>
 
                 <!-- 5. Dual Risk (Absence + Behavior) -->
-                <div class="card dash-kpi-draggable-card" id="dashKpiCard_dualRisk" data-kpi-id="dual-risk" draggable="true" style="padding: 12px 15px; border-right: 4px solid #b91c1c; display: flex; flex-direction: column; justify-content: space-between; background: #fff5f5;">
+                <div class="card dash-kpi-draggable-card" id="dashKpiCard_dualRisk" data-kpi-id="dual-risk" draggable="true" style="padding: 12px 15px; border-right: 4px solid #b91c1c; display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(135deg, #fff5f5 0%, #fef2f2 100%);">
                     <div class="kpi-card-drag-bar">
                         <span class="kpi-drag-handle" title="اسحب لإعادة ترتيب هذا المؤشر حسب الأهمية">
                             <span data-lucide="grip-vertical" data-size="13"></span>
@@ -3912,20 +3939,25 @@
                             <button type="button" class="kpi-move-btn" onclick="event.stopPropagation(); window.moveDashboardKpiCard && window.moveDashboardKpiCard('dual-risk', 1)" title="تأخير للأسفل / اليسار">›</button>
                         </div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                         <div>
-                            <div style="font-size: 0.76rem; color: #991b1b; font-weight: 700;">إنذار أقصى (غياب + سلوك)</div>
-                            <div id="dashKpiDualRisk" style="font-size: 1.8rem; font-weight: 800; color: #b91c1c; line-height: 1.2; margin-top: 4px;">0</div>
+                            <div style="font-size: 0.76rem; color: #991b1b; font-weight: 800;">إنذار أقصى (غياب + سلوك)</div>
+                            <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 4px;">
+                                <div id="dashKpiDualRisk" style="font-size: 1.75rem; font-weight: 900; color: #b91c1c; line-height: 1.2;">0</div>
+                                <span style="font-size: 0.82rem; font-weight: 800; color: #b91c1c;">تلميذ</span>
+                            </div>
                         </div>
-                        <span style="background: #fecaca; color: #991b1b; padding: 6px; border-radius: 8px; display: inline-flex;">
+                        <span class="dash-kpi-icon-box" style="background: #fecaca; color: #991b1b; width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(185, 28, 28, 0.16);">
                             <span data-lucide="alert-octagon" data-size="18"></span>
                         </span>
                     </div>
-                    <div style="font-size: 0.72rem; color: #b91c1c; font-weight: 600; margin-top: 6px;">تتطلب استدعاء ولي الأمر فوراً</div>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #fca5a5; display: flex; align-items: center; justify-content: space-between;">
+                        <div style="font-size: 0.71rem; color: #b91c1c; font-weight: 700;">تتطلب استدعاء ولي الأمر فوراً</div>
+                    </div>
                 </div>
 
                 <!-- 6. Frequent Absences -->
-                <div class="card dash-kpi-draggable-card" id="dashKpiCard_frequentAbsences" data-kpi-id="frequent-absences" draggable="true" style="padding: 12px 15px; border-right: 4px solid #ea580c; display: flex; flex-direction: column; justify-content: space-between; background: #fff;">
+                <div class="card dash-kpi-draggable-card" id="dashKpiCard_frequentAbsences" data-kpi-id="frequent-absences" draggable="true" style="padding: 12px 15px; border-right: 4px solid #ea580c; display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(135deg, #ffffff 0%, #fff7ed 100%);">
                     <div class="kpi-card-drag-bar">
                         <span class="kpi-drag-handle" title="اسحب لإعادة ترتيب هذا المؤشر حسب الأهمية">
                             <span data-lucide="grip-vertical" data-size="13"></span>
@@ -3937,20 +3969,25 @@
                             <button type="button" class="kpi-move-btn" onclick="event.stopPropagation(); window.moveDashboardKpiCard && window.moveDashboardKpiCard('frequent-absences', 1)" title="تأخير للأسفل / اليسار">›</button>
                         </div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                         <div>
-                            <div style="font-size: 0.76rem; color: #c2410c; font-weight: 700;">غيابات متكررة (تجاوز العتبة)</div>
-                            <div id="dashKpiAbsenceCount" style="font-size: 1.8rem; font-weight: 800; color: #ea580c; line-height: 1.2; margin-top: 4px;">0</div>
+                            <div style="font-size: 0.76rem; color: #c2410c; font-weight: 800;">غيابات متكررة (تجاوز العتبة)</div>
+                            <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 4px;">
+                                <div id="dashKpiAbsenceCount" style="font-size: 1.75rem; font-weight: 900; color: #ea580c; line-height: 1.2;">0</div>
+                                <span style="font-size: 0.82rem; font-weight: 800; color: #ea580c;">حالة</span>
+                            </div>
                         </div>
-                        <span style="background: #ffedd5; color: #ea580c; padding: 6px; border-radius: 8px; display: inline-flex;">
+                        <span class="dash-kpi-icon-box" style="background: #ffedd5; color: #ea580c; width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(234, 88, 12, 0.14);">
                             <span data-lucide="clock" data-size="18"></span>
                         </span>
                     </div>
-                    <div id="dashKpiAbsenceSub" style="font-size: 0.72rem; color: #9a3412; font-weight: 600; margin-top: 6px;">مجموع الساعات: 0 س</div>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #fed7aa; display: flex; align-items: center; justify-content: space-between;">
+                        <div id="dashKpiAbsenceSub" style="font-size: 0.71rem; color: #9a3412; font-weight: 700;">مجموع الساعات: 0 س</div>
+                    </div>
                 </div>
 
                 <!-- 7. Behavior Alerts -->
-                <div class="card dash-kpi-draggable-card" id="dashKpiCard_behaviorAlerts" data-kpi-id="behavior-alerts" draggable="true" style="padding: 12px 15px; border-right: 4px solid #7c3aed; display: flex; flex-direction: column; justify-content: space-between; background: #fff;">
+                <div class="card dash-kpi-draggable-card" id="dashKpiCard_behaviorAlerts" data-kpi-id="behavior-alerts" draggable="true" style="padding: 12px 15px; border-right: 4px solid #7c3aed; display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);">
                     <div class="kpi-card-drag-bar">
                         <span class="kpi-drag-handle" title="اسحب لإعادة ترتيب هذا المؤشر حسب الأهمية">
                             <span data-lucide="grip-vertical" data-size="13"></span>
@@ -3962,20 +3999,25 @@
                             <button type="button" class="kpi-move-btn" onclick="event.stopPropagation(); window.moveDashboardKpiCard && window.moveDashboardKpiCard('behavior-alerts', 1)" title="تأخير للأسفل / اليسار">›</button>
                         </div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                         <div>
-                            <div style="font-size: 0.76rem; color: #6d28d9; font-weight: 700;">سلوكيات غير منضبطة وتنبيهات</div>
-                            <div id="dashKpiBehaviorCount" style="font-size: 1.8rem; font-weight: 800; color: #7c3aed; line-height: 1.2; margin-top: 4px;">0</div>
+                            <div style="font-size: 0.76rem; color: #6d28d9; font-weight: 800;">سلوكيات غير منضبطة وتنبيهات</div>
+                            <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 4px;">
+                                <div id="dashKpiBehaviorCount" style="font-size: 1.75rem; font-weight: 900; color: #7c3aed; line-height: 1.2;">0</div>
+                                <span style="font-size: 0.82rem; font-weight: 800; color: #7c3aed;">تنبيه</span>
+                            </div>
                         </div>
-                        <span style="background: #ede9fe; color: #7c3aed; padding: 6px; border-radius: 8px; display: inline-flex;">
+                        <span class="dash-kpi-icon-box" style="background: #ede9fe; color: #7c3aed; width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(124, 58, 237, 0.14);">
                             <span data-lucide="frown" data-size="18"></span>
                         </span>
                     </div>
-                    <div id="dashKpiBehaviorSub" style="font-size: 0.72rem; color: #6d28d9; font-weight: 600; margin-top: 6px;">تشويش وملاحظات غير إيجابية</div>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd6fe; display: flex; align-items: center; justify-content: space-between;">
+                        <div id="dashKpiBehaviorSub" style="font-size: 0.71rem; color: #6d28d9; font-weight: 700;">تشويش وملاحظات غير إيجابية</div>
+                    </div>
                 </div>
 
                 <!-- 8. Homework and Tardiness -->
-                <div class="card dash-kpi-draggable-card" id="dashKpiCard_homeworkLate" data-kpi-id="homework-late" draggable="true" style="padding: 12px 15px; border-right: 4px solid #d97706; display: flex; flex-direction: column; justify-content: space-between; background: #fff;">
+                <div class="card dash-kpi-draggable-card" id="dashKpiCard_homeworkLate" data-kpi-id="homework-late" draggable="true" style="padding: 12px 15px; border-right: 4px solid #d97706; display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);">
                     <div class="kpi-card-drag-bar">
                         <span class="kpi-drag-handle" title="اسحب لإعادة ترتيب هذا المؤشر حسب الأهمية">
                             <span data-lucide="grip-vertical" data-size="13"></span>
@@ -3987,16 +4029,21 @@
                             <button type="button" class="kpi-move-btn" onclick="event.stopPropagation(); window.moveDashboardKpiCard && window.moveDashboardKpiCard('homework-late', 1)" title="تأخير للأسفل / اليسار">›</button>
                         </div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                         <div>
-                            <div style="font-size: 0.76rem; color: #b45309; font-weight: 700;">إهمال الواجبات والتأخرات</div>
-                            <div id="dashKpiHwLateCount" style="font-size: 1.8rem; font-weight: 800; color: #d97706; line-height: 1.2; margin-top: 4px;">0</div>
+                            <div style="font-size: 0.76rem; color: #b45309; font-weight: 800;">إهمال الواجبات والتأخرات</div>
+                            <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 4px;">
+                                <div id="dashKpiHwLateCount" style="font-size: 1.75rem; font-weight: 900; color: #d97706; line-height: 1.2;">0</div>
+                                <span style="font-size: 0.82rem; font-weight: 800; color: #d97706;">ملاحظة</span>
+                            </div>
                         </div>
-                        <span style="background: #fef3c7; color: #d97706; padding: 6px; border-radius: 8px; display: inline-flex;">
+                        <span class="dash-kpi-icon-box" style="background: #fef3c7; color: #d97706; width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 4px rgba(217, 119, 6, 0.14);">
                             <span data-lucide="book-x" data-size="18"></span>
                         </span>
                     </div>
-                    <div id="dashKpiHwLateSub" style="font-size: 0.72rem; color: #92400e; font-weight: 600; margin-top: 6px;">تكرار عدم الإنجاز والتأخر</div>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #fde68a; display: flex; align-items: center; justify-content: space-between;">
+                        <div id="dashKpiHwLateSub" style="font-size: 0.71rem; color: #92400e; font-weight: 700;">تكرار عدم الإنجاز والتأخر</div>
+                    </div>
                 </div>
             </div>
 
@@ -6733,6 +6780,8 @@
                         <input type="text" id="lessonLogNumber" list="lessonLogLessonsDatalist" oninput="onLessonLogNumberChanged(this.value)" placeholder="مثال: عموميات حول الدوال العددية / مبرهنة فيثاغورس / الحساب المثلثي" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 0.9rem; font-weight: 700; color: #0f172a; background: #ffffff;">
                         <datalist id="lessonLogLessonsDatalist"></datalist>
                         <div id="lessonLogLessonSequenceHint" style="display: none; margin-top: 6px; font-size: 0.78rem; font-weight: 700; padding: 6px 10px; border-radius: 6px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;"></div>
+                        <!-- Smart Auto-Linked Legal & Ministerial Reference Card (الربط الذكي التلقائي بالسند القانوني والمذكرة الوزارية) -->
+                        <div id="lessonLogSmartLegalLinkCard" style="display: none; margin-top: 8px; padding: 10px 14px; border-radius: 10px; background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%); border: 1.5px solid #bfdbfe; border-right: 4px solid #1d4ed8; box-shadow: 0 2px 6px rgba(30,58,138,0.06);"></div>
                     </div>
 
                     <!-- Multi-Axes Card (هيكلة محاور الحصة: كل محور به فقرات ومحتوى خاص) -->
@@ -9543,7 +9592,7 @@
                         </div>
                         <div>
                             <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 4px;">طبيعة الحصة:</label>
-                            <select id="quickSessionType" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 0.85rem; font-weight: 700; background: #fff;">
+                            <select id="quickSessionType" onchange="if(window.updateLessonLogSmartLegalCard) window.updateLessonLogSmartLegalCard()" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 0.85rem; font-weight: 700; background: #fff;">
                                 <option value="cours">📐 بناء المفاهيم والخاصيات (Cours)</option>
                                 <option value="exercices">✏️ أنشطة وتمارين تطبيقية (Exercices)</option>
                                 <option value="problemes">🎯 مسائل وحل وضعيات (Problèmes)</option>
@@ -9556,7 +9605,8 @@
                     <!-- Row 3: Lesson Title -->
                     <div>
                         <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #334155; margin-bottom: 4px;">عنوان الدرس / المفهوم أو النشاط: <span style="color:#ef4444;">*</span></label>
-                        <input type="text" id="quickSessionTitle" placeholder="مثال: مبرهنة فيتاغورس - الخاصية المباشرة وحساب الأطوال" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 0.9rem; font-weight: 700; color: #0f172a;">
+                        <input type="text" id="quickSessionTitle" oninput="if(window.updateLessonLogSmartLegalCard) window.updateLessonLogSmartLegalCard()" placeholder="مثال: مبرهنة فيتاغورس - الخاصية المباشرة وحساب الأطوال" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 0.9rem; font-weight: 700; color: #0f172a;">
+                        <div id="quickSessionSmartLegalBanner" style="display: none; margin-top: 6px; padding: 7px 11px; border-radius: 8px; background: #eff6ff; border: 1px solid #bfdbfe; border-right: 3px solid #1d4ed8; font-size: 0.76rem; color: #1e3a8a;"></div>
                     </div>
 
                     <!-- Row 4: Summary / Accomplished Activities -->
@@ -10223,18 +10273,26 @@
                     </div>
 
                     <!-- Toggles -->
-                    <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
-                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 700; color: #334155; cursor: pointer;">
+                    <div style="display: flex; gap: 14px; flex-wrap: wrap; align-items: center; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
+                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.81rem; font-weight: 700; color: #334155; cursor: pointer;">
                             <input type="checkbox" id="universalPdfOptHeader" checked onchange="renderUniversalPdfContent()">
                             <span>تضمين الترويسة الرسمية لوزارة التربية الوطنية</span>
                         </label>
-                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 700; color: #334155; cursor: pointer;">
+                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.81rem; font-weight: 700; color: #334155; cursor: pointer;">
                             <input type="checkbox" id="universalPdfOptVisas" checked onchange="renderUniversalPdfContent()">
                             <span>تضمين خانات توقيع وتأشيرة الأستاذ والإدارة والمفتش</span>
                         </label>
-                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 700; color: #334155; cursor: pointer;">
+                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.81rem; font-weight: 700; color: #334155; cursor: pointer;">
                             <input type="checkbox" id="universalPdfOptStats" checked onchange="renderUniversalPdfContent()">
                             <span>تضمين ملخص الإحصائيات والمؤشرات البيداغوجية</span>
+                        </label>
+                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 800; color: #0f172a; background: #f1f5f9; padding: 3px 9px; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer;" title="تحويل الوثيقة إلى وضع أبيض وأسود عالي التباين لتوفير الحبر والوضوح الفائق عند النسخ">
+                            <input type="checkbox" id="universalPdfOptEcoBw" onchange="window.toggleUniversalPreviewEcoBw && window.toggleUniversalPreviewEcoBw(this.checked)">
+                            <span>🖨️ وضع توفير الحبر (أبيض وأسود رسمي B&W)</span>
+                        </label>
+                        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 800; color: #1e40af; background: #eff6ff; padding: 3px 9px; border-radius: 6px; border: 1px solid #bfdbfe; cursor: pointer;" title="إظهار خطوط إرشادية لفواصل صفحات A4 في المعاينة (لا تظهر عند الطباعة)">
+                            <input type="checkbox" id="universalPdfOptPageGuide" checked onchange="window.toggleUniversalPreviewPageGuide && window.toggleUniversalPreviewPageGuide(this.checked)">
+                            <span>📏 إظهار حدود فواصل صفحات A4</span>
                         </label>
                     </div>
 
@@ -10295,11 +10353,21 @@
 
                 <!-- Action Strip (Download PDF / Print / Copy / Refresh) -->
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <span style="font-size: 0.82rem; font-weight: 800; color: #475569;">المعاينة المباشرة:</span>
                         <span id="universalPdfStatusBadge" style="background: #e0f2fe; color: #0369a1; padding: 2px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: 800;">
                             جاهز للاستخراج
                         </span>
+                        <div style="display: inline-flex; align-items: center; gap: 4px; background: #f1f5f9; padding: 3px 6px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                            <button type="button" onclick="window.setUniversalPreviewZoom && window.setUniversalPreviewZoom(-10)" style="background:#fff; border:1px solid #cbd5e1; border-radius:5px; width:24px; height:24px; font-weight:900; cursor:pointer; color:#334155;" title="تصغير ورقة المعاينة">−</button>
+                            <span id="universalPreviewZoomBadge" style="font-size:0.74rem; font-weight:800; color:#1e293b; min-width:42px; text-align:center;">100%</span>
+                            <button type="button" onclick="window.setUniversalPreviewZoom && window.setUniversalPreviewZoom(10)" style="background:#fff; border:1px solid #cbd5e1; border-radius:5px; width:24px; height:24px; font-weight:900; cursor:pointer; color:#334155;" title="تكبير ورقة المعاينة">+</button>
+                            <button type="button" onclick="window.setUniversalPreviewZoom && window.setUniversalPreviewZoom(100, true)" style="background:#e2e8f0; border:none; border-radius:5px; padding:2px 6px; font-size:0.7rem; font-weight:800; cursor:pointer; color:#334155;" title="إعادة ضبط القياس 100%">1:1</button>
+                        </div>
+                        <button type="button" id="btnUniversalDirectEdit" onclick="window.toggleUniversalPreviewDirectEdit && window.toggleUniversalPreviewDirectEdit()" style="background:#fffbeb; color:#92400e; border:1px solid #fcd34d; padding:5px 10px; border-radius:7px; font-size:0.76rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:5px;" title="انقر لتفعيل التعديل النصي الحي مباشرة فوق ورقة المعاينة قبل الطباعة أو التحميل">
+                            <span data-lucide="edit-3" data-size="13"></span>
+                            <span>تعديل مباشر على الورقة</span>
+                        </button>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <!-- Download PDF Button -->
@@ -10341,7 +10409,7 @@
 
                 <!-- Live Paper Sheet Viewport -->
                 <div id="universalPdfPaperViewport" style="background: #cbd5e1; border: 1.5px solid #94a3b8; border-radius: 10px; padding: 18px; overflow: auto; max-height: 60vh; text-align: center;">
-                    <div id="universalPdfPrintableSheet" style="background: #ffffff; display: inline-block; text-align: right; width: 100%; max-width: 960px; min-height: 600px; padding: 28px 32px; border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); color: #0f172a; font-family: 'Cairo', system-ui, sans-serif; box-sizing: border-box;">
+                    <div id="universalPdfPrintableSheet" class="print-live-editable-sheet print-page-break-guide" style="background: #ffffff; display: inline-block; text-align: right; width: 100%; max-width: 960px; min-height: 600px; padding: 28px 32px; border-radius: 4px; box-shadow: 0 10px 28px rgba(15,23,42,0.2); color: #0f172a; font-family: 'Cairo', system-ui, sans-serif; box-sizing: border-box; transform-origin: top center; transition: transform 0.18s ease;">
                         <!-- Generated dynamically by renderUniversalPdfContent() -->
                     </div>
                 </div>
