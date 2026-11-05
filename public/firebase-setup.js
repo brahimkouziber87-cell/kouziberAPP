@@ -282,6 +282,10 @@ async function fetchFirestoreAppData(user) {
     const targetUser = user || getEffectiveUser();
     if (!targetUser || !targetUser.uid) return null;
 
+    // Cloud backups are only readable inside a real, verified Firebase session.
+    // A locally typed Gmail address is not proof of ownership.
+    if (!auth || !auth.currentUser) return null;
+
     const candidateUids = [targetUser.uid];
     if (targetUser.email) {
         const gmailSlotUid = computeGmailUid(targetUser.email);
@@ -327,15 +331,8 @@ async function executeFirestoreUserWriteToUid(targetUid, userEmail, payloadStrin
             chunks.push(payloadString.slice(i, i + MAX_FIRESTORE_DOC_PAYLOAD_SIZE));
         }
 
-        for (let idx = 0; idx < chunks.length; idx++) {
-            await setDoc(doc(dbFirestore, "users", targetUid, "chunks", `chunk_${idx}`), {
-                chunk: chunks[idx],
-                index: idx,
-                totalChunks: chunks.length,
-                lastUpdated: String(nowIso).slice(0, 64)
-            });
-        }
-
+        // The parent document is written first: security rules require an owned
+        // parent slot before any chunk can be created under it.
         await setDoc(doc(dbFirestore, "users", targetUid), {
             isChunked: true,
             isCompressed: Boolean(compressed),
@@ -346,6 +343,15 @@ async function executeFirestoreUserWriteToUid(targetUid, userEmail, payloadStrin
             lastSavedTimestamp: nowTs,
             userEmail: String(userEmail || '').slice(0, 256)
         });
+
+        for (let idx = 0; idx < chunks.length; idx++) {
+            await setDoc(doc(dbFirestore, "users", targetUid, "chunks", `chunk_${idx}`), {
+                chunk: chunks[idx],
+                index: idx,
+                totalChunks: chunks.length,
+                lastUpdated: String(nowIso).slice(0, 64)
+            });
+        }
     }
 }
 
@@ -370,6 +376,18 @@ async function executeFirestoreUserWrite(user, payloadString, compressed, rawLen
 window.syncToFirebase = async (data, preSerialized) => {
     const user = getEffectiveUser();
     if (user && user.uid) {
+        // Writes require a real Firebase session: the security rules verify the
+        // caller's email, which a locally typed address cannot prove.
+        if (!auth || !auth.currentUser) {
+            const authResult = {
+                success: false,
+                cloud: false,
+                reason: 'auth_required',
+                error: 'النسخ السحابي يتطلب تسجيل الدخول بحساب Google للتحقق من ملكية البريد الإلكتروني.'
+            };
+            window.dispatchEvent(new CustomEvent('cloudSyncResult', { detail: authResult }));
+            return authResult;
+        }
         const userDocPath = `users/${user.uid}`;
         try {
             const nowIso = new Date().toISOString();

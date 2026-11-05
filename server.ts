@@ -34,16 +34,170 @@ function createGeminiClient(apiKey: string): GoogleGenAI {
   });
 }
 
+// ---------------------------------------------------------------------------
+// SECURITY HELPERS
+// ---------------------------------------------------------------------------
+
+const SECURITY_HEADERS: Record<string, string> = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'SAMEORIGIN',
+  'Referrer-Policy': 'no-referrer',
+  'Permissions-Policy': 'geolocation=(), camera=(self), microphone=(self)',
+  // Required so Firebase/Google sign-in popups keep a working opener reference.
+  'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+};
+
+function applySecurityHeaders(req: express.Request, res: express.Response, next: express.NextFunction) {
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+    res.setHeader(name, value);
+  }
+  if (req.secure || req.get('x-forwarded-proto') === 'https') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+}
+
+type RateBucket = { count: number; resetAt: number };
+
+function pruneBuckets(buckets: Map<string, RateBucket>, now: number) {
+  if (buckets.size < 2000) return;
+  for (const [key, bucket] of buckets) {
+    if (bucket.resetAt <= now) buckets.delete(key);
+  }
+}
+
+/** Sliding-window limiter keyed by client IP + route. */
+function createRateLimiter(options: { windowMs: number; max: number; message?: string }) {
+  const buckets = new Map<string, RateBucket>();
+  return function rateLimiter(req: express.Request, res: express.Response, next: express.NextFunction) {
+    const now = Date.now();
+    pruneBuckets(buckets, now);
+    const key = `${req.ip || 'unknown'}|${req.path}`;
+    const bucket = buckets.get(key);
+
+    if (!bucket || bucket.resetAt <= now) {
+      buckets.set(key, { count: 1, resetAt: now + options.windowMs });
+      return next();
+    }
+
+    bucket.count += 1;
+    if (bucket.count > options.max) {
+      res.setHeader('Retry-After', String(Math.ceil((bucket.resetAt - now) / 1000)));
+      return res.status(429).json({
+        error: options.message || 'عدد الطلبات كبير جداً. يرجى المحاولة بعد قليل.',
+      });
+    }
+    return next();
+  };
+}
+
+/** Tracks failed attempts per key (used for share-link PIN guessing). */
+function createAttemptLimiter(maxAttempts: number, windowMs: number) {
+  const attempts = new Map<string, RateBucket>();
+  return {
+    isBlocked(key: string): { blocked: boolean; retryAfter: number } {
+      const now = Date.now();
+      const entry = attempts.get(key);
+      if (!entry || entry.resetAt <= now) {
+        attempts.delete(key);
+        return { blocked: false, retryAfter: 0 };
+      }
+      return { blocked: entry.count >= maxAttempts, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
+    },
+    recordFailure(key: string) {
+      const now = Date.now();
+      const entry = attempts.get(key);
+      if (!entry || entry.resetAt <= now) {
+        attempts.set(key, { count: 1, resetAt: now + windowMs });
+      } else {
+        entry.count += 1;
+      }
+    },
+    clear(key: string) {
+      attempts.delete(key);
+    },
+  };
+}
+
+/** Constant-time comparison for two hex digests. */
+function safeEqualHex(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  const bufA = Buffer.from(a, 'hex');
+  const bufB = Buffer.from(b, 'hex');
+  if (bufA.length !== bufB.length || bufA.length === 0) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+/**
+ * Rejects browser requests coming from another origin.
+ * Requests without an Origin header (curl, calendar clients, native apps) pass through.
+ */
+function sameOriginGuard(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const origin = req.get('origin');
+  if (!origin) return next();
+  const host = req.get('x-forwarded-host') || req.get('host');
+  try {
+    if (host && new URL(origin).host === host) return next();
+  } catch {
+    /* fall through to rejection */
+  }
+  return res.status(403).json({ error: 'طلب من أصل غير مسموح به.' });
+}
+
+/** Validates a Host value so it can be embedded in a generated URL. */
+function sanitizeHost(rawHost: string | undefined, fallback: string): string {
+  if (!rawHost) return fallback;
+  const value = rawHost.split(',')[0].trim();
+  return /^[a-zA-Z0-9.\-]+(:\d{1,5})?$/.test(value) ? value : fallback;
+}
+
+/**
+ * Loads the encryption secret used for share links.
+ * Never falls back to a hardcoded value: it uses the environment, then a
+ * locally generated secret persisted outside version control.
+ */
+function loadShareSecret(): { secret: string; source: 'env' | 'file' | 'ephemeral' } {
+  const fromEnv = process.env.SHARE_SECRET;
+  if (fromEnv && fromEnv.trim().length >= 16) {
+    return { secret: fromEnv.trim(), source: 'env' };
+  }
+
+  const secretFile = path.join(process.cwd(), 'data', '.share-secret');
+  try {
+    if (fs.existsSync(secretFile)) {
+      const stored = fs.readFileSync(secretFile, 'utf8').trim();
+      if (stored.length >= 16) return { secret: stored, source: 'file' };
+    }
+    fs.mkdirSync(path.dirname(secretFile), { recursive: true });
+    const generated = crypto.randomBytes(32).toString('base64');
+    fs.writeFileSync(secretFile, generated, { mode: 0o600 });
+    return { secret: generated, source: 'file' };
+  } catch (error: any) {
+    console.warn('[security] Could not persist share secret:', error?.message || error);
+    return { secret: crypto.randomBytes(32).toString('base64'), source: 'ephemeral' };
+  }
+}
+
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
+  // Local-first by default; containers (Cloud Run) need an externally reachable bind address.
+  const HOST = process.env.HOST || (process.env.K_SERVICE ? '0.0.0.0' : '127.0.0.1');
 
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+  const aiLimiter = createRateLimiter({
+    windowMs: 60_000,
+    max: 20,
+    message: 'تم تجاوز الحد المسموح من طلبات الذكاء الاصطناعي. يرجى الانتظار دقيقة.',
+  });
+
+  app.use(applySecurityHeaders);
+  app.disable('x-powered-by');
+  app.use(express.json({ limit: '15mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '15mb' }));
   app.use(express.static(path.join(process.cwd(), 'public')));
 
   // API route for Gemini
-  app.post("/api/analyze-class", async (req, res) => {
+  app.post("/api/analyze-class", sameOriginGuard, aiLimiter, async (req, res) => {
     try {
       const { classData } = req.body;
       const apiKey = getValidGeminiApiKey();
@@ -96,7 +250,7 @@ ${JSON.stringify(classData, null, 2)}
   });
 
   // API route for Library AI Smart Resource Classification
-  app.post("/api/library/suggest-classification", async (req, res) => {
+  app.post("/api/library/suggest-classification", sameOriginGuard, aiLimiter, async (req, res) => {
     try {
       const { title, fileName, items, existingTopics, teacherSubject } = req.body;
       const apiKey = getValidGeminiApiKey();
@@ -215,7 +369,7 @@ ${JSON.stringify(targetItems.map(t => ({ id: t.id, title: t.title, fileName: t.f
   });
 
   // API route for AI Annual Calendar & Milestones Decree Extraction (Supports Text and PDF)
-  app.post("/api/calendar/extract-decree-ai", async (req, res) => {
+  app.post("/api/calendar/extract-decree-ai", sameOriginGuard, aiLimiter, async (req, res) => {
     try {
       const { text, pdfBase64, academicYear = '2026-2027', options, focusOptions } = req.body;
       const apiKey = getValidGeminiApiKey();
@@ -344,7 +498,7 @@ ${JSON.stringify(targetItems.map(t => ({ id: t.id, title: t.title, fileName: t.f
   });
 
   // API route for AI Math Exam Results Analysis & Customized Remediation Plan
-  app.post("/api/ai/analyze-exam-results", async (req, res) => {
+  app.post("/api/ai/analyze-exam-results", sameOriginGuard, aiLimiter, async (req, res) => {
     try {
       const payload = req.body || {};
       const {
@@ -422,7 +576,7 @@ ${JSON.stringify(topStudents.slice(0, 8), null, 2)}
   });
 
   // API route for running custom AI prompt templates
-  app.post("/api/ai/run-custom-prompt", async (req, res) => {
+  app.post("/api/ai/run-custom-prompt", sameOriginGuard, aiLimiter, async (req, res) => {
     try {
       const {
         prompt = '',
@@ -475,7 +629,7 @@ ${JSON.stringify(topStudents.slice(0, 8), null, 2)}
   });
 
   // API route for AI Student Comparative Performance: Continuous Assessment vs Proctored Exams
-  app.post("/api/ai-compare-student-performance", async (req, res) => {
+  app.post("/api/ai-compare-student-performance", sameOriginGuard, aiLimiter, async (req, res) => {
     try {
       const {
         studentId,
@@ -876,7 +1030,7 @@ ${JSON.stringify(topStudents.slice(0, 8), null, 2)}
   }
 
   // API route for Dashboard AI Class Performance Diagnostics (Scanned Exams + Attendance)
-  app.post("/api/ai/dashboard-classes-diagnostics", async (req, res) => {
+  app.post("/api/ai/dashboard-classes-diagnostics", sameOriginGuard, aiLimiter, async (req, res) => {
     try {
       const body = req.body || {};
       const classesPayload: any[] = Array.isArray(body.classes) ? body.classes : [];
@@ -1037,7 +1191,7 @@ ${JSON.stringify(classesPayload, null, 2)}
   });
 
   // API route for exporting Ministerial Milestones and Exams to ICS calendar feed
-  app.post("/api/calendar/generate-ministerial-ics", (req, res) => {
+  app.post("/api/calendar/generate-ministerial-ics", sameOriginGuard, (req, res) => {
     try {
       const {
         milestones = [],
@@ -2536,7 +2690,7 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
 }
 
   // API route to sync portfolio tasks to server
-  app.post("/api/ical/sync-portfolio", (req, res) => {
+  app.post("/api/ical/sync-portfolio", sameOriginGuard, createRateLimiter({ windowMs: 60_000, max: 30 }), (req, res) => {
     try {
       const { events, studentId } = req.body;
       if (Array.isArray(events)) {
@@ -2556,7 +2710,7 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
   });
 
   // API route to get live iCal feed / download .ics
-  app.get(["/api/ical/portfolio-feed", "/api/ical/portfolio.ics"], (req, res) => {
+  app.get(["/api/ical/portfolio-feed", "/api/ical/portfolio.ics"], createRateLimiter({ windowMs: 60_000, max: 60 }), (req, res) => {
     const studentId = req.query.studentId as string;
     const className = req.query.className as string;
     const isDownload = req.query.download === "1";
@@ -2604,7 +2758,15 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
   // ENCRYPTED SHARING ENGINE FOR STUDENT RECORDS AND PEDAGOGICAL REPORTS
   // (مشاركة سجلات التلميذ والتقارير عبر رمز QR ورابط مباشر مشفر)
   // ====================================================================
-  const SHARE_SECRET = process.env.SHARE_SECRET || "math_pedagogical_vault_2026_super_secure_key_#99";
+  const shareSecretInfo = loadShareSecret();
+  const SHARE_SECRET = shareSecretInfo.secret;
+  if (shareSecretInfo.source !== 'env') {
+    console.warn(
+      `[security] SHARE_SECRET is not set. Using a ${shareSecretInfo.source} secret. ` +
+      'Set SHARE_SECRET in your environment for stable, portable share links.'
+    );
+  }
+  const pinAttemptLimiter = createAttemptLimiter(5, 15 * 60 * 1000);
   const sharedRecordsStore = new Map<string, {
     id: string;
     type: 'student' | 'report';
@@ -2658,7 +2820,7 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
   }
 
   // 1. Create a secure encrypted share
-  app.post("/api/share/create", async (req, res) => {
+  app.post("/api/share/create", sameOriginGuard, createRateLimiter({ windowMs: 60_000, max: 20 }), async (req, res) => {
     try {
       const {
         type = 'student',
@@ -2679,7 +2841,9 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
       const { encryptedData, salt, iv, tag } = encryptPayload(data, pin);
 
       const hasPin = Boolean(pin && pin.trim().length > 0);
-      const pinHash = hasPin ? crypto.createHash('sha256').update(pin.trim()).digest('hex') : undefined;
+      const pinHash = hasPin
+        ? crypto.createHmac('sha256', SHARE_SECRET).update(pin.trim()).digest('hex')
+        : undefined;
 
       const now = new Date();
       const expiresAt = new Date(now.getTime() + (expiryDays * 24 * 60 * 60 * 1000)).toISOString();
@@ -2704,9 +2868,9 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
 
       sharedRecordsStore.set(shareId, item);
 
-      // Determine public share URL
-      const host = req.get('x-forwarded-host') || req.get('host') || 'localhost:3000';
-      const protocol = req.get('x-forwarded-proto') || req.protocol || 'http';
+      // Determine public share URL (Host header is untrusted: sanitize before use)
+      const host = sanitizeHost(req.get('x-forwarded-host') || req.get('host'), `localhost:${PORT}`);
+      const protocol = req.get('x-forwarded-proto') === 'https' || req.secure ? 'https' : 'http';
       const shareUrl = `${protocol}://${host}/?share=${shareId}`;
 
       // Generate visual QR Code
@@ -2752,6 +2916,18 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
       const clientPin = (req.headers['x-share-pin'] as string || req.query.pin as string || '').trim();
 
       if (record.hasPin) {
+        const guard = pinAttemptLimiter.isBlocked(shareId);
+        if (guard.blocked) {
+          res.setHeader('Retry-After', String(guard.retryAfter));
+          return res.status(429).json({
+            success: false,
+            requiresPin: true,
+            error: 'محاولات كثيرة خاطئة. يرجى المحاولة لاحقاً.',
+            title: record.title,
+            subtitle: record.subtitle
+          });
+        }
+
         if (!clientPin) {
           return res.json({
             success: false,
@@ -2764,8 +2940,9 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
           });
         }
 
-        const clientPinHash = crypto.createHash('sha256').update(clientPin).digest('hex');
-        if (clientPinHash !== record.pinHash) {
+        const clientPinHash = crypto.createHmac('sha256', SHARE_SECRET).update(clientPin).digest('hex');
+        if (!safeEqualHex(clientPinHash, record.pinHash || '')) {
+          pinAttemptLimiter.recordFailure(shareId);
           return res.status(401).json({
             success: false,
             requiresPin: true,
@@ -2774,6 +2951,8 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
             subtitle: record.subtitle
           });
         }
+
+        pinAttemptLimiter.clear(shareId);
       }
 
       // Decrypt data
@@ -2945,7 +3124,7 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
     };
   }
 
-  app.post("/api/ai/absence-whatsapp-summary", async (req, res) => {
+  app.post("/api/ai/absence-whatsapp-summary", sameOriginGuard, aiLimiter, async (req, res) => {
     try {
       const payload = req.body || {};
       const apiKey = getValidGeminiApiKey();
@@ -3138,8 +3317,8 @@ export function createHotContext(ownerPath) {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`Server running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
   });
 }
 
