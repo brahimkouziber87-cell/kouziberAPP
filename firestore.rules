@@ -1,6 +1,16 @@
 rules_version = '2';
+
+// ---------------------------------------------------------------------------
+// Cloud backup rules.
+//
+// Threat model: the Firebase web API key is public (it ships with the app), so
+// the rules are the only access boundary. Every read/write therefore requires a
+// signed-in Firebase user with a VERIFIED email, and a gmail_* slot can only be
+// touched by the account that owns that email address.
+// ---------------------------------------------------------------------------
 service cloud.firestore {
   match /databases/{database}/documents {
+
     // Global default-deny safety net
     match /{document=**} {
       allow read, write: if false;
@@ -10,20 +20,59 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isDirectGmailSlot(userId) {
-      return userId is string && userId.size() >= 10 && userId.size() <= 128 && userId.matches('^gmail_[a-zA-Z0-9_\\-]+$');
-    }
-
-    function isAuthorizedBackupUser(userId) {
-      return isValidId(userId) && (isOwner(userId) || isDirectGmailSlot(userId));
+    function hasVerifiedEmail() {
+      return isSignedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email_verified == true;
     }
 
     function isValidId(id) {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isGmailSlot(userId) {
+      return userId is string && userId.size() >= 10 && userId.size() <= 128
+        && userId.matches('^gmail_[a-zA-Z0-9_\\-]+$');
+    }
+
+    // The caller owns the document that lives at their own Firebase Auth uid.
+    function isUidOwner(userId) {
+      return isSignedIn() && userId is string && request.auth.uid == userId;
+    }
+
+    // The caller owns an existing gmail_* slot: its stored email must equal the
+    // caller's verified token email.
+    function ownsGmailSlot(userId) {
+      return hasVerifiedEmail() && isGmailSlot(userId)
+        && resource.data.userEmail == request.auth.token.email;
+    }
+
+    // The caller owns the gmail_* slot they are creating.
+    function claimsGmailSlot(userId) {
+      return hasVerifiedEmail() && isGmailSlot(userId)
+        && request.resource.data.userEmail == request.auth.token.email;
+    }
+
+    // Writes must always carry the caller's own verified email as owner marker.
+    function claimsOwnEmail() {
+      return hasVerifiedEmail() && request.resource.data.userEmail == request.auth.token.email;
+    }
+
+    function canReadSlot(userId) {
+      return isUidOwner(userId) || ownsGmailSlot(userId);
+    }
+
+    function parentSlotData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    // Chunk writes are only allowed under a parent slot the caller owns.
+    function canAccessChunks(userId) {
+      return isSignedIn() && (
+        isUidOwner(userId)
+        || (hasVerifiedEmail() && isGmailSlot(userId)
+            && parentSlotData(userId).userEmail == request.auth.token.email)
+      );
     }
 
     function incoming() {
@@ -42,6 +91,8 @@ service cloud.firestore {
           'lastSavedTimestamp',
           'userEmail'
         ])
+        && data.keys().hasAll(['userEmail'])
+        && data.userEmail is string && data.userEmail.size() > 0 && data.userEmail.size() <= 256
         && (!('appData' in data) || (data.appData is string && data.appData.size() <= 900000))
         && (!('isCompressed' in data) || data.isCompressed is bool)
         && (!('isChunked' in data) || data.isChunked is bool)
@@ -49,8 +100,7 @@ service cloud.firestore {
         && (!('totalRawSize' in data) || (data.totalRawSize is number && data.totalRawSize >= 0))
         && (!('compressedSize' in data) || (data.compressedSize is number && data.compressedSize >= 0))
         && (!('lastUpdated' in data) || (data.lastUpdated is string && data.lastUpdated.size() <= 64))
-        && (!('lastSavedTimestamp' in data) || (data.lastSavedTimestamp is number && data.lastSavedTimestamp >= 0))
-        && (!('userEmail' in data) || (data.userEmail is string && data.userEmail.size() <= 256));
+        && (!('lastSavedTimestamp' in data) || (data.lastSavedTimestamp is number && data.lastSavedTimestamp >= 0));
     }
 
     function isValidBackupChunk(data) {
@@ -63,14 +113,22 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get: if isAuthorizedBackupUser(userId);
-      allow create, update: if isAuthorizedBackupUser(userId) && isValidUserBackup(incoming());
-      allow delete: if isAuthorizedBackupUser(userId);
+      allow get, list: if canReadSlot(userId);
+
+      allow create: if (isUidOwner(userId) || claimsGmailSlot(userId))
+        && claimsOwnEmail()
+        && isValidUserBackup(incoming());
+
+      allow update: if (isUidOwner(userId) || ownsGmailSlot(userId))
+        && claimsOwnEmail()
+        && isValidUserBackup(incoming());
+
+      allow delete: if canReadSlot(userId);
 
       match /chunks/{chunkId} {
-        allow get: if isAuthorizedBackupUser(userId) && isValidId(chunkId);
-        allow create, update: if isAuthorizedBackupUser(userId) && isValidId(chunkId) && isValidBackupChunk(incoming());
-        allow delete: if isAuthorizedBackupUser(userId) && isValidId(chunkId);
+        allow get, list: if canAccessChunks(userId) && isValidId(chunkId);
+        allow create, update: if canAccessChunks(userId) && isValidId(chunkId) && isValidBackupChunk(incoming());
+        allow delete: if canAccessChunks(userId) && isValidId(chunkId);
       }
     }
   }

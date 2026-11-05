@@ -67,13 +67,31 @@ function createWindow() {
         mainWindow = null;
     });
 
-    // Open external links in default browser
+    // Open external links in default browser; block anything that is not http(s)
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
         if (url.startsWith('http:') || url.startsWith('https:')) {
             shell.openExternal(url);
-            return { action: 'deny' };
         }
-        return { action: 'allow' };
+        return { action: 'deny' };
+    });
+
+    // Prevent the app window from navigating away from its own origin
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        const currentUrl = mainWindow && mainWindow.webContents.getURL();
+        try {
+            const target = new URL(url);
+            const current = currentUrl ? new URL(currentUrl) : null;
+            const isSameOrigin = current && target.origin === current.origin;
+            const isDevServer = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(target.origin);
+            if (!isSameOrigin && !isDevServer) {
+                event.preventDefault();
+                if (target.protocol === 'http:' || target.protocol === 'https:') {
+                    shell.openExternal(url);
+                }
+            }
+        } catch {
+            event.preventDefault();
+        }
     });
 }
 
