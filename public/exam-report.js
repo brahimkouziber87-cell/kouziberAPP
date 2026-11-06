@@ -99,6 +99,22 @@
     }
 
     /**
+     * القسم المحدد حالياً في واجهات تقرير الفرض.
+     * الأولوية: منتقي تقرير الفرض، ثم منتقي الفرض التعويضي، ثم القسم النشط.
+     */
+    function getSelectedClassForReport() {
+        const readValue = (id) => {
+            const el = document.getElementById(id);
+            const val = el && typeof el.value === 'string' ? el.value.trim() : '';
+            return val && val !== '__ALL__' ? val : '';
+        };
+        return readValue('reportClassSelect')
+            || readValue('massarMakeupClassSelect')
+            || window.activeClass
+            || '';
+    }
+
+    /**
      * استخراج النقط والتلاميذ من قاعدة البيانات
      */
     function getMakeupExamKey(className, semester, examKey, studentId) {
