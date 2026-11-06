@@ -1375,7 +1375,7 @@
                             try {
                                 localStorage.setItem('absence_massar_v8_manual', safeStringify(db));
                             } catch (e) {}
-                            if (typeof updateClassSelect === 'function') updateClassSelect();
+                            if (typeof refreshClassDropdown === 'function') refreshClassDropdown();
                             if (typeof renderStudents === 'function') renderStudents();
                             if (typeof updateStats === 'function') updateStats();
                             if (typeof renderHomeIconsLaunchpad === 'function') renderHomeIconsLaunchpad();
@@ -2312,8 +2312,8 @@
             if (!currentClass || currentClass === '__ALL__' || !db.classes[currentClass] || db.classes[currentClass].length === 0) {
                 currentClass = classNames[0];
                 reportClassSelect.value = currentClass;
-                if (typeof generateReport === 'function') {
-                    generateReport();
+                if (typeof renderReport === 'function') {
+                    renderReport();
                 }
             }
 
@@ -2332,8 +2332,8 @@
             const reportStudentSelect = document.getElementById('reportStudentSelect');
             if (!barClassSelect || !barStudentSelect) return;
 
-            const classNames = (typeof getSortedClassNames === 'function')
-                ? getSortedClassNames()
+            const classNames = (typeof getSortedClasses === 'function')
+                ? getSortedClasses()
                 : Object.keys((db && db.classes) || {});
 
             let activeClass = reportClassSelect ? reportClassSelect.value : '';
@@ -2381,8 +2381,8 @@
             const reportStudentSelect = document.getElementById('reportStudentSelect');
             if (reportClassSelect) {
                 reportClassSelect.value = newClass;
-                if (typeof generateReport === 'function') {
-                    generateReport();
+                if (typeof renderReport === 'function') {
+                    renderReport();
                 }
             }
             if (reportStudentSelect && (!reportStudentSelect.value) && db.classes && db.classes[newClass] && db.classes[newClass].length > 0) {
@@ -2401,8 +2401,8 @@
             const barClassSelect = document.getElementById('printModeClassSelect');
             if (reportClassSelect && barClassSelect && reportClassSelect.value !== barClassSelect.value) {
                 reportClassSelect.value = barClassSelect.value;
-                if (typeof generateReport === 'function') {
-                    generateReport();
+                if (typeof renderReport === 'function') {
+                    renderReport();
                 }
             }
             if (reportStudentSelect) {
@@ -2779,7 +2779,8 @@
             if (typeof renderTimetableMatrix === 'function') renderTimetableMatrix();
             if (typeof checkExcessiveAbsences === 'function') checkExcessiveAbsences();
             if (typeof checkRecentHomeworkMisses === 'function') checkRecentHomeworkMisses();
-            if (typeof checkAgendaAndHomeworkAlerts === 'function') checkAgendaAndHomeworkAlerts();
+            if (typeof checkHomeworkAlerts === 'function') checkHomeworkAlerts();
+            if (typeof renderAgendaNotifications === 'function') renderAgendaNotifications();
             if (typeof updateDashboardAlertBadges === 'function') updateDashboardAlertBadges();
             if (typeof renderDashboard === 'function' && (document.getElementById('dashboardView')?.style.display !== 'none' || document.getElementById('viewDashboard')?.style.display !== 'none')) renderDashboard();
             
@@ -3204,8 +3205,8 @@
             if (typeof setSettingsSaveStatus === 'function') setSettingsSaveStatus('unsaved');
             applyClassColorsToActiveViews();
 
-            if (typeof showAttendanceToast === 'function') {
-                showAttendanceToast('تم توزيع ألوان متناسقة ومتباينة على كافة الأقسام بنجاح!');
+            if (typeof window.showToast === 'function') {
+                window.showToast('تم توزيع ألوان متناسقة ومتباينة على كافة الأقسام بنجاح!', 'success');
             }
         };
 
@@ -3216,8 +3217,8 @@
             if (typeof setSettingsSaveStatus === 'function') setSettingsSaveStatus('unsaved');
             applyClassColorsToActiveViews();
 
-            if (typeof showAttendanceToast === 'function') {
-                showAttendanceToast('تمت استعادة الألوان الافتراضية للأقسام.');
+            if (typeof window.showToast === 'function') {
+                window.showToast('تمت استعادة الألوان الافتراضية للأقسام.', 'success');
             }
         };
 
@@ -3226,7 +3227,8 @@
             if (typeof renderTimetableMatrix === 'function') renderTimetableMatrix();
             if (typeof checkExcessiveAbsences === 'function') checkExcessiveAbsences();
             if (typeof checkRecentHomeworkMisses === 'function') checkRecentHomeworkMisses();
-            if (typeof checkAgendaAndHomeworkAlerts === 'function') checkAgendaAndHomeworkAlerts();
+            if (typeof checkHomeworkAlerts === 'function') checkHomeworkAlerts();
+            if (typeof renderAgendaNotifications === 'function') renderAgendaNotifications();
             if (typeof updateDashboardAlertBadges === 'function') updateDashboardAlertBadges();
             if (typeof renderDashboard === 'function' && (document.getElementById('dashboardView')?.style.display !== 'none' || document.getElementById('viewDashboard')?.style.display !== 'none')) {
                 renderDashboard();
@@ -3569,8 +3571,8 @@
             applyAttendanceStatusColorsToDom();
             renderAttendanceStatusColorsUI();
             if (typeof setSettingsSaveStatus === 'function') setSettingsSaveStatus('unsaved');
-            if (typeof showAttendanceToast === 'function') {
-                showAttendanceToast(`تم تطبيق نمط ألوان «${preset.label}» لبطاقات حالات الغياب.`);
+            if (typeof window.showToast === 'function') {
+                window.showToast(`تم تطبيق نمط ألوان «${preset.label}» لبطاقات حالات الغياب.`, 'success');
             }
         };
 
@@ -3580,8 +3582,8 @@
             applyAttendanceStatusColorsToDom();
             renderAttendanceStatusColorsUI();
             if (typeof setSettingsSaveStatus === 'function') setSettingsSaveStatus('unsaved');
-            if (typeof showAttendanceToast === 'function') {
-                showAttendanceToast('تمت استعادة الألوان الافتراضية لحالات الغياب والحضور.');
+            if (typeof window.showToast === 'function') {
+                window.showToast('تمت استعادة الألوان الافتراضية لحالات الغياب والحضور.', 'success');
             }
         };
 
@@ -9145,8 +9147,8 @@
                     : null;
 
                 // 4. تحديث مؤشرات سعة التخزين في واجهة الإعدادات إن كانت مفتوحة
-                if (typeof updateStorageUsageUI === 'function') {
-                    try { updateStorageUsageUI(); } catch (e) {}
+                if (typeof updateDataManagementStorageStats === 'function') {
+                    try { updateDataManagementStorageStats(); } catch (e) {}
                 }
 
                 const durationMs = Math.max(12, Math.round(performance.now() - t0));
@@ -13170,7 +13172,7 @@
                 }
                 if (srcStudent.remark && srcStudent.remark.length >= 2) {
                     const existingIdx = db.notes[className].findIndex(n => n.studentId === stdId && n.source === 'massar_import');
-                    const todayStr = typeof getTodayDateStr === 'function' ? getTodayDateStr() : new Date().toISOString().split('T')[0];
+                    const todayStr = typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0];
                     if (existingIdx !== -1) {
                         db.notes[className][existingIdx].text = srcStudent.remark;
                         db.notes[className][existingIdx].date = todayStr;
@@ -13427,7 +13429,7 @@
                             }
 
                             if (impStd.remark && impStd.remark.length >= 2) {
-                                const todayStr = typeof getTodayDateStr === 'function' ? getTodayDateStr() : new Date().toISOString().split('T')[0];
+                                const todayStr = typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0];
                                 const existingIdx = db.notes[resolvedClass].findIndex(n => n.studentId === matched.id && n.source === 'massar_import');
                                 if (existingIdx !== -1) {
                                     db.notes[resolvedClass][existingIdx].text = impStd.remark;
@@ -16954,7 +16956,7 @@
                     ];
                 } else if (activeTab === 'grades') {
                     const semGrades = (typeof getStudentGradesBySemester === 'function')
-                        ? getStudentGradesBySemester(className, std.id, typeof currentSemester !== 'undefined' ? currentSemester : 's1')
+                        ? getStudentGradesBySemester(className, std.id, window.activeSemester || 's1')
                         : null;
                     const rawGrades = (db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {};
                     const grades = (semGrades && (semGrades.f1 !== '' || semGrades.f2 !== '' || semGrades.f3 !== '')) ? semGrades : rawGrades;
@@ -17241,7 +17243,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         window.openShareCurrentReport = function() {
             const className = document.getElementById('reportClassSelect') ? document.getElementById('reportClassSelect').value : '';
-            const semester = (window.currentSemester || 's1');
+            const semester = (window.activeSemester || 's1');
             if (!className) {
                 if (typeof showAppToast === 'function') {
                     showAppToast('يرجى اختيار القسم أولاً لمشاركة تقريره.', 'warning');
@@ -21520,9 +21522,19 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         function buildAnnualAutoRemediationTierData(className, examFilterKey) {
             const students = (db && db.classes && db.classes[className]) ? db.classes[className] : [];
-            const levelKey = typeof getClassCurriculumKey === 'function' ? getClassCurriculumKey(className) : 'TCS';
-            const lessons = (typeof CURRICULUM_DATA !== 'undefined' && CURRICULUM_DATA[levelKey])
-                ? [ ...(CURRICULUM_DATA[levelKey].S1 || []), ...(CURRICULUM_DATA[levelKey].S2 || []) ]
+            const levelKey = (typeof window.getCurriculumLevelForClass === 'function')
+                ? window.getCurriculumLevelForClass(className)
+                : 'TCS';
+            const curriculumLevel = (window.MOROCCAN_SECONDARY_MATH_CURRICULUM || {})[levelKey]
+                || (window.MOROCCAN_SECONDARY_MATH_CURRICULUM || {}).TCS;
+            const curriculumLessons = curriculumLevel && curriculumLevel.semesters
+                ? [
+                    ...((curriculumLevel.semesters.s1 && curriculumLevel.semesters.s1.lessons) || []),
+                    ...((curriculumLevel.semesters.s2 && curriculumLevel.semesters.s2.lessons) || [])
+                  ].map(lesson => (lesson && typeof lesson === 'object') ? lesson.title : lesson).filter(Boolean)
+                : [];
+            const lessons = curriculumLessons.length > 0
+                ? curriculumLessons
                 : ['الحساب العددي والدوال', 'الهندسة المستوية والفضائية', 'المعادلات والمتراجحات'];
 
             const getEffectiveScore = (s) => {
@@ -30783,8 +30795,8 @@ window.isPresentationMode = isPresentationMode;
             try { lessonTitle = decodeURIComponent(rawLessonTitle); } catch (e) {}
             try { axisTitle = decodeURIComponent(rawAxisTitle); } catch (e) {}
 
-            if (typeof switchView === 'function') {
-                switchView('lessonLogView');
+            if (typeof switchTab === 'function') {
+                switchTab('lessonlog');
             }
 
             const classSelect = document.getElementById('lessonLogClassSelect');
@@ -39209,7 +39221,7 @@ ${log.notes || 'سير الحصة عادي'}
             const coef = (typeof getSubjectCoefForClass === 'function') ? getSubjectCoefForClass(className) : 1;
 
             let validAvgs = [];
-            const activeSem = (typeof currentSemester !== 'undefined' && currentSemester) ? currentSemester : 's1';
+            const activeSem = window.activeSemester || 's1';
             const hwFont = getSelectedHandwritingFontFamily();
             const rowsHtml = students.map((std, idx) => {
                 const semGrades = (typeof getStudentGradesBySemester === 'function')
@@ -39892,7 +39904,7 @@ ${log.notes || 'سير الحصة عادي'}
             const examRows = [];
             let allScores = [];
 
-            const activeSem = (typeof currentSemester !== 'undefined' && currentSemester) ? currentSemester : 's1';
+            const activeSem = window.activeSemester || 's1';
             examKeys.forEach(k => {
                 const scores = [];
                 students.forEach((std, idx) => {
@@ -46055,7 +46067,7 @@ ${log.notes || 'سير الحصة عادي'}
             if (clsSelect && className) {
                 clsSelect.value = className;
                 if (typeof renderLessonLogs === 'function') renderLessonLogs();
-                else if (typeof onLessonLogClassChange === 'function') onLessonLogClassChange();
+                else if (typeof onLessonLogClassSelectChanged === 'function') onLessonLogClassSelectChanged(className);
             }
             showAppToast(`تم الانتقال لدفتر النصوص للقسم (${className})`, 'info');
         }
@@ -48957,7 +48969,8 @@ ${log.notes || 'سير الحصة عادي'}
             if (typeof updateDashboardAlertBadges === 'function') updateDashboardAlertBadges();
             if (typeof renderDashQuickSearchResults === 'function') renderDashQuickSearchResults();
             if (typeof renderStudents === 'function') renderStudents();
-            if (typeof renderTimetable === 'function') renderTimetable();
+            if (typeof renderTimetableInputs === 'function') renderTimetableInputs();
+            if (typeof renderTimetableMatrix === 'function') renderTimetableMatrix();
 
             const successMsg = `تمت إضافة التلميذ(ة) "${name}" إلى قسم "${className}" ${timetableAssignment ? 'مع إسناد جدول الحصص بنجاح 📅' : 'بنجاح'}`;
             if (typeof showAppToast === 'function') {

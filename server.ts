@@ -34,6 +34,40 @@ function createGeminiClient(apiKey: string): GoogleGenAI {
   });
 }
 
+/**
+ * Parses a JSON payload returned by Gemini.
+ * Even with responseMimeType set, models occasionally wrap the payload in
+ * markdown fences or prepend prose. Returns null instead of throwing so the
+ * caller can fall back to its deterministic engine.
+ */
+function parseAiJson<T = any>(raw: unknown): T | null {
+  if (typeof raw !== 'string' || raw.trim().length === 0) return null;
+
+  let text = raw.trim();
+  text = text
+    .replace(/^\uFEFF/, '')
+    .replace(/^```(?:json|javascript|js)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+
+  const candidates: string[] = [text];
+  const firstBracket = text.search(/[{\[]/);
+  if (firstBracket > 0) candidates.push(text.slice(firstBracket));
+  const lastBracket = Math.max(text.lastIndexOf('}'), text.lastIndexOf(']'));
+  if (firstBracket >= 0 && lastBracket > firstBracket) {
+    candidates.push(text.slice(firstBracket, lastBracket + 1));
+  }
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate) as T;
+    } catch {
+      // Try the next candidate shape.
+    }
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // SECURITY HELPERS
 // ---------------------------------------------------------------------------
@@ -316,7 +350,7 @@ ${JSON.stringify(targetItems.map(t => ({ id: t.id, title: t.title, fileName: t.f
 
       const response: any = await Promise.race([generatePromise, timeoutPromise]);
       let jsonText = (response.text || "").trim();
-      let parsed = JSON.parse(jsonText);
+      let parsed = parseAiJson(jsonText);
 
       let resultArray: any[] = [];
       if (Array.isArray(parsed)) {
@@ -480,7 +514,7 @@ ${JSON.stringify(targetItems.map(t => ({ id: t.id, title: t.title, fileName: t.f
 
       const response: any = await Promise.race([generatePromise, timeoutPromise]);
       let jsonText = (response.text || "").trim();
-      let parsed = JSON.parse(jsonText);
+      let parsed = parseAiJson(jsonText);
 
       // Validate structure and guarantee minimum fields
       if (!parsed || !Array.isArray(parsed.holidays) || parsed.holidays.length === 0) {
@@ -722,7 +756,10 @@ ${JSON.stringify(topStudents.slice(0, 8), null, 2)}
 
       const response: any = await Promise.race([generatePromise, timeoutPromise]);
       let jsonText = (response.text || "").trim();
-      let parsed = JSON.parse(jsonText);
+      let parsed = parseAiJson(jsonText);
+      if (!parsed) {
+        throw new Error("استجابة نموذج التحليل المقارن ليست JSON صالحاً");
+      }
       res.json({ result: parsed, source: 'gemini' });
     } catch (error: any) {
       console.info("Using student comparative analysis heuristic engine");
@@ -1175,7 +1212,7 @@ ${JSON.stringify(classesPayload, null, 2)}
 
       const response: any = await Promise.race([generatePromise, timeoutPromise]);
       const rawText = (response.text || "").trim();
-      const parsed = JSON.parse(rawText);
+      const parsed = parseAiJson(rawText);
 
       if (!parsed || !Array.isArray(parsed.classReports) || parsed.classReports.length === 0) {
         const fallback = generateDashboardClassesDiagnosticsFallback(body);
@@ -3201,7 +3238,7 @@ ${selectedToneDesc}
 
       const response: any = await Promise.race([generatePromise, timeoutPromise]);
       const rawText = (response.text || "").trim();
-      const parsed = JSON.parse(rawText);
+      const parsed = parseAiJson(rawText);
 
       if (!parsed || !parsed.whatsappMessage) {
         return res.json(generateSmartAbsenceWhatsAppFallback(payload));
