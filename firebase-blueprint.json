@@ -2,7 +2,7 @@
   "entities": {
     "UserBackup": {
       "title": "UserBackup",
-      "description": "User pedagogical application state backup and metadata",
+      "description": "User pedagogical application state backup bound to a verified Google email and UID",
       "type": "object",
       "properties": {
         "appData": {
@@ -44,14 +44,23 @@
           "type": "string",
           "maxLength": 256,
           "format": "email",
-          "description": "Email address of the authenticated teacher"
+          "description": "Verified email address of the authenticated teacher (must match request.auth.token.email)"
+        },
+        "ownerUid": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Authenticated Firebase UID of the teacher (must match request.auth.uid)"
+        },
+        "emailVerified": {
+          "type": "boolean",
+          "description": "Confirmation that the account email is verified via Google Auth"
         }
       },
-      "required": ["lastUpdated"]
+      "required": ["lastUpdated", "userEmail", "ownerUid", "emailVerified"]
     },
     "BackupChunk": {
       "title": "BackupChunk",
-      "description": "Subcollection chunk for large compressed application backups",
+      "description": "Subcollection chunk for large compressed application backups bound to a verified owner",
       "type": "object",
       "properties": {
         "chunk": {
@@ -72,6 +81,17 @@
           "maxLength": 64,
           "format": "date-time",
           "description": "ISO timestamp when this chunk was written"
+        },
+        "userEmail": {
+          "type": "string",
+          "maxLength": 256,
+          "format": "email",
+          "description": "Verified email address of the authenticated teacher"
+        },
+        "ownerUid": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Authenticated Firebase UID of the teacher"
         }
       },
       "required": ["chunk", "index", "totalChunks", "lastUpdated"]
@@ -80,11 +100,11 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "UserBackup",
-      "description": "Stores the primary backup metadata and payload for each authenticated teacher"
+      "description": "Stores the primary backup metadata and payload strictly bound to the authenticated teacher's UID and verified email"
     },
     "/users/{userId}/chunks/{chunkId}": {
       "schema": "BackupChunk",
-      "description": "Stores individual payload slices when a teacher's backup exceeds 600KB"
+      "description": "Stores individual payload slices when a verified teacher's backup exceeds 600KB"
     }
   }
 }

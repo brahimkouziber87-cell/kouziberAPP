@@ -1,78 +1,106 @@
 /**
- * latex-math-engine.js - محرك توليد تمارين الرياضيات بصيغة LaTeX ومحرر المعادلات المدمج
- * مخصص لأستاذ مادة الرياضيات بالسلك الثانوي التأهيلي بالمملكة المغربية
- * يدعم الرندرة الفورية بواسطة KaTeX، لوحة الرموز التفاعلية، بنك التمارين البيداغوجية،
- * الإدراج التلقائي في دفتر النصوص والواجبات، والطباعة الرسمية بجودة عالية.
+ * ============================================================================
+ * محرك المعادلات والصيغ الرياضية (LaTeX / KaTeX) المدمج لدفتر النصوص
+ * وحاسبة وأمر النسخ والطبع (Bon de Tirage) للوثائق والفروض الخارجية
+ * ============================================================================
+ * مصمم خصيصاً لأساتذة مادة الرياضيات بالتعليم الثانوي التأهيلي (منظومة مسار)
+ * ============================================================================
  */
 
-(function (window, document) {
+(function () {
     'use strict';
 
-    // الحالة العامة لمحرك LaTeX
-    const state = {
-        activeTab: 'generator', // 'generator' | 'editor' | 'sheet'
-        targetField: 'summary', // 'summary' | 'homework' | 'axis'
-        selectedLevel: '2BAC_SM',
-        selectedDomain: 'analyse',
-        selectedType: 'synthese',
-        currentExercise: null,
-        editorLatex: '\\lim_{x \\to 0} \\frac{\\sin(x)}{x} = 1',
-        sheetTitle: 'سلسلة تمارين في مادة الرياضيات',
-        sheetDuration: 'ساعتان',
-        sheetCoefficient: '9'
+    // Track last focused textarea in Lesson Log (including dynamic axis paragraphs)
+    window._lastFocusedLessonLogTextarea = null;
+
+    document.addEventListener('focusin', function (e) {
+        const el = e.target;
+        if (!el || (el.tagName !== 'TEXTAREA' && el.tagName !== 'INPUT')) return;
+        if (
+            el.id === 'lessonLogSummary' ||
+            el.id === 'lessonLogHomework' ||
+            el.id === 'lessonLogNotes' ||
+            el.classList.contains('paragraph-content-textarea')
+        ) {
+            window._lastFocusedLessonLogTextarea = el;
+        }
+    });
+
+    function escapeHtmlSafe(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    // ------------------------------------------------------------------------
+    // 1. دوال تصيير المعادلات الرياضية (KaTeX Rendering Engine)
+    // ------------------------------------------------------------------------
+
+    /**
+     * تحويل صيغة LaTeX خام إلى HTML مصير بواسطة KaTeX
+     */
+    window.renderLatexToHtml = function (latexStr, displayMode = false) {
+        if (!latexStr) return '';
+        if (typeof window.katex !== 'undefined') {
+            try {
+                return window.katex.renderToString(String(latexStr).trim(), {
+                    displayMode: Boolean(displayMode),
+                    throwOnError: false,
+                    output: 'html',
+                    trust: true,
+                    strict: false
+                });
+            } catch (e) {
+                console.warn('KaTeX render warning:', e);
+            }
+        }
+        return `<code dir="ltr" style="font-family:'JetBrains Mono',monospace;background:#f1f5f9;padding:2px 6px;border-radius:4px;color:#0f172a;display:inline-block;">${escapeHtmlSafe(latexStr)}</code>`;
     };
 
     /**
-     * رندرة نص رياضي بصيغة LaTeX إلى HTML باستخدام KaTeX
-     * مع مراعاة الحفاظ على اتجاه الكتابة LTR للرموز الرياضية و RTL للنصوص العربية
+     * تحويل النصوص التي تحتوي على معادلات بصيغة $$...$$ أو $...$ أو \[...\] أو \(...\)
+     * إلى HTML آمن ومُصيّر بالكامل (مع حماية النصوص العادية بـ escapeHtmlSafe)
      */
-    function renderLatexToHtml(latexString, displayMode = false) {
-        if (!latexString) return '';
-        if (typeof window.katex !== 'undefined' && typeof window.katex.renderToString === 'function') {
-            try {
-                return window.katex.renderToString(latexString, {
-                    displayMode: !!displayMode,
-                    throwOnError: false,
-                    output: 'htmlAndMathml'
-                });
-            } catch (err) {
-                console.warn('[KaTeX Error]:', err);
-                return `<code class="latex-fallback" dir="ltr">${escapeHtml(latexString)}</code>`;
+    window.renderMathInText = function (rawText) {
+        if (!rawText || typeof rawText !== 'string') return '';
+
+        const tokenRegex = /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\$[^$\n]+?\$|\\\([\s\S]+?\\\))/g;
+        const parts = rawText.split(tokenRegex);
+
+        return parts.map(part => {
+            if (!part) return '';
+            if (part.startsWith('$$') && part.endsWith('$$') && part.length > 4) {
+                const tex = part.slice(2, -2);
+                return `<div class="math-block-rendered" dir="ltr" style="margin:6px 0;text-align:center;overflow-x:auto;">${window.renderLatexToHtml(tex, true)}</div>`;
             }
-        }
-        return `<code class="latex-fallback" dir="ltr">${escapeHtml(latexString)}</code>`;
-    }
+            if (part.startsWith('\\[') && part.endsWith('\\]') && part.length > 4) {
+                const tex = part.slice(2, -2);
+                return `<div class="math-block-rendered" dir="ltr" style="margin:6px 0;text-align:center;overflow-x:auto;">${window.renderLatexToHtml(tex, true)}</div>`;
+            }
+            if (part.startsWith('$') && part.endsWith('$') && part.length > 2) {
+                const tex = part.slice(1, -1);
+                return `<span class="math-inline-rendered" dir="ltr" style="display:inline-block;padding:0 2px;vertical-align:middle;">${window.renderLatexToHtml(tex, false)}</span>`;
+            }
+            if (part.startsWith('\\(') && part.endsWith('\\)') && part.length > 4) {
+                const tex = part.slice(2, -2);
+                return `<span class="math-inline-rendered" dir="ltr" style="display:inline-block;padding:0 2px;vertical-align:middle;">${window.renderLatexToHtml(tex, false)}</span>`;
+            }
+            return escapeHtmlSafe(part);
+        }).join('');
+    };
 
     /**
-     * معالجة نص مختلط (عربي + صيغ LaTeX محاطة بـ $...$ أو $$...$$)
+     * تفعيل التصيير التلقائي داخل حاوية DOM
      */
-    function renderMathInText(rawText) {
-        if (!rawText) return '';
-        let str = String(rawText);
-
-        // معالجة كتل العرض $$...$$ أولاً
-        str = str.replace(/\$\$([\s\S]+?)\$\$/g, function (_, latex) {
-            const html = renderLatexToHtml(latex.trim(), true);
-            return `<div class="katex-display-wrapper" dir="ltr" style="margin: 8px 0; text-align: center; overflow-x: auto;">${html}</div>`;
-        });
-
-        // معالجة الصيغ المضمنة $...$
-        str = str.replace(/\$([^\$\n\r]+?)\$/g, function (_, latex) {
-            const html = renderLatexToHtml(latex.trim(), false);
-            return `<span class="katex-inline-wrapper" dir="ltr" style="display: inline-block; vertical-align: middle; margin: 0 3px;">${html}</span>`;
-        });
-
-        return str;
-    }
-
-    /**
-     * تطبيق الرندرة على كافة العناصر داخل حاوية معينة
-     */
-    function renderMathInContainer(container) {
-        if (!container) return;
+    window.renderMathInContainer = function (element) {
+        if (!element) return;
         if (typeof window.renderMathInElement === 'function') {
             try {
-                window.renderMathInElement(container, {
+                window.renderMathInElement(element, {
                     delimiters: [
                         { left: '$$', right: '$$', display: true },
                         { left: '$', right: '$', display: false },
@@ -81,1076 +109,921 @@
                     ],
                     throwOnError: false
                 });
+            } catch (e) {
+                console.warn('Auto-render KaTeX warning:', e);
+            }
+        }
+    };
+
+    /**
+     * معاينة حية للمعادلات أسفل حقول دفتر النصوص (ملخص الحصة والواجب المنزلي)
+     */
+    window.updateLessonLogLiveMathPreview = function () {
+        const fields = [
+            { inputId: 'lessonLogSummary', previewId: 'lessonLogSummaryMathPreview', title: 'معاينة الصيغ الرياضية في ملخص الحصة:' },
+            { inputId: 'lessonLogHomework', previewId: 'lessonLogHomeworkMathPreview', title: 'معاينة الصيغ الرياضية في الواجب المنزلي:' }
+        ];
+
+        fields.forEach(({ inputId, previewId, title }) => {
+            const inputEl = document.getElementById(inputId);
+            const previewEl = document.getElementById(previewId);
+            if (!inputEl || !previewEl) return;
+
+            const val = inputEl.value || '';
+            const hasMath = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/.test(val);
+            if (!hasMath) {
+                previewEl.style.display = 'none';
+                previewEl.innerHTML = '';
                 return;
-            } catch (e) {}
-        }
-        // معالجة مخصصة للعناصر الحاملة للصيغ
-        const mathNodes = container.querySelectorAll('.render-latex-math, [data-latex-math]');
-        mathNodes.forEach(node => {
-            const raw = node.getAttribute('data-latex-math') || node.textContent;
-            node.innerHTML = renderMathInText(raw);
+            }
+
+            previewEl.style.display = 'block';
+            previewEl.innerHTML = `
+                <div style="font-size:0.72rem;font-weight:800;color:#4338ca;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;">
+                    <span>👁️ ${title}</span>
+                    <span style="font-size:0.68rem;color:#64748b;font-weight:600;">تُطبع تلقائياً في دفتر النصوص الرسمي</span>
+                </div>
+                <div style="font-size:0.86rem;line-height:1.75;color:#0f172a;white-space:pre-wrap;background:#ffffff;padding:8px 10px;border-radius:8px;border:1px solid #e0e7ff;">${window.renderMathInText(val)}</div>
+            `;
         });
-    }
-
-    /**
-     * بنك وقوالب تمارين الرياضيات للسلك الثانوي التأهيلي بالمغرب
-     */
-    const SECONDARY_MATH_EXERCISE_BANK = {
-        'TCS': {
-            label: 'الجذع المشترك العلمي والتكنولوجي',
-            coefficient: 4,
-            domains: {
-                'analyse': {
-                    label: 'الدوال العددية (عموميات)',
-                    exercises: [
-                        {
-                            title: 'دراسة دالة عددية وتحديد مطاريفها',
-                            bareme: '4 ن',
-                            latex: `نعتبر الدالة العددية $f$ المعرفة بـ:
-$$f(x) = \\frac{2x^2 + 1}{x^2 + 1}$$
-1. حدد $D_f$ مجموعة تعريف الدالة $f$. [0.5 ن]
-2. بين أن الدالة $f$ زوجية. [0.75 ن]
-3. أ) بين أنه لكل $x \\in \\mathbb{R}$: $f(x) = 2 - \\frac{1}{x^2 + 1}$. [0.75 ن]
-ب) استنتج رتابة $f$ على المجال $[0, +\\infty[$ ثم على $]-\\infty, 0]$. [1 ن]
-4. بين أن $1$ قيمة دنوية مطلقة للدالة $f$ وأن $2$ قيمة مكبورة لـ $f$. [1 ن]`
-                        },
-                        {
-                            title: 'تغيرات دالة حدودية ومعدل التغير',
-                            bareme: '4 ن',
-                            latex: `لتكن $g$ دالة عددية معرفة على $\\mathbb{R}$ بـ: $g(x) = -2x^2 + 4x + 1$.
-1. أحسب $T(x,y)$ معدل تغير الدالة $g$ بين عنصرين مختلفين $x$ و $y$ من $\\mathbb{R}$. [1 ن]
-2. استنتج رتابة $g$ على كل من المجالين $]-\\infty, 1]$ و $[1, +\\infty[$. [1.5 ن]
-3. ضع جدول تغيرات الدالة $g$ محدداً القيمة القصوية لـ $g$. [1.5 ن]`
-                        }
-                    ]
-                },
-                'arithmetique': {
-                    label: 'الحسابيات في المجموعة N',
-                    exercises: [
-                        {
-                            title: 'الأعداد الأولية وقابلية القسمة',
-                            bareme: '3.5 ن',
-                            latex: `1. فكك العددين $a = 1512$ و $b = 3150$ إلى جداء عوامل أولية. [1 ن]
-2. أحسب $PGCD(a; b)$ القاسم المشترك الأكبر و $PPCM(a; b)$ المضاعف المشترك الأصغر. [1.5 ن]
-3. بسط الكسر $\\frac{a}{b}$ ثم حدد طبيعة العدد $\\sqrt{a \\times b}$. [1 ن]`
-                        }
-                    ]
-                },
-                'trigo': {
-                    label: 'الحساب المثلثي',
-                    exercises: [
-                        {
-                            title: 'المعادلات المثلثية وتبسيط العبارات',
-                            bareme: '4.5 ن',
-                            latex: `1. بسط العبارة التالية:
-$$A(x) = \\cos(\\pi - x) + \\sin\\left(\\frac{\\pi}{2} - x\\right) - \\cos(\\pi + x) + \\sin(\\pi - x)$$ [1.5 ن]
-2. حل في المجال $[0, 2\\pi[$ المعادلة: $2\\cos(x) - \\sqrt{3} = 0$. [1.5 ن]
-3. مثل حلول المعادلة على الدائرة المثلثية $(\\mathcal{C})$. [1.5 ن]`
-                        }
-                    ]
-                },
-                'geometrie': {
-                    label: 'الهندسة والجداء السلمي في المستوى',
-                    exercises: [
-                        {
-                            title: 'تطبيقات الجداء السلمي ومبرهنة المتوسط',
-                            bareme: '4 ن',
-                            latex: `ليكن $ABC$ مثلثاً بحيث $AB = 6$ و $AC = 4$ و $BC = 2\\sqrt{7}$.
-1. بين أن $\\vec{AB} \\cdot \\vec{AC} = 12$. [1.5 ن]
-2. استنتج $\\cos(\\widehat{BAC})$ ثم حدد قياس الزاوية $\\widehat{BAC}$. [1 ن]
-3. لتكن $I$ منتصف $[BC]$، أحسب المسافة $AI$ بتطبيق مبرهنة المتوسط. [1.5 ن]`
-                        }
-                    ]
-                }
-            }
-        },
-        '1BAC_EXP': {
-            label: 'الأولى باكالوريا علوم تجريبية وتكنولوجية',
-            coefficient: 7,
-            domains: {
-                'analyse': {
-                    label: 'الاشتقاق ودراسة الدوال',
-                    exercises: [
-                        {
-                            title: 'قابلية الاشتقاق ودراسة الفروع اللانهائية',
-                            bareme: '6 ن',
-                            latex: `نعتبر الدالة $f$ المعرفة بـ: $f(x) = \\frac{x^2 - 3x}{x - 1}$ وليكن $(\\mathcal{C}_f)$ منحناها.
-1. حدد $D_f$ واحسب النهايات عند المحدات $\\lim_{x \\to +\\infty} f(x)$ و $\\lim_{x \\to 1^+} f(x)$. [1.5 ن]
-2. بين أن المستقيم $(D): y = x - 2$ مقارب مائل لـ $(\\mathcal{C}_f)$ بجوار $+\\infty$. [1 ن]
-3. أ) بين أن لكل $x \\in D_f$: $f'(x) = \\frac{x^2 - 2x + 3}{(x-1)^2}$. [1.5 ن]
-ب) ضع جدول تغيرات الدالة $f$. [1 ن]
-4. حدد معادلة المماس $(T)$ للمنحنى عند النقطة ذات الأفصول $x_0 = 2$. [1 ن]`
-                        }
-                    ]
-                },
-                'suites': {
-                    label: 'المتتاليات العددية',
-                    exercises: [
-                        {
-                            title: 'المتتالية الحسابية والهندسية والبرهان بالترجع',
-                            bareme: '4.5 ن',
-                            latex: `نعتبر المتتالية $(u_n)$ المعرفة بـ: $u_0 = 1$ و $u_{n+1} = \\frac{u_n}{2u_n + 1}$ لكل $n \\in \\mathbb{N}$.
-1. بين بالترجع أن: $\\forall n \\in \\mathbb{N}, \\; u_n > 0$. [1 ن]
-2. نضع لكل $n \\in \\mathbb{N}$: $v_n = \\frac{1}{u_n}$.
-أ) بين أن $(v_n)$ متتالية حسابية محدداً أساسها $r$ وحدها الأول $v_0$. [1.5 ن]
-ب) عبر عن $v_n$ ثم عن $u_n$ بدلالة $n$. [1 ن]
-3. أحسب المجموع: $S_n = v_0 + v_1 + \\dots + v_n$. [1 ن]`
-                        }
-                    ]
-                },
-                'espace': {
-                    label: 'الهندسة الفضائية ودراسة الفلكة',
-                    exercises: [
-                        {
-                            title: 'معادلة الفلكة وتقاطعها مع مستوى',
-                            bareme: '4.5 ن',
-                            latex: `في الفضاء المنسوب لمعلم متعامد ممنظم $(O,\\vec{i},\\vec{j},\\vec{k})$، نعتبر الفلكة $(S)$ ذات المعادلة:
-$$x^2 + y^2 + z^2 - 2x + 4y - 6z + 5 = 0$$
-والمستوى $(P)$ ذو المعادلة الديكارتية: $2x - y + 2z - 3 = 0$.
-1. بين أن مركز الفلكة $(S)$ هو النقطة $\\Omega(1, -2, 3)$ وشعاعها $R = 3$. [1.5 ن]
-2. أحسب المسافة $d(\\Omega, (P))$، واستنتج أن المستوى $(P)$ يقطع الفلكة $(S)$ وفق دائرة $(C)$. [1.5 ن]
-3. حدد شعاع الدائرة $(C)$ وإحداثيات مركزها $H$. [1.5 ن]`
-                        }
-                    ]
-                }
-            }
-        },
-        '1BAC_SM': {
-            label: 'الأولى باكالوريا علوم رياضية',
-            coefficient: 9,
-            domains: {
-                'logique': {
-                    label: 'المنطق والمجموعات والتطبيقات',
-                    exercises: [
-                        {
-                            title: 'الاستدلالات الرياضية والتباين والتقابل',
-                            bareme: '5 ن',
-                            latex: `1. باستعمال الاستلزام المضاد للعكس، بين أنه لكل $x, y \\in [1, +\\infty[$:
-$$x \\neq y \\implies x^2 - 2x \\neq y^2 - 2y$$ [1.5 ن]
-2. نعتبر التطبيق $f: [1, +\\infty[ \\to [-1, +\\infty[$ المعرف بـ: $f(x) = x^2 - 2x$.
-أ) بين أن $f$ متباين وشمولي. [2 ن]
-ب) استنتج أن $f$ تقابل وحدد تعبير تقابله العكسي $f^{-1}(x)$. [1.5 ن]`
-                        }
-                    ]
-                },
-                'arithmetique': {
-                    label: 'الحسابيات في المجموعة Z',
-                    exercises: [
-                        {
-                            title: 'التوافقات ومبرهنة غوص وبيزو',
-                            bareme: '5.5 ن',
-                            latex: `1. بين أنه لكل $n \\in \\mathbb{N}$: $n^3 - n \\equiv 0 \\pmod{6}$. [1.5 ن]
-2. نعتبر في $\\mathbb{Z}^2$ المعادلة: $(E): 7x - 5y = 3$.
-أ) حدد حلاً خاصاً $(x_0, y_0)$ للمعادلة $(E)$. [1 ن]
-ب) حل المعادلة $(E)$ في $\\mathbb{Z}^2$ بتطبيق مبرهنة غوص. [1.5 ن]
-3. استنتج حلول النظمة: $\\begin{cases} x \\equiv 2 \\pmod{5} \\\\ x \\equiv 5 \\pmod{7} \\end{cases}$. [1.5 ن]`
-                        }
-                    ]
-                },
-                'analyse': {
-                    label: 'الاشتقاق ومبرهنة التزايدات المنتهية (TAF)',
-                    exercises: [
-                        {
-                            title: 'مبرهنة رول ومبرهنة التزايدات المنتهية',
-                            bareme: '5 ن',
-                            latex: `لتكن $f$ دالة قابلة للاشتقاق على $[0, 1]$ بحيث $f(0) = 0$ و $f(1) = 1$.
-1. بين بتطبيق مبرهنة القيم الوسيطية أن المعادلة $f(x) = 1 - x$ تقبل حلاً على الأقل $c \\in ]0, 1[$. [1.5 ن]
-2. بين أنه يوجد عنصران $x_1, x_2 \\in ]0, 1[$ مختلفان بحيث:
-$$\\frac{1}{f'(x_1)} + \\frac{1}{f'(x_2)} = 2$$ [2 ن]
-3. استنتج وجود $d \\in ]0, 1[$ بحيث $f'(d) = 1$. [1.5 ن]`
-                        }
-                    ]
-                }
-            }
-        },
-        '2BAC_EXP': {
-            label: 'الثانية باكالوريا علوم تجريبية (PC / SVT)',
-            coefficient: 7,
-            domains: {
-                'analyse': {
-                    label: 'الدوال الأسية واللوغاريتمية والتكامل',
-                    exercises: [
-                        {
-                            title: 'مسألة شاملة: دالة لوغاريتمية + متتالية مرتبطة',
-                            bareme: '10 ن',
-                            latex: `\\textbf{الجزء الأول:}
-نعتبر الدالة $g$ المعرفة على $]0, +\\infty[$ بـ: $g(x) = x^2 - 1 + 2\\ln(x)$.
-1. أحسب $g'(x)$ وضع جدول تغيرات $g$. [1 ن]
-2. أحسب $g(1)$ واستنتج إشارة $g(x)$ على $]0, +\\infty[$. [1 ن]
-
-\\textbf{الجزء الثاني:}
-نعتبر الدالة $f$ المعرفة بـ: $f(x) = x - 1 - \\frac{\\ln(x)}{x}$.
-1. أحسب $\\lim_{x \\to 0^+} f(x)$ وؤول النتيجة هندسياً. [1 ن]
-2. أحسب $\\lim_{x \\to +\\infty} f(x)$ وبين أن المستقيم $(\\Delta): y = x - 1$ مقارب مائل. [1.5 ن]
-3. أ) بين أن لكل $x > 0$: $f'(x) = \\frac{g(x)}{x^2}$. [1 ن]
-ب) ضع جدول تغيرات الدالة $f$. [1 ن]
-4. أنشئ المنحنى $(\\mathcal{C}_f)$ في معلم متعامد ممنظم $(O, \\vec{i}, \\vec{j})$. [1.5 ن]
-
-\\textbf{الجزء الثالث:}
-نعتبر المتتالية $(u_n)$ المعرفة بـ: $u_0 = 2$ و $u_{n+1} = f(u_n) + 1$.
-1. بين بالترجع أن: $\\forall n \\in \\mathbb{N}, \\; 1 \\le u_n \\le 2$. [1 ن]
-2. بين أن $(u_n)$ متتالية تناقصية ومتقاربة ثم احسب نهايتها. [1 ن]`
-                        },
-                        {
-                            title: 'الحساب التكاملي والمكاملة بالأجزاء',
-                            bareme: '5 ن',
-                            latex: `1. أحسب التكامل التالي باستعمال المكاملة بالأجزاء:
-$$I = \\int_{1}^{e} x \\ln(x) \\, dx$$ [2 ن]
-2. نعتبر التكامل: $J = \\int_{0}^{1} \\frac{x^3}{x^2 + 1} \\, dx$.
-أ) بين أنه لكل $x \\in \\mathbb{R}$: $\\frac{x^3}{x^2 + 1} = x - \\frac{x}{x^2 + 1}$. [1 ن]
-ب) استنتج قيمة التكامل $J$. [2 ن]`
-                        }
-                    ]
-                },
-                'complexes': {
-                    label: 'الأعداد العقدية والهندسة في المستوى',
-                    exercises: [
-                        {
-                            title: 'حل المعادلات في C والدوران والتحويلات',
-                            bareme: '5 ن',
-                            latex: `1. حل في المجموعة $\\mathbb{C}$ المعادلة: $z^2 - 2\\sqrt{3}z + 4 = 0$. [1.5 ن]
-2. نعتبر النقط $A$ و $B$ و $C$ ذات الألحاق $a = \\sqrt{3} + i$ و $b = \\sqrt{3} - i$ و $c = 2i$.
-أ) اكتب $a$ و $b$ على الشكل المثلثي والأسّي. [1 ن]
-ب) أحسب $\\frac{c - a}{b - a}$ واستنتج طبيعة المثلث $ABC$. [1.5 ن]
-3. ليكن $R$ الدوران الذي مركزه $O$ وزاويته $\\frac{\\pi}{3}$. حدد لحق النقطة $D$ صورة $A$ بالدوران $R$. [1 ن]`
-                        }
-                    ]
-                },
-                'proba': {
-                    label: 'الاحتمالات والمتغير العشوائي',
-                    exercises: [
-                        {
-                            title: 'السحب والتعداد والمتغير العشوائي وقانون الاحتمال',
-                            bareme: '4 ن',
-                            latex: `يحتوي صندوق على 4 كرات بيضاء و 3 كرات حمراء وكرتين سوداوين لا يمكن التمييز بينها باللمس. نسحب عشوائياً وفي آن واحد 3 كرات من الصندوق.
-1. بين أن عدد السحبات الممكنة هو $\\text{Card}(\\Omega) = 84$. [0.5 ن]
-2. أحسب احتمال الأحداث التالية:
-أ) $A$: "الحصول على ثلاث كرات من نفس اللون". [1 ن]
-ب) $B$: "الحصول على كرة بيضاء واحدة على الأقل". [1 ن]
-3. ليكن $X$ المتغير العشوائي الذي يربط كل سحبة بعدد الكرات البيضاء المسحوبة.
-أ) حدد قيم $X$ الممكنة وقانون احتمال $X$. [1 ن]
-ب) أحسب الأمل الرياضي $E(X)$. [0.5 ن]`
-                        }
-                    ]
-                }
-            }
-        },
-        '2BAC_SM': {
-            label: 'الثانية باكالوريا علوم رياضية (أ و ب)',
-            coefficient: 9,
-            domains: {
-                'analyse': {
-                    label: 'التحليل والتكامل والدوال المعرفة بتكامل',
-                    exercises: [
-                        {
-                            title: 'مسألة امتحان وطني: دالة مع تكامل + متتالية دوال',
-                            bareme: '10 ن',
-                            latex: `\\textbf{الجزء الأول:}
-نعتبر الدالة $F$ المعرفة على $[0, +\\infty[$ بـ:
-$$F(x) = \\int_{0}^{x} \\frac{t}{e^t - 1} \\, dt \\quad (x > 0) \\quad \\text{و} \\quad F(0) = 0$$
-1. أ) بين أن $F$ متصلة وقابلة للاشتقاق على $[0, +\\infty[$. [1 ن]
-ب) احسب $F'(x)$ واستنتج أن $F$ تزايدية قطعا على $[0, +\\infty[$. [1 ن]
-2. بين أنه لكل $t \\ge 0$: $\\frac{t}{e^t} \\le \\frac{t}{e^t - 1} \\le 1$. [1.5 ن]
-3. استنتج أن $\\lim_{x \\to +\\infty} F(x) = +\\infty$ وأن المنحنى يقبل فرعاً شلجمياً يتم تحديده. [1.5 ن]
-
-\\textbf{الجزء الثاني:}
-لكل $n \\in \\mathbb{N}^*$ نعتبر الدالة $f_n(x) = x e^{-nx}$.
-1. درس تغيرات الدالة $f_n$ على $\\mathbb{R}^+$. [1 ن]
-2. بين أن المعادلة $f_n(x) = \\frac{1}{n^2}$ تقبل حلاً وحيداً $u_n \\in \\left]0, \\frac{1}{n}\\right[$. [2 ن]
-3. ادرس تقارب المتتالية $(u_n)$ وحدد $\\lim_{n \\to +\\infty} n u_n$. [2 ن]`
-                        }
-                    ]
-                },
-                'structures': {
-                    label: 'البنيات الجبرية (الزمر، الحلقات، الأجسام)',
-                    exercises: [
-                        {
-                            title: 'قانون تركيب داخلي وزمرة تبادلية وتشاكل',
-                            bareme: '4 ن',
-                            latex: `نزود المجال $I = ]-1, 1[$ بقانون التركيب الداخلي $*$ المعرف بـ:
-$$x * y = \\frac{x + y}{1 + xy}$$
-1. بين أن $*$ قانون تركيب داخلي في $I$. [1 ن]
-2. بين أن $(I, *)$ زمرة تبادلية محدداً عنصرها المحايد ومماثل كل عنصر. [1.5 ن]
-3. نعتبر التطبيق $f: \\mathbb{R} \\to I$ المعرف بـ $f(x) = \\frac{e^x - 1}{e^x + 1}$.
-أ) بين أن $f$ تشاكل تقابلي من $(\\mathbb{R}, +)$ نحو $(I, *)$. [1 ن]
-ب) استنتج مماثل $x$ بالنسبة لـ $*$ وحل في $I$ المعادلة $x * x * x = 0$. [0.5 ن]`
-                        }
-                    ]
-                },
-                'arithmetique': {
-                    label: 'الحسابيات في Z ومبرهنة فيرما وأنظمة العد',
-                    exercises: [
-                        {
-                            title: 'مبرهنة فيرما الصغرى ومعادلة في Z^2',
-                            bareme: '4.5 ن',
-                            latex: `ليكن $p$ عدداً أولياً موجباً بحيث $p \\ge 5$.
-1. بين بتطبيق مبرهنة فيرما أن: $p^4 \\equiv 1 \\pmod{5}$ و $p^2 \\equiv 1 \\pmod{3}$ و $p^2 \\equiv 1 \\pmod{8}$. [2 ن]
-2. استنتج أن: $p^4 - 1 \\equiv 0 \\pmod{240}$. [1.5 ن]
-3. حل في $\\mathbb{Z}^2$ المعادلة: $x^4 + 239 \\equiv 0 \\pmod{240}$. [1 ن]`
-                        }
-                    ]
-                },
-                'complexes': {
-                    label: 'الأعداد العقدية والجذور النونية للوحدة',
-                    exercises: [
-                        {
-                            title: 'الجذور النونية للوحدة وتطبيقاتها في المثلثات',
-                            bareme: '4.5 ن',
-                            latex: `1. حل في المجموعة $\\mathbb{C}$ المعادلة: $z^5 = 1$. [1 ن]
-2. نضع $\\omega = e^{i\\frac{2\\pi}{5}}$.
-أ) بين أن: $1 + \\omega + \\omega^2 + \\omega^3 + \\omega^4 = 0$. [1 ن]
-ب) استنتج أن: $\\left(\\omega + \\frac{1}{\\omega}\\right)^2 + \\left(\\omega + \\frac{1}{\\omega}\\right) - 1 = 0$. [1.5 ن]
-3. استنتج القيمة الدقيقة لـ $\\cos\\left(\\frac{2\\pi}{5}\\right)$. [1 ن]`
-                        }
-                    ]
-                }
-            }
-        }
     };
 
-    /**
-     * لوحة المفاتيح والرموز الرياضية التفاعلية
-     */
-    const MATH_SYMBOLS_PALETTE = {
-        'basic': {
-            label: 'رموز أساسية وكسور',
-            symbols: [
-                { label: '\\frac{a}{b}', code: '\\frac{a}{b}', title: 'كسر اعتيادي' },
-                { label: '\\sqrt{x}', code: '\\sqrt{x}', title: 'جذر مربع' },
-                { label: '\\sqrt[n]{x}', code: '\\sqrt[n]{x}', title: 'جذر من الرتبة n' },
-                { label: 'x^n', code: 'x^{n}', title: 'أس وقوة' },
-                { label: 'x_n', code: 'x_{n}', title: 'دليل سفلي' },
-                { label: '\\pm', code: '\\pm', title: 'زائد أو ناقص' },
-                { label: '\\infty', code: '+\\infty', title: 'لانهاية' },
-                { label: '\\neq', code: '\\neq', title: 'يخالف' },
-                { label: '\\le', code: '\\le', title: 'أصغر من أو يساوي' },
-                { label: '\\ge', code: '\\ge', title: 'أكبر من أو يساوي' },
-                { label: '\\approx', code: '\\approx', title: 'تقريباً' },
-                { label: '|x|', code: '|x|', title: 'القيمة المطلقة' }
+    // ------------------------------------------------------------------------
+    // 2. مكتبة الرموز والبنيات الجبرية والتحليلية والهندسية (8 تصنيفات شاملة)
+    // ------------------------------------------------------------------------
+    const LATEX_SYMBOL_CATEGORIES = {
+        basic: {
+            label: 'العمليات والكسور والجذور',
+            icon: '➗',
+            items: [
+                { label: 'كسر اعتيادي', preview: '\\frac{a}{b}', latex: '\\frac{a}{b}' },
+                { label: 'كسر كبير (Display)', preview: '\\dfrac{a}{b}', latex: '\\dfrac{a}{b}' },
+                { label: 'جذر تربيعي', preview: '\\sqrt{x}', latex: '\\sqrt{x}' },
+                { label: 'جذر من الرتبة n', preview: '\\sqrt[n]{x}', latex: '\\sqrt[n]{x}' },
+                { label: 'قوة / أس', preview: 'x^{n}', latex: 'x^{n}' },
+                { label: 'دليل سفلي', preview: 'u_{n}', latex: 'u_{n}' },
+                { label: 'القيمة المطلقة', preview: '|x|', latex: '\\left| x \\right|' },
+                { label: 'أقواس مرنة', preview: '(x)', latex: '\\left( x \\right)' },
+                { label: 'معقوفتان مرنتان', preview: '[a,b]', latex: '\\left[ a, b \\right]' },
+                { label: 'زائد أو ناقص', preview: '\\pm', latex: '\\pm ' },
+                { label: 'تخالف', preview: '\\neq', latex: '\\neq ' },
+                { label: 'تقارب / تساوي تقريباً', preview: '\\approx', latex: '\\approx ' },
+                { label: 'أصغر أو يساوي', preview: '\\leq', latex: '\\leq ' },
+                { label: 'أكبر أو يساوي', preview: '\\geq', latex: '\\geq ' }
             ]
         },
-        'analysis': {
-            label: 'تحليل ونهايات وتكامل',
-            symbols: [
-                { label: '\\lim_{x \\to a}', code: '\\lim_{x \\to a} f(x)', title: 'نهاية دالة عند نقطة' },
-                { label: '\\lim_{x \\to +\\infty}', code: '\\lim_{x \\to +\\infty} f(x)', title: 'نهاية عند اللانهاية' },
-                { label: 'f\'(x)', code: 'f\'(x)', title: 'المشتقة الأولى' },
-                { label: 'f\'\'(x)', code: 'f\'\'(x)', title: 'المشتقة الثانية' },
-                { label: '\\frac{df}{dx}', code: '\\frac{df}{dx}', title: 'تفاضل دالة' },
-                { label: '\\int_{a}^{b}', code: '\\int_{a}^{b} f(x) \\, dx', title: 'تكامل محدد' },
-                { label: '\\sum_{k=1}^{n}', code: '\\sum_{k=1}^{n} u_k', title: 'مجموع متتالية' },
-                { label: '\\prod_{k=1}^{n}', code: '\\prod_{k=1}^{n} a_k', title: 'جداء عوامل' },
-                { label: '\\ln(x)', code: '\\ln(x)', title: 'اللوغاريتم النبيري' },
-                { label: 'e^x', code: 'e^{x}', title: 'الدالة الأسية النبيرية' },
-                { label: '\\cos / \\sin', code: '\\cos(x) + \\sin(x)', title: 'الدوال المثلثية' },
-                { label: '\\arctan(x)', code: '\\arctan(x)', title: 'الدالة العكسية للظل' }
+        limits_deriv: {
+            label: 'النهايات والاشتقاق',
+            icon: '📈',
+            items: [
+                { label: 'نهاية عند x₀', preview: '\\lim_{x \\to x_0}', latex: '\\lim_{x \\to x_0} f(x) = ' },
+                { label: 'نهاية عند +∞', preview: '\\lim_{x \\to +\\infty}', latex: '\\lim_{x \\to +\\infty} f(x) = ' },
+                { label: 'نهاية عند -∞', preview: '\\lim_{x \\to -\\infty}', latex: '\\lim_{x \\to -\\infty} f(x) = ' },
+                { label: 'نهاية على اليمين', preview: '\\lim_{x \\to a^+}', latex: '\\lim_{x \\to a^+} f(x) = ' },
+                { label: 'نهاية على اليسار', preview: '\\lim_{x \\to a^-}', latex: '\\lim_{x \\to a^-} f(x) = ' },
+                { label: 'معدل التغير', preview: '\\frac{f(x)-f(a)}{x-a}', latex: '\\lim_{x \\to a} \\dfrac{f(x)-f(a)}{x-a} = f\'(a)' },
+                { label: 'المشتقة الأولى', preview: 'f\'(x)', latex: 'f\'(x)' },
+                { label: 'المشتقة الثانية', preview: 'f\'\'(x)', latex: 'f\'\'(x)' },
+                { label: 'تعبير المشتقة', preview: '\\frac{df}{dx}', latex: '\\dfrac{df}{dx}' },
+                { label: 'معادلة المماس (T)', preview: 'y=f\'(a)(x-a)+f(a)', latex: '(T): y = f\'(a)(x - a) + f(a)' },
+                { label: 'ما لا نهاية', preview: '+\\infty', latex: '+\\infty' },
+                { label: 'ناقص ما لا نهاية', preview: '-\\infty', latex: '-\\infty' }
             ]
         },
-        'sets_logic': {
-            label: 'مجموعات ومنطق واستدلال',
-            symbols: [
-                { label: '\\forall', code: '\\forall x \\in \\mathbb{R}', title: 'لكل / مهما يكن' },
-                { label: '\\exists', code: '\\exists x \\in E', title: 'يوجد على الأقل' },
-                { label: '\\exists !', code: '\\exists ! x \\in I', title: 'يوجد عنصر وحيد' },
-                { label: '\\implies', code: '\\implies', title: 'يستلزم' },
-                { label: '\\iff', code: '\\iff', title: 'يكافئ' },
-                { label: '\\in', code: '\\in', title: 'ينتمي إلى' },
-                { label: '\\notin', code: '\\notin', title: 'لا ينتمي إلى' },
-                { label: '\\subset', code: '\\subset', title: 'ضمن' },
-                { label: '\\cap', code: '\\cap', title: 'تقاطع' },
-                { label: '\\cup', code: '\\cup', title: 'اتحاد' },
-                { label: '\\mathbb{R}', code: '\\mathbb{R}', title: 'مجموعة الأعداد الحقيقية' },
-                { label: '\\mathbb{C}', code: '\\mathbb{C}', title: 'مجموعة الأعداد العقدية' },
-                { label: '\\mathbb{Z}', code: '\\mathbb{Z}', title: 'مجموعة الأعداد الصحيحة النسبية' },
-                { label: '\\mathbb{N}', code: '\\mathbb{N}', title: 'مجموعة الأعداد الصحيحة الطبيعية' }
+        integrals_suites: {
+            label: 'التكامل والمتتاليات',
+            icon: '∫',
+            items: [
+                { label: 'تكامل محدد', preview: '\\int_{a}^{b} f(x)dx', latex: '\\int_{a}^{b} f(x)\\,dx' },
+                { label: 'معقوفتا الدالة الأصلية', preview: '[F(x)]_a^b', latex: '\\left[ F(x) \\right]_{a}^{b}' },
+                { label: 'مكاملة بالأجزاء', preview: '\\int u\'v', latex: '\\int_{a}^{b} u\'(x)v(x)\\,dx = \\left[u(x)v(x)\\right]_{a}^{b} - \\int_{a}^{b} u(x)v\'(x)\\,dx' },
+                { label: 'متتالية عددية', preview: '(u_n)_{n\\in\\mathbb{N}}', latex: '(u_n)_{n \\in \\mathbb{N}}' },
+                { label: 'نهاية متتالية', preview: '\\lim_{n\\to+\\infty} u_n', latex: '\\lim_{n \\to +\\infty} u_n = ' },
+                { label: 'المجموع Sigma', preview: '\\sum_{k=0}^{n} u_k', latex: '\\sum_{k=0}^{n} u_k' },
+                { label: 'الجداء Pi', preview: '\\prod_{k=1}^{n} u_k', latex: '\\prod_{k=1}^{n} u_k' },
+                { label: 'علاقة تراجعية', preview: 'u_{n+1}=f(u_n)', latex: '\\forall n \\in \\mathbb{N},\\; u_{n+1} = f(u_n)' }
             ]
         },
-        'geometry_vectors': {
-            label: 'متجهات وهندسة وفضاء',
-            symbols: [
-                { label: '\\vec{u}', code: '\\vec{u}', title: 'متجهة' },
-                { label: '\\vec{AB}', code: '\\vec{AB}', title: 'متجهة طرفاها A و B' },
-                { label: '\\vec{u} \\cdot \\vec{v}', code: '\\vec{u} \\cdot \\vec{v}', title: 'الجداء السلمي' },
-                { label: '\\vec{u} \\wedge \\vec{v}', code: '\\vec{u} \\wedge \\vec{v}', title: 'الجداء المتجهي' },
-                { label: '\\|\\vec{u}\\|', code: '\\|\\vec{u}\\|', title: 'منظم متجهة' },
-                { label: '(\\mathcal{C}_f)', code: '(\\mathcal{C}_f)', title: 'منحنى دالة' },
-                { label: '(\\mathcal{P})', code: '(\\mathcal{P})', title: 'مستوى' },
-                { label: '(\\mathcal{D})', code: '(\\mathcal{D})', title: 'مستقيم' },
-                { label: '(\\mathcal{S})', code: '(\\mathcal{S})', title: 'فلكة في الفضاء' },
-                { label: '\\widehat{BAC}', code: '\\widehat{BAC}', title: 'زاوية' }
+        functions: {
+            label: 'الدوال اللوغاريتمية والأسية والمثلثية',
+            icon: '𝑓(x)',
+            items: [
+                { label: 'اللوغاريتم النيبيري', preview: '\\ln(x)', latex: '\\ln(x)' },
+                { label: 'الدالة الأسية', preview: 'e^{x}', latex: 'e^{x}' },
+                { label: 'اللوغاريتم العشري', preview: '\\log(x)', latex: '\\log(x)' },
+                { label: 'جيب التمام cos', preview: '\\cos(x)', latex: '\\cos(x)' },
+                { label: 'الجيب sin', preview: '\\sin(x)', latex: '\\sin(x)' },
+                { label: 'الظل tan', preview: '\\tan(x)', latex: '\\tan(x)' },
+                { label: 'قوس الظل arctan', preview: '\\arctan(x)', latex: '\\arctan(x)' },
+                { label: 'العدد π (Pi)', preview: '\\pi', latex: '\\pi' },
+                { label: 'دالة معرفة بالاجزاء', preview: 'f(x)=\\{...\\}', latex: 'f(x) = \\begin{cases} x^2 - 1 & ;\\; x \\geq 0 \\\\ 2x + 1 & ;\\; x < 0 \\end{cases}' },
+                { label: 'تركيب دالتين', preview: '(g \\circ f)(x)', latex: '(g \\circ f)(x) = g(f(x))' },
+                { label: 'الدالة العكسية', preview: 'f^{-1}(x)', latex: 'f^{-1}(x)' }
             ]
         },
-        'complex_numbers': {
-            label: 'أعداد عقدية ونظم',
-            symbols: [
-                { label: 'z = a + ib', code: 'z = a + ib', title: 'الشكل الجبري لعدد عقدي' },
-                { label: '\\bar{z}', code: '\\bar{z}', title: 'مرافق عدد عقدي' },
-                { label: '|z|', code: '|z|', title: 'معيار عدد عقدي' },
-                { label: '\\arg(z)', code: '\\arg(z) \\equiv \\theta \\pmod{2\\pi}', title: 'عمدة عدد عقدي' },
-                { label: 'r e^{i\\theta}', code: 'r e^{i\\theta}', title: 'الشكل الأسّي' },
-                { label: 'r(\\cos\\theta + i\\sin\\theta)', code: 'r(\\cos\\theta + i\\sin\\theta)', title: 'الشكل المثلثي' },
-                { label: '\\begin{cases}', code: '\\begin{cases} ax + by = c \\\\ a\'x + b\'y = c\' \\end{cases}', title: 'نظمة معادلتين' },
-                { label: '\\begin{pmatrix}', code: '\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}', title: 'مصفوفة مربعة' }
+        logic_sets: {
+            label: 'المنطق والمجموعات',
+            icon: '∀∈',
+            items: [
+                { label: 'مهما يكن (الكمي الكوني)', preview: '\\forall', latex: '\\forall x \\in ' },
+                { label: 'يوجد على الأقل', preview: '\\exists', latex: '\\exists x \\in ' },
+                { label: 'يوجد عنصر وحيد', preview: '\\exists!', latex: '\\exists! x \\in ' },
+                { label: 'يستلزم', preview: '\\implies', latex: '\\implies ' },
+                { label: 'يكافئ', preview: '\\iff', latex: '\\iff ' },
+                { label: 'ينتمي', preview: '\\in', latex: '\\in ' },
+                { label: 'لا ينتمي', preview: '\\notin', latex: '\\notin ' },
+                { label: 'ضمن / محتواة', preview: '\\subset', latex: '\\subset ' },
+                { label: 'تقاطع', preview: '\\cap', latex: '\\cap ' },
+                { label: 'اتحاد', preview: '\\cup', latex: '\\cup ' },
+                { label: 'المجموعة الفارغة', preview: '\\emptyset', latex: '\\emptyset' },
+                { label: 'مجموعة الأعداد الصحيحة N', preview: '\\mathbb{N}', latex: '\\mathbb{N}' },
+                { label: 'مجموعة الأعداد النسبية Z', preview: '\\mathbb{Z}', latex: '\\mathbb{Z}' },
+                { label: 'مجموعة الأعداد الحقيقية R', preview: '\\mathbb{R}', latex: '\\mathbb{R}' },
+                { label: 'مجموعة الأعداد العقدية C', preview: '\\mathbb{C}', latex: '\\mathbb{C}' },
+                { label: 'مجموعة التعريف D_f', preview: 'D_f', latex: 'D_f = \\left\\{ x \\in \\mathbb{R} \\;/\\; x \\neq 0 \\right\\}' }
+            ]
+        },
+        geometry_vectors: {
+            label: 'الهندسة الفضائية والمتجهات',
+            icon: '📐',
+            items: [
+                { label: 'متجهة AB', preview: '\\overrightarrow{AB}', latex: '\\overrightarrow{AB}' },
+                { label: 'متجهة u', preview: '\\vec{u}', latex: '\\vec{u}' },
+                { label: 'منظم متجهة', preview: '\\|\\vec{u}\\|', latex: '\\left\\| \\vec{u} \\right\\|' },
+                { label: 'الجداء السلمي', preview: '\\vec{u}\\cdot\\vec{v}', latex: '\\vec{u} \\cdot \\vec{v}' },
+                { label: 'الجداء المتجهي', preview: '\\vec{u}\\wedge\\vec{v}', latex: '\\vec{u} \\wedge \\vec{v}' },
+                { label: 'إحداثيات متجهة بالفضاء', preview: '\\vec{u}(x;y;z)', latex: '\\vec{u}\\begin{pmatrix} x \\\\ y \\\\ z \\end{pmatrix}' },
+                { label: 'زاوية هندسية', preview: '\\widehat{ABC}', latex: '\\widehat{ABC}' },
+                { label: 'زاوية موجهة', preview: '(\\vec{u},\\vec{v})', latex: '\\left(\\widehat{\\vec{u}, \\vec{v}}\\right)' },
+                { label: 'تعامد', preview: '\\perp', latex: '\\perp ' },
+                { label: 'توازي', preview: '\\parallel', latex: '\\parallel ' },
+                { label: 'معلم متعامد ممنظم', preview: '(O,\\vec{i},\\vec{j},\\vec{k})', latex: '\\left(O, \\vec{i}, \\vec{j}, \\vec{k}\\right)' },
+                { label: 'مسافة نقطة عن مستوى', preview: 'd(M,(P))', latex: 'd\\big(\\Omega, (P)\\big) = \\dfrac{|ax_\\Omega + by_\\Omega + cz_\\Omega + d|}{\\sqrt{a^2+b^2+c^2}}' }
+            ]
+        },
+        complex_matrices: {
+            label: 'الأعداد العقدية والنظمات والمصفوفات',
+            icon: 'ℂ',
+            items: [
+                { label: 'مرافق عدد عقدي', preview: '\\overline{z}', latex: '\\overline{z}' },
+                { label: 'معيار عدد عقدي', preview: '|z|', latex: '|z| = \\sqrt{a^2 + b^2}' },
+                { label: 'عمدة عدد عقدي arg', preview: '\\arg(z)', latex: '\\arg(z) \\equiv \\theta \\;[2\\pi]' },
+                { label: 'الجزء الحقيقي Re', preview: '\\text{Re}(z)', latex: '\\text{Re}(z)' },
+                { label: 'الجزء التخيلي Im', preview: '\\text{Im}(z)', latex: '\\text{Im}(z)' },
+                { label: 'الكتابة الأسية', preview: 're^{i\\theta}', latex: 'z = r e^{i\\theta}' },
+                { label: 'الكتابة المثلثية', preview: '[r,\\theta]', latex: 'z = r(\\cos\\theta + i\\sin\\theta)' },
+                { label: 'نظمة معادلتين', preview: '\\{ax+by=c', latex: '\\begin{cases} ax + by = c \\\\ a\'x + b\'y = c\' \\end{cases}' },
+                { label: 'تمثيل بارامتري لمستقيم', preview: 'x=x_0+at', latex: '(D): \\begin{cases} x = x_0 + at \\\\ y = y_0 + bt \\\\ z = z_0 + ct \\end{cases} \\quad (t \\in \\mathbb{R})' },
+                { label: 'مصفوفة 2×2', preview: '\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}', latex: '\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}' },
+                { label: 'محددة 2×2', preview: '\\begin{vmatrix}a&b\\\\c&d\\end{vmatrix}', latex: '\\begin{vmatrix} a & b \\\\ c & d \\end{vmatrix} = ad - bc' }
+            ]
+        },
+        arith_proba: {
+            label: 'الحسابيات والاحتمالات والبنيات',
+            icon: '🎲',
+            items: [
+                { label: 'الموافقة بترديد n', preview: 'a \\equiv b [n]', latex: 'a \\equiv b \\pmod{n}' },
+                { label: 'يقسم', preview: 'a \\mid b', latex: 'a \\mid b' },
+                { label: 'القاسم المشترك الأكبر', preview: 'a \\wedge b', latex: '\\gcd(a,b) = a \\wedge b' },
+                { label: 'المضاعف المشترك الأصغر', preview: 'a \\vee b', latex: '\\text{lcm}(a,b) = a \\vee b' },
+                { label: 'التأليفات C_n^p', preview: 'C_n^p', latex: 'C_{n}^{p} = \\dfrac{n!}{p!(n-p)!}' },
+                { label: 'الترتيبات A_n^p', preview: 'A_n^p', latex: 'A_{n}^{p} = \\dfrac{n!}{(n-p)!}' },
+                { label: 'الاحتمال الشرطي', preview: 'P_A(B)', latex: 'P_{A}(B) = \\dfrac{P(A \\cap B)}{P(A)}' },
+                { label: 'الأمل الرياضي E(X)', preview: 'E(X)', latex: 'E(X) = \\sum_{i=1}^{n} x_i P(X = x_i)' },
+                { label: 'المغايرة V(X)', preview: 'V(X)', latex: 'V(X) = E(X^2) - \\big[E(X)\\big]^2' },
+                { label: 'قانون برنولي / الحدانية', preview: 'P(X=k)', latex: 'P(X = k) = C_{n}^{k} p^{k} (1-p)^{n-k}' }
             ]
         }
     };
 
-    /**
-     * فتح النافذة المنبثقة لمحرك LaTeX ومحرر التمارين
-     */
-    function openLatexMathModal(targetField = 'summary') {
-        state.targetField = targetField || 'summary';
-        const modal = document.getElementById('latexMathModal');
-        if (!modal) {
-            createLatexMathModalDOM();
+    // ------------------------------------------------------------------------
+    // 3. بنك الصيغ والعلاقات والمبرهنات الرسمية الجاهزة لدفتر النصوص
+    // ------------------------------------------------------------------------
+    const LESSON_LOG_FORMULA_BANK = [
+        {
+            id: 'tvi',
+            level: '2BAC',
+            category: 'التحليل والاتصال',
+            title: 'مبرهنة القيم الوسيطية (TVI)',
+            textSnippet: 'مبرهنة القيم الوسيطية: إذا كانت $f$ دالة متصلة على القطعة $[a,b]$ ورتيبة قطعا عليها وكان $f(a) \\times f(b) < 0$، فإن المعادلة $f(x) = 0$ تقبل حلا وحيدا $\\alpha$ في المجال $]a,b[$.',
+            latexOnly: 'f \\text{ continue et strictement monotone sur } [a,b] \\text{ et } f(a) \\cdot f(b) < 0 \\implies \\exists! \\alpha \\in ]a,b[ \\;/\\; f(\\alpha) = 0'
+        },
+        {
+            id: 'deriv_inv',
+            level: '2BAC',
+            category: 'التحليل والاشتقاق',
+            title: 'اشتقاق الدالة العكسية في نقطة',
+            textSnippet: 'خاصية اشتقاق الدالة العكسية: إذا كانت $f$ قابلة للاشتقاق في $x_0$ و $f\'(x_0) \\neq 0$ فإن $f^{-1}$ قابلة للاشتقاق في $y_0 = f(x_0)$ ولدينا: $$(f^{-1})\'(y_0) = \\dfrac{1}{f\'(x_0)} = \\dfrac{1}{f\'\\big(f^{-1}(y_0)\\big)}$$',
+            latexOnly: '(f^{-1})\'(y_0) = \\dfrac{1}{f\'\\big(f^{-1}(y_0)\\big)}'
+        },
+        {
+            id: 'taf',
+            level: '2BAC',
+            category: 'التحليل والاشتقاق',
+            title: 'مبرهنة التزايدات المنتهية (TAF) ومبرهنة رول',
+            textSnippet: 'مبرهنة التزايدات المنتهية: إذا كانت $f$ متصلة على $[a,b]$ وقابلة للاشتقاق على $]a,b[$ فإنه: $$\\exists c \\in ]a,b[ \\;:\\quad f(b) - f(a) = f\'(c)(b - a)$$',
+            latexOnly: '\\exists c \\in ]a,b[ \\;:\\quad f(b) - f(a) = f\'(c)(b - a)'
+        },
+        {
+            id: 'ln_exp_limits',
+            level: '2BAC',
+            category: 'النهايات الاعتيادية',
+            title: 'النهايات الاعتيادية للدالتين اللوغاريتمية والأسية',
+            textSnippet: 'النهايات الاعتيادية الأساسية: $$\\lim_{x \\to +\\infty} \\dfrac{\\ln(x)}{x^n} = 0 \\quad ; \\quad \\lim_{x \\to 0^+} x^n \\ln(x) = 0 \\quad ; \\quad \\lim_{x \\to +\\infty} \\dfrac{e^x}{x^n} = +\\infty \\quad ; \\quad \\lim_{x \\to -\\infty} x^n e^x = 0$$',
+            latexOnly: '\\lim_{x \\to +\\infty} \\dfrac{\\ln(x)}{x} = 0 \\; ; \\; \\lim_{x \\to 0} \\dfrac{\\ln(1+x)}{x} = 1 \\; ; \\; \\lim_{x \\to +\\infty} \\dfrac{e^x}{x} = +\\infty \\; ; \\; \\lim_{x \\to 0} \\dfrac{e^x - 1}{x} = 1'
+        },
+        {
+            id: 'area_volume',
+            level: '2BAC',
+            category: 'الحساب التكاملي',
+            title: 'حساب المساحة وحجم مجسم الدوران بالتكامل',
+            textSnippet: 'مساحة الحيز المحصور بين $(C_f)$ و $(C_g)$ والمستقيمين $x=a$ و $x=b$: $$\\mathcal{A} = \\left( \\int_{a}^{b} |f(x) - g(x)|\\,dx \\right) \\cdot \\|\\vec{i}\\| \\times \\|\\vec{j}\\|$$ وحجم مجسم الدوران حول محور الأفاصيل: $$\\mathcal{V} = \\left( \\pi \\int_{a}^{b} \\big[f(x)\\big]^2\\,dx \\right) \\cdot \\|\\vec{i}\\|^3$$',
+            latexOnly: '\\mathcal{A} = \\int_{a}^{b} |f(x) - g(x)|\\,dx \\cdot u.a \\quad ; \\quad \\mathcal{V} = \\pi \\int_{a}^{b} [f(x)]^2\\,dx \\cdot u.v'
+        },
+        {
+            id: 'diff_eq',
+            level: '2BAC',
+            category: 'المعادلات التفاضلية',
+            title: 'حلول المعادلات التفاضلية من الرتبة الأولى والثانية',
+            textSnippet: 'الحل العام للمعادلة التفاضلية $y\' = ay + b$ هو: $$y(x) = k e^{ax} - \\dfrac{b}{a} \\quad (k \\in \\mathbb{R})$$ والحالة $y\'\' + \\omega^2 y = 0$ حلها العام: $$y(x) = \\alpha \\cos(\\omega x) + \\beta \\sin(\\omega x)$$',
+            latexOnly: 'y\' = ay + b \\iff y(x) = k e^{ax} - \\dfrac{b}{a}'
+        },
+        {
+            id: 'suites_geo_arith',
+            level: '1BAC / 2BAC',
+            category: 'المتتاليات العددية',
+            title: 'الحد العام ومجموع متتالية حسابية وهندسية',
+            textSnippet: 'متتالية حسابية أساسها $r$: $u_n = u_p + (n-p)r$ ومجموعها: $$S_n = \\dfrac{n - p + 1}{2}(u_p + u_n)$$ متتالية هندسية أساسها $q \\neq 1$: $u_n = u_p \\cdot q^{n-p}$ ومجموعها: $$S_n = u_p \\times \\dfrac{1 - q^{n-p+1}}{1 - q}$$',
+            latexOnly: 'u_n = u_p \\cdot q^{n-p} \\quad ; \\quad S_n = u_p \\dfrac{1 - q^{n-p+1}}{1 - q}'
+        },
+        {
+            id: 'complex_rot_hom',
+            level: '2BAC',
+            category: 'الأعداد العقدية',
+            title: 'الكتابة العقدية للإزاحة والتحاكي والدوران',
+            textSnippet: 'الكتابة العقدية للتحويلات الاعتيادية:\n- الإزاحة ذات المتجهة $\\vec{u}(b)$: $z\' = z + b$\n- التحاكي $h(\\Omega(\\omega), k)$: $z\' - \\omega = k(z - \\omega)$\n- الدوران $R(\\Omega(\\omega), \\theta)$: $$z\' - \\omega = e^{i\\theta}(z - \\omega)$$',
+            latexOnly: 'R(\\Omega(\\omega), \\theta) : z\' - \\omega = e^{i\\theta}(z - \\omega)'
+        },
+        {
+            id: 'space_sphere',
+            level: '2BAC',
+            category: 'الهندسة الفضائية',
+            title: 'معادلة الفلكة والوضع النسبي مع مستوى',
+            textSnippet: 'المعادلة الديكارتية للفلكة $(S)$ التي مركزها $\\Omega(a,b,c)$ وشعاعها $R$: $$(x - a)^2 + (y - b)^2 + (z - c)^2 = R^2$$ مسافة المركز عن المستوى $(P): ux+vy+wz+d=0$ هي: $$d\\big(\\Omega,(P)\\big) = \\dfrac{|ua+vb+wc+d|}{\\sqrt{u^2+v^2+w^2}}$$',
+            latexOnly: '(S): (x - a)^2 + (y - b)^2 + (z - c)^2 = R^2'
+        },
+        {
+            id: 'arith_bezout_gauss',
+            level: '2BAC SM / 1BAC SM',
+            category: 'الحسابيات في Z',
+            title: 'مبرهنة بيزو (Bézout) ومبرهنة غوص (Gauss)',
+            textSnippet: 'مبرهنة بيزو: $$a \\wedge b = 1 \\iff \\exists (u,v) \\in \\mathbb{Z}^2 \\;:\\; au + bv = 1$$ مبرهنة غوص: $$\\big( a \\mid bc \\;\\text{ و }\\; a \\wedge b = 1 \\big) \\implies a \\mid c$$',
+            latexOnly: 'a \\wedge b = 1 \\iff \\exists (u,v) \\in \\mathbb{Z}^2,\\; au + bv = 1'
+        },
+        {
+            id: 'quadratic_delta',
+            level: 'TCS / 1BAC',
+            category: 'الجبر والمعادلات',
+            title: 'مميز ثلاثية الحدود من الدرجة الثانية والتعميل',
+            textSnippet: 'نعتبر ثلاثية الحدود $P(x) = ax^2 + bx + c$ ($a \\neq 0$). المميز هو $\\Delta = b^2 - 4ac$. إذا كان $\\Delta > 0$ فإن للمعادلة حلين متمايزين: $$x_1 = \\dfrac{-b - \\sqrt{\\Delta}}{2a} \\quad ; \\quad x_2 = \\dfrac{-b + \\sqrt{\\Delta}}{2a}$$ والتعميل: $P(x) = a(x - x_1)(x - x_2)$.',
+            latexOnly: '\\Delta = b^2 - 4ac \\; ; \\; x_{1,2} = \\dfrac{-b \\pm \\sqrt{\\Delta}}{2a}'
         }
-        const m = document.getElementById('latexMathModal');
-        if (m) {
-            m.style.display = 'flex';
-            initLatexModalContent();
-            if (window.renderLucide) window.renderLucide();
-        }
-    }
+    ];
 
-    /**
-     * إغلاق النافذة
-     */
-    function closeLatexMathModal() {
-        const modal = document.getElementById('latexMathModal');
-        if (modal) modal.style.display = 'none';
-    }
+    // ------------------------------------------------------------------------
+    // 4. إنشاء وبناء نافذة محرر معادلات LaTeX لدفتر النصوص + حاسبة السحب والنسخ
+    // ------------------------------------------------------------------------
 
-    /**
-     * إنشاء هيكل النافذة DOM ديناميكياً
-     */
-    function createLatexMathModalDOM() {
-        const div = document.createElement('div');
-        div.id = 'latexMathModal';
-        div.style = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.75); z-index: 10015; align-items: center; justify-content: center; flex-direction: column; padding: 12px; backdrop-filter: blur(5px);';
-        div.innerHTML = `
-            <div class="card" style="width: 100%; max-width: 1040px; padding: 20px 24px; max-height: 94vh; overflow-y: auto; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); background: #ffffff;">
-                <!-- Modal Header -->
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 12px;">
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(135deg, #0d9488, #0f766e); color: #fff; box-shadow: 0 3px 8px rgba(13,148,136,0.3);">
-                                <span data-lucide="function-square" data-size="20"></span>
-                            </span>
-                            <h3 style="color: var(--primary); margin: 0; font-family: 'Cairo', sans-serif; font-size: 1.25rem; font-weight: 800;">
-                                محرك توليد تمارين الرياضيات ومحرر صيغ LaTeX
-                            </h3>
-                            <span style="background: #ccfbf1; color: #0f766e; font-size: 0.74rem; font-weight: 800; padding: 2px 8px; border-radius: 6px; border: 1px solid #99f6e4;">
-                                KaTeX High-Fidelity
-                            </span>
+    function ensureLatexModalExists() {
+        let modal = document.getElementById('latexMathStudioModal');
+        if (modal) return modal;
+
+        modal = document.createElement('div');
+        modal.id = 'latexMathStudioModal';
+        modal.className = 'modal-overlay';
+        modal.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(15,23,42,0.72); backdrop-filter:blur(4px); z-index:99999; align-items:center; justify-content:center; padding:14px; overflow-y:auto;';
+
+        modal.innerHTML = `
+            <div class="modal-card" style="background:#ffffff; width:100%; max-width:1080px; border-radius:16px; box-shadow:0 25px 50px -12px rgba(15,23,42,0.38); border:1px solid #e2e8f0; overflow:hidden; display:flex; flex-direction:column; max-height:93vh;">
+                <!-- Header -->
+                <div style="background:linear-gradient(135deg, #1e1b4b 0%, #312e81 55%, #1e293b 100%); color:#ffffff; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid #4f46e5;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:42px; height:42px; border-radius:10px; background:rgba(255,255,255,0.14); display:flex; align-items:center; justify-content:center; font-size:1.35rem; font-weight:800; border:1px solid rgba(255,255,255,0.25);">
+                            ∑
                         </div>
-                        <p style="margin: 4px 0 0 0; color: #64748b; font-size: 0.82rem;">
-                            توليد تمارين ووضعيات رياضية متكاملة بصيغة LaTeX للأقسام الثانوية التأهيلية، تحرير ورندرة المعادلات فورياً، وإدراجها بضغطة زر في دفتر النصوص أو طباعتها.
-                        </p>
+                        <div>
+                            <h3 style="margin:0; font-size:1.08rem; font-weight:800; color:#ffffff; letter-spacing:0.2px;">محرر معادلات وصيغ LaTeX المدمج لدفتر النصوص</h3>
+                            <p style="margin:2px 0 0 0; font-size:0.77rem; color:#c7d2fe;">كتابة وإدراج الصيغ الرياضية والعلاقات والمبرهنات مباشرة في فقرات وملخص الحصة والواجب المنزلي (KaTeX)</p>
+                        </div>
                     </div>
-                    <button type="button" onclick="window.closeLatexMathModal()" style="background: #f1f5f9; border: none; cursor: pointer; color: #64748b; font-size: 1.2rem; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">✕</button>
+                    <button type="button" onclick="window.closeLatexMathModal()" style="background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.22); color:#ffffff; width:34px; height:34px; border-radius:8px; cursor:pointer; font-size:1.05rem; font-weight:700; display:flex; align-items:center; justify-content:center;">✕</button>
                 </div>
 
                 <!-- Navigation Tabs -->
-                <div style="display: flex; gap: 6px; border-bottom: 2px solid #e2e8f0; margin-bottom: 16px; padding-bottom: 6px;">
-                    <button type="button" id="tabBtnGenerator" onclick="window.switchLatexModalTab('generator')" style="background: #0d9488; color: #fff; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                        <span data-lucide="sparkles" data-size="15"></span>
-                        <span>⚡ بنك وتوليد التمارين</span>
-                    </button>
-                    <button type="button" id="tabBtnEditor" onclick="window.switchLatexModalTab('editor')" style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; padding: 8px 18px; border-radius: 8px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                        <span data-lucide="edit-3" data-size="15"></span>
-                        <span>📐 محرر المعادلات ولوحة الرموز</span>
-                    </button>
-                    <button type="button" id="tabBtnSheet" onclick="window.switchLatexModalTab('sheet')" style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; padding: 8px 18px; border-radius: 8px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
-                        <span data-lucide="printer" data-size="15"></span>
-                        <span>🖨️ مركز طباعة ورقة التمارين الرسمية</span>
-                    </button>
+                <div style="display:flex; gap:8px; padding:10px 20px; background:#f8fafc; border-bottom:1px solid #e2e8f0; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button type="button" id="latexTabBtn_editor" onclick="window.switchLatexStudioTab('editor')" style="padding:8px 16px; border-radius:8px; border:1px solid #4f46e5; background:#4f46e5; color:#ffffff; font-weight:800; font-size:0.84rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                            <span>📐</span> محرر المعادلات وبنك صيغ دفتر النصوص (LaTeX)
+                        </button>
+                        <button type="button" id="latexTabBtn_reprography" onclick="window.switchLatexStudioTab('reprography')" style="padding:8px 16px; border-radius:8px; border:1px solid #cbd5e1; background:#ffffff; color:#334155; font-weight:700; font-size:0.84rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                            <span>🖨️</span> حاسبة وأمر النسخ والطبع للوثائق الخارجية (Bon de Tirage)
+                        </button>
+                    </div>
+                    <div id="latexActiveTargetBadge" style="font-size:0.75rem; font-weight:700; color:#4338ca; background:#eef2ff; border:1px solid #c7d2fe; padding:5px 10px; border-radius:6px;">
+                        🎯 حقل الإدراج النشط: ملخص وأنشطة الحصة
+                    </div>
                 </div>
 
-                <!-- Tab 1: Exercise Generator -->
-                <div id="latexGeneratorSection">
-                    <div style="background: #f0fdfa; border: 1.5px solid #ccfbf1; border-radius: 12px; padding: 14px; margin-bottom: 14px;">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 12px;">
-                            <div>
-                                <label style="display: block; font-size: 0.78rem; font-weight: 800; color: #0f766e; margin-bottom: 4px;">السلك والمستوى الدراسي:</label>
-                                <select id="latexLevelSelect" onchange="window.onLatexLevelChanged(this.value)" style="width: 100%; padding: 7px 10px; border-radius: 8px; border: 1.5px solid #99f6e4; font-weight: 800; font-size: 0.85rem; background: #fff;">
-                                    <option value="2BAC_SM">الثانية باكالوريا علوم رياضية (أ و ب)</option>
-                                    <option value="2BAC_EXP">الثانية باكالوريا علوم تجريبية (PC / SVT)</option>
-                                    <option value="1BAC_SM">الأولى باكالوريا علوم رياضية</option>
-                                    <option value="1BAC_EXP">الأولى باكالوريا علوم تجريبية وتكنولوجية</option>
-                                    <option value="TCS">الجذع المشترك العلمي والتكنولوجي</option>
-                                </select>
+                <!-- Body Content -->
+                <div style="padding:16px 20px; overflow-y:auto; flex:1; background:#ffffff;">
+                    <!-- TAB 1: EQUATION EDITOR & LESSON LOG FORMULA BANK -->
+                    <div id="latexStudioTab_editor" style="display:block;">
+                        <!-- Symbol Category Buttons -->
+                        <div style="margin-bottom:10px;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                                <label style="font-size:0.8rem; font-weight:800; color:#1e293b;">1. لوحة الرموز والبنيات الرياضية السريعة (انقر لإدراج الرمز عند موضع المؤشر):</label>
+                                <span style="font-size:0.72rem; color:#64748b;">تدعم جميع رموز التحليل والجبر والهندسة والاحتمالات</span>
                             </div>
+                            <div id="latexCategoryTabs" style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:8px;"></div>
+                            <div id="latexSymbolsPaletteGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(128px, 1fr)); gap:6px; background:#f8fafc; padding:10px; border-radius:10px; border:1px solid #e2e8f0; max-height:175px; overflow-y:auto;"></div>
+                        </div>
+
+                        <!-- Main LaTeX Input + Live Preview Side-by-Side -->
+                        <div style="display:grid; grid-template-columns:1.1fr 0.9fr; gap:14px; margin-bottom:12px;">
                             <div>
-                                <label style="display: block; font-size: 0.78rem; font-weight: 800; color: #0f766e; margin-bottom: 4px;">المجال الديداكتيكي / الدرس:</label>
-                                <select id="latexDomainSelect" onchange="window.onLatexDomainChanged(this.value)" style="width: 100%; padding: 7px 10px; border-radius: 8px; border: 1.5px solid #99f6e4; font-weight: 800; font-size: 0.85rem; background: #fff;"></select>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                    <label style="font-size:0.8rem; font-weight:800; color:#1e293b;">2. شيفرة المعادلة الرياضية (LaTeX):</label>
+                                    <div style="display:flex; gap:6px;">
+                                        <button type="button" onclick="window.copyLatexRawCode()" style="background:#eef2ff; border:1px solid #c7d2fe; color:#4338ca; border-radius:6px; padding:2px 8px; font-size:0.72rem; font-weight:700; cursor:pointer;">📋 نسخ الشيفرة</button>
+                                        <button type="button" onclick="document.getElementById('latexRawInputArea').value=''; window.updateLiveLatexPreview();" style="background:#fef2f2; border:1px solid #fecaca; color:#dc2626; border-radius:6px; padding:2px 8px; font-size:0.72rem; font-weight:700; cursor:pointer;">مسح</button>
+                                    </div>
+                                </div>
+                                <textarea id="latexRawInputArea" dir="ltr" rows="4" placeholder="\\forall x \\in ]0,+\\infty[, \\quad f'(x) = \\dfrac{1 - \\ln(x)}{x^2}" oninput="window.updateLiveLatexPreview()" style="width:100%; font-family:'JetBrains Mono',monospace; font-size:0.92rem; padding:10px; border-radius:10px; border:1.5px solid #cbd5e1; background:#0f172a; color:#f8fafc; resize:vertical; line-height:1.55;"></textarea>
+
+                                <!-- Insertion Controls -->
+                                <div style="margin-top:8px; background:#f8fafc; padding:10px 12px; border-radius:10px; border:1px solid #e2e8f0; display:flex; flex-direction:column; gap:8px;">
+                                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                        <label style="font-size:0.77rem; font-weight:800; color:#334155;">حقل دفتر النصوص المستهدف:</label>
+                                        <select id="latexInsertTargetSelect" onchange="window.onLatexTargetSelectChange()" style="padding:5px 10px; border-radius:6px; border:1px solid #cbd5e1; font-size:0.78rem; font-weight:700; background:#ffffff; color:#0f172a; flex:1; min-width:200px;">
+                                            <option value="lessonLogSummary">ملخص وأنشطة الحصة (دفتر النصوص)</option>
+                                            <option value="lessonLogHomework">الواجب المنزلي / تمارين الدعم</option>
+                                            <option value="lessonLogNotes">ملاحظات الحصة</option>
+                                            <option value="_focused_paragraph" id="latexOptionFocusedParagraph">الفقرة الفرعية المحددة حالياً في هيكلة الدرس</option>
+                                        </select>
+                                    </div>
+                                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                                        <div style="display:flex; align-items:center; gap:10px;">
+                                            <label style="font-size:0.76rem; font-weight:700; color:#475569; display:flex; align-items:center; gap:4px; cursor:pointer;">
+                                                <input type="radio" name="latexWrapMode" value="inline" checked onchange="window.updateLiveLatexPreview()"> مدمجة في السطر ($...$)
+                                            </label>
+                                            <label style="font-size:0.76rem; font-weight:700; color:#475569; display:flex; align-items:center; gap:4px; cursor:pointer;">
+                                                <input type="radio" name="latexWrapMode" value="block" onchange="window.updateLiveLatexPreview()"> معادلة مستقلة في الوسط ($$...$$)
+                                            </label>
+                                        </div>
+                                        <button type="button" onclick="window.insertLatexIntoTargetField()" style="padding:7px 16px; border-radius:8px; border:none; background:linear-gradient(135deg,#4f46e5,#3730a3); color:#ffffff; font-weight:800; font-size:0.82rem; cursor:pointer; box-shadow:0 2px 6px rgba(79,70,229,0.28);">
+                                            ➕ إدراج المعادلة في دفتر النصوص
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <label style="display: block; font-size: 0.78rem; font-weight: 800; color: #0f766e; margin-bottom: 4px;">التمرين المختار:</label>
-                                <select id="latexExerciseSelect" onchange="window.onLatexExerciseSelectChanged(this.value)" style="width: 100%; padding: 7px 10px; border-radius: 8px; border: 1.5px solid #99f6e4; font-weight: 800; font-size: 0.85rem; background: #fff;"></select>
+
+                            <!-- Live KaTeX Preview Box -->
+                            <div style="display:flex; flex-direction:column;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                    <label style="font-size:0.8rem; font-weight:800; color:#1e293b;">المعاينة الفورية عالية الدقة (KaTeX):</label>
+                                    <span style="font-size:0.71rem; color:#16a34a; font-weight:700;">✓ مطابقة للطباعة الرسمية</span>
+                                </div>
+                                <div id="latexLivePreviewBox" dir="ltr" style="flex:1; min-height:145px; padding:16px; border-radius:10px; border:1.5px dashed #94a3b8; background:#f8fafc; display:flex; align-items:center; justify-content:center; overflow-x:auto; font-size:1.15rem; color:#0f172a;"></div>
                             </div>
                         </div>
 
-                        <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <button type="button" onclick="window.generateRandomVariation()" class="btn-primary" style="background: linear-gradient(135deg, #0d9488, #0f766e); border: none; padding: 7px 16px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(13,148,136,0.25);">
-                                    <span data-lucide="refresh-cw" data-size="14"></span>
-                                    <span>توليد تنويع جديد ⚡</span>
+                        <!-- Ready-made Lesson Log Formula & Theorem Bank -->
+                        <div style="border-top:1px solid #e2e8f0; padding-top:12px;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                                <div>
+                                    <span style="font-size:0.82rem; font-weight:800; color:#1e293b;">📚 بنك الصيغ والعلاقات والمبرهنات الرسمية الجاهزة لدفتر النصوص:</span>
+                                    <span style="font-size:0.73rem; color:#64748b; margin-right:6px;">(أدرج المعادلة وحدها أو النص التربوي كاملاً مع الصيغة الرياضية بنقرة واحدة)</span>
+                                </div>
+                                <input type="text" id="latexFormulaBankSearch" oninput="window.renderLessonLogFormulaBank()" placeholder="🔍 ابحث عن مبرهنة أو صيغة (مثال: القيم الوسيطية، التكامل، الفلكة...)" style="padding:5px 10px; border-radius:7px; border:1px solid #cbd5e1; font-size:0.76rem; width:270px;">
+                            </div>
+                            <div id="lessonLogFormulaBankGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(310px, 1fr)); gap:8px; max-height:210px; overflow-y:auto; padding:4px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: REPROGRAPHY & BON DE TIRAGE CALCULATOR FOR EXTERNAL DOCUMENTS -->
+                    <div id="latexStudioTab_reprography" style="display:none;">
+                        <div style="background:linear-gradient(135deg,#f8fafc,#eef2ff); border:1px solid #c7d2fe; border-radius:12px; padding:14px 16px; margin-bottom:14px;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+                                <div>
+                                    <h4 style="margin:0; font-size:0.94rem; font-weight:800; color:#1e1b4b;">🖨️ حاسبة استهلاك الورق وبطاقة أمر السحب والنسخ (Bon de Tirage)</h4>
+                                    <p style="margin:2px 0 0 0; font-size:0.76rem; color:#475569;">مخصصة للفروض المحروسة وسلاسل التمارين والوثائق المنجزة في تطبيقك الخارجي قبل إرسالها لمصلحة النسخ والطبع بالمؤسسة</p>
+                                </div>
+                                <button type="button" onclick="window.printBonDeTirageSlip()" style="padding:8px 16px; border-radius:8px; border:none; background:#0f172a; color:#ffffff; font-weight:800; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                                    🖨️ طباعة بطاقة أمر بالسحب (Bon de Tirage)
                                 </button>
-                                <button type="button" onclick="window.loadExerciseIntoEditor()" class="btn-secondary" style="background: #ffffff; border: 1.5px solid #99f6e4; color: #0f766e; padding: 7px 14px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
-                                    <span data-lucide="code" data-size="14"></span>
-                                    <span>فتح في المحرر والتعديل</span>
-                                </button>
                             </div>
-                            <span id="latexExerciseBaremeBadge" style="background: #ccfbf1; color: #0f766e; font-weight: 900; font-size: 0.82rem; padding: 4px 10px; border-radius: 6px; border: 1px solid #99f6e4;">-</span>
-                        </div>
-                    </div>
 
-                    <!-- Live Rendered Preview Box -->
-                    <div style="border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 18px; margin-bottom: 14px; background: #ffffff; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #cbd5e1; padding-bottom: 8px; margin-bottom: 12px;">
-                            <div style="font-weight: 900; color: #1e3a8a; font-size: 1rem; display: flex; align-items: center; gap: 6px;">
-                                <span data-lucide="eye" data-size="16" style="color: #0d9488;"></span>
-                                <span id="latexPreviewTitle">معاينة نص التمرين المرندر:</span>
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(185px, 1fr)); gap:10px;">
+                                <div>
+                                    <label style="font-size:0.74rem; font-weight:700; color:#334155; display:block; margin-bottom:3px;">عنوان الوثيقة أو الفرض (لأمر السحب):</label>
+                                    <input type="text" id="reproDocTitleInput" value="فرض محروس رقم 1 - الدورة الأولى" style="width:100%; padding:7px 9px; border-radius:7px; border:1px solid #cbd5e1; font-size:0.8rem; font-weight:700; background:#ffffff;">
+                                </div>
+                                <div>
+                                    <label style="font-size:0.74rem; font-weight:700; color:#334155; display:block; margin-bottom:3px;">القسم المستهدف (أو مجموع الأقسام):</label>
+                                    <select id="reproClassSelect" onchange="window.onReproClassChange()" style="width:100%; padding:7px 9px; border-radius:7px; border:1px solid #cbd5e1; font-size:0.8rem; font-weight:700; background:#ffffff;"></select>
+                                </div>
+                                <div>
+                                    <label style="font-size:0.74rem; font-weight:700; color:#334155; display:block; margin-bottom:3px;">عدد التلاميذ الفعلي:</label>
+                                    <input type="number" id="reproStudentCount" min="1" max="500" value="36" oninput="window.recalculateReprographyStats()" style="width:100%; padding:7px 9px; border-radius:7px; border:1px solid #cbd5e1; font-size:0.84rem; font-weight:800; background:#ffffff;">
+                                </div>
+                                <div>
+                                    <label style="font-size:0.74rem; font-weight:700; color:#334155; display:block; margin-bottom:3px;">نسخ احتياطية وأرشيف الإدارة:</label>
+                                    <input type="number" id="reproSpareCopies" min="0" max="50" value="2" oninput="window.recalculateReprographyStats()" style="width:100%; padding:7px 9px; border-radius:7px; border:1px solid #cbd5e1; font-size:0.84rem; font-weight:800; background:#ffffff;">
+                                </div>
+                                <div>
+                                    <label style="font-size:0.74rem; font-weight:700; color:#334155; display:block; margin-bottom:3px;">تخطيط الصفحة في ملفك الخارجي:</label>
+                                    <select id="reproLayoutMode" onchange="window.recalculateReprographyStats()" style="width:100%; padding:7px 9px; border-radius:7px; border:1px solid #cbd5e1; font-size:0.78rem; font-weight:700; background:#ffffff;">
+                                        <option value="2up" selected>ورقتان في صفحة A4 (نصف صفحة A5 - اقتصادي 50%)</option>
+                                        <option value="1up">ورقة كاملة A4 لكل تلميذ (1 في الصفحة)</option>
+                                        <option value="ab_2up">الموضوع A والموضوع B متجاوران في صفحة A4</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size:0.74rem; font-weight:700; color:#334155; display:block; margin-bottom:3px;">الوجهان (Recto / Verso):</label>
+                                    <select id="reproDuplexMode" onchange="window.recalculateReprographyStats()" style="width:100%; padding:7px 9px; border-radius:7px; border:1px solid #cbd5e1; font-size:0.78rem; font-weight:700; background:#ffffff;">
+                                        <option value="recto" selected>وجه واحد فقط (Recto)</option>
+                                        <option value="duplex">وجه وظهر (Recto-Verso)</option>
+                                    </select>
+                                </div>
                             </div>
-                            <button type="button" onclick="window.copyCurrentLatexRaw()" style="background: #f8fafc; border: 1px solid #cbd5e1; color: #475569; padding: 4px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                                <span data-lucide="copy" data-size="12"></span>
-                                <span>نسخ كود LaTeX</span>
-                            </button>
+
+                            <!-- Reprography KPI Cards -->
+                            <div id="reproStatsSummaryRow" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(175px, 1fr)); gap:10px; margin-top:14px;"></div>
                         </div>
-                        <div id="latexExerciseRenderContainer" style="font-size: 0.95rem; line-height: 1.8; color: #0f172a; min-height: 120px;"></div>
                     </div>
-
-                    <!-- Action Buttons: Insert into Lesson Log -->
-                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;">
-                        <span style="font-size: 0.8rem; font-weight: 800; color: #334155;">إجراءات الإدراج في دفتر النصوص:</span>
-                        <button type="button" onclick="window.insertCurrentExerciseToLessonLog('summary')" class="btn-primary" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none; padding: 7px 14px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(37,99,235,0.2);">
-                            <span data-lucide="book-open" data-size="14"></span>
-                            <span>إدراج في الأنشطة والملخص 📥</span>
-                        </button>
-                        <button type="button" onclick="window.insertCurrentExerciseToLessonLog('homework')" class="btn-primary" style="background: linear-gradient(135deg, #d97706, #b45309); border: none; padding: 7px 14px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(217,119,6,0.2);">
-                            <span data-lucide="clipboard-list" data-size="14"></span>
-                            <span>إدراج كواجب منزلي 📝</span>
-                        </button>
-                        <button type="button" onclick="window.loadExerciseIntoPrintSheet()" class="btn-primary" style="background: linear-gradient(135deg, #059669, #047857); border: none; padding: 7px 14px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(5,150,105,0.2);">
-                            <span data-lucide="printer" data-size="14"></span>
-                            <span>تجهيز ورقة الطباعة 🖨️</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Tab 2: Formula Editor & Palette -->
-                <div id="latexEditorSection" style="display: none;">
-                    <!-- Visual Symbols Palette -->
-                    <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 12px; margin-bottom: 12px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
-                            <span style="font-size: 0.82rem; font-weight: 800; color: #1e3a8a;">لوحة المفاتيح والرموز الرياضية التفاعلية:</span>
-                            <div id="paletteCategoryButtons" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
-                        </div>
-                        <div id="paletteSymbolsContainer" style="display: flex; gap: 6px; flex-wrap: wrap; min-height: 48px; align-items: center;"></div>
-                    </div>
-
-                    <!-- LaTeX Code Input Area -->
-                    <div style="margin-bottom: 12px;">
-                        <label style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 800; color: #334155; margin-bottom: 4px;">
-                            <span>كود وصيغة LaTeX:</span>
-                            <span style="font-size: 0.72rem; color: #64748b;">يدعم الصيغ المضمنة $...$ أو المباشرة</span>
-                        </label>
-                        <textarea id="latexFormulaInput" rows="4" oninput="window.onLatexFormulaInputChanged(this.value)" style="width: 100%; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 10px 12px; font-family: monospace; font-size: 0.92rem; direction: ltr; text-align: left; resize: vertical;" placeholder="أدخل صيغة LaTeX، مثال: \lim_{x \to 0} \frac{\sin x}{x} = 1"></textarea>
-                    </div>
-
-                    <!-- Live KaTeX Output Preview -->
-                    <div style="border: 1.5px solid #99f6e4; background: #f0fdfa; border-radius: 10px; padding: 14px; margin-bottom: 14px; text-align: center;">
-                        <div style="font-size: 0.76rem; font-weight: 800; color: #0f766e; margin-bottom: 6px;">معاينة فورية حية (Live Preview):</div>
-                        <div id="latexFormulaLivePreview" style="font-size: 1.25rem; min-height: 40px; display: flex; align-items: center; justify-content: center; overflow-x: auto;"></div>
-                    </div>
-
-                    <!-- Editor Action Buttons -->
-                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                        <button type="button" onclick="window.insertEditorFormulaToLessonLog('summary')" class="btn-primary" style="background: #2563eb; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; cursor: pointer;">
-                            إدراج في ملخص الحصة 📥
-                        </button>
-                        <button type="button" onclick="window.insertEditorFormulaToLessonLog('homework')" class="btn-primary" style="background: #d97706; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; cursor: pointer;">
-                            إدراج في الواجب المنزلي 📝
-                        </button>
-                        <button type="button" onclick="window.copyEditorFormulaCode()" class="btn-secondary" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; cursor: pointer;">
-                            نسخ الكود
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Tab 3: Official Printable Exercise Sheet -->
-                <div id="latexSheetSection" style="display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px;">
-                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <label style="font-size: 0.78rem; font-weight: 800; color: #334155;">عنوان الورقة:</label>
-                            <input type="text" id="latexSheetTitleInput" value="سلسلة تمارين في مادة الرياضيات" oninput="window.updateSheetPreview()" style="padding: 5px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem; font-weight: 700; min-width: 240px;">
-                            <label style="font-size: 0.78rem; font-weight: 800; color: #334155;">المدة:</label>
-                            <input type="text" id="latexSheetDurationInput" value="ساعتان" oninput="window.updateSheetPreview()" style="padding: 5px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.82rem; font-weight: 700; width: 80px;">
-                        </div>
-                        <button type="button" onclick="window.printLatexExerciseSheetDirectly()" class="btn-primary" style="background: linear-gradient(135deg, #059669, #047857); border: none; padding: 8px 18px; border-radius: 8px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(5,150,105,0.25);">
-                            <span data-lucide="printer" data-size="16"></span>
-                            <span>طبع ورقة التمارين الرسمية (A4) 🖨️</span>
-                        </button>
-                    </div>
-
-                    <!-- Printable Container Frame -->
-                    <div id="latexPrintableSheetContainer" style="background: #ffffff; border: 2.5px solid #1e3a8a; border-radius: 8px; padding: 22px; margin-bottom: 14px; min-height: 480px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);"></div>
                 </div>
             </div>
         `;
-        document.body.appendChild(div);
+
+        document.body.appendChild(modal);
+        renderCategoryButtons('basic');
+        window.renderLessonLogFormulaBank();
+        return modal;
     }
 
-    /**
-     * تهيئة محتويات النافذة المنبثقة
-     */
-    function initLatexModalContent() {
-        populateLevelSelect();
-        initPaletteCategories();
-        selectPaletteCategory('basic');
-        switchLatexModalTab(state.activeTab || 'generator');
-        updateFormulaLivePreview();
+    function renderCategoryButtons(activeCatKey) {
+        const tabsContainer = document.getElementById('latexCategoryTabs');
+        const gridContainer = document.getElementById('latexSymbolsPaletteGrid');
+        if (!tabsContainer || !gridContainer) return;
+
+        tabsContainer.innerHTML = Object.entries(LATEX_SYMBOL_CATEGORIES).map(([key, cat]) => {
+            const isActive = key === activeCatKey;
+            return `<button type="button" onclick="window.selectLatexSymbolCategory('${key}')" style="padding:5px 11px; border-radius:7px; border:1px solid ${isActive ? '#4f46e5' : '#cbd5e1'}; background:${isActive ? '#eef2ff' : '#ffffff'}; color:${isActive ? '#3730a3' : '#334155'}; font-weight:${isActive ? '800' : '600'}; font-size:0.76rem; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                <span>${cat.icon}</span> ${cat.label}
+            </button>`;
+        }).join('');
+
+        const activeCat = LATEX_SYMBOL_CATEGORIES[activeCatKey] || LATEX_SYMBOL_CATEGORIES.basic;
+        gridContainer.innerHTML = activeCat.items.map((item, idx) => {
+            const renderedPreview = window.renderLatexToHtml(item.preview, false);
+            return `<button type="button" onclick="window.insertLatexSnippetAtCursor('${activeCatKey}', ${idx})" title="${escapeHtmlSafe(item.latex)}" style="padding:6px 8px; border-radius:8px; border:1px solid #e2e8f0; background:#ffffff; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-height:54px; transition:all 0.15s;" onmouseover="this.style.borderColor='#6366f1';this.style.background='#f5f3ff';" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='#ffffff';">
+                <div dir="ltr" style="font-size:0.88rem; color:#0f172a; overflow:hidden; max-width:100%;">${renderedPreview}</div>
+                <span style="font-size:0.67rem; color:#475569; font-weight:700;">${escapeHtmlSafe(item.label)}</span>
+            </button>`;
+        }).join('');
     }
 
-    function populateLevelSelect() {
-        const levelSelect = document.getElementById('latexLevelSelect');
-        if (levelSelect) {
-            levelSelect.value = state.selectedLevel;
-            populateDomainsForLevel(state.selectedLevel);
-        }
-    }
+    window.selectLatexSymbolCategory = function (catKey) {
+        renderCategoryButtons(catKey);
+    };
 
-    function populateDomainsForLevel(levelKey) {
-        const lvlData = SECONDARY_MATH_EXERCISE_BANK[levelKey];
-        const domainSelect = document.getElementById('latexDomainSelect');
-        if (!lvlData || !domainSelect) return;
-
-        domainSelect.innerHTML = '';
-        const domainKeys = Object.keys(lvlData.domains);
-        domainKeys.forEach(k => {
-            const opt = document.createElement('option');
-            opt.value = k;
-            opt.textContent = lvlData.domains[k].label;
-            domainSelect.appendChild(opt);
-        });
-
-        if (domainKeys.includes(state.selectedDomain)) {
-            domainSelect.value = state.selectedDomain;
-        } else if (domainKeys.length > 0) {
-            state.selectedDomain = domainKeys[0];
-            domainSelect.value = state.selectedDomain;
-        }
-        populateExercisesForDomain();
-    }
-
-    function populateExercisesForDomain() {
-        const lvlData = SECONDARY_MATH_EXERCISE_BANK[state.selectedLevel];
-        const domData = lvlData?.domains[state.selectedDomain];
-        const exSelect = document.getElementById('latexExerciseSelect');
-        if (!domData || !exSelect) return;
-
-        exSelect.innerHTML = '';
-        domData.exercises.forEach((ex, idx) => {
-            const opt = document.createElement('option');
-            opt.value = idx;
-            opt.textContent = `${idx + 1}. ${ex.title} (${ex.bareme})`;
-            exSelect.appendChild(opt);
-        });
-
-        loadExerciseByIndex(0);
-    }
-
-    function loadExerciseByIndex(idx) {
-        const lvlData = SECONDARY_MATH_EXERCISE_BANK[state.selectedLevel];
-        const domData = lvlData?.domains[state.selectedDomain];
-        if (!domData || !domData.exercises[idx]) return;
-
-        const ex = domData.exercises[idx];
-        state.currentExercise = {
-            ...ex,
-            levelKey: state.selectedLevel,
-            levelLabel: lvlData.label,
-            domainLabel: domData.label
-        };
-
-        const renderBox = document.getElementById('latexExerciseRenderContainer');
-        const baremeBadge = document.getElementById('latexExerciseBaremeBadge');
-        const titleBadge = document.getElementById('latexPreviewTitle');
-
-        if (renderBox) {
-            renderBox.innerHTML = renderMathInText(ex.latex);
-        }
-        if (baremeBadge) {
-            baremeBadge.textContent = `سلم التنقيط: ${ex.bareme}`;
-        }
-        if (titleBadge) {
-            titleBadge.textContent = `تمرين: ${ex.title}`;
-        }
-        updateSheetPreview();
-    }
-
-    function initPaletteCategories() {
-        const catContainer = document.getElementById('paletteCategoryButtons');
-        if (!catContainer) return;
-        catContainer.innerHTML = '';
-
-        Object.keys(MATH_SYMBOLS_PALETTE).forEach(catKey => {
-            const cat = MATH_SYMBOLS_PALETTE[catKey];
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'palette-cat-btn';
-            btn.dataset.catKey = catKey;
-            btn.textContent = cat.label;
-            btn.style = 'background: #ffffff; border: 1px solid #cbd5e1; color: #475569; padding: 3px 9px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer;';
-            btn.onclick = () => selectPaletteCategory(catKey);
-            catContainer.appendChild(btn);
-        });
-    }
-
-    function selectPaletteCategory(catKey) {
-        const cat = MATH_SYMBOLS_PALETTE[catKey];
-        if (!cat) return;
-
-        document.querySelectorAll('.palette-cat-btn').forEach(b => {
-            if (b.dataset.catKey === catKey) {
-                b.style.background = '#0d9488';
-                b.style.color = '#ffffff';
-                b.style.borderColor = '#0d9488';
-            } else {
-                b.style.background = '#ffffff';
-                b.style.color = '#475569';
-                b.style.borderColor = '#cbd5e1';
-            }
-        });
-
-        const symContainer = document.getElementById('paletteSymbolsContainer');
-        if (!symContainer) return;
-        symContainer.innerHTML = '';
-
-        cat.symbols.forEach(sym => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.title = sym.title;
-            btn.style = 'background: #ffffff; border: 1px solid #cbd5e1; color: #1e3a8a; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-family: monospace; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; justify-content: center;';
-            btn.onmouseover = () => { btn.style.background = '#eff6ff'; btn.style.borderColor = '#2563eb'; };
-            btn.onmouseout = () => { btn.style.background = '#ffffff'; btn.style.borderColor = '#cbd5e1'; };
-            btn.onclick = () => insertSymbolAtCursor(sym.code);
-
-            // Render symbol preview with KaTeX if formula
-            if (sym.label.includes('\\') || sym.label.includes('^') || sym.label.includes('_')) {
-                btn.innerHTML = renderLatexToHtml(sym.label, false);
-            } else {
-                btn.textContent = sym.label;
-            }
-
-            symContainer.appendChild(btn);
-        });
-    }
-
-    function insertSymbolAtCursor(code) {
-        const textarea = document.getElementById('latexFormulaInput');
+    window.insertLatexSnippetAtCursor = function (catKey, itemIdx) {
+        const cat = LATEX_SYMBOL_CATEGORIES[catKey];
+        if (!cat || !cat.items[itemIdx]) return;
+        const snippet = cat.items[itemIdx].latex;
+        const textarea = document.getElementById('latexRawInputArea');
         if (!textarea) return;
 
         const start = textarea.selectionStart || 0;
         const end = textarea.selectionEnd || 0;
-        const text = textarea.value;
-
-        textarea.value = text.substring(0, start) + code + text.substring(end);
-        textarea.selectionStart = textarea.selectionEnd = start + code.length;
+        const val = textarea.value;
+        textarea.value = val.substring(0, start) + snippet + val.substring(end);
         textarea.focus();
-        updateFormulaLivePreview();
+        const newPos = start + snippet.length;
+        textarea.setSelectionRange(newPos, newPos);
+        window.updateLiveLatexPreview();
+    };
+
+    window.updateLiveLatexPreview = function () {
+        const textarea = document.getElementById('latexRawInputArea');
+        const previewBox = document.getElementById('latexLivePreviewBox');
+        if (!textarea || !previewBox) return;
+
+        const raw = textarea.value.trim();
+        if (!raw) {
+            previewBox.innerHTML = `<span style="color:#94a3b8; font-size:0.82rem; font-family:'Cairo',sans-serif;">اكتب صيغة LaTeX أو اختر رمزاً/مبرهنة لمعاينتها فوراً...</span>`;
+            return;
+        }
+        const wrapRadio = document.querySelector('input[name="latexWrapMode"]:checked');
+        const isBlock = wrapRadio ? wrapRadio.value === 'block' : false;
+        previewBox.innerHTML = window.renderLatexToHtml(raw, isBlock);
+    };
+
+    window.copyLatexRawCode = function () {
+        const textarea = document.getElementById('latexRawInputArea');
+        if (!textarea || !textarea.value.trim()) return;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(textarea.value.trim());
+        }
+        if (typeof window.showToast === 'function') {
+            window.showToast('تم نسخ شيفرة LaTeX إلى الحافظة', 'success');
+        }
+    };
+
+    // ------------------------------------------------------------------------
+    // 5. بنك الصيغ والعلاقات والمبرهنات لدفتر النصوص
+    // ------------------------------------------------------------------------
+    window.renderLessonLogFormulaBank = function () {
+        const grid = document.getElementById('lessonLogFormulaBankGrid');
+        if (!grid) return;
+        const searchEl = document.getElementById('latexFormulaBankSearch');
+        const query = (searchEl ? searchEl.value : '').trim().toLowerCase();
+
+        const filtered = LESSON_LOG_FORMULA_BANK.filter(item => {
+            if (!query) return true;
+            return (
+                item.title.toLowerCase().includes(query) ||
+                item.category.toLowerCase().includes(query) ||
+                item.level.toLowerCase().includes(query) ||
+                item.textSnippet.toLowerCase().includes(query)
+            );
+        });
+
+        grid.innerHTML = filtered.map(item => `
+            <div style="border:1px solid #e2e8f0; border-radius:10px; padding:9px 11px; background:#f8fafc; display:flex; flex-direction:column; justify-content:space-between; gap:6px;">
+                <div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:4px; margin-bottom:4px;">
+                        <span style="font-size:0.77rem; font-weight:800; color:#1e1b4b;">${escapeHtmlSafe(item.title)}</span>
+                        <span style="font-size:0.66rem; font-weight:800; color:#4338ca; background:#e0e7ff; padding:1px 6px; border-radius:4px;">${escapeHtmlSafe(item.level)}</span>
+                    </div>
+                    <div style="font-size:0.75rem; color:#334155; line-height:1.6; background:#ffffff; padding:6px 8px; border-radius:6px; border:1px solid #e2e8f0;">
+                        ${window.renderMathInText(item.textSnippet)}
+                    </div>
+                </div>
+                <div style="display:flex; gap:6px; justify-content:flex-end;">
+                    <button type="button" onclick="window.loadFormulaBankLatex('${item.id}')" style="padding:4px 9px; border-radius:6px; border:1px solid #cbd5e1; background:#ffffff; color:#1e293b; font-size:0.71rem; font-weight:700; cursor:pointer;">
+                        ✏️ تحميل المعادلة للمحرر
+                    </button>
+                    <button type="button" onclick="window.insertFormulaBankSnippetIntoLessonLog('${item.id}')" style="padding:4px 10px; border-radius:6px; border:none; background:#4f46e5; color:#ffffff; font-size:0.71rem; font-weight:800; cursor:pointer;">
+                        ➕ إدراج النص والصيغة في الدفتر
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    };
+
+    window.loadFormulaBankLatex = function (formulaId) {
+        const item = LESSON_LOG_FORMULA_BANK.find(f => f.id === formulaId);
+        if (!item) return;
+        const textarea = document.getElementById('latexRawInputArea');
+        if (textarea) {
+            textarea.value = item.latexOnly;
+            window.updateLiveLatexPreview();
+        }
+    };
+
+    window.insertFormulaBankSnippetIntoLessonLog = function (formulaId) {
+        const item = LESSON_LOG_FORMULA_BANK.find(f => f.id === formulaId);
+        if (!item) return;
+        insertTextIntoActiveLessonLogTarget(item.textSnippet, true);
+    };
+
+    // ------------------------------------------------------------------------
+    // 6. إدراج الصيغ في حقول دفتر النصوص (الملخص، الواجب، أو الفقرات الفرعية)
+    // ------------------------------------------------------------------------
+    function resolveTargetTextareaElement() {
+        const targetSelect = document.getElementById('latexInsertTargetSelect');
+        const targetVal = targetSelect ? targetSelect.value : 'lessonLogSummary';
+
+        if (targetVal === '_focused_paragraph' && window._lastFocusedLessonLogTextarea) {
+            return window._lastFocusedLessonLogTextarea;
+        }
+        return document.getElementById(targetVal) || document.getElementById('lessonLogSummary');
     }
 
-    function updateFormulaLivePreview() {
-        const textarea = document.getElementById('latexFormulaInput');
-        const preview = document.getElementById('latexFormulaLivePreview');
-        if (!textarea || !preview) return;
+    window.onLatexTargetSelectChange = function () {
+        const targetEl = resolveTargetTextareaElement();
+        const badge = document.getElementById('latexActiveTargetBadge');
+        if (!badge || !targetEl) return;
 
-        const val = (textarea.value || '').trim();
-        if (!val) {
-            preview.innerHTML = '<span style="color: #94a3b8; font-size: 0.85rem;">أدخل كود LaTeX أو اضغط على الرموز أعلاه للمعاينة...</span>';
+        let label = 'ملخص وأنشطة الحصة';
+        if (targetEl.id === 'lessonLogHomework') label = 'الواجب المنزلي / تمارين الدعم';
+        else if (targetEl.id === 'lessonLogNotes') label = 'ملاحظات الحصة';
+        else if (targetEl.classList.contains('paragraph-content-textarea')) {
+            const card = targetEl.closest('.axis-paragraph-card');
+            const numInput = card ? card.querySelector('.paragraph-number-input') : null;
+            const titleInput = card ? card.querySelector('.paragraph-title-input') : null;
+            const numText = numInput && numInput.value ? numInput.value : '';
+            const titleText = titleInput && titleInput.value ? titleInput.value : 'فقرة الدرس';
+            label = `فقرة الدرس ${numText} (${titleText})`;
+        }
+        badge.textContent = `🎯 حقل الإدراج النشط: ${label}`;
+    };
+
+    function insertTextIntoActiveLessonLogTarget(formattedText, closeAfterInsert = true) {
+        const targetEl = resolveTargetTextareaElement();
+        if (!targetEl) {
+            if (typeof window.showToast === 'function') {
+                window.showToast('تعذر العثور على حقل دفتر النصوص المستهدف', 'warning');
+            }
             return;
         }
 
-        preview.innerHTML = renderMathInText(val.startsWith('$') ? val : `$$${val}$$`);
-    }
+        const start = typeof targetEl.selectionStart === 'number' ? targetEl.selectionStart : targetEl.value.length;
+        const end = typeof targetEl.selectionEnd === 'number' ? targetEl.selectionEnd : targetEl.value.length;
+        const currentVal = targetEl.value || '';
+        const prefix = (start > 0 && !currentVal.substring(0, start).endsWith(' ') && !currentVal.substring(0, start).endsWith('\n')) ? ' ' : '';
+        targetEl.value = currentVal.substring(0, start) + prefix + formattedText + ' ' + currentVal.substring(end);
+        targetEl.dispatchEvent(new Event('input', { bubbles: true }));
 
-    function switchLatexModalTab(tabKey) {
-        state.activeTab = tabKey;
-        const genSec = document.getElementById('latexGeneratorSection');
-        const editSec = document.getElementById('latexEditorSection');
-        const sheetSec = document.getElementById('latexSheetSection');
-
-        const btnGen = document.getElementById('tabBtnGenerator');
-        const btnEdit = document.getElementById('tabBtnEditor');
-        const btnSheet = document.getElementById('tabBtnSheet');
-
-        const setBtnStyle = (btn, active) => {
-            if (!btn) return;
-            btn.style.background = active ? '#0d9488' : '#f8fafc';
-            btn.style.color = active ? '#ffffff' : '#475569';
-            btn.style.borderColor = active ? '#0d9488' : '#cbd5e1';
-        };
-
-        if (genSec) genSec.style.display = (tabKey === 'generator') ? 'block' : 'none';
-        if (editSec) editSec.style.display = (tabKey === 'editor') ? 'block' : 'none';
-        if (sheetSec) sheetSec.style.display = (tabKey === 'sheet') ? 'block' : 'none';
-
-        setBtnStyle(btnGen, tabKey === 'generator');
-        setBtnStyle(btnEdit, tabKey === 'editor');
-        setBtnStyle(btnSheet, tabKey === 'sheet');
-
-        if (tabKey === 'sheet') {
-            updateSheetPreview();
+        if (typeof window.updateLessonLogLiveMathPreview === 'function') {
+            window.updateLessonLogLiveMathPreview();
         }
-        if (window.renderLucide) window.renderLucide();
+
+        if (typeof window.showToast === 'function') {
+            window.showToast('تم إدراج الصيغة الرياضية في دفتر النصوص بنجاح', 'success');
+        }
+        if (closeAfterInsert) {
+            window.closeLatexMathModal();
+            setTimeout(() => targetEl.focus(), 80);
+        }
     }
+
+    window.insertLatexIntoTargetField = function () {
+        const rawArea = document.getElementById('latexRawInputArea');
+        if (!rawArea || !rawArea.value.trim()) {
+            if (typeof window.showToast === 'function') {
+                window.showToast('يرجى كتابة أو اختيار صيغة رياضية أولاً', 'warning');
+            }
+            return;
+        }
+
+        const wrapRadio = document.querySelector('input[name="latexWrapMode"]:checked');
+        const isBlock = wrapRadio ? wrapRadio.value === 'block' : false;
+        const rawLatex = rawArea.value.trim();
+        const formatted = isBlock ? `\n$$${rawLatex}$$\n` : `$${rawLatex}$`;
+
+        insertTextIntoActiveLessonLogTarget(formatted, true);
+    };
 
     /**
-     * تحديث ورقة التمارين الرسمية المجهزة للطباعة
+     * فتح محرر LaTeX مباشرة لحقل محدد (مثل فقرة فرعية داخل هيكلة الدرس)
      */
-    function updateSheetPreview() {
-        const container = document.getElementById('latexPrintableSheetContainer');
-        if (!container || !state.currentExercise) return;
+    window.openLatexMathModalForElement = function (textareaEl) {
+        if (textareaEl && (textareaEl.tagName === 'TEXTAREA' || textareaEl.tagName === 'INPUT')) {
+            window._lastFocusedLessonLogTextarea = textareaEl;
+        }
+        window.openLatexMathModal('editor', textareaEl);
+    };
 
-        const teacher = (window.db && window.db.teacherProfile) || {};
-        const academy = teacher.academy || 'جهة الرباط - سلا - القنيطرة';
-        const directorate = teacher.directorate || 'المديرية الإقليمية';
-        const school = teacher.school || 'الثانوية التأهيلية';
-        const teacherName = teacher.name || 'الأستاذ(ة)';
-        const subject = teacher.subject || 'الرياضيات';
-        const academicYear = teacher.academicYear || '2026/2027';
+    // ------------------------------------------------------------------------
+    // 7. حاسبة النسخ والسحب وبطاقة (Bon de Tirage) للوثائق والفروض الخارجية
+    // ------------------------------------------------------------------------
 
-        const title = document.getElementById('latexSheetTitleInput')?.value || 'سلسلة تمارين في مادة الرياضيات';
-        const duration = document.getElementById('latexSheetDurationInput')?.value || 'ساعتان';
-        const ex = state.currentExercise;
+    function populateReproClassesDropdown() {
+        const select = document.getElementById('reproClassSelect');
+        if (!select) return;
 
-        const logosHtml = (typeof window.getDualLogosHTML === 'function')
-            ? window.getDualLogosHTML({ size: 42, title: title, exerciseTitle: ex.title, sessionType: 'exercices' })
-            : '';
-        const exBadgeSvg = (typeof window.getCustomHeaderSvgBadgeHtml === 'function')
-            ? window.getCustomHeaderSvgBadgeHtml({ exerciseTitle: ex.title, title: title, sessionType: 'exercices', size: 22 })
-            : '';
+        const classesMap = (window.db && window.db.classes) ? window.db.classes : {};
+        const classNames = Object.keys(classesMap);
 
-        container.innerHTML = `
-            <div style="font-family: 'Cairo', system-ui, sans-serif; direction: rtl; color: #0f172a; line-height: 1.5;">
-                <!-- Official Moroccan Header with Custom SVG Exercise Icon -->
-                <div style="border-bottom: 2.5px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-                    <div style="font-size: 0.8rem; font-weight: 700; line-height: 1.4; color: #334155;">
-                        <div style="font-size: 0.92rem; font-weight: 900; color: #0f172a;">المملكة المغربية</div>
-                        <div style="color: #1e3a8a; font-weight: 800;">وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
-                        <div>${academy}</div>
-                        <div>${directorate} • ${school}</div>
-                    </div>
-                    <div style="text-align: center;">
-                        <div style="font-size: 1.2rem; font-weight: 900; color: #1e3a8a; display: inline-flex; align-items: center; gap: 7px;">
-                            ${exBadgeSvg}
-                            <span>${title}</span>
-                        </div>
-                        <div style="font-size: 0.85rem; font-weight: 800; color: #0d9488; margin-top: 2px;">المستوى: ${ex.levelLabel}</div>
-                        <div style="font-size: 0.76rem; color: #64748b; font-weight: 700;">الموسم الدراسي: ${academicYear}</div>
-                    </div>
-                    <div style="font-size: 0.8rem; font-weight: 700; line-height: 1.4; text-align: left; color: #334155;">
-                        ${logosHtml ? `<div style="display: flex; justify-content: flex-end; margin-bottom: 4px;">${logosHtml}</div>` : ''}
-                        <div>المادة: <strong style="color: #1e3a8a;">${subject}</strong></div>
-                        <div>الأستاذ: <strong>${teacherName}</strong></div>
-                        <div>مدة الإنجاز: <strong>${duration}</strong></div>
-                        <div>المعامل: <strong>${SECONDARY_MATH_EXERCISE_BANK[state.selectedLevel]?.coefficient || 7}</strong></div>
-                    </div>
-                </div>
+        let optionsHtml = '';
+        let totalAllClasses = 0;
 
-                <!-- Student Info Box -->
-                <div style="display: flex; justify-content: space-between; align-items: center; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 6px 12px; margin-bottom: 14px; font-size: 0.8rem; background: #fafafa;">
-                    <div>الاسم الكامل للتلميذ(ة): ..............................................................</div>
-                    <div>القسم: .....................</div>
-                    <div>الرقم: ...........</div>
-                    <div style="border: 1.5px solid #1e3a8a; padding: 2px 8px; border-radius: 4px; font-weight: 800;">النقطة: ..... / 20</div>
-                </div>
+        classNames.forEach(cName => {
+            const arr = Array.isArray(classesMap[cName]) ? classesMap[cName] : [];
+            totalAllClasses += arr.length;
+            optionsHtml += `<option value="${escapeHtmlSafe(cName)}" data-count="${arr.length}">قسم ${escapeHtmlSafe(cName)} (${arr.length} تلميذاً)</option>`;
+        });
 
-                <!-- Exercise Content -->
-                <div style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 16px; margin-bottom: 14px; background: #ffffff;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 10px;">
-                        <span style="font-weight: 900; font-size: 1.05rem; color: #1e3a8a; display: inline-flex; align-items: center; gap: 6px;">
-                            ${exBadgeSvg}
-                            <span>【 ${ex.title} 】</span>
-                        </span>
-                        <span style="font-size: 0.8rem; font-weight: 800; color: #0d9488; background: #f0fdfa; border: 1px solid #ccfbf1; padding: 2px 8px; border-radius: 4px;">
-                            ${ex.bareme}
-                        </span>
-                    </div>
-                    <div style="font-size: 0.95rem; line-height: 1.85; color: #0f172a;">
-                        ${renderMathInText(ex.latex)}
-                    </div>
-                </div>
+        if (classNames.length > 1) {
+            optionsHtml += `<option value="__ALL__" data-count="${totalAllClasses}">جميع الأقسام المسندة (${totalAllClasses} تلميذاً)</option>`;
+        }
+        if (!optionsHtml) {
+            optionsHtml = `<option value="default" data-count="36">قسم افتراضي (36 تلميذاً)</option>`;
+        }
 
-                <!-- Teacher Remarks & Note Box -->
-                <div style="border-top: 1px solid #cbd5e1; padding-top: 8px; font-size: 0.76rem; color: #64748b; display: flex; justify-content: space-between; align-items: center;">
-                    <span>سلم التنقيط وعناصر الإجابة معتمدة وفق الأطر المرجعية المغربية للامتحانات الإشهادية.</span>
-                    <span>توقيع الأستاذ(ة): .............................</span>
+        select.innerHTML = optionsHtml;
+        window.onReproClassChange();
+    }
+
+    window.onReproClassChange = function () {
+        const select = document.getElementById('reproClassSelect');
+        const countInput = document.getElementById('reproStudentCount');
+        if (!select || !countInput) return;
+
+        const selectedOpt = select.options[select.selectedIndex];
+        const count = selectedOpt ? parseInt(selectedOpt.getAttribute('data-count') || '36', 10) : 36;
+        if (count > 0) {
+            countInput.value = count;
+        }
+        window.recalculateReprographyStats();
+    };
+
+    window.recalculateReprographyStats = function () {
+        const stdCount = Math.max(1, parseInt((document.getElementById('reproStudentCount') || {}).value || '36', 10));
+        const spareCount = Math.max(0, parseInt((document.getElementById('reproSpareCopies') || {}).value || '2', 10));
+        const layoutMode = (document.getElementById('reproLayoutMode') || {}).value || '2up';
+        const duplexMode = (document.getElementById('reproDuplexMode') || {}).value || 'recto';
+
+        const totalCopiesNeeded = stdCount + spareCount;
+        const isTwoPerSheet = (layoutMode === '2up' || layoutMode === 'ab_2up');
+        const sheetsRequired = isTwoPerSheet ? Math.ceil(totalCopiesNeeded / 2) : totalCopiesNeeded;
+        const facesPerSheet = duplexMode === 'duplex' ? 2 : 1;
+        const totalPassages = sheetsRequired * facesPerSheet;
+        const sheetsSaved = isTwoPerSheet ? (totalCopiesNeeded - sheetsRequired) : 0;
+
+        const row = document.getElementById('reproStatsSummaryRow');
+        if (!row) return;
+
+        row.innerHTML = `
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:10px 12px;">
+                <div style="font-size:0.72rem; color:#64748b; font-weight:700;">إجمالي أوراق التلاميذ + الاحتياط</div>
+                <div style="font-size:1.25rem; font-weight:900; color:#0f172a; margin-top:2px;">${totalCopiesNeeded} <span style="font-size:0.75rem; font-weight:600; color:#475569;">نسخة (${stdCount} + ${spareCount})</span></div>
+            </div>
+            <div style="background:#eef2ff; border:1.5px solid #6366f1; border-radius:10px; padding:10px 12px;">
+                <div style="font-size:0.72rem; color:#3730a3; font-weight:800;">عدد أوراق A4 المطلوب سحبها فعلياً</div>
+                <div style="font-size:1.3rem; font-weight:900; color:#1e1b4b; margin-top:2px;">${sheetsRequired} <span style="font-size:0.76rem; font-weight:700; color:#4338ca;">ورقة A4</span></div>
+            </div>
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:10px 12px;">
+                <div style="font-size:0.72rem; color:#64748b; font-weight:700;">مجموع الأوجه المطبوعة (Passages)</div>
+                <div style="font-size:1.25rem; font-weight:900; color:#0f172a; margin-top:2px;">${totalPassages} <span style="font-size:0.75rem; font-weight:600; color:#475569;">وجه مطبوع</span></div>
+            </div>
+            <div style="background:${sheetsSaved > 0 ? '#f0fdf4' : '#f8fafc'}; border:1px solid ${sheetsSaved > 0 ? '#86efac' : '#cbd5e1'}; border-radius:10px; padding:10px 12px;">
+                <div style="font-size:0.72rem; color:${sheetsSaved > 0 ? '#166534' : '#64748b'}; font-weight:700;">الوفر البيئي والمالي في الورق</div>
+                <div style="font-size:1.25rem; font-weight:900; color:${sheetsSaved > 0 ? '#15803d' : '#475569'}; margin-top:2px;">
+                    ${sheetsSaved > 0 ? `توفير ${sheetsSaved} ورقة A4 (50%)` : 'بدون اقتصاد (1 في A4)'}
                 </div>
             </div>
         `;
-    }
+    };
 
-    /**
-     * طباعة ورقة التمارين الرسمية عبر الآي فريم المخصص
-     */
-    function printLatexExerciseSheetDirectly() {
-        const container = document.getElementById('latexPrintableSheetContainer');
-        if (!container) return;
+    window.printBonDeTirageSlip = function () {
+        const info = (window.db && window.db.info) ? window.db.info : {};
+        const select = document.getElementById('reproClassSelect');
+        const classLabel = (select && select.options[select.selectedIndex]) ? select.options[select.selectedIndex].text : 'القسم المستهدف';
+        const stdCount = Math.max(1, parseInt((document.getElementById('reproStudentCount') || {}).value || '36', 10));
+        const spareCount = Math.max(0, parseInt((document.getElementById('reproSpareCopies') || {}).value || '2', 10));
+        const layoutMode = (document.getElementById('reproLayoutMode') || {}).value || '2up';
+        const duplexMode = (document.getElementById('reproDuplexMode') || {}).value || 'recto';
+        const docTitle = ((document.getElementById('reproDocTitleInput') || {}).value || 'فرض محروس / وثيقة تربوية').trim();
 
-        const title = document.getElementById('latexSheetTitleInput')?.value || 'ورقة تمارين الرياضيات';
+        const totalCopies = stdCount + spareCount;
+        const isTwoPerSheet = (layoutMode === '2up' || layoutMode === 'ab_2up');
+        const sheetsRequired = isTwoPerSheet ? Math.ceil(totalCopies / 2) : totalCopies;
+        const layoutText = layoutMode === '2up'
+            ? 'نصف صفحة A5 (نسختان في ورقة A4 واحدة مع القص)'
+            : (layoutMode === 'ab_2up' ? 'الموضوع A والموضوع B متجاوران في ورقة A4' : 'صفحة كاملة A4 لكل تلميذ');
+        const duplexText = duplexMode === 'duplex' ? 'وجه وظهر (Recto-Verso)' : 'وجه واحد (Recto)';
+        const todayStr = new Date().toLocaleDateString('fr-MA');
+
+        const htmlContent = `
+            <div dir="rtl" style="font-family:'Cairo','Tajawal',sans-serif; padding:10mm; color:#0f172a;">
+                <div style="border:2px solid #0f172a; border-radius:10px; padding:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #0f172a; padding-bottom:10px; margin-bottom:14px;">
+                        <div style="font-size:0.85rem; font-weight:700; line-height:1.5;">
+                            <div>الأكاديمية الجهوية للتربية والتكوين: ${escapeHtmlSafe(info.academy || '....................')}</div>
+                            <div>المديرية الإقليمية: ${escapeHtmlSafe(info.province || '....................')}</div>
+                            <div>المؤسسة التعليمية: ${escapeHtmlSafe(info.school || '....................')}</div>
+                        </div>
+                        <div style="text-align:center;">
+                            <div style="font-size:1.2rem; font-weight:900; background:#0f172a; color:#ffffff; padding:6px 18px; border-radius:6px;">بطاقة أمر بالنسخ والسحب (Bon de Tirage)</div>
+                            <div style="font-size:0.8rem; font-weight:700; margin-top:4px;">مصلحة النسخ والطبع والتوثيق التربوي</div>
+                        </div>
+                        <div style="font-size:0.85rem; font-weight:700; text-align:left; line-height:1.5;">
+                            <div>السنة الدراسية: ${escapeHtmlSafe(info.year || '2024/2025')}</div>
+                            <div>تاريخ الإيداع: ${todayStr}</div>
+                            <div>المادة: الرياضيات</div>
+                        </div>
+                    </div>
+
+                    <table style="width:100%; border-collapse:collapse; font-size:0.92rem; margin-bottom:16px;">
+                        <tbody>
+                            <tr>
+                                <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:800; background:#f1f5f9; width:28%;">اسم الأستاذ(ة) طالب السحب:</td>
+                                <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:700;">${escapeHtmlSafe(info.teacher || 'إبراهيم قزيبر')}</td>
+                                <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:800; background:#f1f5f9; width:22%;">طبيعة الوثيقة:</td>
+                                <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:700;">${escapeHtmlSafe(docTitle)}</td>
+                            </tr>
+                            <tr>
+                                <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:800; background:#f1f5f9;">القسم / الفئة المستهدفة:</td>
+                                <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:700;">${escapeHtmlSafe(classLabel)}</td>
+                                <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:800; background:#f1f5f9;">عدد التلاميذ + الاحتياط:</td>
+                                <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:800;">${stdCount} تلميذاً + ${spareCount} احتياط = ${totalCopies} نسخة</td>
+                            </tr>
+                            <tr>
+                                <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:800; background:#f1f5f9;">نمط الإخراج والتخطيط:</td>
+                                <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:700;">${layoutText}</td>
+                                <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:800; background:#f1f5f9;">الطباعة (وجه / ظهر):</td>
+                                <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:700;">${duplexText}</td>
+                            </tr>
+                            <tr>
+                                <td style="border:1px solid #0f172a; padding:10px 12px; font-weight:900; background:#e2e8f0;" colspan="2">إجمالي عدد أوراق A4 المطلوب سحبها من آلة النسخ:</td>
+                                <td style="border:1px solid #0f172a; padding:10px 12px; font-weight:900; font-size:1.15rem; background:#e2e8f0;" colspan="2">${sheetsRequired} ورقة A4 صافية</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; text-align:center; font-size:0.88rem; font-weight:800; margin-top:18px;">
+                        <div style="border:1px dashed #475569; border-radius:8px; padding:10px; min-height:75px;">توقيع الأستاذ(ة)</div>
+                        <div style="border:1px dashed #475569; border-radius:8px; padding:10px; min-height:75px;">تأشيرة الحراسة العامة / الإدارة التربوية</div>
+                        <div style="border:1px dashed #475569; border-radius:8px; padding:10px; min-height:75px;">إشهاد المكلف بمصلحة النسخ والطبع</div>
+                    </div>
+                </div>
+            </div>
+        `;
+
         if (typeof window.printDocumentDirectly === 'function') {
-            window.printDocumentDirectly(container.innerHTML, title, 'portrait');
-        } else {
-            window.print();
+            window.printDocumentDirectly(htmlContent, {
+                title: 'بطاقة أمر بالنسخ والسحب - Bon de Tirage',
+                orientation: 'portrait',
+                pageSize: 'A4'
+            });
         }
-    }
+    };
 
-    /**
-     * إدراج التمرين المختار في دفتر النصوص
-     */
-    function insertCurrentExerciseToLessonLog(targetMode = 'summary') {
-        if (!state.currentExercise) return;
-        const ex = state.currentExercise;
-        const textToInsert = `\n\n📌 【 ${ex.title} (${ex.bareme}) 】\n${ex.latex}\n`;
-
-        if (targetMode === 'summary') {
-            const summaryField = document.getElementById('lessonLogSummary');
-            if (summaryField) {
-                summaryField.value = (summaryField.value || '') + textToInsert;
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast(`تم إدراج [${ex.title}] بنجاح في ملخص وأنشطة الحصة!`, 'success');
+    // ------------------------------------------------------------------------
+    // 8. التحكم في فتح وإغلاق والتنقل بين تبويبات النافذة
+    // ------------------------------------------------------------------------
+    window.switchLatexStudioTab = function (tabKey) {
+        const tabs = ['editor', 'reprography'];
+        tabs.forEach(k => {
+            const contentEl = document.getElementById(`latexStudioTab_${k}`);
+            const btnEl = document.getElementById(`latexTabBtn_${k}`);
+            if (contentEl) contentEl.style.display = (k === tabKey) ? 'block' : 'none';
+            if (btnEl) {
+                if (k === tabKey) {
+                    btnEl.style.background = '#4f46e5';
+                    btnEl.style.color = '#ffffff';
+                    btnEl.style.borderColor = '#4f46e5';
+                } else {
+                    btnEl.style.background = '#ffffff';
+                    btnEl.style.color = '#334155';
+                    btnEl.style.borderColor = '#cbd5e1';
                 }
-            }
-        } else if (targetMode === 'homework') {
-            const hwField = document.getElementById('lessonLogHomework');
-            if (hwField) {
-                hwField.value = (hwField.value ? hwField.value + ' - ' : '') + `إنجاز ${ex.title}: ${ex.latex.substring(0, 80)}...`;
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast(`تم إدراج التمرين في الواجب المنزلي بنجاح!`, 'success');
-                }
-            }
-        }
-
-        closeLatexMathModal();
-    }
-
-    /**
-     * إدراج المعادلة المكتوبة في المحرر داخل دفتر النصوص
-     */
-    function insertEditorFormulaToLessonLog(targetMode = 'summary') {
-        const textarea = document.getElementById('latexFormulaInput');
-        if (!textarea) return;
-
-        let formula = textarea.value.trim();
-        if (!formula) return;
-        if (!formula.startsWith('$')) {
-            formula = `$${formula}$`;
-        }
-
-        if (targetMode === 'summary') {
-            const summaryField = document.getElementById('lessonLogSummary');
-            if (summaryField) {
-                summaryField.value = (summaryField.value || '') + ' ' + formula;
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('تم إدراج صيغة LaTeX في ملخص الحصة!', 'success');
-                }
-            }
-        } else if (targetMode === 'homework') {
-            const hwField = document.getElementById('lessonLogHomework');
-            if (hwField) {
-                hwField.value = (hwField.value || '') + ' ' + formula;
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('تم إدراج صيغة LaTeX في الواجب المنزلي!', 'success');
-                }
-            }
-        }
-
-        closeLatexMathModal();
-    }
-
-    function copyCurrentLatexRaw() {
-        if (!state.currentExercise) return;
-        navigator.clipboard.writeText(state.currentExercise.latex).then(() => {
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast('تم نسخ كود LaTeX إلى الحافظة بنجاح!', 'info');
             }
         });
-    }
 
-    function copyEditorFormulaCode() {
-        const textarea = document.getElementById('latexFormulaInput');
-        if (!textarea) return;
-        navigator.clipboard.writeText(textarea.value).then(() => {
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast('تم نسخ كود المعادلة إلى الحافظة بنجاح!', 'info');
+        if (tabKey === 'reprography') {
+            populateReproClassesDropdown();
+        }
+    };
+
+    window.openLatexMathModal = function (defaultTab, targetTextareaEl) {
+        ensureLatexModalExists();
+        const modal = document.getElementById('latexMathStudioModal');
+        if (!modal) return;
+        modal.style.display = 'flex';
+
+        let resolvedTab = defaultTab || 'editor';
+        const targetSelect = document.getElementById('latexInsertTargetSelect');
+
+        if (defaultTab === 'summary' || defaultTab === 'homework' || defaultTab === 'notes') {
+            resolvedTab = 'editor';
+            const mappedId = defaultTab === 'summary' ? 'lessonLogSummary' : (defaultTab === 'homework' ? 'lessonLogHomework' : 'lessonLogNotes');
+            const mappedEl = document.getElementById(mappedId);
+            if (mappedEl) window._lastFocusedLessonLogTextarea = mappedEl;
+            if (targetSelect) targetSelect.value = mappedId;
+        } else if (targetTextareaEl && (targetTextareaEl.tagName === 'TEXTAREA' || targetTextareaEl.tagName === 'INPUT')) {
+            window._lastFocusedLessonLogTextarea = targetTextareaEl;
+            if (targetSelect) {
+                if (targetTextareaEl.id === 'lessonLogSummary' || targetTextareaEl.id === 'lessonLogHomework' || targetTextareaEl.id === 'lessonLogNotes') {
+                    targetSelect.value = targetTextareaEl.id;
+                } else {
+                    targetSelect.value = '_focused_paragraph';
+                }
             }
-        });
-    }
-
-    function loadExerciseIntoEditor() {
-        if (!state.currentExercise) return;
-        const textarea = document.getElementById('latexFormulaInput');
-        if (textarea) {
-            textarea.value = state.currentExercise.latex;
-            updateFormulaLivePreview();
+        } else if (window._lastFocusedLessonLogTextarea && targetSelect) {
+            const lastEl = window._lastFocusedLessonLogTextarea;
+            if (lastEl.id === 'lessonLogSummary' || lastEl.id === 'lessonLogHomework' || lastEl.id === 'lessonLogNotes') {
+                targetSelect.value = lastEl.id;
+            } else if (lastEl.classList.contains('paragraph-content-textarea') && document.body.contains(lastEl)) {
+                targetSelect.value = '_focused_paragraph';
+            }
         }
-        switchLatexModalTab('editor');
-    }
 
-    function loadExerciseIntoPrintSheet() {
-        updateSheetPreview();
-        switchLatexModalTab('sheet');
-    }
+        window.onLatexTargetSelectChange();
+        window.switchLatexStudioTab(resolvedTab === 'reprography' ? 'reprography' : 'editor');
 
-    function generateRandomVariation() {
-        // تنويع المعاملات العددية في التمرين الحالي
-        if (!state.currentExercise) return;
-        const ex = state.currentExercise;
-        if (typeof window.showAppToast === 'function') {
-            window.showAppToast(`تم تحديث معطيات ${ex.title} بمعاملات بيداغوجية جديدة!`, 'info');
+        const rawArea = document.getElementById('latexRawInputArea');
+        if (rawArea && !rawArea.value.trim()) {
+            rawArea.value = '\\forall x \\in ]0,+\\infty[, \\quad f\'(x) = \\dfrac{1 - \\ln(x)}{x^2}';
         }
-        loadExerciseByIndex(document.getElementById('latexExerciseSelect')?.value || 0);
-    }
+        window.updateLiveLatexPreview();
+    };
 
-    function onLatexLevelChanged(levelKey) {
-        state.selectedLevel = levelKey;
-        populateDomainsForLevel(levelKey);
-    }
-
-    function onLatexDomainChanged(domainKey) {
-        state.selectedDomain = domainKey;
-        populateExercisesForDomain();
-    }
-
-    function onLatexExerciseSelectChanged(idx) {
-        loadExerciseByIndex(parseInt(idx, 10) || 0);
-    }
-
-    function onLatexFormulaInputChanged(val) {
-        updateFormulaLivePreview();
-    }
-
-    // تصدير الواجهات البرمجية العامة إلى النطاق العالمي window
-    window.renderLatexToHtml = renderLatexToHtml;
-    window.renderMathInText = renderMathInText;
-    window.renderMathInContainer = renderMathInContainer;
-    window.openLatexMathModal = openLatexMathModal;
-    window.closeLatexMathModal = closeLatexMathModal;
-    window.switchLatexModalTab = switchLatexModalTab;
-    window.onLatexLevelChanged = onLatexLevelChanged;
-    window.onLatexDomainChanged = onLatexDomainChanged;
-    window.onLatexExerciseSelectChanged = onLatexExerciseSelectChanged;
-    window.onLatexFormulaInputChanged = onLatexFormulaInputChanged;
-    window.generateRandomVariation = generateRandomVariation;
-    window.loadExerciseIntoEditor = loadExerciseIntoEditor;
-    window.loadExerciseIntoPrintSheet = loadExerciseIntoPrintSheet;
-    window.insertCurrentExerciseToLessonLog = insertCurrentExerciseToLessonLog;
-    window.insertEditorFormulaToLessonLog = insertEditorFormulaToLessonLog;
-    window.copyCurrentLatexRaw = copyCurrentLatexRaw;
-    window.copyEditorFormulaCode = copyEditorFormulaCode;
-    window.updateSheetPreview = updateSheetPreview;
-    window.printLatexExerciseSheetDirectly = printLatexExerciseSheetDirectly;
-
-})(window, document);
+    window.closeLatexMathModal = function () {
+        const modal = document.getElementById('latexMathStudioModal');
+        if (modal) modal.style.display = 'none';
+    };
+})();

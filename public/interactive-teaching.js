@@ -310,9 +310,11 @@
         const enrolledStudents = (db.classes && db.classes[targetClass]) ? db.classes[targetClass] : [];
         const studentsCount = enrolledStudents.length;
 
-        // استخراج سجلات القسم لهذا الشهر
-        const records = (db.records || []).filter(r => 
-            r.className === targetClass && 
+        // استخراج سجلات القسم لهذا الشهر عبر الفهرس السريع O(1)
+        const classRecords = (typeof window.getClassRecordsFast === 'function')
+            ? window.getClassRecordsFast(targetClass)
+            : (db.records || []).filter(r => r.className === targetClass);
+        const records = classRecords.filter(r => 
             r.date && 
             r.date.startsWith(targetMonth)
         );
@@ -1345,18 +1347,18 @@
         if (teachingState.isMinimized) {
             widget.style.position = 'fixed';
             widget.style.inset = '';
-            widget.style.top = widget.dataset.savedTop || '78px';
+            widget.style.top = widget.dataset.savedTop || '58px';
             widget.style.left = widget.dataset.savedLeft || '20px';
             widget.style.width = 'auto';
             widget.style.height = 'auto';
             widget.className = 'floating-teaching-timer-minimized';
             widget.innerHTML = `
-                <div onclick="toggleTeachingTimerMinimize()" style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 8px 16px; background: linear-gradient(135deg, #1e1b4b, #312e81); border: 2px solid ${isTimeUp ? '#ef4444' : '#d4af37'}; border-radius: 999px; color: #fff; box-shadow: 0 12px 28px rgba(15, 23, 42, 0.45); font-weight: 800;">
-                    <span style="font-size: 1.1rem;">${isTimeUp ? '⏰' : (teachingState.isPaused ? '⏸️' : '⏱️')}</span>
-                    <span id="teachingTimerClockText" style="color: ${isTimeUp ? '#f87171' : '#38bdf8'}; font-size: 1.05rem; font-family: monospace, sans-serif; letter-spacing: 1px;">${timeStr}</span>
-                    ${teachingState.subTimerRunning ? `<span style="background: rgba(251,191,36,0.2); border: 1px solid #fbbf24; color: #fde68a; padding: 1px 7px; border-radius: 999px; font-size: 0.75rem; font-family: monospace;">⏳ <span id="teachingSubTimerClockText">${formatTime(teachingState.subTimerRemainingSeconds)}</span></span>` : ''}
-                    <span style="font-size: 0.76rem; background: rgba(212, 175, 55, 0.2); color: #fde68a; border: 1px solid rgba(212, 175, 55, 0.45); padding: 2px 8px; border-radius: 6px; font-family: 'Cairo', sans-serif;">${escapeHtml(teachingState.className)}</span>
-                    <span style="font-size: 0.72rem; color: #cbd5e1; font-family: 'Cairo', sans-serif;">${currentPhase.icon} ${currentPhase.shortTitle}</span>
+                <div onclick="toggleTeachingTimerMinimize()" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 14px; background: linear-gradient(135deg, #1e1b4b, #312e81); border: 2px solid ${isTimeUp ? '#ef4444' : '#d4af37'}; border-radius: 999px; color: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.45); font-weight: 800;">
+                    <span style="font-size: 1rem;">${isTimeUp ? '⏰' : (teachingState.isPaused ? '⏸️' : '⏱️')}</span>
+                    <span id="teachingTimerClockText" style="color: ${isTimeUp ? '#f87171' : '#38bdf8'}; font-size: 0.98rem; font-family: monospace, sans-serif; letter-spacing: 1px;">${timeStr}</span>
+                    ${teachingState.subTimerRunning ? `<span style="background: rgba(251,191,36,0.2); border: 1px solid #fbbf24; color: #fde68a; padding: 1px 6px; border-radius: 999px; font-size: 0.72rem; font-family: monospace;">⏳ <span id="teachingSubTimerClockText">${formatTime(teachingState.subTimerRemainingSeconds)}</span></span>` : ''}
+                    <span style="font-size: 0.72rem; background: rgba(212, 175, 55, 0.2); color: #fde68a; border: 1px solid rgba(212, 175, 55, 0.45); padding: 1px 7px; border-radius: 6px; font-family: 'Cairo', sans-serif;">${escapeHtml(teachingState.className)}</span>
+                    <span style="font-size: 0.7rem; color: #cbd5e1; font-family: 'Cairo', sans-serif;">${currentPhase.icon} ${currentPhase.shortTitle}</span>
                 </div>
             `;
             return;
@@ -1364,19 +1366,21 @@
 
         // ضبط التموضع بين الوضع العائم ووضع شاشة العرض الكاملة (Data Show)
         if (teachingState.isProjectorMode) {
-            widget.dataset.savedTop = widget.style.top || '78px';
+            widget.dataset.savedTop = widget.style.top || '58px';
             widget.dataset.savedLeft = widget.style.left || '20px';
             widget.style.position = 'fixed';
             widget.style.top = '0';
             widget.style.left = '0';
             widget.style.width = '100vw';
             widget.style.height = '100vh';
+            widget.style.maxHeight = '100vh';
             widget.style.background = 'rgba(15, 23, 42, 0.88)';
             widget.style.backdropFilter = 'blur(8px)';
             widget.style.display = 'flex';
             widget.style.alignItems = 'center';
             widget.style.justifyContent = 'center';
-            widget.style.padding = '18px';
+            widget.style.padding = '14px';
+            widget.style.overflowY = 'auto';
         } else {
             widget.style.position = 'fixed';
             widget.style.width = 'auto';
@@ -1384,35 +1388,36 @@
             widget.style.background = 'transparent';
             widget.style.backdropFilter = 'none';
             widget.style.padding = '0';
-            widget.style.top = widget.dataset.savedTop || widget.style.top || '72px';
+            widget.style.top = widget.dataset.savedTop || widget.style.top || '58px';
             widget.style.left = widget.dataset.savedLeft || widget.style.left || '20px';
+            widget.style.maxHeight = 'calc(100vh - 66px)';
         }
 
-        // محتوى التبويبات الفرعية الأربعة داخل الويدجت
+        // محتوى التبويبات الفرعية الأربعة داخل الويدجت بصيغة مدمجة ومحكمة الارتفاع
         let tabBodyHtml = '';
 
         if (teachingState.activeTab === 'phases') {
             tabBodyHtml = `
-                <div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 10px; padding: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-size: 0.76rem; font-weight: 800; color: #fde68a;">🧭 المراحل الديداكتيكية للحصة:</span>
-                        <span style="font-size: 0.68rem; color: #94a3b8;">${teachingState.manualPhaseLock ? 'تحكم يدوي' : 'تدرج تلقائي ذكي'}</span>
+                <div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 6px 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <span style="font-size: 0.72rem; font-weight: 800; color: #fde68a;">🧭 المراحل الديداكتيكية للحصة:</span>
+                        <span style="font-size: 0.65rem; color: #94a3b8;">${teachingState.manualPhaseLock ? 'تحكم يدوي' : 'تدرج تلقائي ذكي'}</span>
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <div style="display: flex; flex-direction: column; gap: 3px;">
                         ${DIDACTIC_PHASES.map((p, idx) => {
                             const isCurrent = idx === teachingState.activePhaseIndex;
                             const isDone = teachingState.completedPhases.has(idx) && !isCurrent;
                             const phaseMins = Math.max(5, Math.round((teachingState.totalSeconds / 60) * p.ratio));
                             return `
-                                <div onclick="selectTeachingDidacticPhase(${idx})" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border-radius: 8px; cursor: pointer; transition: all 0.2s; background: ${isCurrent ? 'linear-gradient(90deg, rgba(212, 175, 55, 0.25), rgba(79, 70, 229, 0.25))' : (isDone ? 'rgba(16, 185, 129, 0.1)' : 'rgba(15, 23, 42, 0.5)')}; border: 1px solid ${isCurrent ? '#fbbf24' : (isDone ? 'rgba(16, 185, 129, 0.35)' : 'rgba(71, 85, 105, 0.4)')};">
-                                    <div style="display: flex; align-items: center; gap: 7px;">
-                                        <span style="font-size: 0.9rem;">${isCurrent ? '▶️' : (isDone ? '✅' : p.icon)}</span>
-                                        <div>
-                                            <div style="font-size: ${teachingState.isProjectorMode ? '0.92rem' : '0.78rem'}; font-weight: ${isCurrent ? '900' : '700'}; color: ${isCurrent ? '#fef08a' : (isDone ? '#a7f3d0' : '#e2e8f0')};">${p.title}</div>
-                                            ${isCurrent ? `<div style="font-size: 0.68rem; color: #cbd5e1; margin-top: 1px;">${p.desc}</div>` : ''}
+                                <div onclick="selectTeachingDidacticPhase(${idx})" style="display: flex; align-items: center; justify-content: space-between; padding: 3px 7px; border-radius: 6px; cursor: pointer; transition: all 0.2s; background: ${isCurrent ? 'linear-gradient(90deg, rgba(212, 175, 55, 0.25), rgba(79, 70, 229, 0.25))' : (isDone ? 'rgba(16, 185, 129, 0.1)' : 'rgba(15, 23, 42, 0.5)')}; border: 1px solid ${isCurrent ? '#fbbf24' : (isDone ? 'rgba(16, 185, 129, 0.35)' : 'rgba(71, 85, 105, 0.4)')};">
+                                    <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        <span style="font-size: 0.82rem;">${isCurrent ? '▶️' : (isDone ? '✅' : p.icon)}</span>
+                                        <div style="overflow: hidden; text-overflow: ellipsis;">
+                                            <span style="font-size: ${teachingState.isProjectorMode ? '0.88rem' : '0.74rem'}; font-weight: ${isCurrent ? '900' : '700'}; color: ${isCurrent ? '#fef08a' : (isDone ? '#a7f3d0' : '#e2e8f0')};">${p.title}</span>
+                                            ${isCurrent ? `<span style="font-size: 0.65rem; color: #cbd5e1; margin-right: 5px;">(${p.desc})</span>` : ''}
                                         </div>
                                     </div>
-                                    <span style="font-size: 0.7rem; font-weight: 800; color: ${isCurrent ? '#fbbf24' : '#94a3b8'}; background: rgba(15,23,42,0.6); padding: 2px 6px; border-radius: 4px; white-space: nowrap;">~${phaseMins} د</span>
+                                    <span style="font-size: 0.65rem; font-weight: 800; color: ${isCurrent ? '#fbbf24' : '#94a3b8'}; background: rgba(15,23,42,0.6); padding: 1px 5px; border-radius: 4px; white-space: nowrap; margin-right: 4px;">~${phaseMins} د</span>
                                 </div>
                             `;
                         }).join('')}
@@ -1423,47 +1428,47 @@
             const picked = teachingState.pickedStudent;
 
             tabBodyHtml = `
-                <div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 10px; padding: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;">
-                        <span style="font-size: 0.76rem; font-weight: 800; color: #fde68a;">🎲 القرعة البيداغوجية (يستثني الغائبين تلقائياً):</span>
-                        <select onchange="setTeachingPickerFilter(this.value)" style="background: #0f172a; color: #e2e8f0; border: 1px solid #475569; border-radius: 6px; padding: 2px 6px; font-size: 0.72rem; font-weight: 700; font-family: inherit;">
-                            <option value="all_present" ${teachingState.pickerFilter === 'all_present' ? 'selected' : ''}>جميع الحاضرين (${attendance.presentCount})</option>
-                            <option value="unpicked" ${teachingState.pickerFilter === 'unpicked' ? 'selected' : ''}>لم يشاركوا بعد اليوم</option>
-                            <option value="struggling" ${teachingState.pickerFilter === 'struggling' ? 'selected' : ''}>فئة الدعم والتعثر</option>
+                <div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 6px 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 5px; flex-wrap: wrap;">
+                        <span style="font-size: 0.72rem; font-weight: 800; color: #fde68a;">🎲 القرعة (يستثني الغائبين):</span>
+                        <select onchange="setTeachingPickerFilter(this.value)" style="background: #0f172a; color: #e2e8f0; border: 1px solid #475569; border-radius: 5px; padding: 1px 5px; font-size: 0.68rem; font-weight: 700; font-family: inherit;">
+                            <option value="all_present" ${teachingState.pickerFilter === 'all_present' ? 'selected' : ''}>الحاضرون (${attendance.presentCount})</option>
+                            <option value="unpicked" ${teachingState.pickerFilter === 'unpicked' ? 'selected' : ''}>لم يشاركوا اليوم</option>
+                            <option value="struggling" ${teachingState.pickerFilter === 'struggling' ? 'selected' : ''}>فئة الدعم</option>
                         </select>
                     </div>
 
-                    <button type="button" onclick="pickRandomStudentForTeaching()" style="width: 100%; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; border: 1px solid #a78bfa; padding: 8px 12px; border-radius: 8px; font-weight: 900; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3); margin-bottom: 8px;">
-                        <span>🎲 اختيار تلميذ(ة) للإجابة على السبورة</span>
+                    <button type="button" onclick="pickRandomStudentForTeaching()" style="width: 100%; box-sizing: border-box; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; border: 1px solid #a78bfa; padding: 5px 8px; border-radius: 7px; font-weight: 900; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 3px 10px rgba(124, 58, 237, 0.3); margin-bottom: 5px;">
+                        <span>🎲 اختيار تلميذ(ة) بالقرعة للمشاركة</span>
                     </button>
 
                     ${picked ? `
-                        <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 27, 75, 0.95)); border: 1.5px solid #fbbf24; border-radius: 12px; padding: 12px 14px; text-align: center; box-shadow: 0 8px 20px -4px rgba(0,0,0,0.45);">
-                            <div style="font-size: ${teachingState.isProjectorMode ? '0.92rem' : '0.76rem'}; color: #fde68a; font-weight: 700; margin-bottom: 6px;">🎯 التلميذ(ة) المنتقى للمشاركة على السبورة:</div>
-                            <div style="font-size: ${teachingState.isProjectorMode ? '2.15rem' : '1.42rem'}; font-weight: 900; color: #ffffff; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
-                                <span style="letter-spacing: 0.5px; text-shadow: 0 2px 10px rgba(0,0,0,0.5);">🎓 ${escapeHtml(picked.name)}</span>
-                                ${picked.orderNum ? `<span style="background: rgba(30, 41, 59, 0.9); color: #fef08a; border: 1px solid rgba(251, 191, 36, 0.45); font-size: ${teachingState.isProjectorMode ? '1.05rem' : '0.8rem'}; padding: 2px 8px; border-radius: 6px; font-weight: 800;">رقم ${escapeHtml(picked.orderNum)}</span>` : ''}
+                        <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 27, 75, 0.95)); border: 1.5px solid #fbbf24; border-radius: 9px; padding: 7px 10px; text-align: center; box-shadow: 0 6px 16px -4px rgba(0,0,0,0.45);">
+                            <div style="font-size: ${teachingState.isProjectorMode ? '0.88rem' : '0.72rem'}; color: #fde68a; font-weight: 700; margin-bottom: 3px;">🎯 المنتقى للمشاركة:</div>
+                            <div style="font-size: ${teachingState.isProjectorMode ? '1.8rem' : '1.18rem'}; font-weight: 900; color: #ffffff; margin-bottom: 5px; display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;">
+                                <span style="letter-spacing: 0.5px;">🎓 ${escapeHtml(picked.name)}</span>
+                                ${picked.orderNum ? `<span style="background: rgba(30, 41, 59, 0.9); color: #fef08a; border: 1px solid rgba(251, 191, 36, 0.45); font-size: 0.72rem; padding: 1px 6px; border-radius: 4px; font-weight: 800;">رقم ${escapeHtml(picked.orderNum)}</span>` : ''}
                             </div>
-                            <div style="display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap;">
-                                <span style="background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.45); border-radius: 999px; padding: 3px 12px; font-size: ${teachingState.isProjectorMode ? '0.92rem' : '0.76rem'}; font-weight: 800; display: inline-flex; align-items: center; gap: 5px;">
-                                    <span>✅</span> <span>تم توثيق مشاركة التلميذ(ة) على السبورة</span>
+                            <div style="display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap;">
+                                <span style="background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.45); border-radius: 999px; padding: 2px 8px; font-size: 0.68rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">
+                                    <span>✅</span> <span>تم توثيق المشاركة</span>
                                 </span>
-                                <button type="button" onclick="pickRandomStudentForTeaching()" style="background: rgba(255, 255, 255, 0.1); color: #fde68a; border: 1px solid rgba(251, 191, 36, 0.45); border-radius: 8px; padding: 4px 10px; font-size: ${teachingState.isProjectorMode ? '0.88rem' : '0.74rem'}; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="اختيار تلميذ آخر بالقرعة">
-                                    <span>🎲 اختيار تلميذ آخر</span>
+                                <button type="button" onclick="pickRandomStudentForTeaching()" style="background: rgba(255, 255, 255, 0.1); color: #fde68a; border: 1px solid rgba(251, 191, 36, 0.45); border-radius: 6px; padding: 2px 7px; font-size: 0.68rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="اختيار تلميذ آخر بالقرعة">
+                                    <span>🎲 آخر</span>
                                 </button>
                             </div>
                         </div>
                     ` : `
-                        <div style="text-align: center; font-size: 0.74rem; color: #94a3b8; padding: 6px;">
-                            اضغط على زر القرعة لاختيار تلميذ حاضر بشكل عشوائي وعادل.
+                        <div style="text-align: center; font-size: 0.7rem; color: #94a3b8; padding: 3px;">
+                            اضغط على زر القرعة لاختيار تلميذ حاضر للمشاركة على السبورة.
                         </div>
                     `}
 
                     ${teachingState.sessionParticipations.length > 0 ? `
-                        <div style="margin-top: 8px; border-top: 1px solid rgba(148,163,184,0.2); padding-top: 6px; font-size: 0.72rem; color: #cbd5e1;">
-                            <div style="font-weight: 800; color: #a7f3d0; margin-bottom: 3px;">📋 المشاركون على السبورة في هذه الحصة (${teachingState.sessionParticipations.length}):</div>
-                            <div style="display: flex; gap: 4px; flex-wrap: wrap; max-height: 54px; overflow-y: auto;">
-                                ${teachingState.sessionParticipations.map(p => `<span style="background: rgba(15,23,42,0.75); border: 1px solid #334155; padding: 1px 6px; border-radius: 4px; font-size: 0.68rem;">${escapeHtml(p.name)}</span>`).join('')}
+                        <div style="margin-top: 5px; border-top: 1px solid rgba(148,163,184,0.2); padding-top: 4px; font-size: 0.68rem; color: #cbd5e1;">
+                            <div style="font-weight: 800; color: #a7f3d0; margin-bottom: 2px;">📋 المشاركون في الحصة (${teachingState.sessionParticipations.length}):</div>
+                            <div style="display: flex; gap: 3px; flex-wrap: wrap; max-height: 40px; overflow-y: auto;">
+                                ${teachingState.sessionParticipations.map(p => `<span style="background: rgba(15,23,42,0.75); border: 1px solid #334155; padding: 1px 5px; border-radius: 4px; font-size: 0.65rem;">${escapeHtml(p.name)}</span>`).join('')}
                             </div>
                         </div>
                     ` : ''}
@@ -1474,35 +1479,35 @@
                 ? Math.min(100, Math.max(0, Math.round(((teachingState.subTimerTotalSeconds - teachingState.subTimerRemainingSeconds) / teachingState.subTimerTotalSeconds) * 100)))
                 : 0;
             tabBodyHtml = `
-                <div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 10px; padding: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-size: 0.76rem; font-weight: 800; color: #fde68a;">⏳ مؤقت التمارين والبحث الفردي:</span>
-                        <span style="font-size: 0.7rem; color: #cbd5e1;">${escapeHtml(teachingState.subTimerLabel)}</span>
+                <div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 6px 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <span style="font-size: 0.72rem; font-weight: 800; color: #fde68a;">⏳ مؤقت التمارين والبحث الفردي:</span>
+                        <span style="font-size: 0.67rem; color: #cbd5e1;">${escapeHtml(teachingState.subTimerLabel)}</span>
                     </div>
 
                     <!-- أزرار الضبط السريع لمؤقت التمرين -->
-                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-bottom: 8px;">
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 5px;">
                         ${[2, 3, 5, 10, 15].map(m => `
-                            <button type="button" onclick="startTeachingSubTimer(${m}, 'تمرين تطبيقي (${m} دقائق)')" style="background: rgba(15, 23, 42, 0.8); color: #38bdf8; border: 1px solid #334155; border-radius: 6px; padding: 5px 4px; font-size: 0.74rem; font-weight: 800; cursor: pointer;" onmouseover="this.style.borderColor='#38bdf8'" onmouseout="this.style.borderColor='#334155'">
+                            <button type="button" onclick="startTeachingSubTimer(${m}, 'تمرين تطبيقي (${m} د)')" style="background: rgba(15, 23, 42, 0.8); color: #38bdf8; border: 1px solid #334155; border-radius: 5px; padding: 3px 2px; font-size: 0.68rem; font-weight: 800; cursor: pointer;" onmouseover="this.style.borderColor='#38bdf8'" onmouseout="this.style.borderColor='#334155'">
                                 ${m} د
                             </button>
                         `).join('')}
                     </div>
 
-                    <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid ${teachingState.subTimerRunning ? '#fbbf24' : '#334155'}; border-radius: 8px; padding: 8px; text-align: center; margin-bottom: 8px;">
-                        <div id="teachingSubTimerClockText" style="font-size: ${teachingState.isProjectorMode ? '2.4rem' : '1.65rem'}; font-weight: 900; font-family: monospace; color: ${teachingState.subTimerRemainingSeconds > 0 ? '#fbbf24' : '#94a3b8'}; line-height: 1.1;">
+                    <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid ${teachingState.subTimerRunning ? '#fbbf24' : '#334155'}; border-radius: 7px; padding: 5px; text-align: center; margin-bottom: 5px;">
+                        <div id="teachingSubTimerClockText" style="font-size: ${teachingState.isProjectorMode ? '2.1rem' : '1.45rem'}; font-weight: 900; font-family: monospace; color: ${teachingState.subTimerRemainingSeconds > 0 ? '#fbbf24' : '#94a3b8'}; line-height: 1.05;">
                             ${formatTime(teachingState.subTimerRemainingSeconds)}
                         </div>
-                        <div style="width: 88%; margin: 6px auto 0 auto; background: #1e293b; height: 5px; border-radius: 999px; overflow: hidden;">
+                        <div style="width: 88%; margin: 4px auto 0 auto; background: #1e293b; height: 4px; border-radius: 999px; overflow: hidden;">
                             <div id="teachingSubTimerProgressBar" style="background: linear-gradient(90deg, #f59e0b, #fbbf24); width: ${subPct}%; height: 100%; transition: width 0.4s;"></div>
                         </div>
                     </div>
 
-                    <div style="display: flex; gap: 6px;">
-                        <button type="button" onclick="toggleTeachingSubTimerPause()" style="flex: 1; background: ${teachingState.subTimerRunning ? '#475569' : '#0284c7'}; color: #fff; border: none; border-radius: 6px; padding: 6px; font-size: 0.76rem; font-weight: 800; cursor: pointer;">
-                            ${teachingState.subTimerRunning ? '⏸️ إيقاف مؤقت للتمرين' : '▶️ تشغيل مؤقت التمرين'}
+                    <div style="display: flex; gap: 5px;">
+                        <button type="button" onclick="toggleTeachingSubTimerPause()" style="flex: 1; background: ${teachingState.subTimerRunning ? '#475569' : '#0284c7'}; color: #fff; border: none; border-radius: 5px; padding: 4px 6px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
+                            ${teachingState.subTimerRunning ? '⏸️ إيقاف' : '▶️ تشغيل التمرين'}
                         </button>
-                        <button type="button" onclick="resetTeachingSubTimer()" style="background: #334155; color: #cbd5e1; border: 1px solid #475569; border-radius: 6px; padding: 6px 10px; font-size: 0.74rem; font-weight: 700; cursor: pointer;">
+                        <button type="button" onclick="resetTeachingSubTimer()" style="background: #334155; color: #cbd5e1; border: 1px solid #475569; border-radius: 5px; padding: 4px 8px; font-size: 0.7rem; font-weight: 700; cursor: pointer;">
                             🔄 تصفير
                         </button>
                     </div>
@@ -1511,144 +1516,144 @@
         } else if (teachingState.activeTab === 'board') {
             const mathSyms = ['√', 'π', '∞', '≤', '≥', '≠', '∈', 'ℝ', '⇒', '⇔', '∑', '∫', 'Δ'];
             tabBodyHtml = `
-                <div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 10px; padding: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <span style="font-size: 0.76rem; font-weight: 800; color: #fde68a;">📐 سبورة التمرين والملخص الرياضي السريع:</span>
-                        <span style="font-size: 0.68rem; color: #94a3b8;">يُدمج في دفتر النصوص</span>
+                <div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; padding: 6px 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="font-size: 0.72rem; font-weight: 800; color: #fde68a;">📐 سبورة التمرين والملخص:</span>
+                        <span style="font-size: 0.65rem; color: #94a3b8;">للتوثيق</span>
                     </div>
-                    <div style="display: flex; gap: 3px; flex-wrap: wrap; margin-bottom: 6px;">
+                    <div style="display: flex; gap: 2px; flex-wrap: wrap; margin-bottom: 4px;">
                         ${mathSyms.map(sym => `
-                            <button type="button" onclick="insertTeachingMathSymbol('${sym}')" style="background: #0f172a; color: #38bdf8; border: 1px solid #334155; border-radius: 4px; padding: 2px 6px; font-size: 0.75rem; font-family: monospace; font-weight: 800; cursor: pointer;">${sym}</button>
+                            <button type="button" onclick="insertTeachingMathSymbol('${sym}')" style="background: #0f172a; color: #38bdf8; border: 1px solid #334155; border-radius: 4px; padding: 1px 4px; font-size: 0.7rem; font-family: monospace; font-weight: 800; cursor: pointer;">${sym}</button>
                         `).join('')}
                     </div>
-                    <textarea id="teachingBoardNoteInput" rows="2" oninput="updateTeachingBoardNoteLive(this.value)" placeholder="اكتب رقم التمرين والصفحة أو الخاصية الرياضية لعرضها أمام التلاميذ وتوثيقها..." style="width: 100%; background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 7px; padding: 6px 8px; font-size: ${teachingState.isProjectorMode ? '1rem' : '0.78rem'}; font-family: inherit; resize: vertical; margin-bottom: 6px;">${escapeHtml(teachingState.boardNote)}</textarea>
-                    <input type="text" oninput="updateTeachingHomeworkLive(this.value)" value="${escapeHtml(teachingState.homeworkNote)}" placeholder="🏠 الواجب المنزلي للحصة القادمة (مثال: تمرين 5 و 6 ص 72)..." style="width: 100%; background: #0f172a; color: #fde68a; border: 1px solid #475569; border-radius: 7px; padding: 5px 8px; font-size: 0.76rem; font-family: inherit;">
+                    <textarea id="teachingBoardNoteInput" rows="2" oninput="updateTeachingBoardNoteLive(this.value)" placeholder="رقم التمرين والصفحة أو الخاصية الرياضية..." style="width: 100%; box-sizing: border-box; background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 6px; padding: 4px 6px; font-size: ${teachingState.isProjectorMode ? '0.92rem' : '0.74rem'}; font-family: inherit; resize: none; height: 38px; margin-bottom: 4px;">${escapeHtml(teachingState.boardNote)}</textarea>
+                    <input type="text" oninput="updateTeachingHomeworkLive(this.value)" value="${escapeHtml(teachingState.homeworkNote)}" placeholder="🏠 الواجب المنزلي للحصة القادمة..." style="width: 100%; box-sizing: border-box; background: #0f172a; color: #fde68a; border: 1px solid #475569; border-radius: 6px; padding: 3px 6px; font-size: 0.72rem; font-family: inherit;">
                 </div>
             `;
         }
 
         widget.className = 'floating-teaching-timer-expanded';
-        const cardWidth = teachingState.isProjectorMode ? 'min(920px, 96vw)' : '385px';
+        const cardWidth = teachingState.isProjectorMode ? 'min(920px, 96vw)' : '370px';
 
         widget.innerHTML = `
-            <div style="background: linear-gradient(160deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 27, 75, 0.98) 100%); backdrop-filter: blur(14px); border: 2px solid ${isTimeUp ? '#ef4444' : '#d4af37'}; border-radius: 18px; width: ${cardWidth}; max-width: 96vw; padding: ${teachingState.isProjectorMode ? '22px' : '15px'}; box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.65); color: #f8fafc; font-family: 'Cairo', sans-serif;">
+            <div style="background: linear-gradient(160deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 27, 75, 0.98) 100%); backdrop-filter: blur(14px); border: 2px solid ${isTimeUp ? '#ef4444' : '#d4af37'}; border-radius: 14px; width: ${cardWidth}; max-width: 96vw; max-height: ${teachingState.isProjectorMode ? '94vh' : 'calc(100vh - 68px)'}; display: flex; flex-direction: column; padding: ${teachingState.isProjectorMode ? '16px 20px' : '9px 11px'}; box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.7); color: #f8fafc; font-family: 'Cairo', sans-serif; box-sizing: border-box;">
                 
                 <!-- Header (Drag Handle) -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid rgba(212, 175, 55, 0.25); padding-bottom: 8px; cursor: ${teachingState.isProjectorMode ? 'default' : 'move'};" id="teachingTimerDragHandle">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="background: rgba(212, 175, 55, 0.18); border: 1px solid rgba(212, 175, 55, 0.5); color: #fbbf24; width: 32px; height: 32px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.05rem;">⏱️</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-bottom: 1px solid rgba(212, 175, 55, 0.25); padding-bottom: 4px; cursor: ${teachingState.isProjectorMode ? 'default' : 'move'};" id="teachingTimerDragHandle">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="background: rgba(212, 175, 55, 0.18); border: 1px solid rgba(212, 175, 55, 0.5); color: #fbbf24; width: 26px; height: 26px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.95rem;">⏱️</span>
                         <div>
-                            <div style="font-weight: 900; font-size: ${teachingState.isProjectorMode ? '1.1rem' : '0.88rem'}; color: #ffffff; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <div style="font-weight: 900; font-size: ${teachingState.isProjectorMode ? '1.05rem' : '0.84rem'}; color: #ffffff; display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
                                 <span>وضع التدريس التفاعلي</span>
-                                <span style="background: ${teachingState.isAutoDetectedLive ? '#059669' : '#4f46e5'}; color: #fff; font-size: 0.64rem; padding: 1px 7px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.25);">
-                                    ${teachingState.isAutoDetectedLive ? '🟢 مرتبط بجدول الحصص' : '⚡ نشط'}
+                                <span style="background: ${teachingState.isAutoDetectedLive ? '#059669' : '#4f46e5'}; color: #fff; font-size: 0.62rem; padding: 1px 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.25);">
+                                    ${teachingState.isAutoDetectedLive ? '🟢 مرتبط بالجدول' : '⚡ نشط'}
                                 </span>
                             </div>
-                            <div style="font-size: 0.71rem; color: #cbd5e1;">${escapeHtml(teachingState.slotLabel)}</div>
+                            <div style="font-size: 0.67rem; color: #cbd5e1; line-height: 1.1;">${escapeHtml(teachingState.slotLabel)}</div>
                         </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                        <button type="button" onclick="toggleTeachingProjectorMode()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 6px; color: #fde68a; cursor: pointer; padding: 4px 7px; font-size: 0.74rem; font-weight: 800;" title="${teachingState.isProjectorMode ? 'العودة للوضع العائم' : 'تكبير للعرض على السبورة / Data Show'}">
+                    <div style="display: flex; align-items: center; gap: 3px;">
+                        <button type="button" onclick="toggleTeachingProjectorMode()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 6px; color: #fde68a; cursor: pointer; padding: 3px 6px; font-size: 0.7rem; font-weight: 800;" title="${teachingState.isProjectorMode ? 'العودة للوضع العائم' : 'تكبير للعرض على السبورة / Data Show'}">
                             ${teachingState.isProjectorMode ? '🗗 عائم' : '🖥️ Data Show'}
                         </button>
-                        <button type="button" onclick="toggleTeachingTimerMinimize()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #cbd5e1; cursor: pointer; padding: 4px 7px; font-size: 0.75rem;" title="تصغير المؤقت إلى شريط عائم">
+                        <button type="button" onclick="toggleTeachingTimerMinimize()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #cbd5e1; cursor: pointer; padding: 3px 6px; font-size: 0.72rem;" title="تصغير المؤقت إلى شريط عائم">
                             🗕
                         </button>
-                        <button type="button" onclick="stopInteractiveTeachingMode()" style="background: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; color: #fca5a5; cursor: pointer; padding: 4px 7px; font-weight: bold; font-size: 0.75rem;" title="إغلاق وضع التدريس التفاعلي">
+                        <button type="button" onclick="stopInteractiveTeachingMode()" style="background: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; color: #fca5a5; cursor: pointer; padding: 3px 6px; font-weight: bold; font-size: 0.72rem;" title="إغلاق وضع التدريس التفاعلي">
                             ✕
                         </button>
                     </div>
                 </div>
 
                 <!-- Class Selector + Live Attendance Snapshot -->
-                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 10px; padding: 6px 10px; margin-bottom: 8px; gap: 8px; flex-wrap: wrap;">
-                    <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 150px;">
-                        <span style="color: #fde68a; font-size: 0.76rem; font-weight: 800; white-space: nowrap;">القسم:</span>
-                        <select onchange="window.setTeachingSessionClass(this.value)" style="flex: 1; background: #0f172a; color: #38bdf8; border: 1px solid #475569; padding: 4px 8px; border-radius: 6px; font-weight: 900; font-size: 0.8rem; font-family: inherit;">
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 8px; padding: 3px 8px; margin-bottom: 5px; gap: 6px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 5px; flex: 1; min-width: 130px;">
+                        <span style="color: #fde68a; font-size: 0.72rem; font-weight: 800; white-space: nowrap;">القسم:</span>
+                        <select onchange="window.setTeachingSessionClass(this.value)" style="flex: 1; background: #0f172a; color: #38bdf8; border: 1px solid #475569; padding: 2px 6px; border-radius: 5px; font-weight: 800; font-size: 0.76rem; font-family: inherit;">
                             ${classes.map(c => `<option value="${escapeHtml(c)}" ${c === teachingState.className ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
                         </select>
                     </div>
-                    <div onclick="openAttendanceForTeachingClass()" style="display: flex; align-items: center; gap: 6px; font-size: 0.72rem; cursor: pointer; background: rgba(30, 41, 59, 0.9); padding: 3px 8px; border-radius: 6px; border: 1px solid #334155;" title="اضغط للانتقال إلى سجل الغياب لهذا القسم">
+                    <div onclick="openAttendanceForTeachingClass()" style="display: flex; align-items: center; gap: 4px; font-size: 0.68rem; cursor: pointer; background: rgba(30, 41, 59, 0.9); padding: 2px 6px; border-radius: 5px; border: 1px solid #334155;" title="اضغط للانتقال إلى سجل الغياب لهذا القسم">
                         <span style="color: #6ee7b7; font-weight: 800;">حاضر: ${attendance.presentCount}/${attendance.total}</span>
                         <span style="color: ${attendance.absentCount > 0 ? '#fca5a5' : '#94a3b8'}; font-weight: 800;">• غائب: ${attendance.absentCount}</span>
                     </div>
                 </div>
 
                 <!-- Editable Lesson Topic Input -->
-                <div style="margin-bottom: 10px;">
-                    <input type="text" value="${escapeHtml(teachingState.sessionTopic)}" oninput="updateTeachingSessionTopicLive(this.value)" placeholder="📖 عنوان الدرس أو المحور الجاري (يُرحّل تلقائياً لدفتر النصوص)..." style="width: 100%; background: rgba(15, 23, 42, 0.75); color: #f8fafc; border: 1px solid rgba(212, 175, 55, 0.35); border-radius: 8px; padding: 6px 10px; font-size: ${teachingState.isProjectorMode ? '0.95rem' : '0.78rem'}; font-weight: 700; font-family: inherit;">
+                <div style="margin-bottom: 5px;">
+                    <input type="text" value="${escapeHtml(teachingState.sessionTopic)}" oninput="updateTeachingSessionTopicLive(this.value)" placeholder="📖 عنوان الدرس أو المحور الجاري (يُرحّل تلقائياً لدفتر النصوص)..." style="width: 100%; box-sizing: border-box; background: rgba(15, 23, 42, 0.75); color: #f8fafc; border: 1px solid rgba(212, 175, 55, 0.35); border-radius: 7px; padding: 3px 8px; font-size: ${teachingState.isProjectorMode ? '0.9rem' : '0.74rem'}; font-weight: 700; font-family: inherit;">
                 </div>
 
                 <!-- Main Countdown Digital Display + Phase Indicator -->
-                <div style="text-align: center; margin-bottom: 10px; background: ${isTimeUp ? 'rgba(239, 68, 68, 0.18)' : 'rgba(15, 23, 42, 0.75)'}; border: 1.5px solid ${isTimeUp ? '#ef4444' : 'rgba(212, 175, 55, 0.4)'}; border-radius: 12px; padding: 10px 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: #cbd5e1; margin-bottom: 4px;">
+                <div style="text-align: center; margin-bottom: 5px; background: ${isTimeUp ? 'rgba(239, 68, 68, 0.18)' : 'rgba(15, 23, 42, 0.75)'}; border: 1.5px solid ${isTimeUp ? '#ef4444' : 'rgba(212, 175, 55, 0.4)'}; border-radius: 10px; padding: 5px 9px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.68rem; color: #cbd5e1; margin-bottom: 2px;">
                         <span style="color: #fde68a; font-weight: 800;">${currentPhase.icon} ${currentPhase.title}</span>
-                        <span id="teachingTimerProgressLabel" style="color: #94a3b8; font-weight: 700;">${percent}% من زمن الحصة</span>
+                        <span id="teachingTimerProgressLabel" style="color: #94a3b8; font-weight: 700;">${percent}% من الحصة</span>
                     </div>
 
-                    <div id="teachingTimerClockText" style="font-size: ${teachingState.isProjectorMode ? '3.8rem' : '2.35rem'}; font-weight: 900; font-family: monospace, sans-serif; letter-spacing: 2px; color: ${isTimeUp ? '#ef4444' : (isWarning ? '#fbbf24' : '#38bdf8')}; line-height: 1.05;">
+                    <div id="teachingTimerClockText" style="font-size: ${teachingState.isProjectorMode ? '3.4rem' : '1.85rem'}; font-weight: 900; font-family: monospace, sans-serif; letter-spacing: 1.5px; color: ${isTimeUp ? '#ef4444' : (isWarning ? '#fbbf24' : '#38bdf8')}; line-height: 1.05;">
                         ${timeStr}
                     </div>
 
                     <!-- Progress bar -->
-                    <div style="width: 92%; margin: 8px auto 6px auto; background: #1e293b; height: 7px; border-radius: 999px; overflow: hidden;">
+                    <div style="width: 94%; margin: 4px auto 3px auto; background: #1e293b; height: 5px; border-radius: 999px; overflow: hidden;">
                         <div id="teachingTimerProgressBar" style="background: ${isTimeUp ? '#ef4444' : 'linear-gradient(90deg, #d4af37, #38bdf8)'}; width: ${percent}%; height: 100%; border-radius: 999px; transition: width 0.5s;"></div>
                     </div>
 
                     <!-- Quick Duration Presets (55m, 60m, 110m, 120m) -->
-                    <div style="display: flex; justify-content: center; align-items: center; gap: 5px; margin-top: 4px; flex-wrap: wrap;">
-                        <span style="font-size: 0.66rem; color: #94a3b8;">مدة الحصة:</span>
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 4px; margin-top: 2px; flex-wrap: wrap;">
+                        <span style="font-size: 0.63rem; color: #94a3b8;">المدة:</span>
                         ${[
                             { m: 55, l: '55 د' },
                             { m: 60, l: '1 س' },
                             { m: 110, l: '1س50' },
                             { m: 120, l: '2 س' }
                         ].map(preset => `
-                            <button type="button" onclick="setTeachingDurationPreset(${preset.m})" style="background: rgba(51, 65, 85, 0.6); color: #e2e8f0; border: 1px solid #475569; border-radius: 5px; padding: 1px 6px; font-size: 0.66rem; font-weight: 700; cursor: pointer;">${preset.l}</button>
+                            <button type="button" onclick="setTeachingDurationPreset(${preset.m})" style="background: rgba(51, 65, 85, 0.6); color: #e2e8f0; border: 1px solid #475569; border-radius: 4px; padding: 1px 5px; font-size: 0.63rem; font-weight: 700; cursor: pointer;">${preset.l}</button>
                         `).join('')}
                     </div>
                 </div>
 
                 <!-- Interactive Pedagogical Sub-Tabs Bar -->
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px; background: rgba(15, 23, 42, 0.7); padding: 4px; border-radius: 9px; border: 1px solid rgba(148, 163, 184, 0.2);">
-                    <button type="button" onclick="switchTeachingHudTab('phases')" style="background: ${teachingState.activeTab === 'phases' ? 'linear-gradient(135deg, #d4af37, #b45309)' : 'transparent'}; color: ${teachingState.activeTab === 'phases' ? '#fff' : '#cbd5e1'}; border: none; border-radius: 6px; padding: 5px 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer; font-family: inherit;">
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-bottom: 5px; background: rgba(15, 23, 42, 0.7); padding: 3px; border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.2);">
+                    <button type="button" onclick="switchTeachingHudTab('phases')" style="background: ${teachingState.activeTab === 'phases' ? 'linear-gradient(135deg, #d4af37, #b45309)' : 'transparent'}; color: ${teachingState.activeTab === 'phases' ? '#fff' : '#cbd5e1'}; border: none; border-radius: 5px; padding: 3px 2px; font-size: 0.69rem; font-weight: 800; cursor: pointer; font-family: inherit;">
                         🧭 المراحل
                     </button>
-                    <button type="button" onclick="switchTeachingHudTab('picker')" style="background: ${teachingState.activeTab === 'picker' ? 'linear-gradient(135deg, #d4af37, #b45309)' : 'transparent'}; color: ${teachingState.activeTab === 'picker' ? '#fff' : '#cbd5e1'}; border: none; border-radius: 6px; padding: 5px 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer; font-family: inherit;">
+                    <button type="button" onclick="switchTeachingHudTab('picker')" style="background: ${teachingState.activeTab === 'picker' ? 'linear-gradient(135deg, #d4af37, #b45309)' : 'transparent'}; color: ${teachingState.activeTab === 'picker' ? '#fff' : '#cbd5e1'}; border: none; border-radius: 5px; padding: 3px 2px; font-size: 0.69rem; font-weight: 800; cursor: pointer; font-family: inherit;">
                         🎲 القرعة (${teachingState.sessionParticipations.length})
                     </button>
-                    <button type="button" onclick="switchTeachingHudTab('subtimer')" style="background: ${teachingState.activeTab === 'subtimer' ? 'linear-gradient(135deg, #d4af37, #b45309)' : 'transparent'}; color: ${teachingState.activeTab === 'subtimer' ? '#fff' : '#cbd5e1'}; border: none; border-radius: 6px; padding: 5px 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer; font-family: inherit;">
+                    <button type="button" onclick="switchTeachingHudTab('subtimer')" style="background: ${teachingState.activeTab === 'subtimer' ? 'linear-gradient(135deg, #d4af37, #b45309)' : 'transparent'}; color: ${teachingState.activeTab === 'subtimer' ? '#fff' : '#cbd5e1'}; border: none; border-radius: 5px; padding: 3px 2px; font-size: 0.69rem; font-weight: 800; cursor: pointer; font-family: inherit;">
                         ⏳ تمرين ${teachingState.subTimerRunning ? '🟢' : ''}
                     </button>
-                    <button type="button" onclick="switchTeachingHudTab('board')" style="background: ${teachingState.activeTab === 'board' ? 'linear-gradient(135deg, #d4af37, #b45309)' : 'transparent'}; color: ${teachingState.activeTab === 'board' ? '#fff' : '#cbd5e1'}; border: none; border-radius: 6px; padding: 5px 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer; font-family: inherit;">
+                    <button type="button" onclick="switchTeachingHudTab('board')" style="background: ${teachingState.activeTab === 'board' ? 'linear-gradient(135deg, #d4af37, #b45309)' : 'transparent'}; color: ${teachingState.activeTab === 'board' ? '#fff' : '#cbd5e1'}; border: none; border-radius: 5px; padding: 3px 2px; font-size: 0.69rem; font-weight: 800; cursor: pointer; font-family: inherit;">
                         📐 السبورة
                     </button>
                 </div>
 
-                <!-- Active Sub-Tab Body -->
-                <div style="margin-bottom: 10px;">
+                <!-- Active Sub-Tab Body (Scrollable container for height control) -->
+                <div style="flex: 1 1 auto; min-height: 0; max-height: ${teachingState.isProjectorMode ? '340px' : '140px'}; overflow-y: auto; overflow-x: hidden; margin-bottom: 5px; padding-left: 2px;">
                     ${tabBodyHtml}
                 </div>
 
                 <!-- Main Timer Controls Toolbar -->
-                <div style="display: flex; gap: 6px; justify-content: center; align-items: center; margin-bottom: 8px;">
-                    <button type="button" onclick="toggleTeachingTimerPause()" style="flex: 1; background: ${teachingState.isPaused ? '#10b981' : '#334155'}; color: #fff; border: 1px solid ${teachingState.isPaused ? '#34d399' : '#475569'}; padding: 7px 10px; border-radius: 8px; font-weight: 800; font-size: 0.78rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px;">
-                        <span>${teachingState.isPaused ? '▶️ استئناف الحصة' : '⏸️ إيقاف مؤقت'}</span>
+                <div style="display: flex; gap: 5px; justify-content: center; align-items: center; margin-bottom: 5px;">
+                    <button type="button" onclick="toggleTeachingTimerPause()" style="flex: 1; background: ${teachingState.isPaused ? '#10b981' : '#334155'}; color: #fff; border: 1px solid ${teachingState.isPaused ? '#34d399' : '#475569'}; padding: 5px 8px; border-radius: 7px; font-weight: 800; font-size: 0.74rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                        <span>${teachingState.isPaused ? '▶️ استئناف' : '⏸️ إيقاف مؤقت'}</span>
                     </button>
-                    <button type="button" onclick="extendTeachingTimer(5)" style="background: #1e293b; color: #f8fafc; border: 1px solid #475569; padding: 7px 9px; border-radius: 8px; font-weight: 800; font-size: 0.75rem; cursor: pointer;" title="إضافة 5 دقائق للحصة">
+                    <button type="button" onclick="extendTeachingTimer(5)" style="background: #1e293b; color: #f8fafc; border: 1px solid #475569; padding: 5px 7px; border-radius: 7px; font-weight: 800; font-size: 0.72rem; cursor: pointer;" title="إضافة 5 دقائق للحصة">
                         +5 د
                     </button>
-                    <button type="button" onclick="extendTeachingTimer(-5)" style="background: #1e293b; color: #cbd5e1; border: 1px solid #475569; padding: 7px 9px; border-radius: 8px; font-weight: 800; font-size: 0.75rem; cursor: pointer;" title="إنقاص 5 دقائق من المؤقت">
+                    <button type="button" onclick="extendTeachingTimer(-5)" style="background: #1e293b; color: #cbd5e1; border: 1px solid #475569; padding: 5px 7px; border-radius: 7px; font-weight: 800; font-size: 0.72rem; cursor: pointer;" title="إنقاص 5 دقائق من المؤقت">
                         -5 د
                     </button>
-                    <button type="button" onclick="toggleTeachingSound()" style="background: #1e293b; color: ${teachingState.soundEnabled ? '#fbbf24' : '#94a3b8'}; border: 1px solid #475569; padding: 7px 10px; border-radius: 8px; font-size: 0.82rem; cursor: pointer;" title="تفعيل/تعطيل التنبيه الصوتي">
+                    <button type="button" onclick="toggleTeachingSound()" style="background: #1e293b; color: ${teachingState.soundEnabled ? '#fbbf24' : '#94a3b8'}; border: 1px solid #475569; padding: 5px 8px; border-radius: 7px; font-size: 0.78rem; cursor: pointer;" title="تفعيل/تعطيل التنبيه الصوتي">
                         ${teachingState.soundEnabled ? '🔔' : '🔕'}
                     </button>
                 </div>
 
                 <!-- Finish Session & Auto-Document in Cahier de Textes -->
-                <button type="button" onclick="finishTeachingSession()" style="width: 100%; background: linear-gradient(135deg, #d4af37, #b45309); color: #ffffff; border: 1px solid #fde68a; padding: 9px 12px; border-radius: 9px; font-weight: 900; font-size: 0.84rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 14px rgba(212, 175, 55, 0.35);">
-                    <span>✍️ إنهاء الحصة وتوثيقها تلقائياً في دفتر النصوص ⚡</span>
+                <button type="button" onclick="finishTeachingSession()" style="width: 100%; box-sizing: border-box; background: linear-gradient(135deg, #d4af37, #b45309); color: #ffffff; border: 1px solid #fde68a; padding: 6px 10px; border-radius: 8px; font-weight: 900; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 3px 10px rgba(212, 175, 55, 0.3);">
+                    <span>✍️ إنهاء الحصة وتوثيقها في دفتر النصوص ⚡</span>
                 </button>
             </div>
         `;
@@ -1684,8 +1689,10 @@
             if (!isDragging) return;
             const dx = e.clientX - startX;
             const dy = e.clientY - startY;
-            const newLeft = `${Math.max(10, Math.min(window.innerWidth - 360, startLeft + dx))}px`;
-            const newTop = `${Math.max(10, Math.min(window.innerHeight - 100, startTop + dy))}px`;
+            const maxLeft = Math.max(10, window.innerWidth - (widget.offsetWidth || 370) - 10);
+            const maxTop = Math.max(10, window.innerHeight - (widget.offsetHeight || 380) - 10);
+            const newLeft = `${Math.max(10, Math.min(maxLeft, startLeft + dx))}px`;
+            const newTop = `${Math.max(10, Math.min(maxTop, startTop + dy))}px`;
             widget.style.left = newLeft;
             widget.style.top = newTop;
             widget.dataset.savedLeft = newLeft;
@@ -1757,7 +1764,7 @@
             el = document.createElement('div');
             el.id = 'floatingTeachingTimerWidget';
             el.style.position = 'fixed';
-            el.style.top = '72px';
+            el.style.top = '58px';
             el.style.left = '20px';
             el.style.zIndex = '10050';
             el.style.direction = 'rtl';
@@ -1838,7 +1845,7 @@
         // 4. تعبئة الحقول والقيم الافتراضية
         if (typeSelect) typeSelect.value = prefillData.type || 'soutien';
         if (reasonInput) reasonInput.value = prefillData.reason || 'معالجة التعثرات والأخطاء المرصودة في الفرض المحروس';
-        if (slotSelect) slotSelect.value = prefillData.timeSlot || 'السبت: 14:30 - 16:30';
+        if (slotSelect) slotSelect.value = prefillData.timeSlot || 'السبت: 14:00 - 16:00';
         if (customTimeInput) {
             customTimeInput.style.display = 'none';
             customTimeInput.value = '';
@@ -1876,12 +1883,24 @@
     window.onExtraSessionTimeSlotChanged = function () {
         const slotSelect = document.getElementById('extraSessionTimeSlot');
         const customInput = document.getElementById('extraSessionCustomTime');
-        if (!slotSelect || !customInput) return;
+        const durationSelect = document.getElementById('extraSessionDuration');
+        if (!slotSelect) return;
+
         if (slotSelect.value === 'custom') {
-            customInput.style.display = 'block';
-            customInput.focus();
+            if (customInput) {
+                customInput.style.display = 'block';
+                customInput.focus();
+            }
         } else {
-            customInput.style.display = 'none';
+            if (customInput) customInput.style.display = 'none';
+            // المواءمة التلقائية لمدد حصص الدعم (ساعة ونصف أو ساعتان)
+            if (durationSelect && slotSelect.value) {
+                if (slotSelect.value.includes('ساعة ونصف') || slotSelect.value.includes('1:30') || slotSelect.value.includes('15:30') || slotSelect.value.includes('10:30') || slotSelect.value.includes('16:30')) {
+                    durationSelect.value = '1.5';
+                } else if (slotSelect.value.includes('ساعتان') || slotSelect.value.includes('2h')) {
+                    durationSelect.value = '2';
+                }
+            }
         }
     };
 
@@ -1928,7 +1947,7 @@
         const sessionNum = numInput ? numInput.value.trim() : '';
         const sessionType = typeSelect ? typeSelect.value : 'soutien';
         const reason = reasonInput ? reasonInput.value.trim() : '';
-        let timeSlot = slotSelect ? slotSelect.value : 'السبت: 14:30 - 16:30';
+        let timeSlot = slotSelect ? slotSelect.value : 'السبت: 14:00 - 16:00';
         if (timeSlot === 'custom') {
             timeSlot = (customTimeInput && customTimeInput.value.trim()) ? customTimeInput.value.trim() : 'توقيت استثنائي مخصص';
         }

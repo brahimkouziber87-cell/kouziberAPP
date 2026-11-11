@@ -143,7 +143,7 @@ const PRESET_LEVELS: Record<string, {
   '1BAC_SM': {
     name: 'الأولى باكالوريا علوم رياضية',
     stream: 'شعبة العلوم الرياضية',
-    coef: 7,
+    coef: 9,
     duration: 'ساعتان (2h)',
     domains: [
       { name: 'المنطق الرياضي والمجموعات والتطبيقات', defaultPoints: 5, weightPct: 25 },
@@ -556,7 +556,7 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
     <tr>
       <td style="width: 35%;">
         <strong>المملكة المغربية</strong><br>
-        وزارة التربية الوطنية والتعليم الأولي والرياضة<br>
+        وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
         المؤسسة: ${establishment || 'الثانوية التأهيلية'}<br>
         الأستاذ(ة): ${teacherName || 'أستاذ مادة الرياضيات'}
       </td>

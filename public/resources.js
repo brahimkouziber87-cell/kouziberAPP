@@ -314,7 +314,7 @@
             const folderId = GoogleDriveLibrary.extractFolderId(rawVal);
 
             if (!folderId) {
-                alert('يرجى وضع رابط مجلد Google Drive صحيح أو معرّف المجلد (Folder ID).');
+                showLibraryToast('⚠️ يرجى وضع رابط مجلد Google Drive صحيح أو معرّف المجلد (Folder ID).');
                 return;
             }
 
@@ -380,7 +380,16 @@
                 console.error("Verification error:", err);
                 if (previewBox) previewBox.style.display = 'none';
                 if (statusEl) statusEl.textContent = '';
-                alert('خطأ أثناء التحقق من المجلد: ' + err.message);
+                if (typeof window.logCloudSyncError === 'function') {
+                    window.logCloudSyncError({
+                        service: 'Google Drive',
+                        operation: 'VERIFY_FOLDER',
+                        folderId: folderId,
+                        folderName: `فحص مجلد (${folderId.slice(0, 10)}...)`,
+                        error: err
+                    });
+                }
+                showLibraryToast('⚠️ خطأ أثناء التحقق من المجلد: ' + err.message);
             } finally {
                 if (verifyBtn) verifyBtn.disabled = false;
             }
@@ -454,7 +463,7 @@
             const statusEl = document.getElementById('libDriveActionStatus');
 
             if (!folderId) {
-                alert('يرجى إدخال رابط مجلد Google Drive أو معرّف المجلد.');
+                showLibraryToast('⚠️ يرجى إدخال رابط مجلد Google Drive أو معرّف المجلد.');
                 return;
             }
 
@@ -526,7 +535,16 @@
             } catch(err) {
                 console.error("Linking error:", err);
                 if (statusEl) statusEl.textContent = '';
-                alert('حدث خطأ أثناء ربط المجلد: ' + err.message);
+                if (typeof window.logCloudSyncError === 'function') {
+                    window.logCloudSyncError({
+                        service: 'Google Drive',
+                        operation: 'LINK_FOLDER',
+                        folderId: folderId,
+                        folderName: `ربط مجلد (${folderId.slice(0, 10)}...)`,
+                        error: err
+                    });
+                }
+                showLibraryToast('⚠️ حدث خطأ أثناء ربط المجلد: ' + err.message);
             } finally {
                 if (actionBtn) actionBtn.disabled = false;
             }
@@ -539,7 +557,18 @@
 
             const token = await getLibraryDriveToken(interactive);
             if (!token) {
-                if (!silent) alert('يرجى تسجيل الدخول بحساب Google أولاً للمزامنة.');
+                if (typeof window.logCloudSyncError === 'function') {
+                    window.logCloudSyncError({
+                        service: 'Google Drive',
+                        operation: 'FOLDER_SYNC',
+                        folderId: folder.id,
+                        folderName: folder.name || folder.id,
+                        code: 'OAUTH_TOKEN_MISSING',
+                        message: 'تعذر مزامنة المجلد لعدم توفر رمز مصادقة Google Drive نشط.',
+                        fixActionType: 'reauth_google'
+                    });
+                }
+                if (!silent) showLibraryToast('⚠️ يرجى تسجيل الدخول بحساب Google أولاً للمزامنة.');
                 return { error: 'No token' };
             }
 
@@ -623,7 +652,17 @@
                 return { newCount, updatedCount, totalDriveFiles: driveFiles.length };
             } catch (err) {
                 console.error("Sync error for folder " + folderId, err);
-                if (!silent) alert('خطأ أثناء مزامنة المجلد: ' + err.message);
+                if (typeof window.logCloudSyncError === 'function') {
+                    window.logCloudSyncError({
+                        service: 'Google Drive',
+                        operation: 'FOLDER_SYNC',
+                        folderId: folder.id,
+                        folderName: folder.name || folderId,
+                        error: err,
+                        fixActionType: 'retry_folder'
+                    });
+                }
+                if (!silent) showLibraryToast('⚠️ خطأ أثناء مزامنة المجلد: ' + err.message);
                 return { error: err.message };
             }
         }
@@ -631,7 +670,7 @@
 
         async function syncAllLinkedDriveFolders(interactive = false) {
             if (!db.libraryDriveFolders || db.libraryDriveFolders.length === 0) {
-                if (interactive) alert('لا توجد مجلدات Google Drive مربوطة حالياً. يمكنك ربط مجلد جديد عبر نموذج الإضافة أعلاه.');
+                if (interactive) showLibraryToast('ℹ️ لا توجد مجلدات Google Drive مربوطة حالياً. يمكنك ربط مجلد جديد عبر نموذج الإضافة أعلاه.');
                 return;
             }
 
@@ -801,9 +840,30 @@
             const folder = db.libraryDriveFolders.find(f => f.id === folderId);
             if (!folder) return;
 
-            const newName = prompt(`تعديل اسم المجلد "${folder.name}":`, folder.name);
-            if (newName && newName.trim()) {
-                folder.name = newName.trim();
+            const nameBox = document.getElementById('driveFolderNameInline_' + folderId);
+            if (nameBox) {
+                const safeCurrent = String(folder.name || '').replace(/"/g, '&quot;');
+                nameBox.innerHTML = `
+                    <input type="text" id="driveFolderNameInput_${folderId}" value="${safeCurrent}" onkeydown="if(event.key==='Enter'){saveInlineFolderName('${folderId}');}" style="padding:3px 8px;border:1.5px solid #2563eb;border-radius:6px;font-size:0.84rem;font-weight:800;color:#0f172a;width:190px;" />
+                    <button type="button" onclick="saveInlineFolderName('${folderId}')" style="background:#2563eb;color:#ffffff;border:none;border-radius:5px;padding:3px 8px;font-size:0.72rem;font-weight:800;cursor:pointer;">حفظ</button>
+                    <button type="button" onclick="renderDriveFoldersManagerList()" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:5px;padding:3px 7px;font-size:0.72rem;cursor:pointer;">إلغاء</button>
+                `;
+                const inp = document.getElementById('driveFolderNameInput_' + folderId);
+                if (inp) { inp.focus(); inp.select(); }
+                return;
+            }
+        }
+        window.editFolderName = editFolderName;
+        window.editFolderCourse = editFolderName;
+
+        window.saveInlineFolderName = function(folderId) {
+            if (!db.libraryDriveFolders) return;
+            const folder = db.libraryDriveFolders.find(f => f.id === folderId);
+            if (!folder) return;
+            const inp = document.getElementById('driveFolderNameInput_' + folderId);
+            const newName = inp ? inp.value.trim() : '';
+            if (newName) {
+                folder.name = newName;
                 if (db.library) {
                     db.library.forEach(item => {
                         if (item.driveFolderId === folderId) {
@@ -815,29 +875,41 @@
                 renderDriveFoldersManagerList();
                 renderLinkedDriveFolders();
                 renderLibrary();
-                showLibraryToast(`تم تحديث اسم المجلد إلى "${folder.name}".`);
+                showLibraryToast(`✓ تم تحديث اسم المجلد إلى "${folder.name}".`);
             }
-        }
-        window.editFolderName = editFolderName;
-        window.editFolderCourse = editFolderName;
+        };
 
         function renderDriveFoldersManagerList() {
             const listEl = document.getElementById('driveFoldersManagerList');
             if (!listEl) return;
 
+            const topSyncToolbarHtml = `
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:9px 12px;margin-bottom:10px;">
+                    <span style="font-size:0.78rem;color:#0369a1;font-weight:800;">⚙️ هل ترغب في إدارة مزامنة Firestore أو مراجعة سجل أخطاء المزامنة؟</span>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <button type="button" onclick="closeDriveFoldersManagerModal(); if(window.openAdvancedCloudSyncSettingsModal) window.openAdvancedCloudSyncSettingsModal('modules');" style="background:#0f172a;color:#ffffff;border:none;padding:5px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;">
+                            🗄️ إعدادات مجلدات Firestore & Drive
+                        </button>
+                        <button type="button" onclick="closeDriveFoldersManagerModal(); if(window.openAdvancedCloudSyncSettingsModal) window.openAdvancedCloudSyncSettingsModal('errors');" style="background:#fff1f2;color:#be123c;border:1px solid #fecdd3;padding:5px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;">
+                            🛠️ سجل أخطاء المزامنة (${typeof window.getCloudSyncErrorLogs === 'function' ? window.getCloudSyncErrorLogs().length : 0})
+                        </button>
+                    </div>
+                </div>
+            `;
+
             if (!db.libraryDriveFolders || db.libraryDriveFolders.length === 0) {
-                listEl.innerHTML = `
+                listEl.innerHTML = topSyncToolbarHtml + `
                     <div style="text-align: center; color: #64748b; padding: 25px; border: 1.5px dashed #cbd5e1; border-radius: 10px; background: #f8fafc;">
                         <span data-lucide="folder-x" data-size="32" style="color: #94a3b8; display: block; margin: 0 auto 8px auto;"></span>
                         <div style="font-weight: 700; color: #334155; margin-bottom: 4px;">لا توجد أي مجلدات مربوطة حالياً</div>
-                        <div style="font-size: 0.8rem; color: #64748b;">قم بربط أول مجلد Google Drive عبر تبويب المكتبة للبدء في الاستيراد والمزامنة التلقائية.</div>
+                        <div style="font-size: 0.8rem; color: #64748b;">قم بربط أول مجلد Google Drive عبر تبويب المكتبة للبدء في الاستيراد والمزامنة التلقائية أو اليدوية.</div>
                     </div>
                 `;
                 if (window.lucide) window.lucide.createIcons();
                 return;
             }
 
-            let html = '';
+            let html = topSyncToolbarHtml;
             db.libraryDriveFolders.forEach(folder => {
                 const isAuto = folder.autoSync !== false;
                 html += `
@@ -847,7 +919,7 @@
                                 <span data-lucide="folder" data-size="22"></span>
                             </div>
                             <div>
-                                <div style="display: flex; align-items: center; gap: 8px;">
+                                <div id="driveFolderNameInline_${folder.id}" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                     <div style="font-weight: 800; font-size: 0.95rem; color: #1e3a8a;">📁 ${folder.name}</div>
                                     <button type="button" onclick="editFolderName('${folder.id}')" style="background: none; border: none; color: #2563eb; cursor: pointer; padding: 1px 4px; font-size: 0.72rem; text-decoration: underline;" title="تعديل اسم المجلد">تعديل الاسم</button>
                                 </div>
@@ -2199,7 +2271,7 @@
             },
             {
                 id: 'official_men',
-                title: 'وزارة التربية الوطنية والتعليم الأولي والرياضة',
+                title: 'وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل',
                 url: 'https://www.men.gov.ma',
                 type: 'link',
                 category: 'رابط رسمي',

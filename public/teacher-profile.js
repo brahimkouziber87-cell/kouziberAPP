@@ -2185,7 +2185,7 @@
                     </div>
 
                     <div style="text-align: center; flex: 1;">
-                        <div style="font-size: 14px; font-weight: 900; color: #1e3a8a; margin-bottom: 2px;">المملكة المغربية • وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                        <div style="font-size: 14px; font-weight: 900; color: #1e3a8a; margin-bottom: 2px;">المملكة المغربية • وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                         <div style="font-size: 11.5px; font-weight: 800; color: #0284c7; margin-bottom: 2px;">${escapeHtml(tp.academy || 'الأكاديمية الجهوية للتربية والتكوين')}</div>
                         <div style="font-size: 11px; font-weight: 700; color: #334155; margin-bottom: 6px;">المديرية الإقليمية: ${escapeHtml(tp.directorate || 'المديرية')} | المؤسسة: ${escapeHtml(tp.school || 'المؤسسة التعليمية')}</div>
                         <div style="display: inline-block; background: #eff6ff; border: 1.5px solid #1e3a8a; color: #1e3a8a; font-size: 13px; font-weight: 900; padding: 4px 18px; border-radius: 999px;">

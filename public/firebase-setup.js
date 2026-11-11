@@ -50,6 +50,15 @@ function buildFirestoreErrorInfo(error, operationType, path) {
 function handleFirestoreError(error, operationType, path, shouldThrow = false) {
   const errInfo = buildFirestoreErrorInfo(error, operationType, path);
   console.warn('Firestore Operation Diagnostic:', JSON.stringify(errInfo));
+  if (typeof window.logCloudSyncError === 'function') {
+    window.logCloudSyncError({
+      service: 'Firestore',
+      operation: operationType || 'WRITE',
+      folderName: path || 'users/cloud_backup',
+      error: error,
+      details: errInfo
+    });
+  }
   if (shouldThrow) {
     throw new Error(JSON.stringify(errInfo));
   }
@@ -58,15 +67,15 @@ function handleFirestoreError(error, operationType, path, shouldThrow = false) {
 window.handleFirestoreError = handleFirestoreError;
 
 async function testConnection() {
+  if (!auth || !auth.currentUser) return;
   try {
-    await getDocFromServer(doc(dbFirestore, 'test', 'connection'));
+    await getDocFromServer(doc(dbFirestore, 'users', auth.currentUser.uid));
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
       console.warn("Please check your Firebase configuration.");
     }
   }
 }
-testConnection();
 
 function safeStringify(obj, space) {
     const seen = new WeakSet();
@@ -383,15 +392,28 @@ window.syncToFirebase = async (data, preSerialized) => {
                 success: false,
                 cloud: false,
                 reason: 'auth_required',
-                error: 'النسخ السحابي يتطلب تسجيل الدخول بحساب Google للتحقق من ملكية البريد الإلكتروني.'
+                error: 'النسخ السحابي في Firestore يتطلب مصادقة Google الرسمية (OAuth) للتحقق من ملكية البريد الإلكتروني.'
             };
+            if (typeof window.logCloudSyncError === 'function') {
+                window.logCloudSyncError({
+                    service: 'Firestore',
+                    operation: 'AUTH_CHECK',
+                    folderName: 'قاعدة بيانات Firestore الرئيسية',
+                    code: 'auth/session-not-verified',
+                    message: authResult.error,
+                    fixActionType: 'reauth_google'
+                });
+            }
             window.dispatchEvent(new CustomEvent('cloudSyncResult', { detail: authResult }));
             return authResult;
         }
         const userDocPath = `users/${user.uid}`;
         try {
             const nowIso = new Date().toISOString();
-            const rawString = (typeof preSerialized === 'string' && preSerialized.length > 2) ? preSerialized : safeStringify(data);
+            const filteredData = typeof window.buildFilteredCloudPayloadForAutoSync === 'function'
+                ? window.buildFilteredCloudPayloadForAutoSync(data || window.db || {})
+                : (data || window.db || {});
+            const rawString = (typeof preSerialized === 'string' && preSerialized.length > 2) ? preSerialized : safeStringify(filteredData);
 
             // 1. ضغط البيانات لتقليص الحجم بنسبة 80-95%
             const { compressed, data: payloadString } = await compressString(rawString);
@@ -887,7 +909,10 @@ window.autoSyncToGoogleDrive = (data) => {
     try {
       updateDriveSyncHeaderBadge('saving', 'جاري الحفظ السحابي...');
       
-      const payloadObj = Object.assign({}, data || window.db || {});
+      const rawDataObj = Object.assign({}, data || window.db || {});
+      const payloadObj = typeof window.buildFilteredCloudPayloadForAutoSync === 'function'
+        ? window.buildFilteredCloudPayloadForAutoSync(rawDataObj)
+        : rawDataObj;
       payloadObj._lastSavedAt = new Date().toISOString();
       payloadObj._lastSavedTimestamp = Date.now();
       payloadObj._lastSavedDevice = navigator.userAgent.includes('Mobile') ? 'هاتف محمول' : (navigator.userAgent.includes('Mac') ? 'جهاز Mac' : 'حاسوب مكتبي');
@@ -896,8 +921,9 @@ window.autoSyncToGoogleDrive = (data) => {
 
       if (isRealOAuthToken(cachedAccessToken)) {
         const fileId = await getBackupFileId(cachedAccessToken);
+        let driveRes;
         if (fileId) {
-          await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+          driveRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
             method: 'PATCH',
             headers: { 
               Authorization: `Bearer ${cachedAccessToken}`,
@@ -911,16 +937,24 @@ window.autoSyncToGoogleDrive = (data) => {
           formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
           formData.append('file', new Blob([serialized], { type: 'application/json' }));
 
-          await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+          driveRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
             method: 'POST',
             headers: { Authorization: `Bearer ${cachedAccessToken}` },
             body: formData
           });
         }
+        if (driveRes && !driveRes.ok) {
+          const errTxt = await driveRes.text().catch(() => '');
+          throw new Error(`Google Drive HTTP ${driveRes.status}: ${errTxt.slice(0, 160) || driveRes.statusText}`);
+        }
       }
 
       if (user && typeof window.syncToFirebase === 'function') {
         await window.syncToFirebase(payloadObj, serialized);
+      }
+
+      if (typeof window.markAutoSyncedModulesTimestamp === 'function') {
+        window.markAutoSyncedModulesTimestamp(payloadObj._lastSavedAt);
       }
 
       localStorage.setItem('absence_massar_v8_last_saved_time', payloadObj._lastSavedAt);
@@ -931,6 +965,14 @@ window.autoSyncToGoogleDrive = (data) => {
       window.dispatchEvent(new CustomEvent('gdriveSyncSuccess', { detail: { timestamp: new Date() } }));
     } catch (err) {
       console.warn("Silent Drive auto-sync failed:", err?.message || String(err));
+      if (typeof window.logCloudSyncError === 'function') {
+        window.logCloudSyncError({
+          service: 'Google Drive',
+          operation: 'AUTO_SYNC',
+          folderName: 'ملف النسخة الاحتياطية (app_backup.json)',
+          error: err
+        });
+      }
       updateDriveSyncHeaderBadge('synced', 'السحابة متصلة');
     } finally {
       isDriveSyncing = false;
@@ -1208,6 +1250,15 @@ window.openDriveSyncCenterModal = async () => {
             <span>استعادة من السحابة</span>
           </button>
         </div>
+        <button type="button" onclick="window.closeDriveSyncCenterModal(); window.openAdvancedCloudSyncSettingsModal('folders');" style="background: #0f172a; border: 1.5px solid #334155; color: #f8fafc; padding: 10px 12px; font-size: 0.82rem; font-weight: 800; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <span style="display: inline-flex; align-items: center; gap: 7px;">
+            <span data-lucide="sliders" data-size="15" style="color: #38bdf8;"></span>
+            <span>إعدادات المزامنة المتقدمة (لكل مجلد) وسجل الأخطاء</span>
+          </span>
+          <span style="background: rgba(56, 189, 248, 0.16); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 900;">
+            ${(typeof window.getCloudSyncErrorLogs === 'function' ? window.getCloudSyncErrorLogs().length : 0)} سجل
+          </span>
+        </button>
       </div>
 
       ${isConnected ? `
@@ -1244,15 +1295,19 @@ window.openGmailQuickSwitchModal = (prefillEmail = '') => {
     document.body.appendChild(modal);
   }
 
+  const escapeAttr = (str) => String(str || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const currentUser = getEffectiveUser();
-  const currentEmail = prefillEmail || (currentUser ? currentUser.email : (localStorage.getItem('gdrive_last_email') || 'brahim.kouziber87@gmail.com'));
+  const currentEmail = escapeAttr(prefillEmail || (currentUser ? currentUser.email : (localStorage.getItem('gdrive_last_email') || 'brahim.kouziber87@gmail.com')));
   const historyEmails = getGmailHistoryList();
 
-  const chipsHtml = historyEmails.map(em => `
-    <button type="button" onclick="const inp=document.getElementById('gmailQuickSwitchInput'); if(inp){inp.value='${em}'; inp.focus();}" style="background: #f0f9ff; border: 1px solid #bae6fd; color: #0369a1; font-size: 0.74rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; cursor: pointer; direction: ltr;">
-      ${em}
+  const chipsHtml = historyEmails.map(em => {
+    const safeEm = escapeAttr(em);
+    return `
+    <button type="button" onclick="const inp=document.getElementById('gmailQuickSwitchInput'); if(inp){inp.value='${safeEm}'; inp.focus();}" style="background: #f0f9ff; border: 1px solid #bae6fd; color: #0369a1; font-size: 0.74rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; cursor: pointer; direction: ltr;">
+      ${safeEm}
     </button>
-  `).join('');
+  `;
+  }).join('');
 
   modal.innerHTML = `
     <div class="drive-sync-modal-card" style="max-width: 470px;">
@@ -1911,7 +1966,7 @@ window.deleteCloudBackup = async () => {
   let firestoreDeleted = false;
   let driveDeleted = false;
 
-  if (user && user.uid) {
+  if (user && user.uid && auth && auth.currentUser) {
       const candidateUids = [user.uid];
       if (user.email) {
           const gmailSlot = computeGmailUid(user.email);
@@ -1989,3 +2044,1043 @@ document.addEventListener('visibilitychange', () => {
     }
   }
 });
+
+// ============================================================================
+// شاشة الإعدادات المتقدمة لإدارة عمليات الربط والمزامنة مع Google Drive و Firestore
+// تتيح اختيار المزامنة (تلقائية / يدوية) لكل مجلد على حدة + سجل أخطاء المزامنة والتشخيص
+// ============================================================================
+
+const CLOUD_SYNC_MODULES_STORAGE_KEY = 'cloud_sync_modules_config_v1';
+const CLOUD_SYNC_ERROR_LOGS_STORAGE_KEY = 'cloud_sync_error_logs_v1';
+const CLOUD_SYNC_SNAPSHOT_CACHE_KEY = 'cloud_sync_manual_snapshots_v1';
+
+const CLOUD_SYNC_DATA_FOLDERS = [
+  {
+    id: 'classes_students',
+    name: 'مجلد لوائح الأقسام والتلاميذ والإعدادات',
+    service: 'Firestore & Google Drive',
+    icon: 'users',
+    color: '#2563eb',
+    bg: '#eff6ff',
+    border: '#bfdbfe',
+    description: 'يشمل قوائم الأقسام المسندة، بيانات التلاميذ وأرقام مسار، والبطاقة الشخصية للأستاذ.',
+    dbKeys: ['classes', 'classOrder', 'teacherProfile', 'settings', 'disabledDates', 'holidays']
+  },
+  {
+    id: 'attendance_behavior',
+    name: 'مجلد سجل المواظبة والغياب والسلوك',
+    service: 'Firestore & Google Drive',
+    icon: 'calendar-check',
+    color: '#dc2626',
+    bg: '#fef2f2',
+    border: '#fecaca',
+    description: 'يشمل سجلات الغياب اليومية، التبريرات، التأخرات، وملاحظات الانضباط والسلوك الصفي.',
+    dbKeys: ['records', 'behaviors', 'notes', 'attendanceArchive', 'behaviorLogs']
+  },
+  {
+    id: 'grades_exams',
+    name: 'مجلد نقط الفروض والمراقبة المستمرة',
+    service: 'Firestore & Google Drive',
+    icon: 'award',
+    color: '#059669',
+    bg: '#ecfdf5',
+    border: '#a7f3d0',
+    description: 'يشمل نقط الفروض المحروسة، الأنشطة المندمجة، الأوزان، وجداول تقييم المكتسبات.',
+    dbKeys: ['grades', 'examConfigs', 'competencyTables', 'gradeScales']
+  },
+  {
+    id: 'textbook_curriculum',
+    name: 'مجلد دفتر النصوص والتوزيع السنوي والمحاور',
+    service: 'Firestore & Google Drive',
+    icon: 'book-open',
+    color: '#7c3aed',
+    bg: '#f5f3ff',
+    border: '#ddd6fe',
+    description: 'يشمل حصص دفتر النصوص الرقمي، التدرج السنوي للمقرر، وملاحظات فقرات المحاور.',
+    dbKeys: ['textbook', 'curriculum', 'lessonNotes', 'axisParagraphNotes', 'timetable']
+  },
+  {
+    id: 'library_resources',
+    name: 'مجلد حقيبة الموارد الرقمية ومجلدات Drive',
+    service: 'Google Drive & Firestore',
+    icon: 'folder-open',
+    color: '#d97706',
+    bg: '#fffbeb',
+    border: '#fde68a',
+    description: 'يشمل فهرس الوثائق التربوية، الفروض، السلاسل، وروابط مجلدات Google Drive المربوطة.',
+    dbKeys: ['library', 'libraryDriveFolders', 'sharedResources']
+  }
+];
+
+function getCloudSyncModulesConfig() {
+  const defaults = {};
+  CLOUD_SYNC_DATA_FOLDERS.forEach(folder => {
+    defaults[folder.id] = {
+      mode: 'auto', // 'auto' | 'manual'
+      lastSyncAt: localStorage.getItem('absence_massar_v8_last_saved_time') || null,
+      lastStatus: 'ok'
+    };
+  });
+  try {
+    const raw = localStorage.getItem(CLOUD_SYNC_MODULES_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        CLOUD_SYNC_DATA_FOLDERS.forEach(f => {
+          if (parsed[f.id]) {
+            defaults[f.id] = Object.assign({}, defaults[f.id], parsed[f.id]);
+          }
+        });
+      }
+    }
+  } catch (e) {}
+  return defaults;
+}
+window.getCloudSyncModulesConfig = getCloudSyncModulesConfig;
+
+function saveCloudSyncModulesConfig(cfg) {
+  try {
+    localStorage.setItem(CLOUD_SYNC_MODULES_STORAGE_KEY, JSON.stringify(cfg));
+    if (window.db && typeof window.db === 'object') {
+      window.db.cloudSyncConfig = cfg;
+    }
+  } catch (e) {}
+}
+
+window.setCloudDataFolderSyncMode = (folderId, mode) => {
+  const cfg = getCloudSyncModulesConfig();
+  if (!cfg[folderId]) cfg[folderId] = {};
+  cfg[folderId].mode = mode === 'manual' ? 'manual' : 'auto';
+  saveCloudSyncModulesConfig(cfg);
+
+  // If switched to manual, snapshot current keys so background auto-sync preserves last manual snapshot
+  if (cfg[folderId].mode === 'manual') {
+    snapshotManualCloudFolder(folderId);
+  }
+  if (typeof window.showAppToast === 'function') {
+    const folderMeta = CLOUD_SYNC_DATA_FOLDERS.find(f => f.id === folderId);
+    const title = folderMeta ? folderMeta.name : folderId;
+    window.showAppToast(
+      cfg[folderId].mode === 'auto'
+        ? `🟢 تم تفعيل المزامنة التلقائية لـ «${title}».`
+        : `⚪ تم ضبط «${title}» على وضع المزامنة اليدوية فقط.`,
+      'info'
+    );
+  }
+  renderAdvancedCloudSyncModalContent();
+};
+
+function snapshotManualCloudFolder(folderId) {
+  try {
+    const folderMeta = CLOUD_SYNC_DATA_FOLDERS.find(f => f.id === folderId);
+    if (!folderMeta || !window.db) return;
+    const cacheRaw = localStorage.getItem(CLOUD_SYNC_SNAPSHOT_CACHE_KEY);
+    const cache = cacheRaw ? JSON.parse(cacheRaw) : {};
+    const snap = {};
+    folderMeta.dbKeys.forEach(k => {
+      if (window.db[k] !== undefined) {
+        snap[k] = window.db[k];
+      }
+    });
+    cache[folderId] = snap;
+    localStorage.setItem(CLOUD_SYNC_SNAPSHOT_CACHE_KEY, safeStringify(cache));
+  } catch (e) {}
+}
+
+window.buildFilteredCloudPayloadForAutoSync = (sourceData) => {
+  const cloned = Object.assign({}, sourceData || {});
+  try {
+    const cfg = getCloudSyncModulesConfig();
+    const cacheRaw = localStorage.getItem(CLOUD_SYNC_SNAPSHOT_CACHE_KEY);
+    const cache = cacheRaw ? JSON.parse(cacheRaw) : {};
+    CLOUD_SYNC_DATA_FOLDERS.forEach(folder => {
+      const folderCfg = cfg[folder.id];
+      if (folderCfg && folderCfg.mode === 'manual' && cache[folder.id]) {
+        folder.dbKeys.forEach(k => {
+          if (cache[folder.id][k] !== undefined) {
+            cloned[k] = cache[folder.id][k];
+          }
+        });
+      }
+    });
+  } catch (e) {}
+  return cloned;
+};
+
+window.markAutoSyncedModulesTimestamp = (isoStr) => {
+  const cfg = getCloudSyncModulesConfig();
+  CLOUD_SYNC_DATA_FOLDERS.forEach(folder => {
+    if (!cfg[folder.id] || cfg[folder.id].mode !== 'manual') {
+      if (!cfg[folder.id]) cfg[folder.id] = { mode: 'auto' };
+      cfg[folder.id].lastSyncAt = isoStr || new Date().toISOString();
+      cfg[folder.id].lastStatus = 'ok';
+    }
+  });
+  saveCloudSyncModulesConfig(cfg);
+};
+
+window.syncSingleCloudDataFolderNow = async (folderId) => {
+  const folderMeta = CLOUD_SYNC_DATA_FOLDERS.find(f => f.id === folderId);
+  if (!folderMeta) return;
+  try {
+    snapshotManualCloudFolder(folderId);
+    const cfg = getCloudSyncModulesConfig();
+    if (!cfg[folderId]) cfg[folderId] = { mode: 'manual' };
+    cfg[folderId].lastSyncAt = new Date().toISOString();
+    cfg[folderId].lastStatus = 'syncing';
+    saveCloudSyncModulesConfig(cfg);
+    renderAdvancedCloudSyncModalContent();
+
+    await window.handleBackupToDrive();
+
+    cfg[folderId].lastSyncAt = new Date().toISOString();
+    cfg[folderId].lastStatus = 'ok';
+    saveCloudSyncModulesConfig(cfg);
+    renderAdvancedCloudSyncModalContent();
+    if (typeof window.showAppToast === 'function') {
+      window.showAppToast(`✅ تمت المزامنة اليدوية لمجلد «${folderMeta.name}» بنجاح مع السحابة.`, 'success');
+    }
+  } catch (err) {
+    window.logCloudSyncError({
+      service: 'Firestore & Drive',
+      operation: 'MANUAL_FOLDER_SYNC',
+      folderId: folderMeta.id,
+      folderName: folderMeta.name,
+      error: err
+    });
+    renderAdvancedCloudSyncModalContent();
+  }
+};
+
+// ----------------------------------------------------------------------------
+// محرك سجل أخطاء المزامنة والتشخيص الذكي (Sync Error Log & Troubleshooter)
+// ----------------------------------------------------------------------------
+
+function diagnoseCloudSyncError(rawMessage, code, service, operation) {
+  const msg = String(rawMessage || '').toLowerCase();
+  const cd = String(code || '').toLowerCase();
+
+  if (msg.includes('401') || msg.includes('unauthenticated') || msg.includes('invalid credentials') || msg.includes('token') || cd.includes('auth')) {
+    return {
+      arabicDiagnosis: 'انتهت صلاحية جلسة المصادقة (OAuth Access Token) أو لم يتم منح صلاحية الوصول إلى حساب Google.',
+      fixRecommendation: 'انقر على زر «إعادة مصادقة Google» لتجديد رمز الأمان وربط الحساب رسمياً.',
+      fixActionType: 'reauth_google'
+    };
+  }
+  if (msg.includes('403') || msg.includes('permission') || cd.includes('permission-denied') || msg.includes('insufficient')) {
+    return {
+      arabicDiagnosis: service === 'Firestore'
+        ? 'قواعد أمان Firestore ترفض الكتابة بدون جلسة بريد إلكتروني موثق عبر Google Auth.'
+        : 'المجلد في Google Drive خاص أو لا يملك الحساب الحالي صلاحية القراءة/التعديل عليه.',
+      fixRecommendation: service === 'Firestore'
+        ? 'قم بتسجيل الدخول عبر نافذة Google الرسمية (OAuth) لتوثيق ملكية البريد الإلكتروني.'
+        : 'تأكد من مشاركة المجلد في Google Drive أو تسجيل الدخول بنفس حساب Gmail المالك للمجلد.',
+      fixActionType: 'reauth_google'
+    };
+  }
+  if (msg.includes('404') || msg.includes('not found')) {
+    return {
+      arabicDiagnosis: 'المجلد أو الملف المطلوب غير موجود في Google Drive (ربما تم حذفه أو تغير معرّف الرابط Folder ID).',
+      fixRecommendation: 'تحقق من رابط المجلد في Google Drive أو أعد ربط المجلد من قائمة مجلدات حسابك.',
+      fixActionType: 'retry_folder'
+    };
+  }
+  if (msg.includes('offline') || msg.includes('network') || msg.includes('failed to fetch') || msg.includes('load failed')) {
+    return {
+      arabicDiagnosis: 'انقطاع مؤقت في الاتصال بالإنترنت أو تعذر الوصول إلى خوادم Google السحابية.',
+      fixRecommendation: 'تحقق من اتصالك بالشبكة ثم انقر على «إعادة المحاولة الآن»؛ بياناتك محفوظة محلياً بأمان.',
+      fixActionType: 'check_connection'
+    };
+  }
+  if (msg.includes('quota') || msg.includes('resource-exhausted') || msg.includes('1048576') || msg.includes('size')) {
+    return {
+      arabicDiagnosis: 'حجم حزمة البيانات كبير أو تم تجاوز حصة الطلبات اللحظية في السحابة.',
+      fixRecommendation: 'تستخدم المنظومة الضغط التلقائي Gzip والتقسيم؛ انقر على «إعادة المحاولة» لإرسال الأجزاء المتبقية.',
+      fixActionType: 'retry_firestore'
+    };
+  }
+  return {
+    arabicDiagnosis: `تعذر إكمال عملية (${operation || 'المزامنة'}) مع خدمة ${service || 'السحابة'} بسبب استجابة غير متوقعة.`,
+    fixRecommendation: 'انقر على «فحص وتشخيص الاتصال» أو أعد المحاولة يدوياً.',
+    fixActionType: 'check_connection'
+  };
+}
+
+function getCloudSyncErrorLogs() {
+  try {
+    const raw = localStorage.getItem(CLOUD_SYNC_ERROR_LOGS_STORAGE_KEY);
+    if (!raw) return [];
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch (e) {
+    return [];
+  }
+}
+window.getCloudSyncErrorLogs = getCloudSyncErrorLogs;
+
+function logCloudSyncError(entry = {}) {
+  try {
+    const rawErr = entry.error;
+    const errMsg = entry.message || (rawErr instanceof Error ? rawErr.message : (typeof rawErr === 'string' ? rawErr : JSON.stringify(rawErr || 'خطأ غير معروف')));
+    const errCode = entry.code || (rawErr && rawErr.code) || '';
+    const service = entry.service || 'Google Drive';
+    const operation = entry.operation || 'SYNC';
+    const folderName = entry.folderName || 'المزامنة السحابية العامة';
+    const folderId = entry.folderId || '';
+
+    const diag = diagnoseCloudSyncError(errMsg, errCode, service, operation);
+    const now = new Date();
+    const formattedTime = now.toLocaleString('ar-MA', {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+
+    const logs = getCloudSyncErrorLogs();
+    // Deduplicate identical error within 5 seconds
+    if (logs.length > 0) {
+      const latest = logs[0];
+      if (latest.service === service && latest.folderName === folderName && latest.message === errMsg && (now.getTime() - (latest.timestamp || 0) < 5000)) {
+        latest.occurrences = (latest.occurrences || 1) + 1;
+        latest.formattedTime = formattedTime;
+        latest.timestamp = now.getTime();
+        localStorage.setItem(CLOUD_SYNC_ERROR_LOGS_STORAGE_KEY, JSON.stringify(logs));
+        return latest;
+      }
+    }
+
+    const newRecord = {
+      id: 'sync_err_' + now.getTime() + '_' + Math.random().toString(36).slice(2, 6),
+      timestamp: now.getTime(),
+      formattedTime,
+      service,
+      operation,
+      folderId,
+      folderName,
+      code: errCode || 'SYNC_ERR',
+      message: String(errMsg).slice(0, 320),
+      arabicDiagnosis: entry.arabicDiagnosis || diag.arabicDiagnosis,
+      fixRecommendation: entry.fixRecommendation || diag.fixRecommendation,
+      fixActionType: entry.fixActionType || diag.fixActionType,
+      resolved: false,
+      occurrences: 1
+    };
+
+    logs.unshift(newRecord);
+    localStorage.setItem(CLOUD_SYNC_ERROR_LOGS_STORAGE_KEY, JSON.stringify(logs.slice(0, 100)));
+    window.dispatchEvent(new CustomEvent('cloudSyncErrorLogged', { detail: newRecord }));
+    return newRecord;
+  } catch (e) {
+    return null;
+  }
+}
+window.logCloudSyncError = logCloudSyncError;
+
+window.clearCloudSyncErrorLogs = () => {
+  localStorage.removeItem(CLOUD_SYNC_ERROR_LOGS_STORAGE_KEY);
+  renderAdvancedCloudSyncModalContent();
+  if (typeof window.showAppToast === 'function') {
+    window.showAppToast('✅ تم مسح سجل أخطاء المزامنة بالكامل.', 'success');
+  }
+};
+
+window.removeSingleCloudSyncErrorLog = (logId) => {
+  const logs = getCloudSyncErrorLogs().filter(item => item.id !== logId);
+  localStorage.setItem(CLOUD_SYNC_ERROR_LOGS_STORAGE_KEY, JSON.stringify(logs));
+  renderAdvancedCloudSyncModalContent();
+};
+
+window.executeSyncErrorFixAction = async (logId) => {
+  const logs = getCloudSyncErrorLogs();
+  const target = logs.find(item => item.id === logId);
+  if (!target) return;
+
+  try {
+    if (target.fixActionType === 'reauth_google') {
+      await window.handleGoogleSignInOfficial({ forcePopup: true });
+    } else if (target.fixActionType === 'retry_folder' && target.folderId && typeof window.syncDriveFolder === 'function') {
+      const res = await window.syncDriveFolder(target.folderId, true, false);
+      if (res && !res.error) {
+        target.resolved = true;
+      }
+    } else if (target.fixActionType === 'retry_firestore') {
+      const res = await window.syncToFirebase(window.db || {});
+      if (res && res.success) {
+        target.resolved = true;
+      }
+    } else {
+      await window.runCloudSyncDiagnosticsNow();
+    }
+
+    target.resolved = true;
+    localStorage.setItem(CLOUD_SYNC_ERROR_LOGS_STORAGE_KEY, JSON.stringify(logs));
+    renderAdvancedCloudSyncModalContent();
+  } catch (e) {
+    renderAdvancedCloudSyncModalContent();
+  }
+};
+
+window.copyCloudSyncErrorLogsReport = () => {
+  const logs = getCloudSyncErrorLogs();
+  if (logs.length === 0) {
+    if (typeof window.showAppToast === 'function') {
+      window.showAppToast('ℹ️ السجل خالٍ من أي أخطاء حالياً.', 'info');
+    }
+    return;
+  }
+  const text = logs.map((l, idx) =>
+    `[${idx + 1}] ${l.formattedTime} | الخدمة: ${l.service} | المجلد: ${l.folderName} | العملية: ${l.operation}\n` +
+    `   - الخطأ التقني: ${l.message}\n` +
+    `   - التشخيص: ${l.arabicDiagnosis}\n` +
+    `   - الحل المقترح: ${l.fixRecommendation}`
+  ).join('\n\n');
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      if (typeof window.showAppToast === 'function') {
+        window.showAppToast('📋 تم نسخ تقرير سجل أخطاء المزامنة إلى الحافظة.', 'success');
+      }
+    });
+  }
+};
+
+window.runCloudSyncDiagnosticsNow = async () => {
+  const diagBox = document.getElementById('cloudSyncLiveDiagBanner');
+  if (diagBox) {
+    diagBox.style.display = 'block';
+    diagBox.innerHTML = `<div style="color:#0369a1;font-weight:800;font-size:0.82rem;">⏳ جاري فحص وتشخيص قنوات الاتصال مع Google Drive و Firestore...</div>`;
+  }
+
+  const results = [];
+  const online = navigator.onLine;
+  results.push({
+    label: 'الاتصال بالشبكة',
+    ok: online,
+    detail: online ? 'متصل بالإنترنت ✓' : 'غير متصل بالإنترنت ✗'
+  });
+
+  const user = getEffectiveUser();
+  const hasFirebaseUser = !!(auth && auth.currentUser);
+  results.push({
+    label: 'مصادقة Firestore (البريد الموثّق)',
+    ok: hasFirebaseUser,
+    detail: hasFirebaseUser
+      ? `موثق رسمياً (${auth.currentUser.email}) ✓`
+      : (user ? `وضع البريد السريع (${user.email}) — يتطلب مصادقة OAuth للكتابة في Firestore` : 'غير مسجل الدخول')
+  });
+
+  const hasOAuth = isRealOAuthToken(cachedAccessToken);
+  let driveApiOk = false;
+  if (hasOAuth) {
+    try {
+      const res = await fetch('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName),storageQuota(limit,usage)', {
+        headers: { Authorization: `Bearer ${cachedAccessToken}` }
+      });
+      if (res.ok) {
+        driveApiOk = true;
+      } else {
+        window.logCloudSyncError({
+          service: 'Google Drive',
+          operation: 'DIAGNOSTIC_CHECK',
+          folderName: 'فحص واجهة Google Drive API',
+          code: `HTTP_${res.status}`,
+          message: `استجابة غير ناجحة من Google Drive API (${res.status})`
+        });
+      }
+    } catch (err) {
+      window.logCloudSyncError({
+        service: 'Google Drive',
+        operation: 'DIAGNOSTIC_CHECK',
+        folderName: 'فحص واجهة Google Drive API',
+        error: err
+      });
+    }
+  }
+  results.push({
+    label: 'صلاحية Google Drive API (OAuth 2.0)',
+    ok: driveApiOk,
+    detail: driveApiOk ? 'رمز الوصول نشط وصالح ✓' : (hasOAuth ? 'انتهت صلاحية الرمز — يرجى تجديد الربط' : 'لم يتم تفعيل رمز OAuth لملفات Drive بعد')
+  });
+
+  if (diagBox) {
+    diagBox.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <strong style="font-size:0.84rem;color:#0f172a;">🩺 نتيجة التشخيص الفوري لقنوات المزامنة:</strong>
+        <button type="button" onclick="this.parentElement.parentElement.style.display='none'" style="background:none;border:none;color:#64748b;cursor:pointer;font-weight:bold;">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;">
+        ${results.map(r => `
+          <div style="background:${r.ok ? '#f0fdf4' : '#fef2f2'};border:1px solid ${r.ok ? '#86efac' : '#fecaca'};border-radius:8px;padding:8px 10px;">
+            <div style="font-size:0.75rem;font-weight:800;color:${r.ok ? '#166534' : '#991b1b'};">${r.ok ? '🟢' : '🔴'} ${r.label}</div>
+            <div style="font-size:0.73rem;color:#334155;margin-top:3px;">${r.detail}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+};
+
+// ----------------------------------------------------------------------------
+// واجهة شاشة الإعدادات المتقدمة لإدارة المجلدات والمزامنة وسجل الأخطاء
+// ----------------------------------------------------------------------------
+
+let _activeAdvancedSyncTab = 'folders'; // 'folders' | 'modules' | 'errors'
+let _activeSyncErrorFilter = 'all'; // 'all' | 'Google Drive' | 'Firestore'
+
+window.switchAdvancedCloudSyncTab = (tabName) => {
+  _activeAdvancedSyncTab = tabName || 'folders';
+  renderAdvancedCloudSyncModalContent();
+};
+
+window.setAdvancedSyncErrorFilter = (filterVal) => {
+  _activeSyncErrorFilter = filterVal || 'all';
+  renderAdvancedCloudSyncModalContent();
+};
+
+window.toggleSingleDriveFolderSyncModeFromAdvanced = (folderId, mode) => {
+  const currentDb = window.db || {};
+  if (!Array.isArray(currentDb.libraryDriveFolders)) return;
+  const folder = currentDb.libraryDriveFolders.find(f => f.id === folderId);
+  if (!folder) return;
+  folder.autoSync = (mode === 'auto');
+  if (typeof window.saveDB === 'function') window.saveDB();
+  if (typeof window.renderLinkedDriveFolders === 'function') window.renderLinkedDriveFolders();
+  if (typeof window.renderDriveFoldersManagerList === 'function') window.renderDriveFoldersManagerList();
+  renderAdvancedCloudSyncModalContent();
+  if (typeof window.showAppToast === 'function') {
+    window.showAppToast(
+      folder.autoSync
+        ? `🟢 تم تفعيل المزامنة التلقائية لمجلد Google Drive «${folder.name}».`
+        : `⚪ تم ضبط مجلد Google Drive «${folder.name}» على المزامنة اليدوية فقط.`,
+      'info'
+    );
+  }
+};
+
+window.syncSingleDriveFolderFromAdvanced = async (folderId) => {
+  if (typeof window.syncDriveFolder !== 'function') return;
+  const res = await window.syncDriveFolder(folderId, true, false);
+  if (res && !res.error) {
+    if (typeof window.showAppToast === 'function') {
+      window.showAppToast(`✅ تمت مزامنة المجلد بنجاح (${res.newCount || 0} ملف جديد، ${res.totalDriveFiles || 0} إجمالاً).`, 'success');
+    }
+  }
+  renderAdvancedCloudSyncModalContent();
+};
+
+window.quickLinkNewDriveFolderFromAdvanced = async () => {
+  const urlInput = document.getElementById('advSyncNewDriveFolderUrl');
+  const levelInput = document.getElementById('advSyncNewDriveFolderLevel');
+  const modeSelect = document.getElementById('advSyncNewDriveFolderMode');
+  if (!urlInput || !urlInput.value.trim()) {
+    if (typeof window.showAppToast === 'function') {
+      window.showAppToast('⚠️ يرجى لصق رابط مجلد Google Drive أو معرّفه (Folder ID).', 'error');
+    }
+    return;
+  }
+
+  const rawVal = urlInput.value.trim();
+  const match = rawVal.match(/[-\w]{25,}/);
+  const folderId = match ? match[0] : '';
+  if (!folderId) {
+    window.logCloudSyncError({
+      service: 'Google Drive',
+      operation: 'LINK_FOLDER',
+      folderName: rawVal,
+      code: 'INVALID_FOLDER_ID',
+      message: 'صيغة رابط أو معرّف مجلد Google Drive غير صالحة.'
+    });
+    if (typeof window.showAppToast === 'function') {
+      window.showAppToast('⚠️ رابط المجلد غير صالح. تأكد من نسخ رابط مجلد Google Drive بشكل صحيح.', 'error');
+    }
+    renderAdvancedCloudSyncModalContent();
+    return;
+  }
+
+  try {
+    const token = await window.getGoogleDriveToken(true);
+    if (!token || !isRealOAuthToken(token)) {
+      throw new Error('401 Unauthorized: يرجى تسجيل الدخول الرسمي بحساب Google لمنح صلاحية قراءة مجلدات Drive.');
+    }
+
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,name,mimeType,webViewLink`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: تعذر الوصول إلى المجلد (${folderId}). تأكد من الصلاحيات.`);
+    }
+    const folderInfo = await res.json();
+    if (!window.db.libraryDriveFolders) window.db.libraryDriveFolders = [];
+    const isAuto = modeSelect ? (modeSelect.value === 'auto') : true;
+    const levelVal = levelInput ? levelInput.value : 'عام';
+
+    let existing = window.db.libraryDriveFolders.find(f => f.id === folderId);
+    if (!existing) {
+      existing = {
+        id: folderId,
+        name: folderInfo.name || 'مجلد Google Drive',
+        webViewLink: folderInfo.webViewLink || `https://drive.google.com/drive/folders/${folderId}`,
+        course: 'الرياضيات',
+        category: 'درس',
+        level: levelVal,
+        topic: folderInfo.name || '',
+        autoSync: isAuto,
+        includeSubfolders: true,
+        dateLinked: new Date().toLocaleDateString('en-CA'),
+        lastSyncTime: 0,
+        lastSyncFormatted: '',
+        syncedFilesCount: 0
+      };
+      window.db.libraryDriveFolders.push(existing);
+    } else {
+      existing.name = folderInfo.name || existing.name;
+      existing.level = levelVal;
+      existing.autoSync = isAuto;
+    }
+
+    if (typeof window.saveDB === 'function') window.saveDB();
+    if (typeof window.syncDriveFolder === 'function') {
+      await window.syncDriveFolder(folderId, false, true);
+    }
+    if (typeof window.renderLinkedDriveFolders === 'function') window.renderLinkedDriveFolders();
+    if (typeof window.renderLibrary === 'function') window.renderLibrary();
+
+    urlInput.value = '';
+    if (typeof window.showAppToast === 'function') {
+      window.showAppToast(`✅ تم ربط مجلد «${existing.name}» بوضع (${isAuto ? 'مزامنة تلقائية' : 'مزامنة يدوية'}) بنجاح!`, 'success');
+    }
+    renderAdvancedCloudSyncModalContent();
+  } catch (err) {
+    window.logCloudSyncError({
+      service: 'Google Drive',
+      operation: 'LINK_FOLDER',
+      folderId,
+      folderName: `مجلد جديد (${folderId.slice(0, 10)}...)`,
+      error: err
+    });
+    if (typeof window.showAppToast === 'function') {
+      window.showAppToast('⚠️ تعذر ربط المجلد: ' + (err.message || err), 'error');
+    }
+    renderAdvancedCloudSyncModalContent();
+  }
+};
+
+function getFolderItemCountSummary(folderId) {
+  const d = window.db || {};
+  if (folderId === 'classes_students') {
+    const clsCount = d.classes ? Object.keys(d.classes).length : 0;
+    const stdCount = d.classes ? Object.values(d.classes).reduce((s, arr) => s + (Array.isArray(arr) ? arr.length : 0), 0) : 0;
+    return `${clsCount} أقسام · ${stdCount} تلميذ`;
+  }
+  if (folderId === 'attendance_behavior') {
+    const recCount = Array.isArray(d.records) ? d.records.length : 0;
+    return `${recCount} سجل مواظبة وسلوك`;
+  }
+  if (folderId === 'grades_exams') {
+    const grdClasses = d.grades ? Object.keys(d.grades).length : 0;
+    return `${grdClasses} أقسام منقطة`;
+  }
+  if (folderId === 'textbook_curriculum') {
+    const tbCount = Array.isArray(d.textbook) ? d.textbook.length : 0;
+    return `${tbCount} حصة بدفتر النصوص`;
+  }
+  if (folderId === 'library_resources') {
+    const libCount = Array.isArray(d.library) ? d.library.length : 0;
+    const drvCount = Array.isArray(d.libraryDriveFolders) ? d.libraryDriveFolders.length : 0;
+    return `${libCount} مورد · ${drvCount} مجلد Drive`;
+  }
+  return '';
+}
+
+function renderAdvancedCloudSyncModalContent() {
+  const modal = document.getElementById('advancedCloudSyncSettingsModal');
+  if (!modal) return;
+
+  const user = getEffectiveUser();
+  const hasFirebaseAuth = !!(auth && auth.currentUser);
+  const hasRealOAuth = isRealOAuthToken(cachedAccessToken);
+  const email = user ? user.email : 'غير مرتبط';
+  const linkedFolders = (window.db && Array.isArray(window.db.libraryDriveFolders)) ? window.db.libraryDriveFolders : [];
+  const modulesCfg = getCloudSyncModulesConfig();
+  const allErrorLogs = getCloudSyncErrorLogs();
+  const filteredLogs = _activeSyncErrorFilter === 'all'
+    ? allErrorLogs
+    : allErrorLogs.filter(l => String(l.service || '').includes(_activeSyncErrorFilter));
+
+  const unresolvedCount = allErrorLogs.filter(l => !l.resolved).length;
+
+  let tabBodyHtml = '';
+
+  // -------------------------------------------------------------------------
+  // TAB 1: مجلدات Google Drive المربوطة (تلقائي / يدوي لكل مجلد على حدة)
+  // -------------------------------------------------------------------------
+  if (_activeAdvancedSyncTab === 'folders' || _activeAdvancedSyncTab === 'drive') {
+    const foldersListHtml = linkedFolders.length === 0
+      ? `
+        <div style="text-align:center;padding:28px 18px;background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:12px;color:#475569;">
+          <div style="font-size:1.6rem;margin-bottom:6px;">📁</div>
+          <div style="font-weight:800;color:#0f172a;font-size:0.92rem;margin-bottom:4px;">لا توجد مجلدات Google Drive مربوطة حالياً</div>
+          <div style="font-size:0.78rem;color:#64748b;">استخدم نموذج الربط السريع أعلاه لإضافة مجلدات الدروس أو الفروض من Google Drive وتحديد نوع مزامنتها (تلقائية أو يدوية).</div>
+        </div>
+      `
+      : linkedFolders.map(folder => {
+          const isAuto = folder.autoSync !== false;
+          const safeName = String(folder.name || 'مجلد بدون اسم').replace(/</g, '&lt;');
+          return `
+            <div style="background:#ffffff;border:1.5px solid ${isAuto ? '#bfdbfe' : '#e2e8f0'};border-radius:11px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;box-shadow:0 1px 3px rgba(15,23,42,0.04);">
+              <div style="display:flex;align-items:center;gap:11px;min-width:220px;flex:1;">
+                <div style="width:42px;height:42px;border-radius:10px;background:${isAuto ? '#eff6ff' : '#f1f5f9'};color:${isAuto ? '#2563eb' : '#64748b'};display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;border:1px solid ${isAuto ? '#bfdbfe' : '#cbd5e1'};">
+                  📁
+                </div>
+                <div>
+                  <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+                    <strong style="font-size:0.9rem;color:#0f172a;">${safeName}</strong>
+                    <span style="font-size:0.7rem;padding:2px 8px;border-radius:999px;font-weight:800;background:${isAuto ? '#dcfce7' : '#f1f5f9'};color:${isAuto ? '#166534' : '#475569'};border:1px solid ${isAuto ? '#86efac' : '#cbd5e1'};">
+                      ${isAuto ? '🟢 مزامنة تلقائية' : '⚪ مزامنة يدوية'}
+                    </span>
+                  </div>
+                  <div style="font-size:0.74rem;color:#64748b;margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <span>المستوى: <strong>${folder.level || 'عام'}</strong></span>
+                    <span>•</span>
+                    <span>الملفات المستوردة: <strong style="color:#0284c7;">${folder.syncedFilesCount || 0}</strong></span>
+                    <span>•</span>
+                    <span>آخر مزامنة: <strong>${folder.lastSyncFormatted || 'لم تتم بعد'}</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+                <!-- مفتاح اختيار المزامنة التلقائية أو اليدوية لهذا المجلد -->
+                <div style="display:inline-flex;background:#f1f5f9;padding:3px;border-radius:8px;border:1px solid #cbd5e1;">
+                  <button type="button" onclick="window.toggleSingleDriveFolderSyncModeFromAdvanced('${folder.id}', 'auto')" style="border:none;padding:4px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;background:${isAuto ? '#0284c7' : 'transparent'};color:${isAuto ? '#ffffff' : '#475569'};">
+                    تلقائية
+                  </button>
+                  <button type="button" onclick="window.toggleSingleDriveFolderSyncModeFromAdvanced('${folder.id}', 'manual')" style="border:none;padding:4px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;background:${!isAuto ? '#1e293b' : 'transparent'};color:${!isAuto ? '#ffffff' : '#475569'};">
+                    يدوية
+                  </button>
+                </div>
+
+                <button type="button" onclick="window.syncSingleDriveFolderFromAdvanced('${folder.id}')" style="background:#eff6ff;border:1px solid #93c5fd;color:#1d4ed8;padding:6px 11px;border-radius:7px;font-size:0.75rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px;" title="مزامنة ملفات هذا المجلد يدوياً الآن">
+                  <span>🔄 مزامنة الآن</span>
+                </button>
+
+                <a href="${folder.webViewLink || `https://drive.google.com/drive/folders/${folder.id}`}" target="_blank" rel="noopener noreferrer" style="background:#f8fafc;border:1px solid #cbd5e1;color:#334155;padding:6px 9px;border-radius:7px;font-size:0.74rem;font-weight:700;text-decoration:none;">
+                  فتح ↗
+                </a>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+    tabBodyHtml = `
+      <!-- شريط إضافة وربط مجلد Google Drive جديد مع تحديد وضع المزامنة -->
+      <div style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:11px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:0.82rem;font-weight:800;color:#0f172a;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+          <span>➕ ربط مجلد Google Drive جديد وتحديد نظام مزامنته:</span>
+          <span style="font-size:0.72rem;color:#64748b;font-weight:600;">يمكنك تخصيص كل مجلد على حدة (تلقائي كل 45 ثانية أو يدوي عند الطلب)</span>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;align-items:center;">
+          <input type="text" id="advSyncNewDriveFolderUrl" placeholder="الصق رابط مجلد Google Drive أو معرّف Folder ID..." dir="ltr" style="padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.8rem;width:100%;box-sizing:border-box;" />
+          <select id="advSyncNewDriveFolderLevel" style="padding:8px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:0.78rem;font-weight:700;background:#ffffff;color:#0f172a;">
+            <option value="عام">جميع المستويات</option>
+            <option value="TC-SC">جذع مشترك علمي (TC-SC)</option>
+            <option value="1BAC-EXP">أولى باك علوم تجريبية</option>
+            <option value="1BAC-SM">أولى باك علوم رياضية</option>
+            <option value="2BAC-PC">ثانية باك علوم فيزيائية</option>
+            <option value="2BAC-SVT">ثانية باك علوم الحياة والأرض</option>
+            <option value="2BAC-SM">ثانية باك علوم رياضية</option>
+          </select>
+          <select id="advSyncNewDriveFolderMode" style="padding:8px;border:1.5px solid #0284c7;border-radius:7px;font-size:0.78rem;font-weight:800;background:#f0f9ff;color:#0369a1;">
+            <option value="auto">🟢 مزامنة تلقائية</option>
+            <option value="manual">⚪ مزامنة يدوية</option>
+          </select>
+          <button type="button" onclick="window.quickLinkNewDriveFolderFromAdvanced()" style="background:#0284c7;color:#ffffff;border:none;padding:8px 14px;border-radius:7px;font-size:0.8rem;font-weight:800;cursor:pointer;white-space:nowrap;">
+            ربط المجلد
+          </button>
+        </div>
+      </div>
+
+      <!-- قائمة مجلدات Google Drive المربوطة -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+        <strong style="font-size:0.86rem;color:#1e293b;">📂 المجلدات المربوطة بحساب Google Drive (${linkedFolders.length}):</strong>
+        ${linkedFolders.length > 0 ? `
+          <button type="button" onclick="if(window.syncAllLinkedDriveFolders) window.syncAllLinkedDriveFolders(true).then(() => window.openAdvancedCloudSyncSettingsModal('folders'));" style="background:#0f172a;color:#ffffff;border:none;padding:5px 12px;border-radius:6px;font-size:0.74rem;font-weight:800;cursor:pointer;">
+            🔄 فحص ومزامنة جميع المجلدات الآن
+          </button>
+        ` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;max-height:330px;overflow-y:auto;padding-left:2px;">
+        ${foldersListHtml}
+      </div>
+    `;
+  }
+
+  // -------------------------------------------------------------------------
+  // TAB 2: مجلدات ووحدات بيانات Firestore & Drive (تلقائي / يدوي لكل وحدة)
+  // -------------------------------------------------------------------------
+  else if (_activeAdvancedSyncTab === 'modules') {
+    const modulesHtml = CLOUD_SYNC_DATA_FOLDERS.map(folder => {
+      const fCfg = modulesCfg[folder.id] || { mode: 'auto' };
+      const isAuto = fCfg.mode !== 'manual';
+      const lastSyncStr = fCfg.lastSyncAt
+        ? new Date(fCfg.lastSyncAt).toLocaleString('ar-MA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+        : 'لم تتم المزامنة بعد';
+      const countBadge = getFolderItemCountSummary(folder.id);
+
+      return `
+        <div style="background:#ffffff;border:1.5px solid ${isAuto ? folder.border : '#cbd5e1'};border-right:4px solid ${folder.color};border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+          <div style="flex:1;min-width:240px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <strong style="font-size:0.9rem;color:#0f172a;">${folder.name}</strong>
+              <span style="font-size:0.7rem;padding:2px 8px;border-radius:999px;font-weight:800;background:${folder.bg};color:${folder.color};border:1px solid ${folder.border};">
+                ${countBadge}
+              </span>
+              <span style="font-size:0.7rem;padding:2px 8px;border-radius:999px;font-weight:800;background:${isAuto ? '#dcfce7' : '#f1f5f9'};color:${isAuto ? '#166534' : '#475569'};">
+                ${isAuto ? '🟢 تلقائي مع كل حفظ' : '⚪ يدوي عند الطلب فقط'}
+              </span>
+            </div>
+            <div style="font-size:0.75rem;color:#475569;margin-top:4px;">${folder.description}</div>
+            <div style="font-size:0.71rem;color:#64748b;margin-top:4px;">
+              الخدمة: <strong>${folder.service}</strong> · آخر مزامنة ناجحة: <strong>${lastSyncStr}</strong>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <div style="display:inline-flex;background:#f1f5f9;padding:3px;border-radius:8px;border:1px solid #cbd5e1;">
+              <button type="button" onclick="window.setCloudDataFolderSyncMode('${folder.id}', 'auto')" style="border:none;padding:4px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;background:${isAuto ? '#059669' : 'transparent'};color:${isAuto ? '#ffffff' : '#475569'};">
+                تلقائية
+              </button>
+              <button type="button" onclick="window.setCloudDataFolderSyncMode('${folder.id}', 'manual')" style="border:none;padding:4px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;background:${!isAuto ? '#1e293b' : 'transparent'};color:${!isAuto ? '#ffffff' : '#475569'};">
+                يدوية
+              </button>
+            </div>
+
+            <button type="button" onclick="window.syncSingleCloudDataFolderNow('${folder.id}')" style="background:#0f172a;color:#ffffff;border:none;padding:6px 11px;border-radius:7px;font-size:0.74rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">
+              <span>☁️ مزامنة هذا المجلد الآن</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    tabBodyHtml = `
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.78rem;color:#166534;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div>
+          <strong>🛡️ التحكم الدقيق في مزامنة وحدات ومجلدات Firestore & Drive:</strong>
+          يمكنك جعل أي وحدة في وضع <strong>«يدوية»</strong> لمنع تحديثها تلقائياً في السحابة إلى حين مراجعتها والضغط على <strong>«مزامنة هذا المجلد الآن»</strong>.
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:9px;max-height:380px;overflow-y:auto;padding-left:2px;">
+        ${modulesHtml}
+      </div>
+    `;
+  }
+
+  // -------------------------------------------------------------------------
+  // TAB 3: سجل أخطاء المزامنة والتشخيص الذكي (Sync Error Log)
+  // -------------------------------------------------------------------------
+  else {
+    const logsHtml = filteredLogs.length === 0
+      ? `
+        <div style="text-align:center;padding:32px 18px;background:#f0fdf4;border:1.5px dashed #86efac;border-radius:12px;color:#166534;">
+          <div style="font-size:1.7rem;margin-bottom:6px;">✅</div>
+          <div style="font-weight:900;font-size:0.95rem;margin-bottom:4px;">سجل أخطاء المزامنة نظيف تماماً!</div>
+          <div style="font-size:0.78rem;color:#15803d;">لم يتم رصد أي أخطاء مزامنة سابقة مع Google Drive أو Firestore في هذا التصنيف.</div>
+        </div>
+      `
+      : filteredLogs.map(log => {
+          const isDrive = String(log.service || '').includes('Drive');
+          const badgeBg = isDrive ? '#eff6ff' : '#ecfdf5';
+          const badgeCol = isDrive ? '#1d4ed8' : '#047857';
+          const badgeBorder = isDrive ? '#bfdbfe' : '#a7f3d0';
+          const fixLabel = log.fixActionType === 'reauth_google'
+            ? '🔑 إعادة مصادقة Google وتجديد الرمز'
+            : (log.fixActionType === 'retry_folder'
+                ? '🔄 إعادة مزامنة المجلد الآن'
+                : (log.fixActionType === 'retry_firestore' ? '☁️ إعادة المزامنة مع Firestore' : '🩺 فحص الاتصال وإعادة المحاولة'));
+
+          return `
+            <div style="background:${log.resolved ? '#f8fafc' : '#fff1f2'};border:1.5px solid ${log.resolved ? '#cbd5e1' : '#fecdd3'};border-right:4px solid ${log.resolved ? '#10b981' : '#e11d48'};border-radius:10px;padding:11px 14px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                  <span style="background:${badgeBg};color:${badgeCol};border:1px solid ${badgeBorder};font-size:0.7rem;font-weight:900;padding:2px 8px;border-radius:999px;">
+                    ${log.service}
+                  </span>
+                  <strong style="font-size:0.84rem;color:#0f172a;">📁 ${log.folderName}</strong>
+                  <span style="font-size:0.7rem;background:#f1f5f9;color:#475569;padding:1px 6px;border-radius:4px;font-family:monospace;">
+                    ${log.operation}
+                  </span>
+                  ${log.occurrences > 1 ? `<span style="font-size:0.68rem;background:#fee2e2;color:#991b1b;padding:1px 6px;border-radius:999px;font-weight:800;">تكرر ${log.occurrences} مرات</span>` : ''}
+                  ${log.resolved ? `<span style="font-size:0.7rem;background:#dcfce7;color:#166534;padding:1px 7px;border-radius:999px;font-weight:800;">✓ تم التصحيح</span>` : ''}
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="font-size:0.72rem;color:#64748b;font-weight:700;">🕒 ${log.formattedTime}</span>
+                  <button type="button" onclick="window.removeSingleCloudSyncErrorLog('${log.id}')" title="حذف هذا السجل" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:0.9rem;font-weight:bold;">✕</button>
+                </div>
+              </div>
+
+              <div style="font-size:0.78rem;color:#881337;background:rgba(255,255,255,0.75);border:1px solid #fecdd3;border-radius:6px;padding:6px 9px;margin-bottom:6px;">
+                <strong>🔍 التشخيص:</strong> ${log.arabicDiagnosis}
+                <div style="font-size:0.7rem;color:#64748b;font-family:monospace;direction:ltr;text-align:left;margin-top:3px;word-break:break-all;">
+                  [${log.code}] ${log.message}
+                </div>
+              </div>
+
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <div style="font-size:0.75rem;color:#0f172a;">
+                  <strong style="color:#0369a1;">💡 خطوة التصحيح المقترحة:</strong> ${log.fixRecommendation}
+                </div>
+                <button type="button" onclick="window.executeSyncErrorFixAction('${log.id}')" style="background:#0f172a;color:#ffffff;border:none;padding:5px 11px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;">
+                  ${fixLabel}
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+    tabBodyHtml = `
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:9px 12px;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span style="font-size:0.76rem;font-weight:800;color:#334155;">تصفية السجل حسب الخدمة:</span>
+          <button type="button" onclick="window.setAdvancedSyncErrorFilter('all')" style="border:1px solid #cbd5e1;padding:4px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;background:${_activeSyncErrorFilter === 'all' ? '#0f172a' : '#ffffff'};color:${_activeSyncErrorFilter === 'all' ? '#ffffff' : '#475569'};">
+            الكل (${allErrorLogs.length})
+          </button>
+          <button type="button" onclick="window.setAdvancedSyncErrorFilter('Drive')" style="border:1px solid #cbd5e1;padding:4px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;background:${_activeSyncErrorFilter === 'Drive' ? '#0284c7' : '#ffffff'};color:${_activeSyncErrorFilter === 'Drive' ? '#ffffff' : '#475569'};">
+            Google Drive
+          </button>
+          <button type="button" onclick="window.setAdvancedSyncErrorFilter('Firestore')" style="border:1px solid #cbd5e1;padding:4px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;background:${_activeSyncErrorFilter === 'Firestore' ? '#059669' : '#ffffff'};color:${_activeSyncErrorFilter === 'Firestore' ? '#ffffff' : '#475569'};">
+            Firestore
+          </button>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <button type="button" onclick="window.runCloudSyncDiagnosticsNow()" style="background:#0284c7;color:#ffffff;border:none;padding:5px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;">
+            🩺 فحص وتشخيص الاتصال الآن
+          </button>
+          <button type="button" onclick="window.copyCloudSyncErrorLogsReport()" style="background:#ffffff;color:#334155;border:1px solid #cbd5e1;padding:5px 10px;border-radius:6px;font-size:0.73rem;font-weight:700;cursor:pointer;">
+            📋 نسخ التقرير
+          </button>
+          ${allErrorLogs.length > 0 ? `
+            <button type="button" onclick="window.clearCloudSyncErrorLogs()" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;padding:5px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;">
+              🗑️ مسح السجل
+            </button>
+          ` : ''}
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;padding-left:2px;">
+        ${logsHtml}
+      </div>
+    `;
+  }
+
+  modal.innerHTML = `
+    <div class="drive-sync-modal-card" style="max-width: 780px; width: 95%; max-height: 90vh; overflow-y: auto; padding: 20px;">
+      <!-- رأس الشاشة المتقدمة -->
+      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1.5px solid #e2e8f0;padding-bottom:12px;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#38bdf8;display:flex;align-items:center;justify-content:center;border:1.5px solid #38bdf8;font-size:1.2rem;">
+            ⚙️
+          </div>
+          <div>
+            <h3 style="margin:0;font-size:1.08rem;font-weight:900;color:#0f172a;">الإعدادات المتقدمة لإدارة الربط والمزامنة (Google Drive & Firestore)</h3>
+            <div style="font-size:0.75rem;color:#64748b;">تخصيص المزامنة التلقائية أو اليدوية لكل مجلد على حدة مع سجل تشخيص وتصحيح الأخطاء</div>
+          </div>
+        </div>
+        <button type="button" onclick="window.closeAdvancedCloudSyncSettingsModal()" style="background:#f1f5f9;border:1px solid #cbd5e1;width:32px;height:32px;border-radius:8px;font-size:1.15rem;cursor:pointer;color:#334155;font-weight:bold;">&times;</button>
+      </div>
+
+      <!-- شريط حالة الربط السحابي الموحد -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:14px;">
+        <div style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:0.71rem;color:#64748b;font-weight:700;">الحساب السحابي المرتبط</div>
+            <div style="font-size:0.84rem;font-weight:900;color:#0f172a;direction:ltr;text-align:right;">${email}</div>
+          </div>
+          <button type="button" onclick="window.openGmailQuickSwitchModal()" style="background:#ffffff;border:1px solid #0284c7;color:#0284c7;padding:4px 9px;border-radius:6px;font-size:0.72rem;font-weight:800;cursor:pointer;">تبديل</button>
+        </div>
+
+        <div style="background:${hasRealOAuth ? '#f0fdf4' : '#fffbeb'};border:1.5px solid ${hasRealOAuth ? '#86efac' : '#fde68a'};border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:0.71rem;color:#475569;font-weight:700;">حالة ربط Google Drive API</div>
+            <div style="font-size:0.8rem;font-weight:900;color:${hasRealOAuth ? '#15803d' : '#b45309'};">
+              ${hasRealOAuth ? '🟢 متصل ومفوض (OAuth 2.0)' : '🟡 يتطلب تفعيل صلاحية OAuth'}
+            </div>
+          </div>
+          ${!hasRealOAuth ? `
+            <button type="button" onclick="window.handleGoogleSignInOfficial({ forcePopup: true }).then(() => window.openAdvancedCloudSyncSettingsModal(_activeAdvancedSyncTab))" style="background:#d97706;color:#ffffff;border:none;padding:4px 9px;border-radius:6px;font-size:0.72rem;font-weight:800;cursor:pointer;">تفعيل</button>
+          ` : ''}
+        </div>
+
+        <div style="background:${hasFirebaseAuth ? '#f0fdf4' : '#eff6ff'};border:1.5px solid ${hasFirebaseAuth ? '#86efac' : '#bfdbfe'};border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:0.71rem;color:#475569;font-weight:700;">حالة قاعدة بيانات Firestore</div>
+            <div style="font-size:0.8rem;font-weight:900;color:${hasFirebaseAuth ? '#15803d' : '#1d4ed8'};">
+              ${hasFirebaseAuth ? '🟢 بريد موثق ومحمّي (UID)' : '🔵 جاهز للمصادقة الرسمية'}
+            </div>
+          </div>
+          <button type="button" onclick="window.runCloudSyncDiagnosticsNow()" style="background:#ffffff;border:1px solid #cbd5e1;color:#0f172a;padding:4px 9px;border-radius:6px;font-size:0.72rem;font-weight:800;cursor:pointer;">تشخيص</button>
+        </div>
+      </div>
+
+      <!-- مربع نتائج الفحص المباشر -->
+      <div id="cloudSyncLiveDiagBanner" style="display:none;background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:10px 12px;margin-bottom:14px;"></div>
+
+      <!-- أزرار التبويبات الثلاثة -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;background:#f1f5f9;padding:5px;border-radius:10px;border:1px solid #cbd5e1;">
+        <button type="button" onclick="window.switchAdvancedCloudSyncTab('folders')" style="border:none;padding:9px 10px;border-radius:8px;font-size:0.8rem;font-weight:800;cursor:pointer;background:${(_activeAdvancedSyncTab === 'folders' || _activeAdvancedSyncTab === 'drive') ? '#0f172a' : 'transparent'};color:${(_activeAdvancedSyncTab === 'folders' || _activeAdvancedSyncTab === 'drive') ? '#ffffff' : '#334155'};display:flex;align-items:center;justify-content:center;gap:6px;">
+          <span>📁 مجلدات Google Drive (${linkedFolders.length})</span>
+        </button>
+        <button type="button" onclick="window.switchAdvancedCloudSyncTab('modules')" style="border:none;padding:9px 10px;border-radius:8px;font-size:0.8rem;font-weight:800;cursor:pointer;background:${_activeAdvancedSyncTab === 'modules' ? '#0f172a' : 'transparent'};color:${_activeAdvancedSyncTab === 'modules' ? '#ffffff' : '#334155'};display:flex;align-items:center;justify-content:center;gap:6px;">
+          <span>🗄️ مجلدات بيانات Firestore (${CLOUD_SYNC_DATA_FOLDERS.length})</span>
+        </button>
+        <button type="button" onclick="window.switchAdvancedCloudSyncTab('errors')" style="border:none;padding:9px 10px;border-radius:8px;font-size:0.8rem;font-weight:800;cursor:pointer;background:${_activeAdvancedSyncTab === 'errors' ? '#0f172a' : 'transparent'};color:${_activeAdvancedSyncTab === 'errors' ? '#ffffff' : '#334155'};display:flex;align-items:center;justify-content:center;gap:6px;">
+          <span>🛠️ سجل أخطاء المزامنة</span>
+          <span style="background:${unresolvedCount > 0 ? '#ef4444' : '#64748b'};color:#ffffff;padding:1px 7px;border-radius:999px;font-size:0.7rem;">${allErrorLogs.length}</span>
+        </button>
+      </div>
+
+      <!-- محتوى التبويب النشط -->
+      <div>
+        ${tabBodyHtml}
+      </div>
+
+      <!-- تذييل الشاشة -->
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:0.74rem;color:#64748b;">
+          💡 يتم حفظ إعدادات المزامنة (تلقائية / يدوية) لكل مجلد محلياً وسحابياً لضمان استقرار العمل دون تكرار.
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" onclick="window.handleBackupToDrive()" style="background:#059669;color:#ffffff;border:none;padding:7px 14px;border-radius:7px;font-size:0.78rem;font-weight:800;cursor:pointer;">
+            ☁️ مزامنة شاملة الآن
+          </button>
+          <button type="button" onclick="window.closeAdvancedCloudSyncSettingsModal()" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;padding:7px 14px;border-radius:7px;font-size:0.78rem;font-weight:800;cursor:pointer;">
+            إغلاق
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+window.openAdvancedCloudSyncSettingsModal = (initialTab = 'folders') => {
+  if (initialTab === 'drive') _activeAdvancedSyncTab = 'folders';
+  else if (initialTab === 'modules' || initialTab === 'errors' || initialTab === 'folders') _activeAdvancedSyncTab = initialTab;
+
+  let modal = document.getElementById('advancedCloudSyncSettingsModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'advancedCloudSyncSettingsModal';
+    modal.className = 'drive-sync-modal-backdrop';
+    document.body.appendChild(modal);
+  }
+  renderAdvancedCloudSyncModalContent();
+  modal.style.display = 'flex';
+};
+
+window.closeAdvancedCloudSyncSettingsModal = () => {
+  const modal = document.getElementById('advancedCloudSyncSettingsModal');
+  if (modal) modal.style.display = 'none';
+};
+

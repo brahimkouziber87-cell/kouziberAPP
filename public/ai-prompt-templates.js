@@ -69,9 +69,10 @@
         { key: 'duration', label: 'المدة الزمنية', desc: 'المدة مثل 55 دقيقة أو ساعتان' },
         { key: 'examPeriod', label: 'الفترة التقويمية', desc: 'الفرض 1 الدورة 1 أو الفرض 2' },
         { key: 'studentName', label: 'اسم التلميذ', desc: 'اسم المتعلم في حالة الملاحظة الفردية' },
+        { key: 'studentsNames', label: 'أسماء التلاميذ المعنيين', desc: 'قائمة أسماء التلاميذ المعنيين بالغياب المتكرر أو الدعم' },
         { key: 'average', label: 'المعدل المحصل', desc: 'نقطة الفرض أو المعدل الدوري' },
         { key: 'excelData', label: 'بيانات جدول إكسيل مسار', desc: 'جدول النقط والغياب المنسوخ من ملف إكسيل مسار' },
-        { key: 'semester', label: 'الدورة / الأسدوس', desc: 'الدورة الأولى (S1) أو الدورة الثانية (S2)' },
+        { key: 'semester', label: 'الدورة الدراسية / الأسدوس', desc: 'الدورة الأولى (S1) أو الدورة الثانية (S2)' },
         { key: 'passThreshold', label: 'عتبة النجاح', desc: 'عتبة النجاح مثل 10.00 / 20' },
         { key: 'absenceThreshold', label: 'عتبة إنذار الغياب', desc: 'الحد الأقصى لساعات الغياب مثل 4 ساعات' },
         { key: 'academicYear', label: 'الموسم الدراسي', desc: 'الموسم الدراسي مثل 2025-2026' }
@@ -87,7 +88,7 @@
             title: 'استخراج التقرير الإحصائي الشامل لنقط الفروض من ملف إكسيل مسار',
             category: 'massar',
             categoryLabel: 'منظومة مسار وإكسيل',
-            description: 'استخراج فوري لمؤشرات التحصيل الرياضي: أعلى وأدنى نقطة، المعدل العام، نسبة النجاح، وتوزيع النقط حسب المجالات المعيارية لمسار.',
+            description: 'استخراج فوري لمؤشرات التحصيل الرياضي: أعلى وأدنى نقطة، المعدل العام، نسبة الحاصلين على المعدل، وتوزيع النقط حسب المجالات المعيارية لمسار.',
             systemInstruction: 'أنت خبير إحصائي وبيداغوجي متخصص في معالجة لوائح وبيانات منظومة مسار لوزارة التربية الوطنية بالمغرب. تستخرج المؤشرات الرقمية بدقة وتقارنها بالمذكرات التوجيهية وتصيغ تقارير إحصائية جاهزة للطباعة والتسليم للإدارة التربوية.',
             promptText: `أنت خبير إحصائي وتربوي متخصص في تحليل بيانات منظومة مسار (Massar).
 المرجو استخراج التقرير الإحصائي الشامل والدقيق لنقط الفروض لمادة الرياضيات لقسم {{className}} (المستوى: {{level}} - الدورة: {{semester}} - الفترة: {{examPeriod}}).
@@ -205,7 +206,7 @@
 المطلوب تفصيله في التقرير:
 1. 📊 مقارنة المؤشرات العامة بين الأسدسين:
    - تطور المعدل العام للقسم (د1 ⬅️ د2) مع الفارق (+ / -).
-   - تطور نسبة النجاح (الحاصلين على >= {{passThreshold}}/20).
+   - تطور نسبة الحاصلين على المعدل (>= {{passThreshold}}/20).
    - نسبة التلاميذ في حالة تطور إيجابي (+1 نقطة فأكثر).
    - نسبة التلاميذ في حالة استقرار.
    - نسبة التلاميذ في حالة تراجع (-1 نقطة فأكثر).
@@ -418,6 +419,39 @@
             updatedAt: '2026-10-05T10:00:00Z'
         },
         {
+            id: 'tpl_admin_frequent_absence_report',
+            title: 'تقرير إداري حول الغياب المتكرر',
+            category: 'admin_comm',
+            categoryLabel: 'تواصل إداري',
+            description: 'صياغة تقرير إداري وتربوي رسمي مرفوع للحراسة العامة وإدارة المؤسسة حول حالات الغياب المتكرر خلال الدورة الدراسية، يتضمن اسم القسم وأسماء التلاميذ المعنيين والإجراءات المتخذة.',
+            systemInstruction: 'أنت أستاذ مادة الرياضيات بالتعليم الثانوي التأهيلي، تصيغ تقارير إدارية وتربوية رسمية دقيقة وموضوعية حول المواظبة والغياب المتكرر وفق المساطر الإدارية الجاري بها العمل بوزارة التربية الوطنية بالمغرب.',
+            promptText: `إلى السيد(ة) مدير(ة) المؤسسة / السيد(ة) الحارس(ة) العام(ة) للخارجية
+الموضوع: تقرير إداري وتربوي حول الغياب المتكرر خلال {{semester}} — قسم {{className}}
+
+بصفتي أستاذ(ة) مادة الرياضيات، يشرفني أن أرفع إلى علمكم هذا التقرير الإداري والتربوي بخصوص حالات الغياب المتكرر وغير المبرر المسجلة خلال {{semester}} (الموسم الدراسي: {{academicYear}}) لدى مجموعة من تلاميذ قسم {{className}} (المستوى: {{level}}).
+
+1. 📋 لائحة أسماء التلاميذ المعنيين بالغياب المتكرر:
+{{studentsNames}}
+(الحالة الفردية الأبرز للمتابعة المستعجلة: {{studentName}} — تجاوز عتبة الإنذار المحددة في {{absenceThreshold}} ساعات).
+
+2. 📉 الأثر البيداغوجي والديداكتيكي على التحصيل في مادة الرياضيات:
+- انقطاع تسلسل بناء المفاهيم والمهارات الرياضية الأساسية وعدم تدوين محاور الدروس في دفاتر التتبع.
+- تراجع ملموس في مردودية التلاميذ المعنيين خلال فروض المراقبة المستمرة وعدم إنجاز الواجبات المنزلية.
+
+3. 🛠️ الإجراءات التربوية المتخذة داخل الفصل:
+- تنبيه التلاميذ المعنيين شفوياً وتوثيق كافة حصص الغياب بدقة في سجل المواظبة اليومي.
+- توجيههم لتدارك الدروس الفائتة وحثهم على الالتحاق بحصص الدعم البيداغوجي المبرمجة.
+
+4. 📌 الملتمس الإداري:
+نلتمس من إدارتكم الموقرة تفعيل المساطر الإدارية الجاري بها العمل، واستدعاء أولياء أمور التلاميذ المعنيين ({{studentsNames}}) قصد تسوية وضعيتهم والالتزام بالمواظبة الفعلية حفاظاً على مصلحتهم الدراسية.`,
+            tags: ['تقرير إداري', 'الغياب المتكرر', 'تواصل إداري', 'حراسة عامة', 'مواظبة'],
+            isBuiltIn: true,
+            isFavorite: true,
+            usageCount: 20,
+            createdAt: '2026-09-16T08:00:00Z',
+            updatedAt: '2026-10-18T10:00:00Z'
+        },
+        {
             id: 'tpl_admin_council_report',
             title: 'تقرير إداري وتربوي رسمي حول وضعية نتائج القسم والتعثرات لمجلس الانضباط أو الإدارة',
             category: 'admin_comm',
@@ -431,7 +465,7 @@
 {{strugglingPoints}}
 
 محاور التقرير الإداري:
-1. تشخيص عام لنتائج فروض المراقبة المستمرة (نسبة النجاح، أعلى وأدنى نقطة، والتوجه العام).
+1. تشخيص عام لنتائج فروض المراقبة المستمرة (نسبة الحاصلين على المعدل، أعلى وأدنى نقطة، والتوجه العام).
 2. رصد الحالات الفردية التي تستدعي تدخلاً إدارياً عاجلاً (غياب مزمن، تشويش معرقل، أو انقطاع عن الفروض).
 3. الإجراءات البيداغوجية المتخذة من طرف الأستاذ (حصص الدعم، التفييء، التواصل مع الحراسة العامة).
 4. التوصيات والمقترحات المرفوعة للإدارة التربوية ولمجلس القسم لتحسين المردودية.`,
@@ -587,15 +621,17 @@
                     const g2 = (st.grades && st.grades[1] !== undefined) ? Number(st.grades[1]).toFixed(2) : pickGrade('f2', (11 + ((idx % 6) * 1.4)).toFixed(2));
                     const g3 = (st.grades && st.grades[2] !== undefined) ? Number(st.grades[2]).toFixed(2) : pickGrade('f3', (10.5 + ((idx % 5) * 1.6)).toFixed(2));
                     const act = (st.activityGrade !== undefined) ? Number(st.activityGrade).toFixed(2) : pickGrade('act', '15.00');
-                    const avg = ((parseFloat(g1) + parseFloat(g2) + parseFloat(g3) + parseFloat(act)) / 4).toFixed(2);
+                    const avg = ((parseFloat(g1) + parseFloat(g2) + parseFloat(g3)) / 3).toFixed(2);
 
                     let totalAbsHours = 0;
                     let unexcusedHours = 0;
                     allRecords.forEach(r => {
-                        if (r && r.className === activeClass && String(r.studentId) === String(st.id) && r.type !== 'late') {
-                            const h = Number(r.hours) || 1;
+                        if (r && r.className === activeClass && String(r.studentId) === String(st.id) && (r.status === 'غائب' || r.status === 'مبرر' || r.status === 'absent' || r.status === 'justified')) {
+                            const h = (typeof window.getRecordAbsenceDuration === 'function')
+                                ? window.getRecordAbsenceDuration(r)
+                                : (Number(r.duration || r.hours) || 1);
                             totalAbsHours += h;
-                            if (r.status !== 'justified') unexcusedHours += h;
+                            if (r.status !== 'مبرر' && r.status !== 'justified') unexcusedHours += h;
                         }
                     });
                     const abs = st.absenceHours !== undefined ? String(st.absenceHours) : String(totalAbsHours);
@@ -747,7 +783,8 @@
         }
 
         if (!_currentVariableValues.semester) {
-            _currentVariableValues.semester = 'الدورة الأولى (S1)';
+            const activeSem = (window.activeSemester || 's1');
+            _currentVariableValues.semester = activeSem === 's2' ? 'الدورة الثانية (S2)' : 'الدورة الأولى (S1)';
         }
 
         if (!_currentVariableValues.passThreshold) {
@@ -755,11 +792,52 @@
         }
 
         if (!_currentVariableValues.absenceThreshold) {
-            _currentVariableValues.absenceThreshold = '4';
+            _currentVariableValues.absenceThreshold = String(window.db?.absenceThreshold || '4');
         }
 
         if (!_currentVariableValues.academicYear) {
-            _currentVariableValues.academicYear = '2025-2026';
+            _currentVariableValues.academicYear = (window.db?.teacherProfile?.academicYear) || '2025-2026';
+        }
+
+        // استنتاج أسماء التلاميذ المعنيين بالغياب المتكرر واسم التلميذ تلقائياً من القسم النشط
+        if (!_currentVariableValues.studentsNames || !_currentVariableValues.studentName) {
+            let detectedAbsentNames = [];
+            let firstStudentName = 'محمد أمين التازي';
+            if (activeClass && window.db?.classes && window.db.classes[activeClass]) {
+                const rawCls = window.db.classes[activeClass];
+                const clsStudents = Array.isArray(rawCls) ? rawCls : (rawCls.students || []);
+                if (clsStudents.length > 0) {
+                    firstStudentName = clsStudents[0].name || firstStudentName;
+                    const allRecs = Array.isArray(window.db.records) ? window.db.records : [];
+                    const absByStudent = [];
+                    clsStudents.forEach(st => {
+                        const stAbs = allRecs.filter(r => r.className === activeClass && String(r.studentId) === String(st.id) && (r.status === 'غائب' || r.status === 'مبرر'));
+                        const hours = stAbs.reduce((s, r) => s + (parseFloat(r.duration || r.hours) || 1), 0);
+                        if (hours > 0) {
+                            absByStudent.push({ name: st.name, hours });
+                        }
+                    });
+                    absByStudent.sort((a, b) => b.hours - a.hours);
+                    if (absByStudent.length > 0) {
+                        firstStudentName = absByStudent[0].name;
+                        detectedAbsentNames = absByStudent.slice(0, 5).map(item => `${item.name} (${item.hours} ساعات غياب)`);
+                    } else {
+                        detectedAbsentNames = clsStudents.slice(0, 3).map(st => st.name).filter(Boolean);
+                    }
+                }
+            }
+            if (!_currentVariableValues.studentName) {
+                _currentVariableValues.studentName = firstStudentName;
+            }
+            if (!_currentVariableValues.studentsNames) {
+                _currentVariableValues.studentsNames = detectedAbsentNames.length > 0
+                    ? detectedAbsentNames.join('، ')
+                    : 'محمد أمين التازي (8 ساعات غياب)، حمزة الإدريسي (14 ساعة غياب)، أنس المرابط (18 ساعة غياب)';
+            }
+        }
+
+        if (!_currentVariableValues.average) {
+            _currentVariableValues.average = '09.50';
         }
 
         if (!_currentVariableValues.excelData) {
@@ -767,13 +845,18 @@
         }
     }
 
+    // متغير لتسليط الضوء البصري على متغير معين عند تمرير الفأرة أو النقر في الشريط الجانبي
+    let _spotlightVariableKey = null;
+    let _liveDraftPromptTextById = {};
+
     /**
-     * رسم وتحديث الواجهة الكاملة لمكتبة الأوامر
+     * رسم وتحديث الواجهة الكاملة لمكتبة الأوامر بما فيها الشريط الجانبي للمتغيرات
      */
     function renderPromptTemplatesView() {
         renderCategoryFilterButtons();
         renderPromptTemplatesList();
         renderPromptTemplateDetails();
+        renderPromptLiveVariablesSidebar();
     }
 
     /**
@@ -1228,15 +1311,44 @@
     /**
      * اختيار قالب واستعراض تفاصيله وإمكانية ملء متغيراته وتجربته
      */
+    /**
+     * اختيار قالب واستعراض تفاصيله وإمكانية ملء متغيراته وتجربته
+     */
     function selectPromptTemplate(templateId) {
         _selectedTemplateId = templateId;
         _lastExecutionResult = null;
+        _spotlightVariableKey = null;
         renderPromptTemplatesList();
         renderPromptTemplateDetails();
+        renderPromptLiveVariablesSidebar();
     }
 
     /**
-     * رسم العمود الأيسر (تفاصيل القالب، ملء المتغيرات، المعاينة الحية، وأزرار التنفيذ والنسخ)
+     * بناء معاينة HTML مسلطة الضوء على المتغيرات (مثل {{studentName}}، {{className}}، {{semester}})
+     * لتسهيل فهم موقع ودور كل متغير داخل القالب قبل استخدامه
+     */
+    function buildHighlightedPromptPreviewHTML(rawTemplateText, spotlightKey = null) {
+        if (!rawTemplateText) return '<span style="color:#94a3b8;">لا يوجد نص في القالب...</span>';
+        const escaped = escapeHtml(rawTemplateText);
+        return escaped.replace(/\{\{\s*([a-zA-Z0-9_\u0600-\u06FF]+)\s*\}\}/g, (match, varName) => {
+            const key = varName.trim();
+            const val = (_currentVariableValues[key] || '').trim();
+            const meta = COMMON_PROMPT_VARIABLES.find(cv => cv.key === key) || { label: key };
+            const isSpotlighted = spotlightKey && spotlightKey === key;
+            const ringStyle = isSpotlighted
+                ? 'box-shadow: 0 0 0 3px #6366f1, 0 2px 8px rgba(99,102,241,0.35); transform: scale(1.04); background: #e0e7ff !important; color: #312e81 !important; border-color: #4f46e5 !important;'
+                : '';
+
+            if (val) {
+                const displayVal = key === 'excelData' ? '[📊 جدول بيانات مسار المدمج]' : val;
+                return `<span class="prompt-live-var-token" data-var-key="${escapeQuotes(key)}" onclick="window.focusSidebarVariableInput('${escapeQuotes(key)}')" title="المتغير: {{${escapeQuotes(key)}}} (${escapeQuotes(meta.label)}) — انقر لتعديل قيمته" style="display: inline-flex; align-items: center; gap: 4px; background: #dcfce7; color: #166534; border: 1.5px solid #86efac; padding: 1px 7px; border-radius: 6px; font-weight: 800; cursor: pointer; transition: all 0.15s ease; ${ringStyle}"><span style="font-size: 0.7rem; background: #bbf7d0; color: #14532d; padding: 0 4px; border-radius: 4px; font-family: monospace;">{{${escapeHtml(key)}}}</span><span>⬅️ ${escapeHtml(displayVal)}</span></span>`;
+            }
+            return `<span class="prompt-live-var-token" data-var-key="${escapeQuotes(key)}" onclick="window.focusSidebarVariableInput('${escapeQuotes(key)}')" title="المتغير: {{${escapeQuotes(key)}}} (${escapeQuotes(meta.label)}) — غير معبأ بعد، انقر لإدخال قيمته" style="display: inline-flex; align-items: center; gap: 4px; background: #fef3c7; color: #92400e; border: 1.5px dashed #f59e0b; padding: 1px 7px; border-radius: 6px; font-weight: 800; font-family: monospace; cursor: pointer; transition: all 0.15s ease; ${ringStyle}"><span>{{${escapeHtml(key)}}}</span><span style="font-family: 'Cairo', sans-serif; font-size: 0.7rem; color: #b45309;">(${escapeHtml(meta.label)})</span></span>`;
+        });
+    }
+
+    /**
+     * رسم العمود الأوسط (تفاصيل القالب، تحرير القالب المباشر، المعاينة المسلطة الضوء على المتغيرات، وأزرار التنفيذ)
      */
     function renderPromptTemplateDetails() {
         const detailsContainer = document.getElementById('promptTemplateDetailsView');
@@ -1255,21 +1367,24 @@
             return;
         }
 
-        const variables = extractVariablesFromPrompt(tpl.promptText);
-        const renderedText = renderPromptTextWithVariables(tpl.promptText);
+        const activePromptText = _liveDraftPromptTextById[tpl.id] !== undefined ? _liveDraftPromptTextById[tpl.id] : tpl.promptText;
+        const isDraftModified = _liveDraftPromptTextById[tpl.id] !== undefined && _liveDraftPromptTextById[tpl.id] !== tpl.promptText;
+        const variables = extractVariablesFromPrompt(activePromptText);
+        const renderedText = renderPromptTextWithVariables(activePromptText);
+        const highlightedHtml = buildHighlightedPromptPreviewHTML(activePromptText, _spotlightVariableKey);
 
         const variablesInputsHtml = variables.length > 0 ? `
-            <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
                     <div style="font-weight: 800; font-size: 0.82rem; color: #1e3a8a; display: flex; align-items: center; gap: 6px;">
                         <span data-lucide="sliders" data-size="14"></span>
-                        <span>تخصيص المتغيرات في هذا الأمر (Dynamic Variables):</span>
+                        <span>تعبئة وتخصيص متغيرات القالب (${variables.length} متغيرات):</span>
                     </div>
                     <button type="button" onclick="window.autoFillPromptVariablesFromActiveContext()" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; cursor: pointer;" title="استيراد المعطيات تلقائياً من القسم المفتوح حالياً">
                         🔄 استيراد من القسم النشط
                     </button>
                 </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px;">
                     ${variables.map(v => {
                         const val = _currentVariableValues[v] || '';
                         const varMeta = COMMON_PROMPT_VARIABLES.find(cv => cv.key === v) || { label: v, desc: '' };
@@ -1292,27 +1407,27 @@
                                     </div>
                                     <textarea
                                         id="promptVarInput_${v}"
-                                        rows="6"
+                                        rows="4"
                                         oninput="window.onPromptVariableChange('${v}', this.value)"
                                         placeholder="${escapeQuotes(varMeta.desc || 'الصق جدول الإكسيل هنا...')}"
                                         style="width: 100%; padding: 8px; border-radius: 6px; border: 1.5px solid #cbd5e1; font-family: monospace, 'Courier New', sans-serif; font-size: 0.78rem; line-height: 1.45; background: #fafafa; color: #0f172a; resize: vertical; box-sizing: border-box; white-space: pre;">${escapeHtml(val)}</textarea>
-                                    <div style="font-size: 0.7rem; color: #64748b; margin-top: 3px;">
-                                        💡 نصيحة: يمكنك تحديد الخلايا مباشرة من ملف Excel لمسار ونسخها (Ctrl+C) ولصقها هنا (Ctrl+V) بدون أي تعديل.
-                                    </div>
                                 </div>
                             `;
                         }
                         return `
-                            <div>
-                                <label style="display: block; font-size: 0.74rem; font-weight: 700; color: #475569; margin-bottom: 2px;">
-                                    {{${escapeHtml(v)}}}: <span style="font-weight: 600; color: #1e293b;">${escapeHtml(varMeta.label)}</span>
+                            <div onmouseenter="window.spotlightTemplateVariable('${escapeQuotes(v)}')" onmouseleave="window.spotlightTemplateVariable(null)">
+                                <label style="display: flex; justify-content: space-between; align-items: center; font-size: 0.74rem; font-weight: 700; color: #475569; margin-bottom: 2px;">
+                                    <span style="color: #1d4ed8; font-family: monospace; font-weight: 800;">{{${escapeHtml(v)}}}</span>
+                                    <span style="font-weight: 700; color: #1e293b;">${escapeHtml(varMeta.label)}</span>
                                 </label>
                                 <input type="text" 
                                     id="promptVarInput_${v}"
                                     value="${escapeQuotes(val)}" 
+                                    onfocus="window.spotlightTemplateVariable('${escapeQuotes(v)}')"
+                                    onblur="window.spotlightTemplateVariable(null)"
                                     oninput="window.onPromptVariableChange('${v}', this.value)"
                                     placeholder="${escapeQuotes(varMeta.desc || 'أدخل القيمة...')}"
-                                    style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.8rem; font-weight: 600; background: #ffffff;">
+                                    style="width: 100%; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.8rem; font-weight: 600; background: #ffffff; box-sizing: border-box;">
                             </div>
                         `;
                     }).join('')}
@@ -1325,49 +1440,47 @@
                 
                 <!-- رأس تفاصيل القالب -->
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0;">
-                    <div style="flex: 1; min-width: 250px;">
+                    <div style="flex: 1; min-width: 240px;">
                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 900; color: #0f172a;">${escapeHtml(tpl.title)}</h3>
+                            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 900; color: #0f172a;">${escapeHtml(tpl.title)}</h3>
                             <span style="font-size: 0.72rem; font-weight: 800; color: #2563eb; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 8px; border-radius: 6px;">
                                 ${tpl.categoryLabel || tpl.category}
                             </span>
                             ${tpl.isBuiltIn ? '<span style="font-size: 0.7rem; color: #059669; font-weight: 700;">(قالب قياسي معتمد)</span>' : '<span style="font-size: 0.7rem; color: #7c3aed; font-weight: 700;">(قالبك الخاص)</span>'}
                         </div>
-                        <p style="margin: 4px 0 0 0; font-size: 0.82rem; color: #64748b; line-height: 1.45;">
+                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b; line-height: 1.45;">
                             ${escapeHtml(tpl.description || '')}
                         </p>
                     </div>
 
                     <!-- أزرار الإجراءات الإدارية على القالب -->
                     <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <!-- زر النجمة للمفضلة داخل تفاصيل القالب -->
                         <button type="button" 
                             onclick="window.togglePromptFavorite('${tpl.id}')" 
                             class="btn-math-chip" 
-                            style="padding: 5px 11px; font-size: 0.76rem; background: ${tpl.isFavorite ? '#fef3c7' : '#ffffff'}; border-color: ${tpl.isFavorite ? '#f59e0b' : '#cbd5e1'}; color: ${tpl.isFavorite ? '#92400e' : '#475569'}; font-weight: 800;" 
+                            style="padding: 5px 10px; font-size: 0.75rem; background: ${tpl.isFavorite ? '#fef3c7' : '#ffffff'}; border-color: ${tpl.isFavorite ? '#f59e0b' : '#cbd5e1'}; color: ${tpl.isFavorite ? '#92400e' : '#475569'}; font-weight: 800;" 
                             title="${tpl.isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة ⭐'}">
                             <span data-lucide="star" data-size="13" ${tpl.isFavorite ? 'style="fill: #f59e0b; color: #f59e0b;"' : 'style="color: #64748b;"'}></span>
-                            <span>${tpl.isFavorite ? 'مفضل ⭐' : 'نجمة مفضلة'}</span>
+                            <span>${tpl.isFavorite ? 'مفضل ⭐' : 'مفضلة'}</span>
                         </button>
-                        <!-- زر تجربة سريع علوي -->
                         <button type="button" 
                             onclick="window.openPromptTestModal('${tpl.id}')" 
                             class="btn-math-chip" 
-                            style="padding: 5px 11px; font-size: 0.76rem; background: #ecfdf5; border-color: #6ee7b7; color: #065f46; font-weight: 800;" 
-                            title="فتح نافذة منبثقة بسيطة لتعبئة المتغيرات وتجربة الأمر">
+                            style="padding: 5px 10px; font-size: 0.75rem; background: #ecfdf5; border-color: #6ee7b7; color: #065f46; font-weight: 800;" 
+                            title="فتح نافذة منبثقة لتعبئة المتغيرات وتجربة الأمر">
                             <span data-lucide="play-circle" data-size="13"></span>
                             <span>تجربة 🧪</span>
                         </button>
-                        <button type="button" onclick="window.duplicatePromptTemplate('${tpl.id}')" class="btn-math-chip" style="padding: 5px 10px; font-size: 0.76rem;" title="تكرار وإنشاء نسخة مخصصة من هذا القالب">
+                        <button type="button" onclick="window.duplicatePromptTemplate('${tpl.id}')" class="btn-math-chip" style="padding: 5px 10px; font-size: 0.75rem;" title="تكرار وإنشاء نسخة مخصصة من هذا القالب">
                             <span data-lucide="copy" data-size="13"></span>
                             <span>نسخ كقالب مخصص</span>
                         </button>
-                        <button type="button" onclick="window.openEditPromptTemplateModal('${tpl.id}')" class="btn-math-chip" style="padding: 5px 10px; font-size: 0.76rem;" title="تعديل هذا القالب">
+                        <button type="button" onclick="window.openEditPromptTemplateModal('${tpl.id}')" class="btn-math-chip" style="padding: 5px 10px; font-size: 0.75rem;" title="فتح محرر القالب الكامل">
                             <span data-lucide="edit-3" data-size="13"></span>
-                            <span>تعديل</span>
+                            <span>تحرير متقدم</span>
                         </button>
                         ${!tpl.isBuiltIn ? `
-                            <button type="button" onclick="window.deletePromptTemplate('${tpl.id}')" class="btn-math-chip" style="padding: 5px 10px; font-size: 0.76rem; color: #dc2626; border-color: #fecaca;" title="حذف القالب المخصص">
+                            <button type="button" onclick="window.deletePromptTemplate('${tpl.id}')" class="btn-math-chip" style="padding: 5px 10px; font-size: 0.75rem; color: #dc2626; border-color: #fecaca;" title="حذف القالب المخصص">
                                 <span data-lucide="trash-2" data-size="13"></span>
                                 <span>حذف</span>
                             </button>
@@ -1375,66 +1488,79 @@
                     </div>
                 </div>
 
-                <!-- سياق الدور والنظام (System Prompt) إذا كان محدداً -->
-                ${tpl.systemInstruction ? `
-                    <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem;">
-                        <strong style="color: #6b21a8;">🧠 السياق ودور الذكاء الاصطناعي (System Role):</strong>
-                        <div style="color: #475569; margin-top: 2px;">${escapeHtml(tpl.systemInstruction)}</div>
-                    </div>
-                ` : ''}
-
                 <!-- حقول تعبئة المتغيرات الديناميكية -->
                 ${variablesInputsHtml}
 
-                <!-- صندوق معاينة الأمر المولد والجاهز للنسخ أو التنفيذ -->
-                <div style="display: flex; flex-direction: column; flex: 1; min-height: 180px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <span style="font-weight: 800; font-size: 0.82rem; color: #1e293b; display: flex; align-items: center; gap: 6px;">
-                            <span data-lucide="terminal" data-size="14"></span>
-                            <span>نص الأمر بعد تعويض المتغيرات (Ready Prompt):</span>
-                        </span>
-                        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.74rem; color: #64748b;">
-                            <span>${renderedText.length} حرف</span>
-                            <span aria-hidden="true">·</span>
-                            <span>~${Math.round(renderedText.length / 4)} رمز (Tokens)</span>
+                <!-- محرر القالب المباشر أثناء الكتابة + المعاينة المسلطة الضوء على المتغيرات -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; flex: 1; min-height: 210px;">
+                    <!-- كتابة وتعديل نص القالب مع رصد حي للمتغيرات في الشريط الجانبي -->
+                    <div style="display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; gap: 6px; flex-wrap: wrap;">
+                            <span style="font-weight: 800; font-size: 0.79rem; color: #1e293b; display: flex; align-items: center; gap: 5px;">
+                                <span data-lucide="edit-3" data-size="13" style="color: #2563eb;"></span>
+                                <span>كتابة / تخصيص نص القالب (اكتب {{اسم_المتغير}} للمعاينة الحية):</span>
+                            </span>
+                            <div style="display: flex; align-items: center; gap: 4px;">
+                                <button type="button" id="btnSaveInlineTemplateDraft" onclick="window.saveInlineTemplatePromptChanges()" style="display: ${isDraftModified ? 'inline-flex' : 'none'}; align-items: center; gap: 4px; background: #2563eb; color: #fff; border: none; border-radius: 5px; padding: 2px 8px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
+                                    💾 حفظ تعديل القالب
+                                </button>
+                                <button type="button" id="btnResetInlineTemplateDraft" onclick="window.resetInlineTemplatePromptDraft()" style="display: ${isDraftModified ? 'inline-flex' : 'none'}; align-items: center; gap: 4px; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 5px; padding: 2px 7px; font-size: 0.7rem; font-weight: 700; cursor: pointer;">
+                                    استرجاع
+                                </button>
+                            </div>
                         </div>
+                        <textarea id="promptInlineTemplateTextarea"
+                            oninput="window.onInlineTemplatePromptInput(this.value)"
+                            placeholder="اكتب نص القالب هنا واستخدم {{studentName}} أو {{className}} أو {{semester}}..."
+                            style="width: 100%; flex: 1; min-height: 155px; padding: 10px 12px; border-radius: 8px; border: 1.5px solid #94a3b8; background: #ffffff; color: #0f172a; font-family: 'Cairo', system-ui, sans-serif; font-size: 0.82rem; line-height: 1.6; resize: vertical; box-sizing: border-box;">${escapeHtml(activePromptText)}</textarea>
                     </div>
-                    <textarea id="promptRenderedOutput" readonly style="width: 100%; flex: 1; min-height: 140px; padding: 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #0f172a; font-family: 'Cairo', system-ui, sans-serif; font-size: 0.84rem; line-height: 1.6; resize: vertical; box-sizing: border-box;">${escapeHtml(renderedText)}</textarea>
+
+                    <!-- صندوق المعاينة الحية مع تسليط الضوء البصري على المتغيرات (Highlighted Live Preview) -->
+                    <div style="display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; gap: 6px; flex-wrap: wrap;">
+                            <span style="font-weight: 800; font-size: 0.79rem; color: #0f172a; display: flex; align-items: center; gap: 5px;">
+                                <span data-lucide="sparkles" data-size="13" style="color: #059669;"></span>
+                                <span>معاينة القالب مع تسليط الضوء على المتغيرات:</span>
+                            </span>
+                            <div id="promptLiveTokenCounter" style="display: flex; align-items: center; gap: 6px; font-size: 0.71rem; color: #64748b; font-weight: 700;">
+                                <span>${renderedText.length} حرف</span>
+                                <span aria-hidden="true">·</span>
+                                <span>~${Math.round(renderedText.length / 4)} رمز</span>
+                            </div>
+                        </div>
+                        <div id="promptHighlightedLiveOutput" style="width: 100%; flex: 1; min-height: 155px; max-height: 260px; overflow-y: auto; padding: 10px 12px; border-radius: 8px; border: 1.5px solid #bbf7d0; background: #f8fafc; color: #0f172a; font-family: 'Cairo', system-ui, sans-serif; font-size: 0.82rem; line-height: 1.75; white-space: pre-wrap; word-break: break-word; box-sizing: border-box;">${highlightedHtml}</div>
+                        <textarea id="promptRenderedOutput" readonly style="display: none;">${escapeHtml(renderedText)}</textarea>
+                    </div>
                 </div>
 
                 <!-- شريط أزرار الإجراءات السريعة (تجربة، نسخ، تشغيل بالذكاء) -->
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 10px; border-top: 1.5px solid #e2e8f0;">
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <!-- زر 'تجربة' داخل تفاصيل القالب يفتح نافذة منبثقة بسيطة تتيح للمستخدم تعبئة المتغيرات ورؤية كيف سيبدو الأمر النهائي قبل نسخه -->
                         <button type="button" 
                             onclick="window.openPromptTestModal('${tpl.id}')" 
                             class="btn-primary" 
-                            style="background: linear-gradient(135deg, #059669, #047857); border: none; padding: 8px 18px; border-radius: 8px; font-weight: 800; font-size: 0.86rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(5,150,105,0.25); color: #fff; cursor: pointer;" 
-                            title="فتح نافذة منبثقة بسيطة لتعبئة المتغيرات {{...}} ومعاينة كيف سيبدو الأمر النهائي قبل نسخه">
+                            style="background: linear-gradient(135deg, #059669, #047857); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(5,150,105,0.25); color: #fff; cursor: pointer;" 
+                            title="فتح نافذة منبثقة لتعبئة المتغيرات {{...}} ومعاينة كيف سيبدو الأمر النهائي قبل نسخه">
                             <span data-lucide="play-circle" data-size="16"></span>
                             <span>تجربة 🧪</span>
                         </button>
 
-                        <!-- زر النسخ الرئيسي للمتغيرات المعوضة -->
-                        <button type="button" onclick="window.copyRenderedPrompt()" class="btn-primary" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none; padding: 8px 18px; border-radius: 8px; font-weight: 800; font-size: 0.86rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(37,99,235,0.25); cursor: pointer;" title="نسخ نص الأمر كاملاً بعد تعويض المتغيرات للصقه في AI Studio أو ChatGPT">
+                        <button type="button" onclick="window.copyRenderedPrompt()" class="btn-primary" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(37,99,235,0.25); cursor: pointer;" title="نسخ نص الأمر كاملاً بعد تعويض المتغيرات">
                             <span data-lucide="copy" data-size="15"></span>
                             <span>نسخ الأمر المعوض 📋</span>
                         </button>
 
-                        <!-- زر تشغيل وتجربة الأمر فورياً عبر الذكاء الاصطناعي -->
-                        <button type="button" id="btnRunPromptWithAI" onclick="window.runPromptWithAI()" class="btn-primary" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); border: none; padding: 8px 18px; border-radius: 8px; font-weight: 800; font-size: 0.86rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(124,58,237,0.28); color: #fff; cursor: pointer;" title="تشغيل الأمر مباشرة باستخدام محرك الذكاء الاصطناعي وعرض النتيجة التفاعلية">
+                        <button type="button" id="btnRunPromptWithAI" onclick="window.runPromptWithAI()" class="btn-primary" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(124,58,237,0.28); color: #fff; cursor: pointer;" title="تشغيل الأمر مباشرة باستخدام محرك الذكاء الاصطناعي">
                             <span data-lucide="sparkles" data-size="15"></span>
                             <span>تجربة وتشغيل بالأمر ⚡</span>
                         </button>
 
-                        <!-- نسخ القالب الخام مع الأقواس -->
-                        <button type="button" onclick="window.copyRawTemplatePrompt()" class="btn-secondary" style="background: #ffffff; border: 1.5px solid #cbd5e1; padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer;" title="نسخ القالب بصيغته الأصلية المتضمنة أسماء المتغيرات {{}}">
+                        <button type="button" onclick="window.copyRawTemplatePrompt()" class="btn-secondary" style="background: #ffffff; border: 1.5px solid #cbd5e1; padding: 8px 12px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer;" title="نسخ القالب بصيغته الأصلية المتضمنة أسماء المتغيرات {{}}">
                             <span data-lucide="code" data-size="14"></span>
                             <span>نسخ القالب الخام</span>
                         </button>
                     </div>
 
-                    <!-- إشارات العلامات والكلمات المفتاحية -->
                     <div style="display: flex; gap: 4px; flex-wrap: wrap;">
                         ${(tpl.tags || []).map(t => `<span style="font-size: 0.7rem; color: #475569; background: #f1f5f9; padding: 2px 7px; border-radius: 4px; font-weight: 600;">#${escapeHtml(t)}</span>`).join('')}
                     </div>
@@ -1466,6 +1592,272 @@
     }
 
     /**
+     * رسم الشريط الجانبي للمعاينة الحية للمتغيرات (Live Variables Preview & Spotlight Sidebar)
+     * يعرض المتغيرات المرصودة أثناء كتابة القالب (مثل {{studentName}}، {{studentsNames}}، {{className}}، {{semester}})
+     * مع تسليط الضوء التفاعلي عليها لتسهيل فهم القالب قبل استخدامه
+     */
+    function renderPromptLiveVariablesSidebar(overridePromptText = null) {
+        const sidebarContent = document.getElementById('promptLiveVariablesSidebarContent');
+        if (!sidebarContent) return;
+
+        const templates = getStoredPromptTemplates();
+        const tpl = templates.find(t => t.id === _selectedTemplateId);
+        const activeText = overridePromptText !== null
+            ? overridePromptText
+            : (tpl ? (_liveDraftPromptTextById[tpl.id] !== undefined ? _liveDraftPromptTextById[tpl.id] : tpl.promptText) : '');
+
+        const detectedVars = extractVariablesFromPrompt(activeText);
+
+        // حساب عدد مرات تكرار كل متغير داخل نص القالب
+        const occurrenceMap = {};
+        detectedVars.forEach(v => {
+            const regex = new RegExp(`\\{\\{\\s*${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\}\\}`, 'g');
+            const matches = activeText.match(regex);
+            occurrenceMap[v] = matches ? matches.length : 1;
+        });
+
+        const filledCount = detectedVars.filter(v => (_currentVariableValues[v] || '').trim() !== '').length;
+
+        sidebarContent.innerHTML = `
+            <!-- رأس الشريط الجانبي -->
+            <div style="background: linear-gradient(135deg, #1e3a8a, #312e81); color: #ffffff; padding: 12px 14px; border-radius: 10px; box-shadow: 0 4px 10px rgba(30, 58, 138, 0.15);">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                    <div style="display: flex; align-items: center; gap: 7px; font-weight: 900; font-size: 0.86rem;">
+                        <span data-lucide="zap" data-size="16" style="color: #fde047;"></span>
+                        <span>معاينة حية للمتغيرات</span>
+                    </div>
+                    <span style="font-size: 0.7rem; font-weight: 800; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 999px;">
+                        ${detectedVars.length} متغيرات
+                    </span>
+                </div>
+                <div style="font-size: 0.72rem; color: #dbeafe; margin-top: 4px; line-height: 1.4;">
+                    مرّر الفأرة أو انقر على أي متغير لتسليط الضوء على موضعه داخل القالب وتعديل قيمته فوراً أثناء الكتابة.
+                </div>
+            </div>
+
+            <!-- شريط حالة الاكتمال -->
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 7px 10px; font-size: 0.74rem;">
+                <span style="font-weight: 800; color: #334155;">حالة تعبئة المتغيرات:</span>
+                <span style="font-weight: 900; color: ${filledCount === detectedVars.length && detectedVars.length > 0 ? '#15803d' : '#0284c7'}; background: ${filledCount === detectedVars.length && detectedVars.length > 0 ? '#dcfce7' : '#e0f2fe'}; padding: 2px 8px; border-radius: 6px;">
+                    ${filledCount} / ${detectedVars.length} مكتمل
+                </span>
+            </div>
+
+            <!-- قائمة المتغيرات المكتشفة حياً في القالب الحالي -->
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="font-size: 0.76rem; font-weight: 800; color: #1e293b; display: flex; align-items: center; justify-content: space-between;">
+                    <span>🎯 المتغيرات النشطة في القالب:</span>
+                    <button type="button" onclick="window.autoFillPromptVariablesFromActiveContext()" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 5px; padding: 2px 7px; font-size: 0.68rem; font-weight: 800; cursor: pointer;">
+                        ملء تلقائي 🔄
+                    </button>
+                </div>
+
+                ${detectedVars.length === 0 ? `
+                    <div style="background: #ffffff; border: 1.5px dashed #cbd5e1; border-radius: 8px; padding: 14px 10px; text-align: center; font-size: 0.75rem; color: #64748b; line-height: 1.5;">
+                        لا توجد متغيرات <code>{{...}}</code> في النص الحالي.<br>
+                        اكتب مثلاً <code>{{studentName}}</code> أو انقر على أحد المتغيرات أدناه لإدراجه ومعاينته حياً.
+                    </div>
+                ` : detectedVars.map(v => {
+                    const meta = COMMON_PROMPT_VARIABLES.find(cv => cv.key === v) || { key: v, label: v, desc: 'متغير مخصص داخل القالب' };
+                    const val = (_currentVariableValues[v] || '').trim();
+                    const isFilled = val !== '';
+                    const isSpot = _spotlightVariableKey === v;
+                    const count = occurrenceMap[v] || 1;
+                    const previewVal = v === 'excelData' ? (isFilled ? '[جدول بيانات مسار جاهز]' : '') : val;
+
+                    return `
+                        <div class="sidebar-live-var-card"
+                            onmouseenter="window.spotlightTemplateVariable('${escapeQuotes(v)}')"
+                            onmouseleave="window.spotlightTemplateVariable(null)"
+                            style="background: ${isSpot ? '#eef2ff' : '#ffffff'}; border: 1.5px solid ${isSpot ? '#6366f1' : (isFilled ? '#86efac' : '#fcd34d')}; border-radius: 9px; padding: 9px 10px; box-shadow: ${isSpot ? '0 4px 12px rgba(99,102,241,0.18)' : '0 1px 2px rgba(0,0,0,0.03)'}; transition: all 0.15s ease; display: flex; flex-direction: column; gap: 5px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+                                <span style="font-family: monospace; font-size: 0.78rem; font-weight: 900; color: #1e40af; background: #dbeafe; padding: 1px 7px; border-radius: 5px; border: 1px solid #93c5fd;">
+                                    {{${escapeHtml(v)}}}
+                                </span>
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    <span style="font-size: 0.66rem; font-weight: 800; color: #475569; background: #f1f5f9; padding: 1px 6px; border-radius: 4px;" title="عدد مرات ورود هذا المتغير في القالب">
+                                        ${count}× بالقالب
+                                    </span>
+                                    <span style="font-size: 0.66rem; font-weight: 800; color: ${isFilled ? '#166534' : '#b45309'}; background: ${isFilled ? '#dcfce7' : '#fef3c7'}; padding: 1px 6px; border-radius: 4px;">
+                                        ${isFilled ? 'معبأ ✓' : 'فارغ !'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div style="font-size: 0.74rem; font-weight: 800; color: #0f172a; display: flex; justify-content: space-between; align-items: center;">
+                                <span>${escapeHtml(meta.label)}</span>
+                            </div>
+                            <div style="font-size: 0.68rem; color: #64748b; line-height: 1.35;">
+                                ${escapeHtml(meta.desc || '')}
+                            </div>
+
+                            ${v !== 'excelData' ? `
+                                <input type="text"
+                                    id="sidebarVarInput_${escapeQuotes(v)}"
+                                    value="${escapeQuotes(previewVal)}"
+                                    onfocus="window.spotlightTemplateVariable('${escapeQuotes(v)}')"
+                                    onblur="window.spotlightTemplateVariable(null)"
+                                    oninput="window.onPromptVariableChange('${escapeQuotes(v)}', this.value)"
+                                    placeholder="اكتب قيمة {{${escapeQuotes(v)}}} للمعاينة..."
+                                    style="width: 100%; padding: 5px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.76rem; font-weight: 700; color: #0f172a; background: #f8fafc; box-sizing: border-box;">
+                            ` : `
+                                <div style="font-size: 0.7rem; color: #047857; background: #ecfdf5; padding: 4px 7px; border-radius: 5px; font-weight: 700;">
+                                    📊 مرتبط بجدول إكسيل مسار في لوحة التفاصيل
+                                </div>
+                            `}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+
+            <!-- دليل إدراج المتغيرات السريعة أثناء كتابة القالب -->
+            <div style="margin-top: 4px; padding-top: 10px; border-top: 1.5px dashed #cbd5e1;">
+                <div style="font-size: 0.75rem; font-weight: 800; color: #334155; margin-bottom: 6px; display: flex; align-items: center; gap: 5px;">
+                    <span data-lucide="plus-circle" data-size="13" style="color: #2563eb;"></span>
+                    <span>إدراج سريع لمتغير في نص القالب:</span>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                    ${COMMON_PROMPT_VARIABLES.map(cv => `
+                        <button type="button"
+                            onclick="window.insertVariableIntoInlineTemplate('${escapeQuotes(cv.key)}')"
+                            onmouseenter="window.spotlightTemplateVariable('${escapeQuotes(cv.key)}')"
+                            onmouseleave="window.spotlightTemplateVariable(null)"
+                            style="background: #ffffff; color: #1e40af; border: 1px solid #bfdbfe; border-radius: 6px; padding: 3px 7px; font-size: 0.7rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;"
+                            title="انقر لإدراج {{${escapeQuotes(cv.key)}}} (${escapeQuotes(cv.label)}) في نص القالب">
+                            <span>+{{${escapeHtml(cv.key)}}}</span>
+                            <span style="color: #64748b; font-weight: 600; font-size: 0.65rem;">${escapeHtml(cv.label)}</span>
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+
+        if (window.renderLucide) window.renderLucide(sidebarContent);
+    }
+
+    /**
+     * تسليط الضوء البصري الفوري (Spotlight) على متغير معين في المعاينة الحية عند التمرير عليه في الشريط الجانبي
+     */
+    function spotlightTemplateVariable(varKey = null) {
+        _spotlightVariableKey = varKey;
+        const templates = getStoredPromptTemplates();
+        const tpl = templates.find(t => t.id === _selectedTemplateId);
+        if (!tpl) return;
+        const activeText = _liveDraftPromptTextById[tpl.id] !== undefined ? _liveDraftPromptTextById[tpl.id] : tpl.promptText;
+        const highlightedEl = document.getElementById('promptHighlightedLiveOutput');
+        if (highlightedEl) {
+            highlightedEl.innerHTML = buildHighlightedPromptPreviewHTML(activeText, _spotlightVariableKey);
+        }
+    }
+
+    /**
+     * التركيز على حقل المتغير في الشريط الجانبي عند النقر على المتغير المسلط عليه الضوء داخل المعاينة
+     */
+    function focusSidebarVariableInput(varKey) {
+        const sidebarCol = document.getElementById('promptLiveVariablesSidebarCol');
+        if (sidebarCol && sidebarCol.style.display === 'none') {
+            sidebarCol.style.display = 'flex';
+        }
+        const inp = document.getElementById(`sidebarVarInput_${varKey}`) || document.getElementById(`promptVarInput_${varKey}`);
+        if (inp) {
+            inp.focus();
+            inp.select && inp.select();
+        }
+        spotlightTemplateVariable(varKey);
+    }
+
+    /**
+     * إظهار / إخفاء الشريط الجانبي للمعاينة الحية للمتغيرات داخل مكتبة القوالب
+     */
+    function togglePromptVariablesSidebar() {
+        const col = document.getElementById('promptLiveVariablesSidebarCol');
+        if (!col) return;
+        const isHidden = col.style.display === 'none';
+        col.style.display = isHidden ? 'flex' : 'none';
+    }
+
+    /**
+     * معالج الكتابة الحية داخل نص القالب في المكتبة لتحديث الشريط الجانبي للمتغيرات والمعاينة المسلطة الضوء فوراً
+     */
+    function onInlineTemplatePromptInput(newText) {
+        if (!_selectedTemplateId) return;
+        _liveDraftPromptTextById[_selectedTemplateId] = newText;
+
+        const templates = getStoredPromptTemplates();
+        const tpl = templates.find(t => t.id === _selectedTemplateId);
+        const isModified = tpl && newText !== tpl.promptText;
+
+        const saveBtn = document.getElementById('btnSaveInlineTemplateDraft');
+        const resetBtn = document.getElementById('btnResetInlineTemplateDraft');
+        if (saveBtn) saveBtn.style.display = isModified ? 'inline-flex' : 'none';
+        if (resetBtn) resetBtn.style.display = isModified ? 'inline-flex' : 'none';
+
+        const rendered = renderPromptTextWithVariables(newText);
+        const outputEl = document.getElementById('promptRenderedOutput');
+        if (outputEl) outputEl.value = rendered;
+
+        const highlightedEl = document.getElementById('promptHighlightedLiveOutput');
+        if (highlightedEl) {
+            highlightedEl.innerHTML = buildHighlightedPromptPreviewHTML(newText, _spotlightVariableKey);
+        }
+
+        const counterEl = document.getElementById('promptLiveTokenCounter');
+        if (counterEl) {
+            counterEl.innerHTML = `<span>${rendered.length} حرف</span><span aria-hidden="true">·</span><span>~${Math.round(rendered.length / 4)} رمز</span>`;
+        }
+
+        // تحديث الشريط الجانبي للمتغيرات في الوقت الحقيقي أثناء كتابة القالب
+        renderPromptLiveVariablesSidebar(newText);
+    }
+
+    /**
+     * إدراج متغير من الشريط الجانبي مباشرة عند موضع المؤشر في محرر القالب المباشر بالمكتبة
+     */
+    function insertVariableIntoInlineTemplate(varKey) {
+        const textarea = document.getElementById('promptInlineTemplateTextarea');
+        if (!textarea) return;
+        const token = `{{${varKey}}}`;
+        const start = textarea.selectionStart || 0;
+        const end = textarea.selectionEnd || 0;
+        const val = textarea.value;
+        const updated = val.substring(0, start) + token + val.substring(end);
+        textarea.value = updated;
+        textarea.focus();
+        textarea.selectionStart = textarea.selectionEnd = start + token.length;
+        _spotlightVariableKey = varKey;
+        onInlineTemplatePromptInput(updated);
+    }
+
+    /**
+     * حفظ التعديلات المباشرة على نص القالب الحالي في المكتبة
+     */
+    function saveInlineTemplatePromptChanges() {
+        if (!_selectedTemplateId) return;
+        const draft = _liveDraftPromptTextById[_selectedTemplateId];
+        if (draft === undefined) return;
+        const templates = getStoredPromptTemplates();
+        const tpl = templates.find(t => t.id === _selectedTemplateId);
+        if (!tpl) return;
+        tpl.promptText = draft;
+        tpl.updatedAt = new Date().toISOString();
+        delete _liveDraftPromptTextById[_selectedTemplateId];
+        savePromptTemplatesToDB(templates);
+        renderPromptTemplatesView();
+        if (typeof window.showAppToast === 'function') {
+            window.showAppToast('تم حفظ تعديلات نص القالب ومتغيراته بنجاح ✅', 'success');
+        }
+    }
+
+    /**
+     * إلغاء المسودة المؤقتة واسترجاع نص القالب الأصلي
+     */
+    function resetInlineTemplatePromptDraft() {
+        if (!_selectedTemplateId) return;
+        delete _liveDraftPromptTextById[_selectedTemplateId];
+        renderPromptTemplatesView();
+    }
+
+    /**
      * استبدال المتغيرات في نص القالب بالقيم الحالية المدخلة
      */
     function renderPromptTextWithVariables(text) {
@@ -1480,7 +1872,7 @@
     }
 
     /**
-     * معالج تغيير قيمة متغير في الواجهة
+     * معالج تغيير قيمة متغير في الواجهة أو في الشريط الجانبي
      */
     function onPromptVariableChange(varName, value) {
         _currentVariableValues[varName] = value;
@@ -1488,17 +1880,36 @@
         const tpl = templates.find(t => t.id === _selectedTemplateId);
         if (!tpl) return;
 
-        const rendered = renderPromptTextWithVariables(tpl.promptText);
+        const activeText = _liveDraftPromptTextById[tpl.id] !== undefined ? _liveDraftPromptTextById[tpl.id] : tpl.promptText;
+        const rendered = renderPromptTextWithVariables(activeText);
+
         const outputEl = document.getElementById('promptRenderedOutput');
         if (outputEl) outputEl.value = rendered;
+
+        const highlightedEl = document.getElementById('promptHighlightedLiveOutput');
+        if (highlightedEl) {
+            highlightedEl.innerHTML = buildHighlightedPromptPreviewHTML(activeText, varName);
+        }
+
+        // مزامنة الحقلين بين لوحة التفاصيل والشريط الجانبي دون فقدان التركيز
+        const detailInput = document.getElementById(`promptVarInput_${varName}`);
+        if (detailInput && document.activeElement !== detailInput) {
+            detailInput.value = value;
+        }
+        const sidebarInput = document.getElementById(`sidebarVarInput_${varName}`);
+        if (sidebarInput && document.activeElement !== sidebarInput) {
+            sidebarInput.value = value;
+        }
     }
 
     /**
      * استيراد المتغيرات تلقائياً من سياق القسم المفتوح
      */
     function autoFillPromptVariablesFromActiveContext() {
+        _currentVariableValues = {};
         autoDetectContextVariables();
         renderPromptTemplateDetails();
+        renderPromptLiveVariablesSidebar();
         if (typeof window.showAppToast === 'function') {
             window.showAppToast('تم بنجاح تحديث المتغيرات من معطيات القسم النشط 🔄', 'info');
         }
@@ -1512,7 +1923,8 @@
         const tpl = templates.find(t => t.id === _selectedTemplateId);
         if (!tpl) return;
 
-        const text = renderPromptTextWithVariables(tpl.promptText);
+        const activeText = _liveDraftPromptTextById[tpl.id] !== undefined ? _liveDraftPromptTextById[tpl.id] : tpl.promptText;
+        const text = renderPromptTextWithVariables(activeText);
         navigator.clipboard.writeText(text).then(() => {
             tpl.usageCount = (tpl.usageCount || 0) + 1;
             tpl.lastUsedAt = new Date().toISOString();
@@ -1521,11 +1933,11 @@
 
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast(`تم بنجاح نسخ أمر "${tpl.title}" جاهزاً للحافظة 📋`, 'success');
-            } else {
-                alert('تم نسخ نص الأمر بنجاح!');
             }
         }).catch(() => {
-            alert('تعذر النسخ التلقائي، يمكنك تحديد النص ونسخه يدوياً.');
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('تعذر النسخ التلقائي، يمكنك تحديد النص ونسخه يدوياً.', 'warning');
+            }
         });
     }
 
@@ -1537,7 +1949,8 @@
         const tpl = templates.find(t => t.id === _selectedTemplateId);
         if (!tpl) return;
 
-        navigator.clipboard.writeText(tpl.promptText).then(() => {
+        const activeText = _liveDraftPromptTextById[tpl.id] !== undefined ? _liveDraftPromptTextById[tpl.id] : tpl.promptText;
+        navigator.clipboard.writeText(activeText).then(() => {
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('تم نسخ القالب الخام مع المتغيرات 📋', 'info');
             }
@@ -1553,7 +1966,8 @@
         const tpl = templates.find(t => t.id === _selectedTemplateId);
         if (!tpl) return;
 
-        const promptText = renderPromptTextWithVariables(tpl.promptText);
+        const activeText = _liveDraftPromptTextById[tpl.id] !== undefined ? _liveDraftPromptTextById[tpl.id] : tpl.promptText;
+        const promptText = renderPromptTextWithVariables(activeText);
         const btn = document.getElementById('btnRunPromptWithAI');
         const resultPanel = document.getElementById('promptAiExecutionResultPanel');
         const outputEl = document.getElementById('promptAiExecutionOutputText');
@@ -2226,6 +2640,34 @@
         openEditPromptTemplateModal(null);
     }
 
+    // مخزن قيم المتغيرات التجريبية الحية داخل محرر القالب
+    let _editorLivePreviewVars = {};
+    let _lastEditorDetectedVarsSignature = '';
+
+    /**
+     * قيم نموذجية ذكية للمتغيرات الشائعة في مادة الرياضيات (للمعاينة الفورية أثناء التحرير)
+     */
+    const EDITOR_SAMPLE_FALLBACK_VALUES = {
+        className: '2 باك علوم فيزيائية 1',
+        level: 'الثانية باكالوريا علوم تجريبية',
+        subject: 'الرياضيات',
+        topic: 'الاتصال والاشتقاق ودراسة الدوال العددية',
+        duration: 'ساعتان (2h)',
+        semester: 'الدورة الأولى (S1)',
+        studentName: 'ياسين العلمي',
+        studentsNames: 'محمد أمين التازي (8 ساعات غياب)، حمزة الإدريسي (14 ساعة غياب)، أنس المرابط (18 ساعة غياب)',
+        studentGrade: '14.50 / 20',
+        absenceHours: '4 ساعات',
+        absenceThreshold: '4',
+        academicYear: '2025-2026',
+        weaknesses: 'حساب النهايات عند المحدات، التأويل الهندسي للمشتقة، وتطبيق مبرهنة القيم الوسيطية',
+        teacherName: 'الأستاذ إبراهيم قزيبر',
+        schoolName: 'الثانوية التأهيلية التألق',
+        exercisesCount: '3 تمارين متدرجة',
+        difficultyLevel: 'متوازن وفق الإطار المرجعي (30% تطبيق مباشر، 50% استحضار وتوظيف، 20% توليف)',
+        excelData: 'ر.ت\tالاسم الكامل\tالفرض 1\tالفرض 2\n1\tياسين العلمي\t15.5\t16.0\n2\tسلمى بنعلي\t12.0\t13.5'
+    };
+
     /**
      * فتح نموذج تعديل قالب حالي أو إنشاء جديد
      */
@@ -2261,10 +2703,247 @@
             headerTitle.textContent = tpl ? 'تعديل قالب أمر ذكاء اصطناعي' : 'إنشاء قالب أمر ذكاء اصطناعي جديد';
         }
 
+        // تهيئة قيم المعاينة الحية من سياق القسم النشط + القيم النموذجية
+        autoDetectContextVariables();
+        _editorLivePreviewVars = Object.assign({}, EDITOR_SAMPLE_FALLBACK_VALUES, _currentVariableValues);
+        _lastEditorDetectedVarsSignature = '__FORCE_REBUILD__';
+
         renderEditorVariableQuickChips();
+        onEditPromptTextLiveInput(true);
 
         modal.style.display = 'flex';
         if (window.renderLucide) window.renderLucide(modal);
+    }
+
+    /**
+     * معالج الكتابة الفوري داخل محرر القالب لتحديث المتغيرات المكتشفة والمعاينة النهائية ديناميكياً
+     */
+    function onEditPromptTextLiveInput(forceRebuildInputs = false) {
+        const textarea = document.getElementById('editPromptText');
+        const systemInput = document.getElementById('editPromptSystem');
+        const promptText = textarea ? textarea.value : '';
+        const systemText = systemInput ? systemInput.value.trim() : '';
+
+        const detectedVars = extractVariablesFromPrompt(promptText);
+        const signature = detectedVars.join('||');
+
+        // تحديث شارة عدد المتغيرات المكتشفة
+        const countBadge = document.getElementById('editPromptLiveVarCountBadge');
+        if (countBadge) {
+            countBadge.textContent = detectedVars.length > 0
+                ? `${detectedVars.length} متغيرات ديناميكية مكتشفة`
+                : 'لا توجد متغيرات {{...}} بعد';
+            countBadge.style.background = detectedVars.length > 0 ? '#dbeafe' : '#f1f5f9';
+            countBadge.style.color = detectedVars.length > 0 ? '#1e40af' : '#64748b';
+        }
+
+        // ضمان وجود قيم ابتدائية للمتغيرات المكتشفة حديثاً أثناء الكتابة
+        detectedVars.forEach(v => {
+            if (_editorLivePreviewVars[v] === undefined) {
+                _editorLivePreviewVars[v] = _currentVariableValues[v] || EDITOR_SAMPLE_FALLBACK_VALUES[v] || '';
+            }
+        });
+
+        // إعادة رسم حقول المتغيرات فقط إذا تغيرت قائمة المتغيرات المكتشفة (للحفاظ على تركيز المؤشر)
+        if (forceRebuildInputs || signature !== _lastEditorDetectedVarsSignature) {
+            _lastEditorDetectedVarsSignature = signature;
+            renderEditorLivePreviewVariableInputs(detectedVars);
+        }
+
+        // تحديث المعاينة النهائية للأمر بعد استبدال المتغيرات
+        updateEditPromptLivePreviewOutput(promptText, systemText, detectedVars);
+    }
+
+    /**
+     * رسم حقول اختبار المتغيرات المكتشفة داخل لوحة المعاينة الفورية للمحرر
+     */
+    function renderEditorLivePreviewVariableInputs(detectedVars) {
+        const grid = document.getElementById('editPromptLiveVarsGrid');
+        const statusEl = document.getElementById('editPromptLiveVarsStatus');
+        if (!grid) return;
+
+        if (!detectedVars || detectedVars.length === 0) {
+            if (statusEl) statusEl.textContent = 'اكتب {{اسم_المتغير}} في النص ليظهر حقل اختباره هنا';
+            grid.innerHTML = `
+                <div style="grid-column: 1 / -1; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 7px; padding: 8px 10px; font-size: 0.74rem; color: #64748b; text-align: center;">
+                    💡 لم يتم رصد متغيرات ديناميكية <code>{{...}}</code> في النص حالياً. انقر على أحد المتغيرات أعلاه أو اكتب <code>{{topic}}</code> لمشاهدة الاستبدال الفوري.
+                </div>
+            `;
+            return;
+        }
+
+        const filledCount = detectedVars.filter(v => (_editorLivePreviewVars[v] || '').trim() !== '').length;
+        if (statusEl) {
+            statusEl.textContent = `معبأ ${filledCount} من ${detectedVars.length}`;
+        }
+
+        grid.innerHTML = detectedVars.map(v => {
+            const meta = COMMON_PROMPT_VARIABLES.find(item => item.key === v) || { key: v, label: v, desc: v };
+            const currentVal = _editorLivePreviewVars[v] !== undefined ? _editorLivePreviewVars[v] : '';
+            return `
+                <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 7px; padding: 5px 8px; display: flex; flex-direction: column; gap: 3px;">
+                    <label style="font-size: 0.7rem; font-weight: 800; color: #1e293b; display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+                        <span style="color: #1d4ed8; font-family: monospace;">{{${escapeHtml(v)}}}</span>
+                        <span style="font-size: 0.67rem; color: #64748b; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(meta.label)}</span>
+                    </label>
+                    <input type="text"
+                        id="editorLiveVarInput_${escapeQuotes(v)}"
+                        value="${escapeQuotes(currentVal)}"
+                        oninput="window.onEditorPreviewVariableChange('${escapeQuotes(v)}', this.value)"
+                        placeholder="قيمة تجريبية لـ ${escapeQuotes(meta.label)}..."
+                        style="width: 100%; padding: 4px 7px; border-radius: 5px; border: 1px solid #94a3b8; font-size: 0.76rem; font-weight: 700; color: #0f172a; background: #f8fafc; box-sizing: border-box;">
+                </div>
+            `;
+        }).join('');
+    }
+
+    /**
+     * تحديث قيمة متغير تجريبي واحد أثناء الكتابة في حقل الاختبار وتحديث المعاينة فوراً
+     */
+    function onEditorPreviewVariableChange(varName, value) {
+        _editorLivePreviewVars[varName] = value;
+        const textarea = document.getElementById('editPromptText');
+        const systemInput = document.getElementById('editPromptSystem');
+        const promptText = textarea ? textarea.value : '';
+        const systemText = systemInput ? systemInput.value.trim() : '';
+        const detectedVars = extractVariablesFromPrompt(promptText);
+
+        const statusEl = document.getElementById('editPromptLiveVarsStatus');
+        if (statusEl && detectedVars.length > 0) {
+            const filledCount = detectedVars.filter(v => (_editorLivePreviewVars[v] || '').trim() !== '').length;
+            statusEl.textContent = `معبأ ${filledCount} من ${detectedVars.length}`;
+        }
+
+        updateEditPromptLivePreviewOutput(promptText, systemText, detectedVars);
+    }
+
+    /**
+     * توليد المعاينة الحية المنسقة (مع إبراز المتغيرات المستبدلة باللون الأخضر/الأزرق والمتغيرات الفارغة باللون البرتقالي)
+     */
+    function updateEditPromptLivePreviewOutput(promptText, systemText, detectedVars) {
+        const highlightedEl = document.getElementById('editPromptLivePreviewHighlighted');
+        const rawEl = document.getElementById('editPromptLivePreviewRaw');
+        const statsEl = document.getElementById('editPromptLivePreviewStats');
+        const sysBanner = document.getElementById('editPromptLiveSystemBanner');
+
+        if (sysBanner) {
+            if (systemText) {
+                sysBanner.style.display = 'block';
+                sysBanner.innerHTML = `🧭 <strong>دور النظام (System):</strong> ${escapeHtml(systemText)}`;
+            } else {
+                sysBanner.style.display = 'none';
+                sysBanner.innerHTML = '';
+            }
+        }
+
+        if (!promptText || !promptText.trim()) {
+            if (highlightedEl) {
+                highlightedEl.innerHTML = `<span style="color: #94a3b8; font-style: italic;">ابدأ بكتابة نص القالب في الخانة المقابلة لتظهر هنا المعاينة الحية للأمر النهائي بعد تعويض المتغيرات...</span>`;
+            }
+            if (rawEl) rawEl.value = '';
+            if (statsEl) statsEl.textContent = '0 كلمة · 0 حرف · ~0 رمز';
+            return;
+        }
+
+        // 1. بناء النص الخام النهائي
+        let rawRendered = promptText;
+        (detectedVars || []).forEach(v => {
+            const val = (_editorLivePreviewVars[v] || '').trim();
+            if (val) {
+                rawRendered = rawRendered.split(`{{${v}}}`).join(val);
+            }
+        });
+        if (rawEl) rawEl.value = rawRendered;
+
+        // 2. بناء المعاينة التفاعلية الملونة (إبراز القيم المستبدلة)
+        const escapedTemplate = escapeHtml(promptText);
+        const highlightedHtml = escapedTemplate.replace(/\{\{\s*([a-zA-Z0-9_\u0600-\u06FF]+)\s*\}\}/g, (match, varName) => {
+            const key = varName.trim();
+            const val = (_editorLivePreviewVars[key] || '').trim();
+            if (val) {
+                return `<span title="المتغير الأصلي: {{${escapeQuotes(key)}}}" style="background: #dcfce7; color: #166534; border: 1px solid #86efac; padding: 0 5px; border-radius: 4px; font-weight: 800;">${escapeHtml(val)}</span>`;
+            }
+            return `<span title="متغير لم تُحدد له قيمة تجريبية بعد" style="background: #fef3c7; color: #b45309; border: 1px dashed #f59e0b; padding: 0 5px; border-radius: 4px; font-family: monospace; font-weight: 800;">{{${escapeHtml(key)}}}</span>`;
+        });
+
+        if (highlightedEl) {
+            highlightedEl.innerHTML = highlightedHtml;
+        }
+
+        // 3. تحديث إحصاءات الكلمات والأحرف والرموز
+        if (statsEl) {
+            const chars = rawRendered.length;
+            const words = rawRendered.trim() ? rawRendered.trim().split(/\s+/).length : 0;
+            const tokens = Math.round(chars / 4);
+            statsEl.textContent = `${words} كلمة · ${chars} حرف · ~${tokens} Token`;
+        }
+    }
+
+    /**
+     * تعبئة متغيرات المعاينة الحية تلقائياً من القسم النشط أو بالقيم النموذجية لمادة الرياضيات
+     */
+    function autoFillEditorLivePreviewVariables() {
+        autoDetectContextVariables();
+        const textarea = document.getElementById('editPromptText');
+        const promptText = textarea ? textarea.value : '';
+        const detectedVars = extractVariablesFromPrompt(promptText);
+
+        detectedVars.forEach(v => {
+            _editorLivePreviewVars[v] = _currentVariableValues[v] || EDITOR_SAMPLE_FALLBACK_VALUES[v] || `قيمة_${v}`;
+            const inp = document.getElementById(`editorLiveVarInput_${v}`);
+            if (inp) inp.value = _editorLivePreviewVars[v];
+        });
+
+        onEditPromptTextLiveInput(true);
+        if (typeof window.showAppToast === 'function') {
+            window.showAppToast('تمت تعبئة المتغيرات بقيم القسم النشط والبيانات النموذجية للمعاينة 🔄', 'info');
+        }
+    }
+
+    /**
+     * تفريغ قيم المتغيرات التجريبية في لوحة المعاينة الحية للمحرر
+     */
+    function clearEditorLivePreviewVariables() {
+        const textarea = document.getElementById('editPromptText');
+        const promptText = textarea ? textarea.value : '';
+        const detectedVars = extractVariablesFromPrompt(promptText);
+
+        detectedVars.forEach(v => {
+            _editorLivePreviewVars[v] = '';
+            const inp = document.getElementById(`editorLiveVarInput_${v}`);
+            if (inp) inp.value = '';
+        });
+
+        onEditPromptTextLiveInput(true);
+    }
+
+    /**
+     * نسخ النص النهائي المستبدل من لوحة المعاينة الحية داخل المحرر
+     */
+    function copyEditorLivePreviewOutput() {
+        const rawEl = document.getElementById('editPromptLivePreviewRaw');
+        const text = rawEl ? rawEl.value : '';
+        if (!text || !text.trim()) {
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('لا يوجد نص في المعاينة لنسخه حالياً', 'warning');
+            }
+            return;
+        }
+        navigator.clipboard.writeText(text).then(() => {
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('تم نسخ النص النهائي بعد تعويض المتغيرات إلى الحافظة 📋✨', 'success');
+            }
+        }).catch(() => {
+            if (rawEl) {
+                rawEl.style.display = 'block';
+                rawEl.select();
+                document.execCommand('copy');
+                rawEl.style.display = 'none';
+            }
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('تم نسخ المعاينة النهائية للحافظة 📋', 'success');
+            }
+        });
     }
 
     /**
@@ -2319,15 +2998,16 @@
             <button type="button" 
                 onclick="window.insertVariableIntoPromptEditor('${v.key}')"
                 style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 6px; padding: 3px 8px; font-size: 0.74rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;"
-                title="${escapeQuotes(v.desc)}">
+                title="${escapeQuotes(v.desc)} (${escapeQuotes(v.label)})">
                 <span>+</span>
                 <span>{{${v.key}}}</span>
+                <span style="font-size: 0.66rem; color: #475569; font-weight: 600;">(${escapeHtml(v.label)})</span>
             </button>
         `).join('');
     }
 
     /**
-     * إدراج متغير عند موضع مؤشر الكتابة داخل محرر النص
+     * إدراج متغير عند موضع مؤشر الكتابة داخل محرر النص وتحديث المعاينة الحية فوراً
      */
     function insertVariableIntoPromptEditor(varName) {
         const textarea = document.getElementById('editPromptText');
@@ -2341,6 +3021,9 @@
         textarea.value = val.substring(0, start) + token + val.substring(end);
         textarea.focus();
         textarea.selectionStart = textarea.selectionEnd = start + token.length;
+
+        // تحديث المعاينة التفاعلية فور إدراج المتغير
+        onEditPromptTextLiveInput();
     }
 
     /**
@@ -2982,6 +3665,11 @@
     window.openEditPromptTemplateModal = openEditPromptTemplateModal;
     window.closeEditPromptTemplateModal = closeEditPromptTemplateModal;
     window.insertVariableIntoPromptEditor = insertVariableIntoPromptEditor;
+    window.onEditPromptTextLiveInput = onEditPromptTextLiveInput;
+    window.onEditorPreviewVariableChange = onEditorPreviewVariableChange;
+    window.autoFillEditorLivePreviewVariables = autoFillEditorLivePreviewVariables;
+    window.clearEditorLivePreviewVariables = clearEditorLivePreviewVariables;
+    window.copyEditorLivePreviewOutput = copyEditorLivePreviewOutput;
     window.savePromptTemplateForm = savePromptTemplateForm;
     window.deletePromptTemplate = deletePromptTemplate;
     window.exportPromptTemplatesJSON = exportPromptTemplatesJSON;
@@ -3007,5 +3695,15 @@
     window.generateSampleMassarExcelData = generateSampleMassarExcelData;
     window.fillSampleMassarData = fillSampleMassarData;
     window.importActiveStudentsToExcelData = importActiveStudentsToExcelData;
+
+    // دوال الشريط الجانبي للمعاينة الحية للمتغيرات وتسليط الضوء داخل المكتبة
+    window.renderPromptLiveVariablesSidebar = renderPromptLiveVariablesSidebar;
+    window.spotlightTemplateVariable = spotlightTemplateVariable;
+    window.focusSidebarVariableInput = focusSidebarVariableInput;
+    window.togglePromptVariablesSidebar = togglePromptVariablesSidebar;
+    window.onInlineTemplatePromptInput = onInlineTemplatePromptInput;
+    window.insertVariableIntoInlineTemplate = insertVariableIntoInlineTemplate;
+    window.saveInlineTemplatePromptChanges = saveInlineTemplatePromptChanges;
+    window.resetInlineTemplatePromptDraft = resetInlineTemplatePromptDraft;
 
 })(window);

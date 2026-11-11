@@ -47,9 +47,11 @@
      * استخراج النقطة الرقمية
      */
     function parseNumericGrade(v) {
-        if (v === undefined || v === null || v === '' || isNaN(v)) return null;
-        const n = parseFloat(v);
-        return (n >= 0 && n <= 20) ? n : null;
+        if (v === undefined || v === null || typeof v === 'boolean') return null;
+        const s = String(v).trim().replace(',', '.');
+        if (s === '') return null;
+        const n = parseFloat(s);
+        return (!isNaN(n) && isFinite(n) && n >= 0 && n <= 20) ? n : null;
     }
 
     /**
@@ -82,14 +84,14 @@
                         s2 = window.getStudentGradesBySemester(className, std.id, 's2') || {};
                     } else if (window.db.grades && window.db.grades[className] && window.db.grades[className][std.id]) {
                         const raw = window.db.grades[className][std.id];
-                        s1 = raw.s1 || { f1: raw.f1, f2: raw.f2, f3: raw.f3, activities: raw.activities };
+                        s1 = raw.s1 || { f1: raw.f1, f2: raw.f2, f3: raw.f3, f4: raw.f4 };
                         s2 = raw.s2 || {};
                     }
                     gRec = {
                         f1: avgTwoVals(s1.f1, s2.f1),
                         f2: avgTwoVals(s1.f2, s2.f2),
                         f3: avgTwoVals(s1.f3, s2.f3),
-                        activities: avgTwoVals(s1.activities, s2.activities)
+                        f4: avgTwoVals(s1.f4, s2.f4)
                     };
                 } else if (typeof window.getStudentGradesBySemester === 'function') {
                     gRec = window.getStudentGradesBySemester(className, std.id, _impactState.semester) || {};
@@ -98,31 +100,32 @@
                     if (_impactState.semester === 's2') {
                         gRec = raw.s2 || {};
                     } else {
-                        gRec = raw.s1 || { f1: raw.f1, f2: raw.f2, f3: raw.f3, activities: raw.activities };
+                        gRec = raw.s1 || { f1: raw.f1, f2: raw.f2, f3: raw.f3, f4: raw.f4 };
                     }
                 }
 
+                const examCount = (typeof window.getExamsCountForClass === 'function') ? window.getExamsCountForClass(className) : 3;
                 const f1 = parseNumericGrade(gRec.f1);
                 const f2 = parseNumericGrade(gRec.f2);
-                const f3 = parseNumericGrade(gRec.f3);
-                const act = parseNumericGrade(gRec.activities);
+                const f3 = examCount >= 3 ? parseNumericGrade(gRec.f3) : null;
+                const f4 = examCount >= 4 ? parseNumericGrade(gRec.f4) : null;
 
-                const validMarks = [f1, f2, f3].filter(v => v !== null);
+                const validMarks = [f1, f2, f3, f4].filter(v => v !== null);
                 let examAverage = null;
                 if (validMarks.length > 0) {
                     const sum = validMarks.reduce((a, b) => a + b, 0);
                     examAverage = Math.round((sum / validMarks.length) * 100) / 100;
                 }
 
-                // حساب المعدل الدوري مع الأنشطة إن وجدت
+                // المراقبة المستمرة في مادة الرياضيات بالتعليم الثانوي التأهيلي المغربي تعتمد 100% على الفروض المحروسة
                 let periodAverage = examAverage;
-                if (examAverage !== null && act !== null) {
-                    periodAverage = Math.round(((examAverage * 0.75) + (act * 0.25)) * 100) / 100;
-                }
 
-                // 2. استخراج سجلات الغياب اليومية
-                const allRecords = (window.db.records || []).filter(r => {
-                    if (r.studentId !== std.id || r.className !== className) return false;
+                // 2. استخراج سجلات الغياب اليومية عبر الفهرس السريع O(1) لتجنب المسح الخطي المكرر
+                const rawStdRecords = (typeof window.getStudentClassRecordsFast === 'function')
+                    ? window.getStudentClassRecordsFast(std.id, className)
+                    : (window.db.records || []).filter(r => r.studentId === std.id && r.className === className);
+
+                const allRecords = rawStdRecords.filter(r => {
                     // استثناء العطل الرسمية المرحلة
                     if (r.status === 'عطلة رسمية' || r.migratedHoliday) return false;
                     // تصفية حسب الأسدوس اعتماداً على شهر الحصة بغض النظر عن السنة الدراسية
@@ -143,7 +146,9 @@
                 const dailyAbsences = [];
 
                 allRecords.forEach(r => {
-                    const dur = r.duration !== undefined ? Number(r.duration) : 1;
+                    const dur = (typeof window.getRecordAbsenceDuration === 'function') 
+                        ? window.getRecordAbsenceDuration(r) 
+                        : (r.part === 'h1' || r.part === 'h2' ? 1 : (r.duration !== undefined ? Number(r.duration) : 1));
                     absentHours += dur;
                     if (r.status === 'غائب' || r.status === 'غير مبرر') {
                         unexcusedHours += dur;
@@ -162,11 +167,9 @@
                 // ترتيب الغياب زمنياً
                 dailyAbsences.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
-                // حساب التطور بين الفروض (Delta)
+                // حساب التطور بين الفروض (Delta) من أول فرض مرصود إلى آخر فرض مرصود في الدورة
                 let delta = null;
-                if (f1 !== null && f2 !== null) {
-                    delta = Math.round((f2 - f1) * 100) / 100;
-                } else if (validMarks.length >= 2) {
+                if (validMarks.length >= 2) {
                     delta = Math.round((validMarks[validMarks.length - 1] - validMarks[0]) * 100) / 100;
                 }
 
@@ -177,6 +180,7 @@
                     f1,
                     f2,
                     f3,
+                    f4,
                     examAverage,
                     periodAverage,
                     absentHours,
@@ -1061,7 +1065,7 @@
             <body>
                 <div class="header-box">
                     ${typeof window.getDualLogosHTML === 'function' ? `<div style="margin-bottom: 6px;">${window.getDualLogosHTML('print')}</div>` : ''}
-                    <h2>المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والرياضة</h2>
+                    <h2>المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</h2>
                     <p>ثانوية التأهيلية | مادة الرياضيات</p>
                     <p style="font-weight: bold; font-size: 14px; color: #0f172a; margin-top: 6px;">
                         التقرير البياني الإحصائي: أثر الغياب على تطور نقط الفروض ومعدلات التلاميذ

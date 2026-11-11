@@ -137,7 +137,9 @@
                 continue;
             }
 
-            const dur = parseFloat(r.duration) || 1;
+            const dur = (typeof window.getRecordAbsenceDuration === 'function')
+                ? window.getRecordAbsenceDuration(r)
+                : (r.part === 'h1' || r.part === 'h2' ? 1 : (parseFloat(r.duration) || 1));
             totalPeriodAbsenceHours += dur;
             if (isUnjustified) unjustifiedHoursSum += dur;
             if (isJustified) justifiedHoursSum += dur;
@@ -156,6 +158,7 @@
                 dayName,
                 session: r.session || '1',
                 duration: dur,
+                part: r.part || 'all',
                 status: r.status,
                 justification: r.justification || ''
             });
@@ -175,7 +178,9 @@
                 let weeklyJustified = 0;
 
                 weeklyRecs.forEach(rec => {
-                    const dur = parseFloat(rec.duration) || 1;
+                    const dur = (typeof window.getRecordAbsenceDuration === 'function')
+                        ? window.getRecordAbsenceDuration(rec)
+                        : (rec.part === 'h1' || rec.part === 'h2' ? 1 : (parseFloat(rec.duration) || 1));
                     if (rec.status === 'غائب') weeklyUnjustified += dur;
                     else if (rec.status === 'مبرر') weeklyJustified += dur;
                 });
@@ -193,7 +198,9 @@
                     const r = records[j];
                     if (r.studentId === std.id && r.className === className && (r.status === 'غائب' || r.status === 'مبرر')) {
                         if (typeof window.isRecordProtectedHolidayOrLeave === 'function' && window.isRecordProtectedHolidayOrLeave(r)) continue;
-                        allTimeAbsenceHours += (parseFloat(r.duration) || 1);
+                        allTimeAbsenceHours += (typeof window.getRecordAbsenceDuration === 'function')
+                            ? window.getRecordAbsenceDuration(r)
+                            : (r.part === 'h1' || r.part === 'h2' ? 1 : (parseFloat(r.duration) || 1));
                     }
                 }
 
@@ -991,7 +998,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; text-align: center;">
                         <div style="text-align: right; font-size: 11px; font-weight: 700; width: 33%;">
                             <div>المملكة المغربية</div>
-                            <div>وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                            <div>وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                             <div>${escapeHtml(academy)}</div>
                             <div>${escapeHtml(directorate)}</div>
                             <div>مؤسسة: <strong>${escapeHtml(schoolName)}</strong></div>
@@ -1382,7 +1389,9 @@
                 continue;
             }
             const isAbs = (r.status === 'غائب' || r.status === 'مبرر');
-            const dur = parseFloat(r.duration || r.hours) || 1;
+            const dur = (typeof window.getRecordAbsenceDuration === 'function')
+                ? window.getRecordAbsenceDuration(r)
+                : (r.part === 'h1' || r.part === 'h2' ? 1 : (parseFloat(r.duration || r.hours) || 1));
             const key = `${r.className}:::${r.studentId}`;
 
             if (isAbs) {
@@ -1952,7 +1961,7 @@
                 <div style="border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
                     <div style="width: 33%; line-height: 1.45; font-weight: 700;">
                         <div>المملكة المغربية</div>
-                        <div>وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                        <div>وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                         <div>${escapeHtml(academy)} - ${escapeHtml(directorate)}</div>
                         <div>المؤسسة: <strong>${escapeHtml(schoolName)}</strong></div>
                     </div>

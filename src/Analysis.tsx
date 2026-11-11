@@ -210,10 +210,29 @@ export default function Analysis() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const lastSyncSigRef = useRef<string>('');
+  const pendingDbSyncRef = useRef<boolean>(false);
+
   useEffect(() => {
-    const loadDb = () => {
+    const computeSig = (wdb: any) => {
+      if (!wdb) return '';
+      const recLen = Array.isArray(wdb.records) ? wdb.records.length : 0;
+      const lastRec = recLen > 0 ? wdb.records[recLen - 1] : null;
+      const clsKeys = wdb.classes ? Object.keys(wdb.classes).length : 0;
+      const gLen = wdb.grades ? Object.keys(wdb.grades).length : 0;
+      const g1Len = wdb.gradesS1 ? Object.keys(wdb.gradesS1).length : 0;
+      const g2Len = wdb.gradesS2 ? Object.keys(wdb.gradesS2).length : 0;
+      return `${clsKeys}|${recLen}|${lastRec?.id || ''}|${lastRec?.status || ''}|${gLen}|${g1Len}|${g2Len}|${wdb._lastSavedAt || ''}`;
+    };
+
+    const loadDb = (force = false) => {
       if (typeof window !== 'undefined' && (window as any).db) {
-        setDb({ ...(window as any).db });
+        const wdb = (window as any).db;
+        const sig = computeSig(wdb);
+        if (force || sig !== lastSyncSigRef.current) {
+          lastSyncSigRef.current = sig;
+          setDb({ ...wdb });
+        }
       } else {
         const localData = localStorage.getItem('absence_massar_v8_manual');
         if (localData) {
@@ -236,6 +255,21 @@ export default function Analysis() {
       }
     };
 
+    const handleTabOpened = () => {
+      pendingDbSyncRef.current = false;
+      loadDb(true);
+    };
+
+    const handleDbUpdated = () => {
+      const viewEl = document.getElementById('annualPerformanceView');
+      const isVisible = !viewEl || viewEl.style.display !== 'none';
+      if (isVisible) {
+        loadDb(false);
+      } else {
+        pendingDbSyncRef.current = true;
+      }
+    };
+
     const handleAnnualClassChanged = (e: any) => {
       const cls = e?.detail?.className;
       if (cls && typeof cls === 'string') {
@@ -254,17 +288,17 @@ export default function Analysis() {
       }
     };
 
-    loadDb();
+    loadDb(true);
 
-    window.addEventListener('analysisTabOpened', loadDb);
-    window.addEventListener('dbUpdated', loadDb);
+    window.addEventListener('analysisTabOpened', handleTabOpened);
+    window.addEventListener('dbUpdated', handleDbUpdated);
     window.addEventListener('annualClassChanged', handleAnnualClassChanged as EventListener);
     window.addEventListener('globalClassSynced', handleAnnualClassChanged as EventListener);
     window.addEventListener('selectAnalysisWorkspace', handleSelectWorkspace as EventListener);
 
     return () => {
-      window.removeEventListener('analysisTabOpened', loadDb);
-      window.removeEventListener('dbUpdated', loadDb);
+      window.removeEventListener('analysisTabOpened', handleTabOpened);
+      window.removeEventListener('dbUpdated', handleDbUpdated);
       window.removeEventListener('annualClassChanged', handleAnnualClassChanged as EventListener);
       window.removeEventListener('globalClassSynced', handleAnnualClassChanged as EventListener);
       window.removeEventListener('selectAnalysisWorkspace', handleSelectWorkspace as EventListener);
@@ -276,13 +310,47 @@ export default function Analysis() {
     return Object.keys(db.classes);
   }, [db]);
 
+  // Single-pass O(R) index of valid (non-holiday/non-leave) records grouped by className
+  const recordsByClassMap = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    const allValid: any[] = [];
+    if (!db || !Array.isArray(db.records)) return { byClass: map, allValid };
+    const isProtectedRecord =
+      typeof window !== 'undefined' && typeof (window as any).isRecordProtectedHolidayOrLeave === 'function'
+        ? (window as any).isRecordProtectedHolidayOrLeave
+        : null;
+    const isProtectedDate =
+      typeof window !== 'undefined' && typeof (window as any).isAbsenceDisabledOnDate === 'function'
+        ? (window as any).isAbsenceDisabledOnDate
+        : null;
+    for (let i = 0; i < db.records.length; i++) {
+      const r = db.records[i];
+      if (!r) continue;
+      if (isProtectedRecord && isProtectedRecord(r)) continue;
+      if (r.date && isProtectedDate) {
+        const chk = isProtectedDate(r.date, r.session);
+        if (typeof chk === 'boolean' ? chk : !!(chk && chk.disabled)) continue;
+      }
+      allValid.push(r);
+      const cName = r.className || '';
+      if (!map[cName]) map[cName] = [];
+      map[cName].push(r);
+    }
+    return { byClass: map, allValid };
+  }, [db]);
+
   // Compute longitudinal student metrics
   const { studentMetrics, classAverages, classQuartiles, macroTrend } = useMemo(() => {
     if (!db || !db.classes) {
       return {
         studentMetrics: [],
-        classAverages: { f1: null, f2: null, f3: null, overall: null },
-        classQuartiles: { f1: { q1: null, med: null, q3: null }, f2: { q1: null, med: null, q3: null }, f3: { q1: null, med: null, q3: null } },
+        classAverages: { f1: null, f2: null, f3: null, f4: null, overall: null },
+        classQuartiles: {
+          f1: { q1: null, med: null, q3: null },
+          f2: { q1: null, med: null, q3: null },
+          f3: { q1: null, med: null, q3: null },
+          f4: { q1: null, med: null, q3: null }
+        },
         macroTrend: { direction: 'stable', delta: 0, deltaPercent: 0, improvingPercent: 0, decliningPercent: 0, stablePercent: 0 }
       };
     }
@@ -425,11 +493,22 @@ export default function Analysis() {
       f4: calcQuartiles(f4Marks)
     };
 
-    // Populate gapVsClass: مقارنة المعدل الدوري للتلميذ مع المعدل العام للقسم وفق المعايير الديداكتيكية والإحصائية
+    // Populate gapVsClass: مقارنة المعدل الدوري للتلميذ مع المعدل العام لقسمه الأصلي (لتفادي تحيز دمج أقسام ذات شعب مختلفة)
+    const classAvgByClass: Record<string, number | null> = {};
+    targetClasses.forEach(cName => {
+      const clsAvgs = metrics
+        .filter(m => m.className === cName && m.avg !== null && !isNaN(m.avg))
+        .map(m => m.avg as number);
+      classAvgByClass[cName] = clsAvgs.length > 0
+        ? parseFloat((clsAvgs.reduce((a, b) => a + b, 0) / clsAvgs.length).toFixed(2))
+        : avgOverall;
+    });
+
     metrics.forEach(m => {
       const studentBenchmark = m.avg !== null ? m.avg : m.bestMark;
-      if (studentBenchmark !== null && avgOverall !== null) {
-        m.gapVsClass = parseFloat((studentBenchmark - avgOverall).toFixed(2));
+      const ownClassMean = classAvgByClass[m.className] ?? avgOverall;
+      if (studentBenchmark !== null && ownClassMean !== null) {
+        m.gapVsClass = parseFloat((studentBenchmark - ownClassMean).toFixed(2));
       }
     });
 
@@ -597,12 +676,27 @@ export default function Analysis() {
           ? (Array.isArray(db.classes[cName]) ? db.classes[cName] : (db.classes[cName].students || []))
           : [];
 
+        const rawCfg = db?.classConfig?.[cName];
+        const cfgExams =
+          typeof rawCfg === 'number'
+            ? rawCfg
+            : typeof rawCfg === 'string' && !isNaN(parseInt(rawCfg, 10))
+            ? parseInt(rawCfg, 10)
+            : rawCfg && typeof rawCfg === 'object' && rawCfg.examsCount !== undefined
+            ? parseInt(rawCfg.examsCount, 10)
+            : null;
+        const winExams =
+          typeof (window as any).getExamsCountForClass === 'function'
+            ? Number((window as any).getExamsCountForClass(cName))
+            : null;
+        const classExamsCount = (winExams && !isNaN(winExams)) ? winExams : (cfgExams || 3);
+
         const classAvgs: number[] = [];
         students.forEach((std: any) => {
           const f1 = getStudentExamGrade(classGrades, std.id, semester, 'f1', db, cName);
           const f2 = getStudentExamGrade(classGrades, std.id, semester, 'f2', db, cName);
-          const f3 = getStudentExamGrade(classGrades, std.id, semester, 'f3', db, cName);
-          const f4 = getStudentExamGrade(classGrades, std.id, semester, 'f4', db, cName);
+          const f3 = classExamsCount >= 3 ? getStudentExamGrade(classGrades, std.id, semester, 'f3', db, cName) : null;
+          const f4 = classExamsCount >= 4 ? getStudentExamGrade(classGrades, std.id, semester, 'f4', db, cName) : null;
           const valid = [f1, f2, f3, f4].filter((v): v is number => v !== null);
           if (valid.length > 0) {
             classAvgs.push(parseFloat((valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(2)));
@@ -779,7 +873,7 @@ export default function Analysis() {
   };
 
   // =========================================================================
-  // حساب مقارنة نسب الغياب ونسب النجاح في الفروض الموحدة لكل قسم
+  // حساب مقارنة نسب الغياب ونسب الحاصلين على المعدل في الفروض الموحدة لكل قسم
   // Class-by-Class Longitudinal Comparison: Absence Rates vs. Exam Success
   // =========================================================================
   const classAbsenceSuccessComparison = useMemo(() => {
@@ -791,7 +885,7 @@ export default function Analysis() {
         : (db.classes[cName]?.students || []);
       const studentCount = students.length;
 
-      const classRecords = (db.records || []).filter((r: any) => r.className === cName);
+      const classRecords = recordsByClassMap.byClass[cName] || [];
       const absentRecords = classRecords.filter((r: any) => r.status === 'غائب' || r.status === 'مبرر');
       const totalAbsentHours = absentRecords.reduce((sum: number, r: any) => sum + (parseFloat(r.duration || r.hours) || 1), 0);
       const lateRecordsCount = classRecords.filter((r: any) => r.status === 'متأخر').length;
@@ -832,11 +926,26 @@ export default function Analysis() {
       let overallTestedStudents = 0;
       let overallGradeSum = 0;
 
+      const rawCfg = db?.classConfig?.[cName];
+      const cfgExams =
+        typeof rawCfg === 'number'
+          ? rawCfg
+          : typeof rawCfg === 'string' && !isNaN(parseInt(rawCfg, 10))
+          ? parseInt(rawCfg, 10)
+          : rawCfg && typeof rawCfg === 'object' && rawCfg.examsCount !== undefined
+          ? parseInt(rawCfg.examsCount, 10)
+          : null;
+      const winExams =
+        typeof (window as any).getExamsCountForClass === 'function'
+          ? Number((window as any).getExamsCountForClass(cName))
+          : null;
+      const classExamsCount = (winExams && !isNaN(winExams)) ? winExams : (cfgExams || 3);
+
       students.forEach((std: any) => {
         const f1 = getStudentExamGrade(classGrades, std.id, semester, 'f1', db, cName);
         const f2 = getStudentExamGrade(classGrades, std.id, semester, 'f2', db, cName);
-        const f3 = getStudentExamGrade(classGrades, std.id, semester, 'f3', db, cName);
-        const f4 = getStudentExamGrade(classGrades, std.id, semester, 'f4', db, cName);
+        const f3 = classExamsCount >= 3 ? getStudentExamGrade(classGrades, std.id, semester, 'f3', db, cName) : null;
+        const f4 = classExamsCount >= 4 ? getStudentExamGrade(classGrades, std.id, semester, 'f4', db, cName) : null;
 
         if (f1 !== null) {
           f1TotalTested++;
@@ -925,7 +1034,7 @@ export default function Analysis() {
         impactCategory
       };
     });
-  }, [db, classNames, semester]);
+  }, [db, classNames, semester, recordsByClassMap]);
 
   const overallAbsenceSuccessKPIs = useMemo(() => {
     if (classAbsenceSuccessComparison.length === 0) {
@@ -999,10 +1108,11 @@ export default function Analysis() {
     let totalScheduledYearlyExams = 0;
     let totalCompletedYearlyExams = 0;
 
-    // Attendance & Lesson progress for target classes
-    const relevantRecords = (db.records || []).filter((r: any) =>
-      selectedClass === 'all' ? true : r.className === selectedClass
-    );
+    // Attendance & Lesson progress for target classes (using pre-indexed valid records)
+    const relevantRecords =
+      selectedClass === 'all'
+        ? recordsByClassMap.allValid
+        : (recordsByClassMap.byClass[selectedClass] || []);
     const sessionSet = new Set(relevantRecords.map((r: any) => `${r.className || ''}|${r.date || ''}|${r.session || ''}`));
     const recordedSessionsCount = sessionSet.size;
 
@@ -1028,14 +1138,31 @@ export default function Analysis() {
         ? db.classes[cName]
         : (db.classes[cName]?.students || []);
 
-      students.forEach((std: any) => {
-        const s1_f1 = getStudentExamGrade(classGrades, std.id, 's1', 'f1');
-        const s1_f2 = getStudentExamGrade(classGrades, std.id, 's1', 'f2');
-        const s1_f3 = getStudentExamGrade(classGrades, std.id, 's1', 'f3');
+      const rawCfg = db?.classConfig?.[cName];
+      const cfgExams =
+        typeof rawCfg === 'number'
+          ? rawCfg
+          : typeof rawCfg === 'string' && !isNaN(parseInt(rawCfg, 10))
+          ? parseInt(rawCfg, 10)
+          : rawCfg && typeof rawCfg === 'object' && rawCfg.examsCount !== undefined
+          ? parseInt(rawCfg.examsCount, 10)
+          : null;
+      const winExams =
+        typeof (window as any).getExamsCountForClass === 'function'
+          ? Number((window as any).getExamsCountForClass(cName))
+          : null;
+      const classExamsCount = Math.max(1, (winExams && !isNaN(winExams)) ? winExams : (cfgExams || 3));
 
-        const s2_f1 = getStudentExamGrade(classGrades, std.id, 's2', 'f1');
-        const s2_f2 = getStudentExamGrade(classGrades, std.id, 's2', 'f2');
-        const s2_f3 = getStudentExamGrade(classGrades, std.id, 's2', 'f3');
+      students.forEach((std: any) => {
+        const s1_f1 = getStudentExamGrade(classGrades, std.id, 's1', 'f1', db, cName);
+        const s1_f2 = getStudentExamGrade(classGrades, std.id, 's1', 'f2', db, cName);
+        const s1_f3 = classExamsCount >= 3 ? getStudentExamGrade(classGrades, std.id, 's1', 'f3', db, cName) : null;
+        const s1_f4 = classExamsCount >= 4 ? getStudentExamGrade(classGrades, std.id, 's1', 'f4', db, cName) : null;
+
+        const s2_f1 = getStudentExamGrade(classGrades, std.id, 's2', 'f1', db, cName);
+        const s2_f2 = getStudentExamGrade(classGrades, std.id, 's2', 'f2', db, cName);
+        const s2_f3 = classExamsCount >= 3 ? getStudentExamGrade(classGrades, std.id, 's2', 'f3', db, cName) : null;
+        const s2_f4 = classExamsCount >= 4 ? getStudentExamGrade(classGrades, std.id, 's2', 'f4', db, cName) : null;
 
         if (s1_f1 !== null) stationBuckets.s1_f1.push(s1_f1);
         if (s1_f2 !== null) stationBuckets.s1_f2.push(s1_f2);
@@ -1045,8 +1172,8 @@ export default function Analysis() {
         if (s2_f2 !== null) stationBuckets.s2_f2.push(s2_f2);
         if (s2_f3 !== null) stationBuckets.s2_f3.push(s2_f3);
 
-        const s1Valid = [s1_f1, s1_f2, s1_f3].filter((v): v is number => v !== null);
-        const s2Valid = [s2_f1, s2_f2, s2_f3].filter((v): v is number => v !== null);
+        const s1Valid = [s1_f1, s1_f2, s1_f3, s1_f4].filter((v): v is number => v !== null);
+        const s2Valid = [s2_f1, s2_f2, s2_f3, s2_f4].filter((v): v is number => v !== null);
 
         const s1Avg = s1Valid.length > 0
           ? parseFloat((s1Valid.reduce((a, b) => a + b, 0) / s1Valid.length).toFixed(2))
@@ -1069,18 +1196,19 @@ export default function Analysis() {
 
         if (annualAvg !== null) stationBuckets.annual_avg.push(annualAvg);
 
-        // Current Academic Progress tracking
+        // Current Academic Progress tracking (متوافق مع عدد الفروض الرسمي لكل شعبة: 2 أو 3 أو 4)
         const currentSemMarks = semester === 's2' ? s2Valid : s1Valid;
         const currentSemAvg = semester === 's2' ? s2Avg : s1Avg;
         const currentExamCompletedCount = currentSemMarks.length;
         const yearlyExamCompletedCount = s1Valid.length + s2Valid.length;
+        const yearlyExpectedExams = classExamsCount * 2;
 
-        totalScheduledCurrentExams += 3;
+        totalScheduledCurrentExams += classExamsCount;
         totalCompletedCurrentExams += currentExamCompletedCount;
-        totalScheduledYearlyExams += 6;
+        totalScheduledYearlyExams += yearlyExpectedExams;
         totalCompletedYearlyExams += yearlyExamCompletedCount;
 
-        const allChronological = [s1_f1, s1_f2, s1_f3, s2_f1, s2_f2, s2_f3].filter((v): v is number => v !== null);
+        const allChronological = [s1_f1, s1_f2, s1_f3, s1_f4, s2_f1, s2_f2, s2_f3, s2_f4].filter((v): v is number => v !== null);
         const firstMark = allChronological.length > 0 ? allChronological[0] : null;
         const latestMark = allChronological.length > 0 ? allChronological[allChronological.length - 1] : null;
 
@@ -1091,26 +1219,25 @@ export default function Analysis() {
           yearlyDelta = parseFloat((latestMark - firstMark).toFixed(2));
         }
 
-        // Classify combined yearly + current academic momentum
+        // Classify combined yearly + current academic momentum (عدم تصنيف غير المقومين كمتعثرين)
         let momentumStatus: 'accelerating' | 'sustained_mastery' | 'recovering' | 'at_risk' = 'sustained_mastery';
         const effectiveCurrent = currentSemAvg ?? annualAvg ?? latestMark;
         const baselineMark = s1Avg ?? firstMark;
 
-        if (effectiveCurrent !== null && effectiveCurrent < 10) {
-          momentumStatus = 'at_risk';
-          momentumCounts.at_risk++;
-        } else if (baselineMark !== null && baselineMark < 10 && effectiveCurrent !== null && effectiveCurrent >= 10) {
-          momentumStatus = 'recovering';
-          momentumCounts.recovering++;
-        } else if (yearlyDelta !== null && yearlyDelta >= 0.75) {
-          momentumStatus = 'accelerating';
-          momentumCounts.accelerating++;
-        } else if (effectiveCurrent !== null && effectiveCurrent >= 10) {
-          momentumStatus = 'sustained_mastery';
-          momentumCounts.sustained_mastery++;
-        } else {
-          momentumStatus = 'at_risk';
-          momentumCounts.at_risk++;
+        if (effectiveCurrent !== null) {
+          if (effectiveCurrent < 10) {
+            momentumStatus = 'at_risk';
+            momentumCounts.at_risk++;
+          } else if (baselineMark !== null && baselineMark < 10 && effectiveCurrent >= 10) {
+            momentumStatus = 'recovering';
+            momentumCounts.recovering++;
+          } else if (yearlyDelta !== null && yearlyDelta >= 0.75) {
+            momentumStatus = 'accelerating';
+            momentumCounts.accelerating++;
+          } else {
+            momentumStatus = 'sustained_mastery';
+            momentumCounts.sustained_mastery++;
+          }
         }
 
         const absHours =
@@ -1129,8 +1256,8 @@ export default function Analysis() {
           currentSemAvg,
           latestMark,
           yearlyDelta,
-          currentCompletionPct: Math.round((currentExamCompletedCount / 3) * 100),
-          yearlyCompletionPct: Math.round((yearlyExamCompletedCount / 6) * 100),
+          currentCompletionPct: Math.min(100, Math.round((currentExamCompletedCount / classExamsCount) * 100)),
+          yearlyCompletionPct: Math.min(100, Math.round((yearlyExamCompletedCount / yearlyExpectedExams) * 100)),
           yearlyExamCompletedCount,
           absentHours: absHours,
           momentumStatus
@@ -1147,7 +1274,7 @@ export default function Analysis() {
           'الشريحة المتفوقة (Q3)': null as number | null,
           'الوسيط (Median)': null as number | null,
           'شريحة التعثر (Q1)': null as number | null,
-          'نسبة النجاح (%)': 0,
+          'نسبة الحاصلين على المعدل (%)': 0,
           count: 0
         };
       }
@@ -1167,7 +1294,7 @@ export default function Analysis() {
         'الشريحة المتفوقة (Q3)': q(0.75),
         'الوسيط (Median)': q(0.5),
         'شريحة التعثر (Q1)': q(0.25),
-        'نسبة النجاح (%)': passPct,
+        'نسبة الحاصلين على المعدل (%)': passPct,
         count: arr.length
       };
     };
@@ -1252,7 +1379,7 @@ export default function Analysis() {
       return {
         name: b.label,
         'معدل التلاميذ (/20)': avgGrade,
-        'نسبة النجاح (%)': passRate,
+        'نسبة الحاصلين على المعدل (%)': passRate,
         count,
         color: b.color
       };
@@ -1410,7 +1537,7 @@ export default function Analysis() {
     {
       id: 'absence_vs_success',
       type: 'tab',
-      title: 'مقارنة الغياب ونسب النجاح بالفروض لكل قسم',
+      title: 'مقارنة الغياب ونسب الحاصلين على المعدل بالفروض لكل قسم',
       subtitle: 'أثر المواظبة على نتائج الفروض الموحدة لكل قسم',
       icon: BarChart3,
       badge: `${overallAbsenceSuccessKPIs.avgSuccessRate}% نجاح`,
@@ -1657,7 +1784,7 @@ export default function Analysis() {
         <div className="flex items-center justify-between text-xs font-bold text-slate-800">
           <div className="space-y-0.5 text-right w-1/3">
             <div className="font-black text-sm text-slate-950">المملكة المغربية</div>
-            <div className="text-blue-900 font-extrabold">وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+            <div className="text-blue-900 font-extrabold">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
             <div>{db?.teacherProfile?.academy || 'الأكاديمية الجهوية للتربية والتكوين'}</div>
             <div>{db?.teacherProfile?.directorate || 'المديرية الإقليمية'} · المؤسسة: {db?.teacherProfile?.school || 'الثانوية التأهيلية'}</div>
           </div>
@@ -2445,7 +2572,7 @@ export default function Analysis() {
                           <TrendingUp className="w-4 h-4 text-teal-600" />
                           <span>
                             {detailedLabLens === 'trajectory'
-                              ? 'منحنى المسار السنوي والفصلي المدمج لتطور النقط ونسب النجاح'
+                              ? 'منحنى المسار السنوي والفصلي المدمج لتطور النقط ونسب الحاصلين على المعدل'
                               : detailedLabLens === 'distribution'
                               ? 'التوزيع التكراري لفئات المعدلات وسلم التقدير الوزاري (المذكرة 142)'
                               : 'مختبر الذروة التحصيلية وكشف الطاقات الكامنة للتلاميذ'}
@@ -2530,7 +2657,7 @@ export default function Analysis() {
                               />
                               <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
                               <ReferenceLine yAxisId="left" y={10} stroke="#ef4444" strokeDasharray="4 4" label={{ value: 'عتبة التحكم (10)', fill: '#ef4444', fontSize: 10, position: 'right' }} />
-                              <Bar yAxisId="right" dataKey="نسبة النجاح (%)" fill="#e2e8f0" radius={[4, 4, 0, 0]} barSize={22} />
+                              <Bar yAxisId="right" dataKey="نسبة الحاصلين على المعدل (%)" fill="#e2e8f0" radius={[4, 4, 0, 0]} barSize={22} />
                               <Area yAxisId="left" type="monotone" dataKey="المعدل العام" stroke="#0d9488" strokeWidth={3} fillOpacity={1} fill="url(#consolidatedMeanGrad)" />
                               <Line yAxisId="left" type="monotone" dataKey="الشريحة المتفوقة (Q3)" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />
                               <Line yAxisId="left" type="monotone" dataKey="الوسيط (Median)" stroke="#2563eb" strokeWidth={2} strokeDasharray="4 3" dot={{ r: 3 }} />
@@ -2933,7 +3060,7 @@ export default function Analysis() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-sm md:text-base font-black text-slate-900 flex items-center gap-2">
                         <BarChart3 className="w-4 h-4 text-rose-600" />
-                        <span>تحليل العلاقة بين عدد ساعات الغياب ومعدلات التلاميذ ونسب النجاح</span>
+                        <span>تحليل العلاقة بين عدد ساعات الغياب ومعدلات التلاميذ ونسب الحاصلين على المعدل</span>
                       </h3>
                       {annualConsolidatedStats.absenceGradeCorrelationR !== null && (
                         <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-200 font-mono">
@@ -3042,7 +3169,7 @@ export default function Analysis() {
                             <Cell key={`abs-cell-${idx}`} fill={entry.color} />
                           ))}
                         </Bar>
-                        <Line yAxisId="right" type="monotone" dataKey="نسبة النجاح (%)" stroke="#6366f1" strokeWidth={3} dot={{ r: 5, fill: '#6366f1', stroke: '#fff', strokeWidth: 2 }} />
+                        <Line yAxisId="right" type="monotone" dataKey="نسبة الحاصلين على المعدل (%)" stroke="#6366f1" strokeWidth={3} dot={{ r: 5, fill: '#6366f1', stroke: '#fff', strokeWidth: 2 }} />
                       </ComposedChart>
                     </ResponsiveContainer>
                   ) : absenceGradeChartMode === 'students' ? (
@@ -3079,7 +3206,7 @@ export default function Analysis() {
                           contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '12px', direction: 'rtl' }}
                         />
                         <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 700, paddingTop: '6px' }} />
-                        <Bar yAxisId="left" dataKey="successRate" name="نسبة النجاح (%)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={22} />
+                        <Bar yAxisId="left" dataKey="successRate" name="نسبة الحاصلين على المعدل (%)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={22} />
                         <Bar yAxisId="left" dataKey="absenceRate" name="نسبة الغياب (%)" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={22} />
                         <Line yAxisId="right" type="monotone" dataKey="classAvg" name="معدل القسم (/20)" stroke="#2563eb" strokeWidth={3} dot={{ r: 4, fill: '#2563eb' }} />
                       </ComposedChart>
@@ -3799,7 +3926,7 @@ export default function Analysis() {
                     {cohortStats.passPct}%
                   </div>
                   <p className="text-xs text-slate-500 mt-2">
-                    نسبة النجاح والاستيفاء التراكمية في الدورة الحالية مع الحفاظ على عتبة 10/20.
+                    نسبة الحاصلين على المعدل التراكمية في الدورة الحالية مع الحفاظ على عتبة 10/20.
                   </p>
                 </div>
               </div>
@@ -4235,7 +4362,7 @@ export default function Analysis() {
           )}
 
           {/* =========================================================================
-              WORKSPACE: مقارنة نسب الغياب ونسب النجاح في الفروض الموحدة لكل قسم
+              WORKSPACE: مقارنة نسب الغياب ونسب الحاصلين على المعدل في الفروض الموحدة لكل قسم
               Class-by-Class Absence vs. Exam Success Rates Analytics
              ========================================================================= */}
           {activeTab === 'absence_vs_success' && (
@@ -4249,7 +4376,7 @@ export default function Analysis() {
                     </div>
                     <div>
                       <h3 className="text-base md:text-lg font-black tracking-tight flex items-center gap-2">
-                        <span>مقارنة نسب الغياب ونسب النجاح في الفروض الموحدة لكل قسم</span>
+                        <span>مقارنة نسب الغياب ونسب الحاصلين على المعدل في الفروض الموحدة لكل قسم</span>
                         <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-300/30">
                           {semester === 's1' ? 'الدورة الأولى' : 'الدورة الثانية'}
                         </span>
@@ -4285,7 +4412,7 @@ export default function Analysis() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-xs relative overflow-hidden">
                   <div className="flex items-center justify-between text-xs font-bold text-slate-500 mb-1">
-                    <span>متوسط نسبة النجاح الموحدة</span>
+                    <span>متوسط نسبة الحاصلين على المعدل</span>
                     <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
                       <CheckCircle2 className="w-4 h-4" />
                     </span>
@@ -4350,16 +4477,16 @@ export default function Analysis() {
                   <div>
                     <h4 className="text-sm md:text-base font-bold text-slate-900 flex items-center gap-2">
                       <BarChart3 className="w-4 h-4 text-emerald-600" />
-                      <span>المخطط البياني المقارن المركب: نسب النجاح مقابل نسبة الغياب لكل قسم</span>
+                      <span>المخطط البياني المقارن المركب: نسب الحاصلين على المعدل مقابل نسبة الغياب لكل قسم</span>
                     </h4>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      الأعمدة الخضراء والزرقاء تمثل نسب النجاح والاستحقاق (المحور الأيسر 0-100%)، والخط الأحمر يمثل نسبة الغياب (المحور الأيمن)
+                      الأعمدة الخضراء والزرقاء تمثل نسب الحاصلين على المعدل والاستحقاق (المحور الأيسر 0-100%)، والخط الأحمر يمثل نسبة الغياب (المحور الأيمن)
                     </p>
                   </div>
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                      نسبة النجاح (≥10)
+                      نسبة الحاصلين على المعدل (≥10)
                     </span>
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">
                       <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
@@ -4391,7 +4518,7 @@ export default function Analysis() {
                         unit="%"
                         tick={{ fontSize: 11 }}
                         label={{
-                          value: 'نسبة النجاح (%)',
+                          value: 'نسبة الحاصلين على المعدل (%)',
                           angle: -90,
                           position: 'insideLeft',
                           fill: '#10b981',
@@ -4426,7 +4553,7 @@ export default function Analysis() {
                                   عدد التلاميذ: <span className="font-bold text-white">{data.studentCount}</span>
                                 </div>
                                 <div className="text-emerald-400 font-bold">
-                                  نسبة النجاح بالفروض: {data.overallSuccessRate}%
+                                  نسبة الحاصلين على المعدل بالفروض: {data.overallSuccessRate}%
                                 </div>
                                 <div className="text-sky-400 font-bold">
                                   نسبة الاستحقاق (≥12): {data.overallDistinctionRate}%
@@ -4447,7 +4574,7 @@ export default function Analysis() {
                       <Bar
                         yAxisId="left"
                         dataKey="overallSuccessRate"
-                        name="نسبة النجاح بالفروض (≥10/20)"
+                        name="نسبة الحاصلين على المعدل بالفروض (≥10/20)"
                         fill="#10b981"
                         radius={[6, 6, 0, 0]}
                         barSize={32}
@@ -4482,7 +4609,7 @@ export default function Analysis() {
                   <div className="border-b border-slate-100 pb-3">
                     <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                       <Layers className="w-4 h-4 text-indigo-600" />
-                      <span>مقارنة نسب النجاح بكل فرض موحد مقابل معدل غياب القسم</span>
+                      <span>مقارنة نسب الحاصلين على المعدل بكل فرض موحد مقابل معدل غياب القسم</span>
                     </h4>
                     <p className="text-xs text-slate-500 mt-0.5">
                       تتبع نسب استيفاء الفرض 1 والفرض 2 والفرض 3 مع معدل الغياب العام لكل قسم
@@ -4620,7 +4747,7 @@ export default function Analysis() {
                   <div>
                     <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                       <TableIcon className="w-4 h-4 text-blue-600" />
-                      <span>جدول المقارنة الإحصائي التفصيلي بين الأقسام (نسب الغياب، نسب النجاح والأثر التربوي)</span>
+                      <span>جدول المقارنة الإحصائي التفصيلي بين الأقسام (نسب الغياب، نسب الحاصلين على المعدل والأثر التربوي)</span>
                     </h4>
                     <p className="text-xs text-slate-500 mt-0.5">
                       مقارنة تركيبية شاملة لجميع الأقسام وفق مؤشرات المراقبة المستمرة لمادة الرياضيات
@@ -4645,10 +4772,10 @@ export default function Analysis() {
                         <th className="py-3 px-3 text-center">مجموع س.الغياب</th>
                         <th className="py-3 px-3 text-center">نسبة الغياب</th>
                         <th className="py-3 px-3 text-center">نسبة المواظبة</th>
-                        <th className="py-3 px-3 text-center">نجاح فرض 1</th>
-                        <th className="py-3 px-3 text-center">نجاح فرض 2</th>
-                        <th className="py-3 px-3 text-center">نجاح فرض 3</th>
-                        <th className="py-3 px-3 text-center bg-emerald-50/60 text-emerald-950">نسبة النجاح العامة</th>
+                        <th className="py-3 px-3 text-center">معدل ≥10 ف1</th>
+                        <th className="py-3 px-3 text-center">معدل ≥10 ف2</th>
+                        <th className="py-3 px-3 text-center">معدل ≥10 ف3</th>
+                        <th className="py-3 px-3 text-center bg-emerald-50/60 text-emerald-950">نسبة الحاصلين على المعدل</th>
                         <th className="py-3 px-3 text-center bg-blue-50/60 text-blue-950">نسبة الاستحقاق (≥12)</th>
                         <th className="py-3 px-3 text-center">معدل القسم</th>
                         <th className="py-3 px-3.5 text-center">الأثر التربوي للغياب</th>
@@ -4785,7 +4912,7 @@ export default function Analysis() {
                       </span>
                     </h3>
                     <p className="text-xs text-slate-300 mt-1">
-                      المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والرياضة · مديرية المناهج
+                      المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل · مديرية المناهج
                     </p>
                   </div>
                 </div>

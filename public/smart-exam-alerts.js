@@ -195,10 +195,10 @@
         const now = typeof window.getAppNow === 'function' ? window.getAppNow() : new Date();
         const todayStr = (window.formatLocalDate ? window.formatLocalDate() : now.toLocaleDateString('en-CA'));
         
-        const timeStr = exam.time || '08:30:00';
+        const timeStr = exam.time || '08:00:00';
         let target = new Date(`${exam.startDate}T${timeStr.length === 5 ? timeStr + ':00' : timeStr}`);
         if (isNaN(target.getTime())) {
-            target = new Date(`${exam.startDate}T08:30:00`);
+            target = new Date(`${exam.startDate}T08:00:00`);
         }
         
         const isToday = (exam.startDate === todayStr);

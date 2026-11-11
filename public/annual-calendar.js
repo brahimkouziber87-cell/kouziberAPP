@@ -404,7 +404,7 @@
             semesterLabel: 'الأسدوس الثاني',
             startDate: '2027-02-08',
             endDate: '2027-02-10',
-            description: 'تقييم نتائج وفروض الأسدوس الأول لمادة الرياضيات، تدارس نسب النجاح ووضع برامج التقوية والاستعداد للامتحانات الإشهادية.',
+            description: 'تقييم نتائج وفروض الأسدوس الأول لمادة الرياضيات، تدارس نسب الحاصلين على المعدل ووضع برامج التقوية والاستعداد للامتحانات الإشهادية.',
             targetLevels: 'أساتذة مادة الرياضيات',
             importance: 'high',
             icon: 'users',
@@ -2218,7 +2218,7 @@
                 <tr>
                     <td style="width: 34%; text-align: right; font-size: 11px; font-weight: 800; line-height: 1.5; color: #0f172a; border: none; padding: 4px;">
                         المملكة المغربية<br>
-                        وزارة التربية الوطنية والتعليم الأولي والرياضة<br>
+                        وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
                         ${escapeHtml(meta.academyName)}<br>
                         ${escapeHtml(meta.directorateName)} — ${escapeHtml(meta.schoolName)}
                     </td>
@@ -4043,7 +4043,7 @@
                 if (subtypeSelect) subtypeSelect.value = 'school_blanc';
                 if (coefInput) coefInput.value = '7';
                 if (durationSelect) durationSelect.value = '3';
-                if (timeSlotInput) timeSlotInput.value = '08:30 - 11:30';
+                if (timeSlotInput) timeSlotInput.value = '08:00 - 11:00';
                 if (topicsInput) topicsInput.value = 'المقرر الكامل للدورة الأولى والثانية وفق الإطار المرجعي الرسمي للبكالوريا';
                 if (descInput) descInput.value = 'تنظيم الامتحان التجريبي الموحد على صعيد المؤسسة لمحاكاة ظروف الامتحان الرسمي وتدريب التلاميذ على إدارة الوقت.';
                 populateMilestoneTargetLevelsSelect('جميع الأقسام المعنية');
@@ -4057,7 +4057,7 @@
                 if (subtypeSelect) subtypeSelect.value = 'inter_class';
                 if (coefInput) coefInput.value = '5';
                 if (durationSelect) durationSelect.value = '2';
-                if (timeSlotInput) timeSlotInput.value = '08:30 - 10:30';
+                if (timeSlotInput) timeSlotInput.value = '08:00 - 10:00';
                 if (topicsInput) topicsInput.value = 'مقرر الوحدة الدراسية الجارية وفق التوجيهات التربوية الرسمية';
                 if (descInput) descInput.value = 'فرض محروس موحد وموحد الصياغة وسلم التنقيط بين كافة أساتذة مادة الرياضيات بالمؤسسة لنفس المستوى.';
                 populateMilestoneTargetLevelsSelect('الأقسام المشتركة');
@@ -4136,7 +4136,7 @@
             class_exam: {
                 title: 'فرض محروس لمادة الرياضيات (المراقبة المستمرة)',
                 category: 'exam',
-                timeSlot: '08:30 - 10:30',
+                timeSlot: '08:00 - 10:00',
                 description: 'إجراء فرض المراقبة المستمرة لمادة الرياضيات وفق المقرر الوزاري والتوجيهات التربوية الرسمية، مع استحضار سلم التنقيط الموحد وعناصر الإجابة.',
                 venue: 'قاعة الرياضيات',
                 stakeholders: 'تلاميذ القسم، أستاذ المادة',
@@ -4169,7 +4169,7 @@
             remediation_support: {
                 title: 'حصة الدعم البيداغوجي المؤسساتي والمعالجة المركزة للتعثرات',
                 category: 'remediation',
-                timeSlot: '14:30 - 16:30',
+                timeSlot: '14:00 - 16:00',
                 description: 'تنفيذ أنشطة الدعم والمعالجة الموجهة لفائدة التلاميذ غير المتمكنين استناداً إلى نتائج تقويم تشخيصي أو فرض محروس سابق.',
                 venue: 'قاعة الرياضيات',
                 stakeholders: 'تلاميذ القسم، أستاذ المادة',
@@ -4191,7 +4191,7 @@
             general_appointment: {
                 title: 'لقاء تنسيقي / موعد تربوي وديداكتيكي بالمؤسسة',
                 category: 'other',
-                timeSlot: '10:30 - 11:30',
+                timeSlot: '10:00 - 11:00',
                 description: 'لقاء تربوي تنسيقي وتبادل الخبرات الديدكتيكية وبرمجة الأنشطة الصفية واللاصفية وإعداد الفروض الموحدة.',
                 venue: 'قاعة الأساتذة',
                 stakeholders: 'أستاذ المادة، المفتش التربوي، الإدارة التربوية',
@@ -4827,8 +4827,8 @@
     function loadSampleDecreeText() {
         const ta = document.getElementById('decreeTextInput');
         if (!ta) return;
-        ta.value = `المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والرياضة
-مقرر وزير التربية الوطنية والتعليم الأولي والرياضة بشأن تنظيم السنة الدراسية 2026-2027.
+        ta.value = `المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل
+مقرر وزير التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل بشأن تنظيم السنة الدراسية 2026-2027.
 
 [المحور 1: انطلاق الموسم الدراسي والالتحاق بالعمل]
 - التحاق أطر الإدارة التربوية وهيئة التدريس وتوقيع محاضر الدخول: 02 شتنبر 2026.
@@ -6293,7 +6293,7 @@
         <tr>
             <td style="width: 35%; text-align: right; font-size: 0.85rem; font-weight: 800; line-height: 1.5;">
                 المملكة المغربية<br>
-                وزارة التربية الوطنية والتعليم الأولي والرياضة<br>
+                وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
                 ${escapeHtml(meta.academyName)}<br>
                 ${escapeHtml(meta.directorateName)}
             </td>
@@ -6507,7 +6507,7 @@
         <tr>
             <td style="width: 40%; text-align: right; font-size: 8.5pt; font-weight: 800; line-height: 1.5;">
                 المملكة المغربية<br>
-                وزارة التربية الوطنية والتعليم الأولي والرياضة<br>
+                وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
                 ${escapeHtml(meta.academyName)}<br>
                 ${escapeHtml(meta.directorateName)}<br>
                 المؤسسة: <strong>${escapeHtml(meta.schoolName)}</strong>

@@ -587,7 +587,7 @@
 
         if (mode === 'print_compact') {
             return `
-                <div style="margin-top: 4px; padding: 3px 6px; background: #f8fafc; border-right: 2.5px solid #1e3a8a; border-radius: 3px; font-size: 0.67rem; color: #334155; line-height: 1.35;">
+                <div class="session-legal-ref-print-block" style="margin-top: 4px; padding: 3px 6px; background: #f8fafc; border-right: 2.5px solid #1e3a8a; border-radius: 3px; font-size: 0.67rem; color: #334155; line-height: 1.35;">
                     <strong style="color: #1e3a8a;">⚖️ السند القانوني:</strong> ${safeDecreeNum}
                     ${ref.lessonOrder ? ` | <strong>المقرر:</strong> الدرس #${ref.lessonOrder} (${ref.officialHours}س)` : ''}
                     ${ref.domainWeight ? ` | <strong>الإطار المرجعي:</strong> ${ref.domainName} (${ref.domainWeight})` : ''}
@@ -597,7 +597,7 @@
 
         if (mode === 'print_slip') {
             return `
-                <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-right: 4px solid #1e3a8a; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 0.8rem; line-height: 1.5;">
+                <div class="session-legal-ref-print-block" style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-right: 4px solid #1e3a8a; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 0.8rem; line-height: 1.5;">
                     <div style="font-weight: 900; color: #1e3a8a; margin-bottom: 3px;">⚖️ السند القانوني والتأطير المرجعي للحصة (ربط تلقائي بالمنهاج والمذكرات الوزارية):</div>
                     <div><strong>• المذكرة والنص التنظيمي:</strong> ${safeDecreeNum} — ${ref.secondaryDecreeNumber}</div>
                     <div><strong>• المطابقة مع التوزيع السنوي:</strong> ${safeCurrPos}</div>

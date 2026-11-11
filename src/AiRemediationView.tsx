@@ -321,6 +321,60 @@ export default function AiRemediationView({
     return `الحصيلة المجمعة للفروض الممسوحة (${semester === 's2' ? 'الدورة الثانية' : 'الدورة الأولى'})`;
   }, [scannedExamSource, semester]);
 
+  // Collective Scanned Exams Performance Summary (Class Average & <10/20 Threshold Detection)
+  const collectiveScannedSummary = useMemo(() => {
+    const scores: number[] = [];
+    const f1Arr: number[] = [];
+    const f2Arr: number[] = [];
+    const f3Arr: number[] = [];
+    const below10Students: Array<{ student: StudentMetric; score: number; deficit: number }> = [];
+    let passCount = 0;
+
+    studentMetrics.forEach(s => {
+      if (s.f1 !== null) f1Arr.push(s.f1);
+      if (s.f2 !== null) f2Arr.push(s.f2);
+      if (s.f3 !== null) f3Arr.push(s.f3);
+      const sc = getStudentScannedScore(s);
+      if (sc !== null && !isNaN(sc)) {
+        scores.push(sc);
+        if (sc < 10) {
+          below10Students.push({
+            student: s,
+            score: Number(sc.toFixed(2)),
+            deficit: Number((10 - sc).toFixed(2))
+          });
+        } else {
+          passCount++;
+        }
+      }
+    });
+
+    below10Students.sort((a, b) => a.score - b.score);
+
+    const calcMean = (arr: number[]) => arr.length > 0 ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2)) : null;
+    const classAvg = calcMean(scores);
+    const f1Avg = calcMean(f1Arr);
+    const f2Avg = calcMean(f2Arr);
+    const f3Avg = calcMean(f3Arr);
+    const evaluatedCount = scores.length;
+    const passRatePct = evaluatedCount > 0 ? Math.round((passCount / evaluatedCount) * 100) : 0;
+    const supportNeededPct = evaluatedCount > 0 ? Math.round((below10Students.length / evaluatedCount) * 100) : 0;
+
+    return {
+      totalCount: studentMetrics.length,
+      evaluatedCount,
+      classAvg,
+      f1Avg,
+      f2Avg,
+      f3Avg,
+      passCount,
+      passRatePct,
+      supportNeededCount: below10Students.length,
+      supportNeededPct,
+      below10Students
+    };
+  }, [studentMetrics, scannedExamSource]);
+
   // Identify struggling students based on the selected scanned exam source or overall trajectory
   const strugglingStudents = useMemo(() => {
     return studentMetrics.filter(s => {
@@ -670,7 +724,7 @@ export default function AiRemediationView({
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #1e3a8a; padding-bottom:8px; margin-bottom:10px;">
             <div>
                 <div style="font-weight:900; font-size:10.5pt;">المملكة المغربية</div>
-                <div style="font-size:8pt; color:#475569;">وزارة التربية الوطنية والتعليم الأولي والرياضة • ${schoolName}</div>
+                <div style="font-size:8pt; color:#475569;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل • ${schoolName}</div>
             </div>
             <div style="text-align:center;">
                 <div style="background:#1e3a8a; color:#fff; padding:4px 14px; border-radius:6px; font-weight:900; font-size:11pt;">بطاقة خطة المعالجة البيداغوجية المولدة تلقائياً حسب الفئات</div>
@@ -808,7 +862,7 @@ export default function AiRemediationView({
         <div class="header">
             <div>
                 <div style="font-weight: 900; font-size: 10.5pt;">المملكة المغربية</div>
-                <div style="font-size: 8pt; color: #475569;">وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                <div style="font-size: 8pt; color: #475569;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                 <div style="font-size: 8.5pt;">المؤسسة: <strong>${schoolName}</strong></div>
             </div>
             <div style="text-align: center;">
@@ -939,7 +993,7 @@ export default function AiRemediationView({
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 8px;">
         <div>
             <div style="font-weight: 900; font-size: 11pt;">المملكة المغربية</div>
-            <div style="font-size: 8pt; color: #475569;">وزارة التربية الوطنية والتعليم الأولي والرياضة • ${schoolName}</div>
+            <div style="font-size: 8pt; color: #475569;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل • ${schoolName}</div>
         </div>
         <div style="text-align: center;">
             <div style="font-weight: 900; font-size: 12.5pt; color: #1e3a8a;">خطة المعالجة البيداغوجية المولدة تلقائياً بناءً على نتائج الفروض الممسوحة (المذكرة 142-08)</div>
@@ -1166,8 +1220,55 @@ export default function AiRemediationView({
           </div>
         </div>
 
+        {/* Collective Scanned Exams Summary Strip (متوسط القسم وعتبة 10/20) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4 pt-4 border-t border-purple-700/40">
+          <div className="bg-white/10 backdrop-blur-xs p-3 rounded-xl border border-white/15 flex items-center justify-between">
+            <div>
+              <div className="text-[11px] text-purple-200 font-bold">متوسط القسم عبر الفروض الممسوحة</div>
+              <div className="text-xl md:text-2xl font-black text-white font-mono mt-0.5">
+                {collectiveScannedSummary.classAvg !== null ? `${collectiveScannedSummary.classAvg.toFixed(2)}` : '--'}
+                <span className="text-xs text-purple-200 font-normal"> / 20</span>
+              </div>
+              <div className="text-[10px] text-purple-200 mt-0.5 font-mono">
+                F1: {collectiveScannedSummary.f1Avg ?? '-'} | F2: {collectiveScannedSummary.f2Avg ?? '-'} | F3: {collectiveScannedSummary.f3Avg ?? '-'}
+              </div>
+            </div>
+            <span className={`text-xs font-black px-2.5 py-1 rounded-full ${collectiveScannedSummary.classAvg !== null && collectiveScannedSummary.classAvg >= 10 ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/30' : 'bg-rose-500/20 text-rose-200 border border-rose-400/30'}`}>
+              {collectiveScannedSummary.classAvg !== null && collectiveScannedSummary.classAvg >= 10 ? 'فوق العتبة ≥ 10' : 'دون العتبة < 10'}
+            </span>
+          </div>
+
+          <div className="bg-emerald-500/10 backdrop-blur-xs p-3 rounded-xl border border-emerald-400/25 flex items-center justify-between">
+            <div>
+              <div className="text-[11px] text-emerald-200 font-bold">المتحكمون في الكفايات (≥ 10/20)</div>
+              <div className="text-xl md:text-2xl font-black text-emerald-300 font-mono mt-0.5">
+                {collectiveScannedSummary.passCount} <span className="text-xs text-emerald-100 font-normal">تلميذ ({collectiveScannedSummary.passRatePct}%)</span>
+              </div>
+              <div className="text-[10px] text-emerald-200/80 mt-0.5">
+                حققوا عتبة التحكم البيداغوجي 10/20
+              </div>
+            </div>
+            <CheckCircle2 className="w-7 h-7 text-emerald-300/80 shrink-0" />
+          </div>
+
+          <div className="bg-rose-500/15 backdrop-blur-xs p-3 rounded-xl border border-rose-400/30 flex items-center justify-between">
+            <div>
+              <div className="text-[11px] text-rose-200 font-bold">يحتاجون لدعم بيداغوجي إضافي (&lt; 10/20)</div>
+              <div className="text-xl md:text-2xl font-black text-rose-200 font-mono mt-0.5">
+                {collectiveScannedSummary.supportNeededCount} <span className="text-xs text-rose-100 font-normal">تلميذ ({collectiveScannedSummary.supportNeededPct}%)</span>
+              </div>
+              <div className="text-[10px] text-rose-200/90 mt-0.5">
+                أقل من عتبة 10/20 في {scannedExamSourceLabel}
+              </div>
+            </div>
+            <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-rose-600 text-white">
+              عتبة 10/20
+            </span>
+          </div>
+        </div>
+
         {/* Quick KPI Strip by Struggling Categories */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-purple-700/40">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 pt-3 border-t border-purple-700/30">
           {autoGeneratedTierPlans.map(tier => (
             <div key={tier.tierKey} className="bg-white/5 backdrop-blur-xs p-3 rounded-xl border border-white/10">
               <div className="flex items-center justify-between">
@@ -1605,7 +1706,20 @@ export default function AiRemediationView({
                     <span>{isScheduling ? 'جاري الفتح...' : 'برمجة كحصة استدراكية بالدفتر ⚡'}</span>
                   </button>
 
-                  <div className="inline-flex items-center gap-1.5">
+                  <div className="inline-flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof (window as any).openStudentStatisticalReport === 'function') {
+                          (window as any).openStudentStatisticalReport(student.id, student.className || selectedClass);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition-all cursor-pointer"
+                      title="فتح نموذج التقرير الإحصائي المفصل للتلميذ (بيانات grades و absences)"
+                    >
+                      <span>📊 التقرير الإحصائي</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => handlePrintStudentWorksheet({ student, evaluatedScore, severityLabel, severityBadge, activity, severity: 'moderate' })}

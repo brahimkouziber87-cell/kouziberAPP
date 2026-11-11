@@ -93,14 +93,27 @@
                 ? window.calculateStudentAvg(grades, className, sem)
                 : (typeof window.calculateSemesterAvg === 'function' ? window.calculateSemesterAvg(grades, examCount, sem) : null);
 
-            // إحصائيات الغياب للدورة
-            const absRecords = (db.records || []).filter(r => {
-                if (r.className !== className || r.studentId !== std.id) return false;
+            // إحصائيات الغياب للدورة عبر الفهرس السريع O(1)
+            const stdRecords = (typeof window.getStudentClassRecordsFast === 'function')
+                ? window.getStudentClassRecordsFast(std.id, className)
+                : (db.records || []).filter(r => r.className === className && String(r.studentId) === String(std.id));
+            const absRecords = stdRecords.filter(r => {
                 if (r.status !== 'غائب' && r.status !== 'مبرر') return false;
+                if (r.date && (sem === 's1' || sem === 's2')) {
+                    const monthNum = parseInt(String(r.date).split('-')[1], 10);
+                    if (!isNaN(monthNum)) {
+                        const isS1Month = (monthNum >= 9 && monthNum <= 12) || monthNum === 1;
+                        if (sem === 's1' && !isS1Month) return false;
+                        if (sem === 's2' && isS1Month) return false;
+                    }
+                }
                 return true;
             });
-            const totalAbsHours = absRecords.reduce((acc, r) => acc + (parseFloat(r.hours) || (r.timeSlot ? 2 : 1)), 0);
-            const unjustifiedAbsHours = absRecords.filter(r => r.status === 'غائب').reduce((acc, r) => acc + (parseFloat(r.hours) || 2), 0);
+            const getRecHrs = (r) => (typeof window.getRecordAbsenceDuration === 'function')
+                ? window.getRecordAbsenceDuration(r)
+                : (parseFloat(r.duration || r.hours) || (r.timeSlot ? 2 : 1));
+            const totalAbsHours = absRecords.reduce((acc, r) => acc + getRecHrs(r), 0);
+            const unjustifiedAbsHours = absRecords.filter(r => r.status === 'غائب').reduce((acc, r) => acc + getRecHrs(r), 0);
 
             let appreciation = 'غير مجتاز';
             let category = 'untested';
@@ -240,7 +253,7 @@
             <div style="border-bottom: 2.5px solid #1e3a8a; padding-bottom: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                 <div style="text-align: right; font-size: 0.8rem; line-height: 1.5; font-weight: 700; color: #1e3a8a;">
                     <div>المملكة المغربية</div>
-                    <div>وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                    <div>وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                     <div>${pAcademy}</div>
                     <div>${pDirectorate}</div>
                     <div style="color: #0f172a; font-weight: 800;">${pSchool}</div>
@@ -298,7 +311,7 @@
                         <div style="font-size: 1.15rem; font-weight: 900; color: ${stats.overallAvg >= 10 ? '#15803d' : '#dc2626'};">${stats.overallAvg} <span style="font-size:0.7rem;">/20</span></div>
                     </div>
                     <div style="background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px;">
-                        <div style="font-size: 0.72rem; color: #64748b; font-weight: 700;">نسبة النجاح (≥10)</div>
+                        <div style="font-size: 0.72rem; color: #64748b; font-weight: 700;">نسبة الحاصلين على المعدل (≥10)</div>
                         <div style="font-size: 1.15rem; font-weight: 900; color: ${stats.passRate >= 60 ? '#15803d' : '#dc2626'};">${stats.passRate}%</div>
                     </div>
                     <div style="background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px;">
@@ -557,7 +570,7 @@
 
         const stats = getCouncilClassStatistics(cls, sem);
         const data = [
-            ['المملكة المغربية', 'وزارة التربية الوطنية والتعليم الأولي والرياضة', 'منظومة مسار للتدبير المدرسي'],
+            ['المملكة المغربية', 'وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل', 'منظومة مسار للتدبير المدرسي'],
             ['ورقة تنقيط مادة الرياضيات لمجلس القسم الرسمي', `القسم: ${cls}`, `الدورة: ${sem === 's2' ? 'الثانية' : 'الأولى'}`],
             [''],
             ['الرتبة', 'رقم مسار', 'النسب والاسم الكامل', 'معدل الرياضيات', 'التقدير التربوي الوزاري', 'مجموع ساعات الغياب', 'الغياب غير المبرر', 'مقترح التوجيه']

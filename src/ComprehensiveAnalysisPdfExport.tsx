@@ -331,7 +331,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
 
           <g transform={`translate(${w / 2 - 110}, 12)`}>
             <rect x="0" y="0" width="12" height="12" rx="3" fill="#10b981" />
-            <text x="18" y="10" fontSize="11" fill="#334155" fontWeight="bold">نسبة النجاح والاستيفاء</text>
+            <text x="18" y="10" fontSize="11" fill="#334155" fontWeight="bold">نسبة الحاصلين على المعدل</text>
             <rect x="145" y="0" width="12" height="12" rx="3" fill="#f59e0b" />
             <text x="163" y="10" fontSize="11" fill="#334155" fontWeight="bold">نسبة الغياب المدرسي</text>
           </g>
@@ -456,7 +456,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ textAlign: 'right', fontSize: '11px', lineHeight: '1.45', color: '#334155', fontWeight: 700, width: '33%' }}>
                     <div style={{ fontWeight: 900, color: '#0f172a', fontSize: '13px' }}>المملكة المغربية</div>
-                    <div style={{ color: '#1e3a8a', fontWeight: 800 }}>وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                    <div style={{ color: '#1e3a8a', fontWeight: 800 }}>وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                     <div>{academy}</div>
                     <div>{directorate} · المؤسسة: <strong style={{ color: '#1e3a8a' }}>{school}</strong></div>
                   </div>
@@ -675,7 +675,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
               {/* Header Mini */}
               <div style={{ height: '3px', background: 'linear-gradient(90deg, #1e3a8a 0%, #d4af37 50%, #15803d 100%)', borderRadius: '2px', marginBottom: '6px' }}></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                <span>المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والرياضة · {school}</span>
+                <span>المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل · {school}</span>
                 <span>مادة الرياضيات · السلك الثانوي التأهيلي · المذكرة 142-08</span>
               </div>
               <div style={{ borderBottom: '1.5px solid #0f172a', paddingBottom: '8px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -768,7 +768,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
           </div>
 
           {/* =========================================================================
-              PAGE 3: مقارنة الغياب ونسب النجاح بالفروض لكل قسم
+              PAGE 3: مقارنة الغياب ونسب الحاصلين على المعدل بالفروض لكل قسم
              ========================================================================= */}
           <div
             className="pdf-dossier-page"
@@ -788,13 +788,13 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
               {/* Header Mini */}
               <div style={{ height: '3px', background: 'linear-gradient(90deg, #1e3a8a 0%, #d4af37 50%, #15803d 100%)', borderRadius: '2px', marginBottom: '6px' }}></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                <span>المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والرياضة · {school}</span>
+                <span>المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل · {school}</span>
                 <span>مادة الرياضيات · السلك الثانوي التأهيلي · المذكرة 142-08</span>
               </div>
               <div style={{ borderBottom: '1.5px solid #0f172a', paddingBottom: '8px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 900, color: '#0f172a' }}>
-                    ثالثاً: دراسة أثر المواظبة والغياب على نتائج ونسب النجاح في الفروض
+                    ثالثاً: دراسة أثر المواظبة والغياب على نتائج ونسب الحاصلين على المعدل في الفروض
                   </h2>
                   <p style={{ margin: '2px 0 0 0', fontSize: '10px', color: '#64748b' }}>
                     التقاطع الإحصائي بين ساعات الغياب ونسب استيفاء فروض المراقبة المستمرة لكل قسم
@@ -808,7 +808,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
               {/* Overall Absence & Success KPIs */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '14px' }}>
                 <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', padding: '8px 10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', color: '#065f46', fontWeight: 700 }}>متوسط نسبة النجاح بالأقسام</div>
+                  <div style={{ fontSize: '10px', color: '#065f46', fontWeight: 700 }}>متوسط نسبة الحاصلين على المعدل</div>
                   <div style={{ fontSize: '17px', fontWeight: 900, color: '#047857', marginTop: '2px', fontFamily: 'monospace' }}>
                     {overallAbsenceSuccessKPIs.avgSuccessRate}%
                   </div>
@@ -836,7 +836,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
               {/* Chart 3: Absence vs Success SVG */}
               <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px' }}>
                 <div style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a', marginBottom: '8px' }}>
-                  الرسم البياني 3: مقارنة نسب النجاح بالفروض ونسب الغياب لكل قسم
+                  الرسم البياني 3: مقارنة نسب الحاصلين على المعدل بالفروض ونسب الغياب لكل قسم
                 </div>
                 {renderAbsenceVsSuccessSvg()}
               </div>
@@ -848,7 +848,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                     <tr style={{ background: '#f1f5f9', color: '#1e293b', fontWeight: 800, borderBottom: '1px solid #cbd5e1' }}>
                       <th style={{ padding: '7px 10px', textAlign: 'right' }}>اسم القسم</th>
                       <th style={{ padding: '7px 10px' }}>عدد التلاميذ</th>
-                      <th style={{ padding: '7px 10px' }}>نسبة النجاح بالفروض (%)</th>
+                      <th style={{ padding: '7px 10px' }}>نسبة الحاصلين على المعدل (%)</th>
                       <th style={{ padding: '7px 10px' }}>مجموع ساعات الغياب</th>
                       <th style={{ padding: '7px 10px' }}>معدل الغياب لكل تلميذ</th>
                       <th style={{ padding: '7px 10px' }}>مؤشر المواظبة والأداء</th>
@@ -932,7 +932,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                   {/* Header Mini */}
                   <div style={{ height: '3px', background: 'linear-gradient(90deg, #1e3a8a 0%, #d4af37 50%, #15803d 100%)', borderRadius: '2px', marginBottom: '6px' }}></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                    <span>المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والرياضة · {school}</span>
+                    <span>المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل · {school}</span>
                     <span>الأستاذ(ة): {teacherName} · الموسم: {academicYear}</span>
                   </div>
                   <div style={{ borderBottom: '1.5px solid #0f172a', paddingBottom: '8px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

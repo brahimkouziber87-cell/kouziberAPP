@@ -203,52 +203,104 @@ const DIAGNOSTIC_BLUEPRINTS: Record<string, DiagnosticBlueprint> = {
   '1BAC_LSH': {
     code: '1BAC_LSH',
     levelTitle: 'الأولى باكالوريا آداب وعلوم إنسانية (1BAC SH / 1BAC LSH)',
-    targetCycle: 'الانتقال من الجذع المشترك للآداب والعلوم الإنسانية إلى 1 باك',
+    targetCycle: 'الانتقال من الجذع المشترك للآداب والعلوم الإنسانية نحو 1 باك (سنة الامتحان الجهوي)',
     duration: 'ساعة واحدة (60 دقيقة)',
     prerequisites: [
       {
         domain: 'الحساب العددي، التناسبية، والنسب المئوية',
         weightPct: 35,
-        skills: ['حساب النسب المئوية والتخفيض والزيادة', 'حل معادلات ومتراجحات من الدرجة الأولى والثانية', 'النظمات الخطية وترييض المسائل'],
-        epistemologicalObstacles: 'الخلط بين النسبة المئوية للجزء من الكل وبين الزيادة أو التخفيض المئوي.',
-        remediationActivity: 'أنشطة تطبيقية مباشرة مستوحاة من الوضعيات الحياتية والمالية.'
+        skills: ['حساب النسب المئوية والزيادة والتخفيض المئوي', 'حل معادلات ومتراجحات من الدرجة الأولى والثانية بمجهول واحد', 'النظمات الخطية من الدرجة الأولى بمجهولين وترييض المسائل'],
+        epistemologicalObstacles: 'الخلط بين النسبة المئوية للجزء من الكل وبين معامل الزيادة (1 + t/100) أو التخفيض (1 - t/100).',
+        remediationActivity: 'أنشطة تطبيقية مباشرة مستوحاة من الوضعيات الحياتية والمالية (تمهيداً لدرس النسب المئوية والتعداد).'
       },
       {
-        domain: 'مبادئ التعداد والتنظيم المنطقي',
+        domain: 'الإحصاء الوصفي وقراءة الجداول والمبيانات (مكتسبات الجذع المشترك الأدبي)',
         weightPct: 30,
-        skills: ['المبدأ الأساسي للتعداد (مبدأ الجداء)', 'الترتيبات بتكرار وبدون تكرار والتأليفات C_n^p', 'نمذجة السحب العشوائي للكرات'],
-        epistemologicalObstacles: 'صعوبة التمييز بين أهمية الترتيب من عدمه وتكرار العناصر.',
-        remediationActivity: 'جدول مقارن تفاعلي للتمييز بين (في آن واحد / بالتتابع وبإحلال / بالتتابع وبدون إحلال).'
+        skills: ['تنظيم البيانات في جداول الحصيصات والحصيصات المتراكمة والترددات', 'حساب المعدل الحسابي وتحديد المنوال والقيمة الوسطية (الوسيط)', 'قراءة وتأويل المخططات العصوية والقطاعية'],
+        epistemologicalObstacles: 'الخلط بين الحصيص الجزئي والحصيص المتراكم، وصعوبة استخراج القيمة الوسطية من جدول الحصيصات المتراكمة.',
+        remediationActivity: 'تمارين تطبيقية حول قراءة الجداول الإحصائية وتنظيم المعطيات تمهيداً لدرس التعداد.'
       },
       {
-        domain: 'عموميات حول الدوال والإحصاء',
+        domain: 'عموميات حول الدوال العددية والمعلم في المستوى',
         weightPct: 35,
-        skills: ['قراءة جداول التغيرات والمنحنيات المبيانية', 'المتتاليات الحسابية والهندسية', 'المتسلسلات الإحصائية والمعدل والمنوال'],
-        epistemologicalObstacles: 'الخلط بين أساس المتتالية الحسابية والأساس الهندسي.',
-        remediationActivity: 'بطاقات تدريبية للتحقق من طبيعة المتتالية وحساب الحد العام بدلالة n.'
+        skills: ['تحديد مجموعة تعريف دالة حدودية أو متخاطة بسيطة', 'حساب صور وسوابق أعداد وقراءة جدول التغيرات مبيانياً', 'تمثيل دالة تآلفية ودالة من الدرجة الثانية (شلجم) في معلم متعامد'],
+        epistemologicalObstacles: 'الخلط بين الأفصول x (السابق) والأرتوب f(x) (الصورة) عند القراءة المبيانية وإشارة الدالة.',
+        remediationActivity: 'بطاقات تدريبية لقراءة المنحنيات وجداول التغيرات تمهيداً لدروس النهايات والاشتقاق والدوال والامتحان الجهوي.'
       }
     ],
     sampleQuestions: [
       {
         num: 1,
-        domain: 'النسب المئوية والمعادلات',
+        domain: 'النسب المئوية والمعادلات والنظمات',
         points: 7,
-        questionText: 'خُفّض ثمن حاسوب بنسبة 15% ليصبح ثمنه الجديد 3825 درهماً. حدد الثمن الأصلي للحاسوب، ثم حل في IR المعادلة: x² - 7x + 12 = 0.',
-        expectedCompetency: 'توظيف التناسبية والنسب المئوية وحساب مميز ثلاثية الحدود.'
+        questionText: '1) خُفّض ثمن حاسوب بنسبة 15% ليصبح ثمنه الجديد 3825 درهماً. حدد الثمن الأصلي للحاسوب. 2) حل في IR المعادلة: x² - 7x + 12 = 0 والمتراجحة: x² - 7x + 12 ≤ 0.',
+        expectedCompetency: 'توظيف التناسبية والنسب المئوية وحساب مميز ثلاثية الحدود Δ وجدول الإشارة.'
       },
       {
         num: 2,
-        domain: 'مبادئ التعداد',
+        domain: 'الإحصاء الوصفي (الحصيصات والمعدل والوسيط)',
         points: 6,
-        questionText: 'يحتوي صندوق على 4 كرات بيضاء و 3 كرات حمراء. نسحب عشوائياً وفي آن واحد 3 كرات. كم عدد السحبات الممكنة؟ وما عدد السحبات التي تحتوي على كرة حمراء واحدة فقط؟',
-        expectedCompetency: 'استعمال التأليفات C_n^p في سحب آني.'
+        questionText: 'يمثل الجدول التالي نقط 20 تلميذاً في فرض: النقطة (8: حصيصها 4)، (10: حصيصها 6)، (12: حصيصها 5)، (15: حصيصها 3)، (16: حصيصها 2). حدد المنوال، احسب الحصيصات المتراكمة، واستنتج القيمة الوسطية والمعدل الحسابي للقسم.',
+        expectedCompetency: 'استثمار مكتسبات الجذع المشترك في الإحصاء وتنظيم المعطيات العددية.'
       },
       {
         num: 3,
-        domain: 'المتتاليات العددية',
+        domain: 'الدوال العددية والقراءة المبيانية',
         points: 7,
-        questionText: 'نعتبر متتالية حسابية (u_n) حدها الأول u_0 = 3 وأساسها r = 4. احسب u_1 و u_10، ثم احسب المجموع: S = u_0 + u_1 + ... + u_10.',
+        questionText: 'نعتبر الدالة العددية f المعرفة بـ: f(x) = x² - 4x + 3. 1) احسب f(0) و f(1) و f(2). 2) حل المعادلة f(x) = 0، ثم ضع جدول تغيرات الدالة f على IR.',
+        expectedCompetency: 'حساب صور أعداد بدالة حدودية وتحديد مطارفها وجدول تغيراتها.'
+      }
+    ]
+  },
+  '2BAC_LSH': {
+    code: '2BAC_LSH',
+    levelTitle: 'الثانية باكالوريا آداب وعلوم إنسانية (2BAC LSH / 2BAC SH)',
+    targetCycle: 'الانتقال من الأولى باكالوريا آداب وعلوم إنسانية إلى الثانية باكالوريا',
+    duration: 'ساعة واحدة (60 دقيقة)',
+    prerequisites: [
+      {
+        domain: 'المتتاليات العددية (الحسابية والهندسية)',
+        weightPct: 35,
+        skills: ['التعرف على متتالية حسابية وهندسية وتحديد أساسها', 'كتابة الحد العام u_n بدلالة n', 'حساب مجموع حدود متتابعة من متتالية حسابية أو هندسية'],
+        epistemologicalObstacles: 'الخلط بين صيغة الحد العام والمجموع للمتتالية الحسابية ونظيرتها الهندسية.',
+        remediationActivity: 'تذكير مركز بصيغ المتتاليات الحسابية والهندسية تمهيداً لدرس المتتاليات الترجعية ونهاية متتالية.'
+      },
+      {
+        domain: 'التعداد (مبدأ الجداء، الترتيبات، والتأليفات)',
+        weightPct: 30,
+        skills: ['التمييز بين السحب الآني (C_n^p) والسحب بالتتابع وبدون إحلال (A_n^p) والسحب بالتتابع وبإحلال (n^p)', 'حساب الأعداد التوافقية وتوظيفها في وضعيات تعدادية'],
+        epistemologicalObstacles: 'صعوبة ترجمة العبارات اللغوية (على الأقل، على الأكثر، من نفس اللون) إلى عمليات تعدادية.',
+        remediationActivity: 'شجرة الاختيارات وجدول التمييز بين أنواع السحب الثلاثة كمدخل أساسي لدرس حساب الاحتمالات.'
+      },
+      {
+        domain: 'النهايات والاشتقاق ودراسة الدوال الحدودية والمتخاطة',
+        weightPct: 35,
+        skills: ['حساب نهايات الدوال الحدودية والجذرية عند المحدات', 'حساب الدالة المشتقة f\'(x) وتحديد إشارتها ومعادلة المماس', 'وضع جدول التغيرات وإنشاء المنحنى المبياني'],
+        epistemologicalObstacles: 'الخطأ في مشتقة خارج دالتين (u/v)\' وإغفال المستقيمات المقاربة للدالة المتخاطة.',
+        remediationActivity: 'تمارين توليفية في دراسة الدوال تمهيداً لدراسة الدالتين اللوغاريتمية النبيرية (ln) والأسية (exp).'
+      }
+    ],
+    sampleQuestions: [
+      {
+        num: 1,
+        domain: 'المتتاليات الحسابية والهندسية',
+        points: 7,
+        questionText: 'نعتبر متتالية حسابية (u_n) حدها الأول u_0 = 3 وأساسها r = 4. احسب u_1 و u_10، اكتب u_n بدلالة n، ثم احسب المجموع: S = u_0 + u_1 + ... + u_10.',
         expectedCompetency: 'تطبيق صيغة الحد العام ومجموع حدود متتالية حسابية.'
+      },
+      {
+        num: 2,
+        domain: 'التعداد والتمهيد للاحتمالات',
+        points: 6,
+        questionText: 'يحتوي صندوق على 5 كرات بيضاء و 3 كرات حمراء. نسحب عشوائياً وفي آن واحد 3 كرات من الصندوق. 1) كم عدد السحبات الممكنة؟ 2) كم عدد السحبات التي تحتوي على ثلاث كرات من نفس اللون؟',
+        expectedCompetency: 'استعمال التأليفات C_n^p لحساب عدد الحالات الممكنة والملائمة.'
+      },
+      {
+        num: 3,
+        domain: 'النهايات والاشتقاق ودراسة الدوال',
+        points: 7,
+        questionText: 'لتكن الدالة f(x) = x³ - 3x + 2. احسب نهايتي f عند +∞ و -∞، احسب المشتقة f\'(x) وادرس إشارتها، ثم ضع جدول تغيرات f واكتب معادلة المماس عند النقطة ذات الأفصول 0.',
+        expectedCompetency: 'التحكم في حساب النهايات والمشتقة وجدول التغيرات.'
       }
     ]
   },
@@ -434,11 +486,90 @@ interface OrientationRecommendation {
   counselorNote: string;
 }
 
-function computeStudentOrientation(student: StudentMetric, levelCode: string): OrientationRecommendation {
+function resolveStudentStreamCode(className: string, fallbackCycle: 'TCS' | '1BAC' | '2BAC'): string {
+  const raw = className || '';
+  const upper = raw.toUpperCase();
+  const isLit =
+    upper.includes('LSH') ||
+    upper.includes('TCL') ||
+    /(?:^|[^A-Z])SH(?:$|[^A-Z])/.test(upper) ||
+    upper.includes('LET') ||
+    upper.includes('LIT') ||
+    raw.includes('آداب') ||
+    raw.includes('اداب') ||
+    raw.includes('إنسانية') ||
+    raw.includes('انسانية') ||
+    raw.includes('أصيل');
+  const isSm = upper.includes('SM') || raw.includes('رياضية');
+  const isEco = upper.includes('ECO') || upper.includes('SEG') || upper.includes('SGC') || raw.includes('اقتصاد') || raw.includes('تدبير');
+
+  const isTC = upper.includes('TC') || raw.includes('جذع') || raw.includes('مشترك');
+  const is1Bac =
+    upper.includes('1BAC') ||
+    upper.includes('1 BAC') ||
+    upper.includes('1-BAC') ||
+    upper.includes('1_BAC') ||
+    upper.includes('1B') ||
+    raw.includes('أولى') ||
+    raw.includes('اولى') ||
+    raw.includes('الأولى') ||
+    raw.includes('الاولى');
+  const is2Bac =
+    upper.includes('2BAC') ||
+    upper.includes('2 BAC') ||
+    upper.includes('2-BAC') ||
+    upper.includes('2_BAC') ||
+    upper.includes('2B') ||
+    raw.includes('ثانية') ||
+    raw.includes('الثانية');
+
+  const cycle = isTC ? 'TCS' : is1Bac ? '1BAC' : is2Bac ? '2BAC' : fallbackCycle;
+
+  if (cycle === 'TCS') {
+    return isLit ? 'TCL' : 'TCS';
+  }
+  if (cycle === '1BAC') {
+    if (isLit) return '1BAC_LSH';
+    if (isSm) return '1BAC_SM';
+    if (isEco) return '1BAC_ECO';
+    return '1BAC_EXP';
+  }
+  // 2BAC
+  if (isLit) return '2BAC_LSH';
+  if (isSm) return '2BAC_SM';
+  if (isEco) return '2BAC_ECO';
+  return '2BAC_PC';
+}
+
+function computeStudentOrientation(student: StudentMetric, fallbackCycle: 'TCS' | '1BAC' | '2BAC'): OrientationRecommendation {
+  const levelCode = resolveStudentStreamCode(student.className, fallbackCycle);
   const avg = student.avg ?? 0;
   const best = student.bestMark ?? avg;
   const delta = student.delta ?? 0;
   const effectiveScore = avg * 0.75 + best * 0.25 + (delta > 0 ? Math.min(1.5, delta * 0.3) : 0);
+
+  if (levelCode === 'TCL') {
+    if (effectiveScore >= 13) {
+      return {
+        primaryPath: 'الأولى باكالوريا آداب وعلوم إنسانية (1BAC LSH) أو علوم اقتصادية وتدبير (SEG)',
+        secondaryPath: 'الأولى باكالوريا فنون تطبيقية أو مسالك اللغات والإعلام',
+        postBacTracks: ['المعهد العالي للإعلام والاتصال (ISIC)', 'المدارس الوطنية للتجارة والتسيير (ENCG - للحاصلين على باك اقتصاد)', 'كليات الحقوق والآداب والعلوم الإنسانية والترجمة'],
+        profileBadge: 'تمكن متميز في الرياضيات الأدبية والمنطقية',
+        profileColor: 'bg-purple-100 text-purple-900 border-purple-300',
+        confidencePct: 92,
+        counselorNote: 'تحكم ممتاز في الحساب العددي والإحصاء والدوال يمنح التلميذ(ة) تفوقاً في الامتحان الجهوي للرياضيات ويفتح له إمكانية الترشح أيضاً لشعبة العلوم الاقتصادية.'
+      };
+    }
+    return {
+      primaryPath: 'الأولى باكالوريا آداب وعلوم إنسانية (1BAC LSH)',
+      secondaryPath: 'الأولى باكالوريا التعليم الأصيل (مسلك اللغة العربية / العلوم الشرعية)',
+      postBacTracks: ['كليات العلوم القانونية والاقتصادية والاجتماعية (FSJES)', 'كليات الآداب والعلوم الإنسانية والمدرسة العليا للأساتذة (ENS)', 'المعاهد العليا للإعلام والتنشيط الثقافي'],
+      profileBadge: 'توجيه ملائم لشعبة الآداب والعلوم الإنسانية',
+      profileColor: 'bg-amber-100 text-amber-900 border-amber-300',
+      confidencePct: 86,
+      counselorNote: 'مسار منسجم مع الجذع المشترك الأدبي؛ يُنصح بتثبيت مكتسبات النسب المئوية والمعادلات والمتتاليات لضمان نقطة متميزة في الامتحان الجهوي الموحد للسنة الأولى باكالوريا.'
+    };
+  }
 
   if (levelCode === 'TCS') {
     if (effectiveScore >= 15.5) {
@@ -449,7 +580,7 @@ function computeStudentOrientation(student: StudentMetric, levelCode: string): O
         profileBadge: 'مؤهل بقوة لشعبة العلوم الرياضية',
         profileColor: 'bg-purple-100 text-purple-900 border-purple-300',
         confidencePct: 95,
-        counselorNote: 'يتوفر التلميذ(ة) على بنية استدلالية وقدرة عالية على التجريد الرياضي تؤهله للنجاح والتفوق في شعبة العلوم الرياضية.'
+        counselorNote: 'يتوفر التلميذ(ة) على بنية استدلالية وقدرة عالية على التجريد الرياضي تؤهله للنجاح والتفوق في شعبة العلوم الرياضية (معامل 9).'
       };
     }
     if (effectiveScore >= 12.5) {
@@ -502,11 +633,29 @@ function computeStudentOrientation(student: StudentMetric, levelCode: string): O
     };
   }
 
+  if (levelCode === '1BAC_ECO') {
+    return {
+      primaryPath: effectiveScore >= 12
+        ? 'الثانية باكالوريا مسلك العلوم الاقتصادية (2BAC Sciences Économiques)'
+        : 'الثانية باكالوريا مسلك علوم التدبير المحاسباتي (2BAC SGC)',
+      secondaryPath: 'الثانية باكالوريا مسلك علوم التدبير المحاسباتي أو العلوم الاقتصادية',
+      postBacTracks: [
+        'المدارس الوطنية للتجارة والتسيير (ENCG) والمعهد العالي للتجارة وإدارة المقاولات (ISCAE)',
+        'الأقسام التحضيرية الاقتصادية والتجارية (CPGE ECS / ECT)',
+        'المدارس العليا للتكنولوجيا (EST) وشهادة التقني العالي (BTS) وكليات الاقتصاد (FSJES)'
+      ],
+      profileBadge: 'مسار العلوم الاقتصادية والتدبير (معامل 4)',
+      profileColor: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+      confidencePct: 89,
+      counselorNote: 'مؤهلات جيدة في التحليل والمتتاليات والاحتمالات المالية تتيح للتلميذ(ة) التميز في مسلك العلوم الاقتصادية أو التدبير المحاسباتي واستهداف مدارس التجارة والتسيير (ENCG / ISCAE).'
+    };
+  }
+
   if (levelCode.startsWith('1BAC')) {
     if (effectiveScore >= 15) {
       return {
-        primaryPath: levelCode === '1BAC_SM' ? 'الثانية باكالوريا علوم رياضية (مسلك أ أو ب)' : 'الثانية باكالوريا علوم فيزيائية (2BAC PC) - قطب التميز',
-        secondaryPath: 'الثانية باكالوريا علوم فيزيائية (PC) / علوم الحياة والأرض (SVT)',
+        primaryPath: levelCode === '1BAC_SM' ? 'الثانية باكالوريا علوم رياضية (مسلك أ أو ب - معامل 9)' : 'الثانية باكالوريا علوم فيزيائية (2BAC PC) - قطب التميز',
+        secondaryPath: levelCode === '1BAC_SM' ? 'الثانية باكالوريا علوم فيزيائية (2BAC PC)' : 'الثانية باكالوريا علوم الحياة والأرض (SVT)',
         postBacTracks: ['الأقسام التحضيرية للمدارس العليا (CPGE MPSI / PCSI)', 'كليات الطب والصيدلة والهندسة المعمارية (ENA)', 'مدارس المهندسين الكبرى (ENSA / ENSAM / IAV)'],
         profileBadge: 'مسار تميز علمي وهندسي',
         profileColor: 'bg-indigo-100 text-indigo-900 border-indigo-300',
@@ -536,7 +685,45 @@ function computeStudentOrientation(student: StudentMetric, levelCode: string): O
     };
   }
 
-  // Default: 2BAC (Post-Baccalaureate Orientation)
+  // 2BAC Literature & Humanities Post-Bac Orientation
+  if (levelCode === '2BAC_LSH') {
+    return {
+      primaryPath: effectiveScore >= 13
+        ? 'المعهد العالي للإعلام والاتصال (ISIC) + المدارس العليا للتربية والتكوين (ENS / ESEF) + معاهد الترجمة'
+        : 'كليات العلوم القانونية والاقتصادية والاجتماعية (FSJES) + كليات الآداب والعلوم الإنسانية',
+      secondaryPath: 'المعاهد العليا لمهن التنشيط الثقافي والعمل الاجتماعي والتكوين المهني (BTS / OFPPT)',
+      postBacTracks: [
+        'المعهد العالي للإعلام والاتصال (ISIC) ومدرسة الملك فهد العليا للترجمة (ESRFT)',
+        'المدارس العليا للأساتذة والتربية والتكوين (ENS / ESEF)',
+        'كليات الحقوق والقانون والاقتصاد (FSJES) وكليات الآداب والعلوم الإنسانية (FLSH)'
+      ],
+      profileBadge: 'توجيه جامعي ومهني للقطب الأدبي والإنساني (معامل 1)',
+      profileColor: 'bg-amber-100 text-amber-900 border-amber-300',
+      confidencePct: 91,
+      counselorNote: 'الأولوية في الامتحان الوطني لمسلك الآداب والعلوم الإنسانية هي ضمان نقطة جيدة في تمارين المتتاليات، الاحتمالات، ودراسة الدوال اللوغاريتمية والأسية لتعزيز المعدل العام للبكالوريا.'
+    };
+  }
+
+  // 2BAC Economics & Management Post-Bac Orientation
+  if (levelCode === '2BAC_ECO') {
+    return {
+      primaryPath: effectiveScore >= 13
+        ? 'المدارس الوطنية للتجارة والتسيير (ENCG) + الأقسام التحضيرية الاقتصادية (CPGE ECT/ECS) + ISCAE'
+        : 'المدارس العليا للتكنولوجيا (EST / BTS) + كليات العلوم القانونية والاقتصادية والاجتماعية (FSJES)',
+      secondaryPath: 'الإجازات المهنية في الأبناك، التأمين، المحاسبة، والتدبير اللوجيستيكي',
+      postBacTracks: [
+        'المدارس الوطنية للتجارة والتسيير (ENCG) والمعهد العالي للتجارة وإدارة المقاولات (ISCAE)',
+        'الأقسام التحضيرية الاقتصادية والتجارية (CPGE ECT / ECS)',
+        'المدارس العليا للتكنولوجيا (EST) وشهادة التقني العالي (BTS) وكليات الاقتصاد (FSJES)'
+      ],
+      profileBadge: 'توجيه قطب الاقتصاد والتجارة والتسيير (معامل 4)',
+      profileColor: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+      confidencePct: 90,
+      counselorNote: 'تمثل الرياضيات (معامل 4) رافعة أساسية في انتقاء ومباريات ENCG والأقسام التحضيرية الاقتصادية؛ يُنصح بالتركيز على دراسة الدوال، المتتاليات، وحساب التكامل والاحتمالات.'
+    };
+  }
+
+  // Default: 2BAC Scientific & Technological (Post-Baccalaureate Orientation)
   if (effectiveScore >= 15.5) {
     return {
       primaryPath: 'الأقسام التحضيرية للمدارس العليا (CPGE) + كليات الطب والهندسة',
@@ -573,11 +760,11 @@ function computeStudentOrientation(student: StudentMetric, levelCode: string): O
   return {
     primaryPath: 'المدارس العليا للتكنولوجيا (EST / BTS) + التكوين المهني العالي (OFPPT) والجامعة',
     secondaryPath: 'مسالك الإجازة الأساسية مع مواكبة بيداغوجية لضمان النجاح في البكالوريا',
-    postBacTracks: ['شهادة التقني العالي (BTS) ومعاهد التكنولوجيا التطبيقية', 'الكليات متعددة التخصصات ومسالك الاقتصاد والتدبير'],
+    postBacTracks: ['شهادة التقني العالي (BTS) ومعاهد التكنولوجيا التطبيقية', 'الكليات متعددة التخصصات ومسالك العلوم والاقتصاد'],
     profileBadge: 'أولوية قصوى لضمان استيفاء البكالوريا أولاً',
     profileColor: 'bg-rose-100 text-rose-900 border-rose-300',
     confidencePct: 65,
-    counselorNote: 'الأولوية الراهنة هي تدارك النقص في الفروض عبر خطة دعم مركزة على الأسئلة المضمونة في الإطار المرجعي للامتحان الوطني (الدوال والمتتاليات والأعداد العقدية).'
+    counselorNote: 'الأولوية الراهنة هي تدارك النقص في الفروض عبر خطة دعم مركزة على الأسئلة المضمونة في الإطار المرجعي للامتحان الوطني (الدوال، المتتاليات، الأعداد العقدية والاحتمالات).'
   };
 }
 
@@ -591,21 +778,19 @@ export default function PedagogicalCouncilOrientationView({
 }: PedagogicalCouncilOrientationViewProps) {
   const [activeSubSection, setActiveSubSection] = useState<'council_digest' | 'diagnostic_toolkit' | 'orientation_hub'>(initialSection);
   const [selectedDiagnosticLevel, setSelectedDiagnosticLevel] = useState<string>(() => {
-    const upper = (selectedClass || '').toUpperCase();
-    if (upper.includes('TCS') || upper.includes('TC') || selectedClass.includes('جذع')) return 'TCS';
-    if (upper.includes('1BAC') || selectedClass.includes('أولى') || selectedClass.includes('اولى')) {
-      if (upper.includes('SM')) return '1BAC_SM';
-      if (upper.includes('LSH') || upper.includes('SH') || upper.includes('LET') || upper.includes('LIT') || selectedClass.includes('آداب') || selectedClass.includes('إنسانية')) return '1BAC_LSH';
-      return '1BAC_EXP';
-    }
-    if (upper.includes('SM')) return '2BAC_SM';
-    if (upper.includes('LSH') || upper.includes('SH') || selectedClass.includes('آداب') || selectedClass.includes('إنسانية')) return '1BAC_LSH';
+    const code = resolveStudentStreamCode(selectedClass || '', '2BAC');
+    if (code === 'TCL' || code === 'TCS') return 'TCS';
+    if (code === '1BAC_SM') return '1BAC_SM';
+    if (code === '1BAC_LSH') return '1BAC_LSH';
+    if (code.startsWith('1BAC')) return '1BAC_EXP';
+    if (code === '2BAC_SM') return '2BAC_SM';
+    if (code === '2BAC_LSH') return '2BAC_LSH';
     return '2BAC_PC';
   });
   const [orientationLevel, setOrientationLevel] = useState<'TCS' | '1BAC' | '2BAC'>(() => {
-    const upper = (selectedClass || '').toUpperCase();
-    if (upper.includes('TC') || selectedClass.includes('جذع')) return 'TCS';
-    if (upper.includes('1BAC') || selectedClass.includes('أولى') || selectedClass.includes('اولى')) return '1BAC';
+    const code = resolveStudentStreamCode(selectedClass || '', '2BAC');
+    if (code === 'TCL' || code === 'TCS') return 'TCS';
+    if (code.startsWith('1BAC')) return '1BAC';
     return '2BAC';
   });
   const [orientationSearch, setOrientationSearch] = useState('');
@@ -623,27 +808,19 @@ export default function PedagogicalCouncilOrientationView({
   // Automatically adapt diagnostic & orientation level when selectedClass changes
   useEffect(() => {
     if (!selectedClass || selectedClass === 'all') return;
-    const upper = selectedClass.toUpperCase();
-    if (upper.includes('TCS') || upper.includes('TC') || selectedClass.includes('جذع')) {
+    const code = resolveStudentStreamCode(selectedClass, '2BAC');
+    if (code === 'TCL' || code === 'TCS') {
       setSelectedDiagnosticLevel('TCS');
       setOrientationLevel('TCS');
-    } else if (upper.includes('1BAC') || selectedClass.includes('أولى') || selectedClass.includes('اولى')) {
-      if (upper.includes('SM')) {
-        setSelectedDiagnosticLevel('1BAC_SM');
-      } else if (upper.includes('LSH') || upper.includes('SH') || upper.includes('LET') || upper.includes('LIT') || selectedClass.includes('آداب') || selectedClass.includes('إنسانية')) {
-        setSelectedDiagnosticLevel('1BAC_LSH');
-      } else {
-        setSelectedDiagnosticLevel('1BAC_EXP');
-      }
+    } else if (code.startsWith('1BAC')) {
+      if (code === '1BAC_SM') setSelectedDiagnosticLevel('1BAC_SM');
+      else if (code === '1BAC_LSH') setSelectedDiagnosticLevel('1BAC_LSH');
+      else setSelectedDiagnosticLevel('1BAC_EXP');
       setOrientationLevel('1BAC');
     } else {
-      if (upper.includes('SM')) {
-        setSelectedDiagnosticLevel('2BAC_SM');
-      } else if (upper.includes('LSH') || upper.includes('SH') || selectedClass.includes('آداب') || selectedClass.includes('إنسانية')) {
-        setSelectedDiagnosticLevel('1BAC_LSH');
-      } else {
-        setSelectedDiagnosticLevel('2BAC_PC');
-      }
+      if (code === '2BAC_SM') setSelectedDiagnosticLevel('2BAC_SM');
+      else if (code === '2BAC_LSH') setSelectedDiagnosticLevel('2BAC_LSH');
+      else setSelectedDiagnosticLevel('2BAC_PC');
       setOrientationLevel('2BAC');
     }
   }, [selectedClass]);
@@ -799,7 +976,8 @@ export default function PedagogicalCouncilOrientationView({
           const repSel = document.getElementById('reportClassSelect') as HTMLSelectElement | null;
           if (repSel && repSel.value !== selectedClass) {
             repSel.value = selectedClass;
-            if (typeof win.generateReport === 'function') win.generateReport();
+            if (typeof win.renderReport === 'function') win.renderReport();
+            else if (typeof win.generateReport === 'function') win.generateReport();
           }
           if (typeof win.renderDiagnosticSection === 'function') {
             win.renderDiagnosticSection(selectedClass);
@@ -856,7 +1034,7 @@ export default function PedagogicalCouncilOrientationView({
   <div class="header-box">
     <div>
       <strong>المملكة المغربية</strong><br>
-      وزارة التربية الوطنية والتعليم الأولي والرياضة<br>
+      وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
       ${academy}<br>
       ${directorate} — ${schoolName}
     </div>
@@ -970,7 +1148,7 @@ export default function PedagogicalCouncilOrientationView({
   <div class="header-box">
     <div style="width: 36%;">
       <strong>المملكة المغربية</strong><br>
-      وزارة التربية الوطنية والتعليم الأولي والرياضة<br>
+      وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
       ${academy}<br>
       ${directorate} — ${schoolName}
     </div>
@@ -994,7 +1172,7 @@ export default function PedagogicalCouncilOrientationView({
   <div class="kpi-grid">
     <div class="kpi-card"><span class="val">${studentMetrics.length}</span><span class="lbl">عدد التلاميذ</span></div>
     <div class="kpi-card"><span class="val">${classAverages.overall ?? '-'}/20</span><span class="lbl">المعدل العام للقسم</span></div>
-    <div class="kpi-card"><span class="val">${classAverages.passPct ?? 0}%</span><span class="lbl">نسبة النجاح (≥10)</span></div>
+    <div class="kpi-card"><span class="val">${classAverages.passPct ?? 0}%</span><span class="lbl">نسبة الحاصلين على المعدل (≥10)</span></div>
     <div class="kpi-card"><span class="val">${classAverages.median ?? '-'}/20</span><span class="lbl">الوسيط (Median)</span></div>
     <div class="kpi-card"><span class="val">${classAverages.stdDev ?? '-'}</span><span class="lbl">الانحراف المعياري</span></div>
     <div class="kpi-card"><span class="val">${classAverages.minMark ?? '-'} — ${classAverages.maxMark ?? '-'}</span><span class="lbl">أدنى / أعلى نقطة</span></div>
@@ -1142,7 +1320,7 @@ export default function PedagogicalCouncilOrientationView({
   <div class="header-box">
     <div>
       <strong>المملكة المغربية</strong><br>
-      وزارة التربية الوطنية والتعليم الأولي والرياضة<br>
+      وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
       المؤسسة: ${schoolName}
     </div>
     <div style="text-align:center;">
@@ -1247,7 +1425,7 @@ export default function PedagogicalCouncilOrientationView({
   <div class="header-box">
     <div>
       <strong>المملكة المغربية</strong><br>
-      وزارة التربية الوطنية والتعليم الأولي والرياضة<br>
+      وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
       المؤسسة: ${schoolName}
     </div>
     <div style="text-align:center;">
@@ -1840,7 +2018,7 @@ export default function PedagogicalCouncilOrientationView({
                 <div>
                   <div className="text-xs font-black text-slate-900">العتبة الرياضية لشعبة العلوم الرياضية</div>
                   <p className="text-[11px] text-slate-600 mt-0.5">
-                    يُنصح بمعدل ≥ 14.5/20 مع تطور إيجابي وقدرة على البرهان والاستدلال في الهندسة والجبر (معامل 7 في 1 باك ومعامل 9 في 2 باك).
+                    يُنصح بمعدل ≥ 14.5/20 مع تطور إيجابي وقدرة على البرهان والاستدلال في الهندسة والجبر (المعامل الرسمي 9 في 1 باك و 2 باك علوم رياضية).
                   </p>
                 </div>
               </div>

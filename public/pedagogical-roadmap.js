@@ -423,7 +423,7 @@
                         <tr>
                             <td style="width: 32%; border: none; text-align: right; vertical-align: top; font-size: 0.78rem; line-height: 1.45; font-weight: 700; color: #334155; padding: 0;">
                                 <div style="font-weight: 900; color: #0f172a; font-size: 0.92rem;">المملكة المغربية</div>
-                                <div style="color: #1e3a8a; font-weight: 800;">وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                                <div style="color: #1e3a8a; font-weight: 800;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                                 <div>${escapeHtml(academyName)}</div>
                                 <div>${escapeHtml(directorateName)}</div>
                                 <div style="color: #0f172a; font-weight: 800; margin-top: 2px;">المؤسسة: <strong style="color: #1e3a8a;">${escapeHtml(schoolName)}</strong></div>

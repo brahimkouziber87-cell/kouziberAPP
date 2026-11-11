@@ -150,7 +150,7 @@
             const rawCandidates = [];
             const collectFromObj = (obj) => {
                 if (!obj || typeof obj !== 'object') return;
-                ['f1', 'f2', 'f3', 'f4', 'activities'].forEach(k => {
+                ['f1', 'f2', 'f3', 'f4'].forEach(k => {
                     if (obj[k] !== undefined && obj[k] !== null && obj[k] !== '') {
                         const n = parseFloat(obj[k]);
                         if (!isNaN(n) && n >= 0 && n <= 20) rawCandidates.push(n);
@@ -556,7 +556,7 @@
         const classDiag = ensureDiagnosticDb(className);
 
         const rows = [
-            ['المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والرياضة'],
+            ['المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل'],
             ['تقرير وشبكة تفريغ نتائج التقويم التشخيصي في مادة الرياضيات'],
             [`المؤسسة: ${schoolName}`, '', `الأستاذ(ة): ${teacherName}`, '', `القسم: ${className}`, '', `تاريخ الإنجاز: ${new Date().toLocaleDateString('ar-MA')}`],
             [],

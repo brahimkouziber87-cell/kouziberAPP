@@ -66,6 +66,8 @@
         let countCC = 0;
         let sumDiag = 0;
         let countDiag = 0;
+        let sumPairedDelta = 0;
+        let countPaired = 0;
         const validScoresCC = [];
 
         const studentRows = [];
@@ -86,15 +88,20 @@
             let statusColor = '#64748b';
             let statusCategory = 'none';
 
+            if (scoreDiag !== null && !isNaN(scoreDiag)) {
+                sumDiag += scoreDiag;
+                countDiag++;
+            }
+
             if (avgCC !== null && !isNaN(avgCC)) {
                 sumCC += avgCC;
                 countCC++;
                 validScoresCC.push(avgCC);
 
                 if (scoreDiag !== null && !isNaN(scoreDiag)) {
-                    sumDiag += scoreDiag;
-                    countDiag++;
                     delta = parseFloat((avgCC - scoreDiag).toFixed(2));
+                    sumPairedDelta += (avgCC - scoreDiag);
+                    countPaired++;
 
                     if (delta >= 2.5) {
                         status = '🚀 تطور استثنائي بارز';
@@ -134,10 +141,10 @@
             });
         });
 
-        // 1. حساب المتوسطات
+        // 1. حساب المتوسطات ومؤشر القيمة المضافة المزدوجة (Paired-Sample IVAP)
         const meanCC = countCC > 0 ? parseFloat((sumCC / countCC).toFixed(2)) : 0;
         const meanDiag = countDiag > 0 ? parseFloat((sumDiag / countDiag).toFixed(2)) : 0;
-        const globalValueAdded = countDiag > 0 ? parseFloat((meanCC - meanDiag).toFixed(2)) : null;
+        const globalValueAdded = countPaired > 0 ? parseFloat((sumPairedDelta / countPaired).toFixed(2)) : null;
 
         // 2. حساب الانحراف المعياري ومعامل التباين (Dispersion & Homogeneity)
         let variance = 0;

@@ -95,7 +95,9 @@
             if (isNaN(dt.getTime())) continue;
 
             const dayIdx = dt.getDay(); // 0-6
-            const dur = (parseFloat(rec.duration) || 1);
+            const dur = (typeof window.getRecordAbsenceDuration === 'function') 
+                ? window.getRecordAbsenceDuration(rec) 
+                : (rec.part === 'h1' || rec.part === 'h2' ? 1 : (parseFloat(rec.duration) || 1));
 
             grandTotalHours += dur;
             grandTotalIncidents++;
@@ -1107,7 +1109,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; text-align: center;">
                         <div style="text-align: right; font-size: 0.8rem; line-height: 1.4; font-weight: 700;">
                             المملكة المغربية<br>
-                            وزارة التربية الوطنية والتعليم الأولي والرياضة<br>
+                            وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
                             الأكاديمية الجهوية للتربية والتكوين<br>
                             المديرية الإقليمية<br>
                             مؤسسة: <strong>${escapeHtml(schoolName)}</strong>

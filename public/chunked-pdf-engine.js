@@ -390,16 +390,17 @@
                     let zeroAbsenceCount = 0;
 
                     students.forEach(std => {
-                        const stdRecords = (db.records || []).filter(r =>
-                            r.studentId === std.id &&
-                            r.className === className &&
+                        const baseRecs = (typeof window.getStudentClassRecordsFast === 'function')
+                            ? window.getStudentClassRecordsFast(std.id, className)
+                            : (db.records || []).filter(r => r.studentId === std.id && r.className === className);
+                        const stdRecords = baseRecs.filter(r =>
                             (!dateFrom || r.date >= dateFrom) &&
                             (!dateTo || r.date <= dateTo)
                         );
                         const absentRecs = stdRecords.filter(r => r.status === 'غائب' || r.status === 'مبرر');
-                        const absentHours = absentRecs.reduce((sum, r) => sum + (parseFloat(r.hours || r.duration) || 1), 0);
-                        const justHours = stdRecords.filter(r => r.status === 'مبرر').reduce((sum, r) => sum + (parseFloat(r.hours || r.duration) || 1), 0);
-                        const unjustHours = stdRecords.filter(r => r.status === 'غائب').reduce((sum, r) => sum + (parseFloat(r.hours || r.duration) || 1), 0);
+                        const absentHours = absentRecs.reduce((sum, r) => sum + (typeof window.getRecordAbsenceDuration === 'function' ? window.getRecordAbsenceDuration(r) : (r.part === 'h1' || r.part === 'h2' ? 1 : (parseFloat(r.hours || r.duration) || 1))), 0);
+                        const justHours = stdRecords.filter(r => r.status === 'مبرر').reduce((sum, r) => sum + (typeof window.getRecordAbsenceDuration === 'function' ? window.getRecordAbsenceDuration(r) : (r.part === 'h1' || r.part === 'h2' ? 1 : (parseFloat(r.hours || r.duration) || 1))), 0);
+                        const unjustHours = stdRecords.filter(r => r.status === 'غائب').reduce((sum, r) => sum + (typeof window.getRecordAbsenceDuration === 'function' ? window.getRecordAbsenceDuration(r) : (r.part === 'h1' || r.part === 'h2' ? 1 : (parseFloat(r.hours || r.duration) || 1))), 0);
                         const lateCount = stdRecords.filter(r => r.status === 'متأخر').length;
 
                         totalClassAbsentHours += absentHours;
@@ -409,23 +410,19 @@
                         if (absentHours === 0) zeroAbsenceCount++;
                     });
 
-                    const totalAbsentStudents = students.filter(s => {
-                        const rcs = (db.records || []).filter(r => r.studentId === s.id && r.className === className && (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo));
-                        return rcs.some(r => r.status === 'غائب' || r.status === 'مبرر');
-                    }).length;
-                    const fullyPresentStudents = students.length - totalAbsentStudents;
+                    const fullyPresentStudents = zeroAbsenceCount;
                     const attendanceRate = students.length > 0 ? ((fullyPresentStudents / students.length) * 100).toFixed(1) : '100';
 
                     const coverPage = document.createElement('div');
                     coverPage.className = 'chunked-pdf-page-container';
-                    coverPage.style.cssText = 'width: 794px; min-height: 1122px; padding: 40px 32px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; border: 6px double #1e3a8a; border-radius: 14px; background: radial-gradient(circle at top right, #f8fafc 0%, #ffffff 100%); direction: rtl;';
+                    coverPage.style.cssText = 'width: 794px; min-height: 1123px; height: 1123px; max-height: 1123px; overflow: hidden; padding: 40px 32px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; border: 6px double #1e3a8a; border-radius: 14px; background: radial-gradient(circle at top right, #f8fafc 0%, #ffffff 100%); direction: rtl;';
 
                     coverPage.innerHTML = `
                         <div style="border-bottom: 2px solid #cbd5e1; padding-bottom: 16px;">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                 <div style="text-align: right; font-size: 0.84rem; line-height: 1.6; color: #1e293b; font-weight: 700;">
                                     <div style="font-weight: 900; color: #0f172a;">المملكة المغربية</div>
-                                    <div style="color: #1e3a8a; font-weight: 800;">وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                                    <div style="color: #1e3a8a; font-weight: 800;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                                     <div>${pAcademy}</div>
                                     <div>${pDirectorate}</div>
                                     <div>${pSchool}</div>
@@ -513,16 +510,17 @@
                 label: `رسم جدول غياب القسم (${classIdx + 1}/${classes.length}): ${className}`,
                 render: () => {
                     const studentAbsenceRows = students.map((std, sIdx) => {
-                        const stdRecords = (db.records || []).filter(r =>
-                            r.studentId === std.id &&
-                            r.className === className &&
+                        const baseRecs = (typeof window.getStudentClassRecordsFast === 'function')
+                            ? window.getStudentClassRecordsFast(std.id, className)
+                            : (db.records || []).filter(r => r.studentId === std.id && r.className === className);
+                        const stdRecords = baseRecs.filter(r =>
                             (!dateFrom || r.date >= dateFrom) &&
                             (!dateTo || r.date <= dateTo)
                         );
                         const absentRecs = stdRecords.filter(r => r.status === 'غائب' || r.status === 'مبرر');
-                        const absentHours = absentRecs.reduce((sum, r) => sum + (parseFloat(r.hours || r.duration) || 1), 0);
-                        const justHours = stdRecords.filter(r => r.status === 'مبرر').reduce((sum, r) => sum + (parseFloat(r.hours || r.duration) || 1), 0);
-                        const unjustHours = stdRecords.filter(r => r.status === 'غائب').reduce((sum, r) => sum + (parseFloat(r.hours || r.duration) || 1), 0);
+                        const absentHours = absentRecs.reduce((sum, r) => sum + (typeof window.getRecordAbsenceDuration === 'function' ? window.getRecordAbsenceDuration(r) : (r.part === 'h1' || r.part === 'h2' ? 1 : (parseFloat(r.hours || r.duration) || 1))), 0);
+                        const justHours = stdRecords.filter(r => r.status === 'مبرر').reduce((sum, r) => sum + (typeof window.getRecordAbsenceDuration === 'function' ? window.getRecordAbsenceDuration(r) : (r.part === 'h1' || r.part === 'h2' ? 1 : (parseFloat(r.hours || r.duration) || 1))), 0);
+                        const unjustHours = stdRecords.filter(r => r.status === 'غائب').reduce((sum, r) => sum + (typeof window.getRecordAbsenceDuration === 'function' ? window.getRecordAbsenceDuration(r) : (r.part === 'h1' || r.part === 'h2' ? 1 : (parseFloat(r.hours || r.duration) || 1))), 0);
                         const lateCount = stdRecords.filter(r => r.status === 'متأخر').length;
                         const missedHw = stdRecords.filter(r => r.homework === 'لم ينجز').length;
 
@@ -543,66 +541,156 @@
                         };
                     });
 
+                    // معايرة احترافية للكثافة العمودية والخطوط لملء صفحة A4 عمودياً وبوضوح طباعي فائق (بما فيها الأقسام حتى 46-50 تلميذاً)
                     const sCount = students.length;
-                    const dynRowPad = sCount > 38 ? '1.4px 2.5px' : (sCount > 28 ? '2.2px 3.5px' : '3.5px 4px');
-                    const dynFontSize = sCount > 38 ? '6.6pt' : (sCount > 28 ? '7.2pt' : '7.8pt');
-                    const dynHeadPad = sCount > 38 ? '3px 2px' : (sCount > 28 ? '4px 3px' : '5px 4px');
+                    let dynRowPad, dynFontSize, dynHeadPad, dynSubFontSize, dynHeadFontSize;
+                    let pagePad = '22px 28px';
+                    let visaH = '48px';
+                    let hdrPadBottom = '8px';
+                    let hdrMarginBottom = '8px';
+
+                    if (sCount > 42) {
+                        // معايرة هندسية خاصة للأقسام الكبيرة (تصل إلى 46-50 تلميذاً) لحصرها بدقة في صفحة واحدة دون فيضان
+                        dynRowPad = '1.8px 3px';
+                        dynFontSize = '7.0pt';
+                        dynSubFontSize = '6.4pt';
+                        dynHeadPad = '3.5px 3px';
+                        dynHeadFontSize = '7.2pt';
+                        pagePad = '14px 22px';
+                        visaH = '38px';
+                        hdrPadBottom = '5px';
+                        hdrMarginBottom = '5px';
+                    } else if (sCount > 36) {
+                        dynRowPad = '3.2px 3.8px';
+                        dynFontSize = '7.5pt';
+                        dynSubFontSize = '7.0pt';
+                        dynHeadPad = '4.5px 3.5px';
+                        dynHeadFontSize = '7.6pt';
+                        pagePad = '18px 24px';
+                        visaH = '42px';
+                        hdrPadBottom = '6px';
+                        hdrMarginBottom = '6px';
+                    } else if (sCount > 30) {
+                        dynRowPad = '4.6px 4.5px';
+                        dynFontSize = '8.0pt';
+                        dynSubFontSize = '7.4pt';
+                        dynHeadPad = '5.5px 4px';
+                        dynHeadFontSize = '8.0pt';
+                        visaH = '46px';
+                    } else if (sCount > 24) {
+                        dynRowPad = '6.0px 5px';
+                        dynFontSize = '8.5pt';
+                        dynSubFontSize = '7.8pt';
+                        dynHeadPad = '6.5px 4.5px';
+                        dynHeadFontSize = '8.4pt';
+                    } else if (sCount > 18) {
+                        dynRowPad = '7.8px 6px';
+                        dynFontSize = '9.0pt';
+                        dynSubFontSize = '8.2pt';
+                        dynHeadPad = '7.5px 5px';
+                        dynHeadFontSize = '8.8pt';
+                    } else if (sCount > 12) {
+                        dynRowPad = '10px 7px';
+                        dynFontSize = '9.5pt';
+                        dynSubFontSize = '8.6pt';
+                        dynHeadPad = '8.5px 5.5px';
+                        dynHeadFontSize = '9.0pt';
+                    } else {
+                        dynRowPad = '13px 8px';
+                        dynFontSize = '10pt';
+                        dynSubFontSize = '9.0pt';
+                        dynHeadPad = '10px 6px';
+                        dynHeadFontSize = '9.5pt';
+                    }
+
+                    const availableTbodyH = sCount > 42 ? 880 : (sCount > 36 ? 860 : (sCount > 30 ? 840 : (sCount > 20 ? 820 : 800)));
+                    const calculatedRowHeight = Math.max(17.5, Math.min(52, Math.floor(availableTbodyH / Math.max(1, sCount))));
 
                     const sheetPage = document.createElement('div');
                     sheetPage.className = 'chunked-pdf-page-container';
-                    sheetPage.style.cssText = 'width: 794px; min-height: 1122px; padding: 24px 26px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; background: #ffffff; direction: rtl;';
+                    sheetPage.style.cssText = `width: 794px; min-height: 1123px; height: 1123px; max-height: 1123px; margin: 0 auto; padding: ${pagePad}; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; background: #ffffff; direction: rtl; font-family: "Cairo", system-ui, -apple-system, sans-serif; page-break-inside: avoid;`;
 
                     sheetPage.innerHTML = `
-                        <div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2.5px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 10px;">
-                                <div>
-                                    <div style="font-weight: 900; font-size: 1.1rem; color: #1e3a8a;">كشف تفريغ وتتبع الغياب — قسم: ${className}</div>
-                                    <div style="font-size: 0.74rem; color: #64748b; font-weight: 600;">المؤسسة: ${pSchool} | مادة الرياضيات | الأستاذ(ة): ${pName}</div>
-                                </div>
-                                <div style="text-align: left; font-size: 0.76rem; font-weight: 700; color: #334155;">
-                                    <div>${dateFrom && dateTo ? `${dateFrom} إلى ${dateTo}` : `الموسم الدراسي: ${pYear}`}</div>
-                                    <div style="color: #64748b;">عدد التلاميذ: <strong style="color: #1e3a8a;">${students.length}</strong></div>
+                        <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                            <!-- Header with Ministry Details -->
+                            <div style="border-bottom: 2.5px solid #1e3a8a; padding-bottom: ${hdrPadBottom}; margin-bottom: ${hdrMarginBottom};">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                                    <div style="text-align: right; width: 33%; font-size: 0.72rem; line-height: 1.4; color: #334155; font-weight: 700;">
+                                        <div style="font-weight: 900; color: #0f172a; font-size: 0.82rem;">المملكة المغربية</div>
+                                        <div style="color: #1e3a8a; font-weight: 800; font-size: 0.73rem;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
+                                        <div>${pAcademy} · ${pDirectorate}</div>
+                                        <div>المؤسسة: <strong style="color: #0f172a;">${pSchool}</strong></div>
+                                    </div>
+                                    <div style="text-align: center; width: 34%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                        <div style="background: linear-gradient(135deg, #1e3a8a, #172554); color: #ffffff; padding: 5px 14px; border-radius: 6px; box-shadow: 0 1px 3px rgba(30, 58, 138, 0.25); width: 100%; box-sizing: border-box;">
+                                            <div style="font-weight: 900; font-size: 1.05rem; letter-spacing: 0.3px;">كشف تفريغ وتتبع الغياب الإداري</div>
+                                        </div>
+                                        <div style="display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 3px; font-size: 0.72rem; font-weight: 800; color: #475569;">
+                                            <span>القسم: <strong style="color: #1e3a8a; font-size: 0.85rem; background: #e0f2fe; padding: 0 6px; border-radius: 4px;">${className}</strong></span>
+                                            <span>•</span>
+                                            <span>عدد المسجلين: <strong style="color: #047857;">${students.length}</strong></span>
+                                        </div>
+                                    </div>
+                                    <div style="text-align: left; width: 33%; font-size: 0.72rem; line-height: 1.4; color: #334155; font-weight: 700;">
+                                        <div>المادة: <strong style="color: #1e3a8a;">الرياضيات</strong> | السلك: الثانوي التأهيلي</div>
+                                        <div>الأستاذ(ة): <strong style="color: #0f172a;">${pName}</strong></div>
+                                        <div>${dateFrom && dateTo ? `الفترة: <strong style="color: #1e3a8a;">${dateFrom}</strong> إلى <strong style="color: #1e3a8a;">${dateTo}</strong>` : `الموسم الدراسي: <strong style="color: #1e3a8a;">${pYear}</strong>`}</div>
+                                        <div style="color: #64748b; font-size: 0.68rem;">المذكرة الوزارية 142-08 وتوجيهات اليقظة</div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <table style="width: 100%; border-collapse: collapse; font-size: ${dynFontSize}; text-align: center; border: 1.2px solid #0f172a;">
-                                <thead>
-                                    <tr style="background: #1e3a8a; color: #ffffff; font-weight: 800;">
-                                        <th style="padding: ${dynHeadPad}; width: 28px; border: 1px solid #0f172a;">ر.ت</th>
-                                        <th style="padding: ${dynHeadPad}; width: 75px; border: 1px solid #0f172a;">رقم مسار</th>
-                                        <th style="padding: ${dynHeadPad}; text-align: right; border: 1px solid #0f172a;">الاسم الكامل للتلميذ(ة)</th>
-                                        <th style="padding: ${dynHeadPad}; width: 55px; border: 1px solid #0f172a; background: #991b1b;">مجموع الغياب</th>
-                                        <th style="padding: ${dynHeadPad}; width: 44px; border: 1px solid #0f172a;">مبرر</th>
-                                        <th style="padding: ${dynHeadPad}; width: 44px; border: 1px solid #0f172a;">غير مبرر</th>
-                                        <th style="padding: ${dynHeadPad}; width: 38px; border: 1px solid #0f172a;">تأخر</th>
-                                        <th style="padding: ${dynHeadPad}; width: 40px; border: 1px solid #0f172a;">واجب</th>
-                                        <th style="padding: ${dynHeadPad}; width: 55px; border: 1px solid #0f172a;">السلوك</th>
-                                        <th style="padding: ${dynHeadPad}; text-align: right; border: 1px solid #0f172a;">ملاحظات الإدارة / الأستاذ</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${studentAbsenceRows.map((r, rIdx) => `
-                                        <tr style="background: ${rIdx % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1;">
-                                            <td style="padding: ${dynRowPad}; border: 1px solid #cbd5e1; font-weight: 700;">${r.order}</td>
-                                            <td style="padding: ${dynRowPad}; border: 1px solid #cbd5e1; font-family: monospace; font-size: calc(${dynFontSize} - 0.2pt);">${r.massar}</td>
-                                            <td style="padding: ${dynRowPad}; text-align: right; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;">${r.name}</td>
-                                            <td style="padding: ${dynRowPad}; border: 1px solid #cbd5e1; font-weight: 900; color: ${r.absentHours > 0 ? '#dc2626' : '#16a34a'}; background: ${r.absentHours > 0 ? '#fef2f2' : '#ffffff'};">${r.absentHours} س</td>
-                                            <td style="padding: ${dynRowPad}; border: 1px solid #cbd5e1; color: #2563eb; font-weight: 700;">${r.justHours} س</td>
-                                            <td style="padding: ${dynRowPad}; border: 1px solid #cbd5e1; color: #dc2626; font-weight: 700;">${r.unjustHours} س</td>
-                                            <td style="padding: ${dynRowPad}; border: 1px solid #cbd5e1; font-weight: 700; color: ${r.lateCount > 0 ? '#ea580c' : '#64748b'};">${r.lateCount}</td>
-                                            <td style="padding: ${dynRowPad}; border: 1px solid #cbd5e1; font-weight: 700; color: ${r.missedHw > 0 ? '#7c3aed' : '#64748b'};">${r.missedHw}</td>
-                                            <td style="padding: ${dynRowPad}; border: 1px solid #cbd5e1; font-size: calc(${dynFontSize} - 0.3pt);">${r.behavior}</td>
-                                            <td style="padding: ${dynRowPad}; text-align: right; border: 1px solid #cbd5e1; font-size: calc(${dynFontSize} - 0.3pt); color: #475569;">${r.note}</td>
+                            <!-- Table Container (Flex-1 to utilize vertical space) -->
+                            <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                                <table style="width: 100%; height: 100%; border-collapse: collapse; table-layout: fixed; font-size: ${dynFontSize}; text-align: center; border: 1.5px solid #0f172a;">
+                                    <thead>
+                                        <tr style="background: #1e3a8a; color: #ffffff; font-weight: 800; line-height: 1.2;">
+                                            <th style="padding: ${dynHeadPad}; width: 28px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">ر.ت</th>
+                                            <th style="padding: ${dynHeadPad}; width: 75px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">رقم مسار</th>
+                                            <th style="padding: ${dynHeadPad}; text-align: right; border: 1px solid #0f172a; width: 175px; font-size: ${dynHeadFontSize};">الاسم الكامل للتلميذ(ة)</th>
+                                            <th style="padding: ${dynHeadPad}; width: 62px; border: 1px solid #0f172a; background: #991b1b; color: #fff; font-size: ${dynHeadFontSize};">مجموع الغياب</th>
+                                            <th style="padding: ${dynHeadPad}; width: 44px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">مبرر</th>
+                                            <th style="padding: ${dynHeadPad}; width: 46px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">غير مبرر</th>
+                                            <th style="padding: ${dynHeadPad}; width: 38px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">تأخر</th>
+                                            <th style="padding: ${dynHeadPad}; width: 40px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">واجب</th>
+                                            <th style="padding: ${dynHeadPad}; width: 55px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">السلوك</th>
+                                            <th style="padding: ${dynHeadPad}; text-align: right; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">ملاحظات الإدارة / الأستاذ</th>
                                         </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        ${studentAbsenceRows.map((r, rIdx) => `
+                                            <tr style="height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; background: ${rIdx % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1;">
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: #334155;">${r.order}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-family: monospace; font-size: ${dynSubFontSize}; font-weight: 700; color: #1e3a8a;">${r.massar}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.name}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 900; color: ${r.absentHours > 0 ? '#dc2626' : '#16a34a'}; background: ${r.absentHours > 0 ? '#fef2f2' : '#ffffff'}; font-size: ${dynFontSize};">${r.absentHours > 0 ? r.absentHours + ' س' : '<span style="color:#16a34a;">0</span>'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #2563eb; font-weight: 800;">${r.justHours > 0 ? r.justHours + ' س' : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #dc2626; font-weight: 800;">${r.unjustHours > 0 ? r.unjustHours + ' س' : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.lateCount > 0 ? '#ea580c' : '#94a3b8'};">${r.lateCount > 0 ? r.lateCount : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.missedHw > 0 ? '#7c3aed' : '#94a3b8'};">${r.missedHw > 0 ? r.missedHw : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; font-weight: 700;">${r.behavior}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; color: #334155; font-weight: 600;">${r.note}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
-                        <div style="display: flex; justify-content: space-between; margin-top: 14px; padding-top: 8px; border-top: 1.5px solid #cbd5e1; font-size: 0.76rem; font-weight: 700;">
-                            <div>توقيع أستاذ المادة: ................................</div>
-                            <div>تأشيرة الحراسة العامة: ................................</div>
-                            <div>مصادقة المدير: ................................</div>
+                        <!-- Official Administrative Signatures Bar -->
+                        <div style="margin-top: 8px; padding-top: 6px; border-top: 1.5px solid #cbd5e1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center; font-size: 0.75rem; font-weight: 800; color: #1e293b;">
+                            <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px; background: #fafafa; min-height: ${visaH}; display: flex; flex-direction: column; justify-content: space-between;">
+                                <div>توقيع وختم أستاذ المادة</div>
+                                <div style="color: #94a3b8; font-weight: normal; font-size: 0.68rem;">حرر في: .........................</div>
+                            </div>
+                            <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px; background: #fafafa; min-height: ${visaH}; display: flex; flex-direction: column; justify-content: space-between;">
+                                <div>تأشيرة الحراسة العامة للخارجية</div>
+                                <div style="color: #94a3b8; font-weight: normal; font-size: 0.68rem;">تاريخ المعاينة: .........................</div>
+                            </div>
+                            <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px; background: #fafafa; min-height: ${visaH}; display: flex; flex-direction: column; justify-content: space-between;">
+                                <div>تأشيرة ومصادقة رئيس المؤسسة</div>
+                                <div style="color: #94a3b8; font-weight: normal; font-size: 0.68rem;">الخاتم الرسمي: .........................</div>
+                            </div>
                         </div>
                     `;
                     return sheetPage;
@@ -641,7 +729,7 @@
                 if (typeof window.buildSingleClassMonthlyAbsenceHTML === 'function') {
                     const html = window.buildSingleClassMonthlyAbsenceHTML(className, options, true);
                     const container = document.createElement('div');
-                    container.style.cssText = 'width: 794px; min-height: 1122px; box-sizing: border-box; background: #ffffff;';
+                    container.style.cssText = 'width: 794px; min-height: 1123px; height: 1123px; max-height: 1123px; display: flex; flex-direction: column; box-sizing: border-box; background: #ffffff; overflow: hidden;';
                     container.innerHTML = html;
                     return container;
                 }

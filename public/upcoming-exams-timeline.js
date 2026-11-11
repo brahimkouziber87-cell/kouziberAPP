@@ -2033,7 +2033,7 @@
                 className: activeClass,
                 date: addDaysISO(today, 4),
                 correctionDate: addDaysISO(today, 11),
-                timeSlot: '08:30 - 10:30',
+                timeSlot: '08:00 - 10:00',
                 subject: 'الرياضيات (آلة حاسبة علمية مسموحة)',
                 type: 'فرض محروس',
                 semester: 's1',
@@ -2074,7 +2074,7 @@
                 className: secondClass,
                 date: addDaysISO(today, 18),
                 correctionDate: addDaysISO(today, 25),
-                timeSlot: '10:30 - 12:30',
+                timeSlot: '10:00 - 12:00',
                 subject: 'الرياضيات (آلة حاسبة علمية مسموحة)',
                 type: 'فرض محروس',
                 semester: 's1',
@@ -2176,7 +2176,7 @@
                 <div style="border: 2px solid #1e1b4b; border-radius: 10px; padding: 12px 16px; margin-bottom: 14px; background: #f8fafc; display: grid; grid-template-columns: 1fr 1.3fr 1fr; align-items: center; gap: 10px;">
                     <div style="font-size: 11.5px; line-height: 1.5; font-weight: 700; color: #1e293b;">
                         <div>المملكة المغربية</div>
-                        <div>وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                        <div>وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                         <div>${academyName}</div>
                         <div>${directorateName}</div>
                     </div>

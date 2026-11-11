@@ -125,7 +125,10 @@
                 // If portfolio data builder is available, use it; otherwise build structured student object from db
                 if (!portfolioData) {
                     const studentObj = (db.classes && db.classes[className]) ? db.classes[className].find(s => s.id === studentId) : null;
-                    const gradesObj = (db.grades && db.grades[className] && db.grades[className][studentId]) ? db.grades[className][studentId] : {};
+                    const activeSemShare = typeof window.activeSemester !== 'undefined' ? window.activeSemester : 's1';
+                    const gradesObj = (typeof window.getStudentGradesBySemester === 'function')
+                        ? window.getStudentGradesBySemester(className, studentId, activeSemShare)
+                        : ((db.grades && db.grades[className] && db.grades[className][studentId]) ? db.grades[className][studentId] : {});
                     const absenceRecords = (db.records && Array.isArray(db.records))
                         ? db.records.filter(r => r.className === className && r.studentId === studentId)
                         : [];
@@ -763,7 +766,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 14px; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
                         <div>
                             <div style="font-weight: 900; color: #1e3a8a; font-size: 1.1rem;">المملكة المغربية</div>
-                            <div style="font-weight: 700; color: #334155; font-size: 0.84rem;">وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                            <div style="font-weight: 700; color: #334155; font-size: 0.84rem;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                             <div style="font-weight: 600; color: #64748b; font-size: 0.78rem;">${escapeHtml(schoolName)}</div>
                         </div>
                         <div style="text-align: center;">

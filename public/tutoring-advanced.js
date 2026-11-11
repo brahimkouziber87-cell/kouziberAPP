@@ -473,6 +473,7 @@
     window.openTutoringGroupBatchPerformanceReportModal = function (defaultGroup) {
         const modal = document.getElementById('tutoringGroupBatchReportModal');
         if (!modal) return;
+        if (!db.tutoring) db.tutoring = { students: [], groups: [], schedule: [], log: [] };
 
         const groupSelect = document.getElementById('batchReportGroupSelect');
         const monthSelect = document.getElementById('batchReportMonthSelect');
@@ -485,13 +486,10 @@
         }
 
         if (groupSelect) {
-            let optionsHtml = '';
+            let optionsHtml = '<option value="all">🌟 جميع المجموعات (كشف شامل)</option>';
             Array.from(groups).sort().forEach(grp => {
                 optionsHtml += `<option value="${grp}">${grp}</option>`;
             });
-            if (!optionsHtml) {
-                optionsHtml = '<option value="">لا توجد مجموعات معرفة بعد</option>';
-            }
             groupSelect.innerHTML = optionsHtml;
 
             if (defaultGroup && groups.has(defaultGroup)) {
@@ -500,6 +498,10 @@
                 const currentFilter = document.getElementById('tutoringGroupFilter');
                 if (currentFilter && currentFilter.value !== 'all' && groups.has(currentFilter.value)) {
                     groupSelect.value = currentFilter.value;
+                } else if (groups.size > 0) {
+                    groupSelect.value = Array.from(groups).sort()[0];
+                } else {
+                    groupSelect.value = 'all';
                 }
             }
         }
@@ -525,11 +527,12 @@
         const monthSelect = document.getElementById('batchReportMonthSelect');
         const summaryCard = document.getElementById('batchReportSummaryCard');
         if (!summaryCard) return;
+        if (!db.tutoring) db.tutoring = { students: [], groups: [], schedule: [], log: [] };
 
-        const targetGroup = groupSelect ? groupSelect.value : '';
+        const targetGroup = groupSelect ? groupSelect.value : 'all';
         const targetMonth = monthSelect ? monthSelect.value : '';
 
-        const students = (db.tutoring.students || []).filter(s => s.group === targetGroup);
+        const students = (db.tutoring.students || []).filter(s => targetGroup === 'all' || !targetGroup ? true : s.group === targetGroup);
         const studentCount = students.length;
 
         let totalSessionsCount = 0;
@@ -548,6 +551,7 @@
 
         const isTwoPerPage = (window.currentBatchReportLayout === 'two_per_page');
         const estimatedPages = isTwoPerPage ? Math.ceil(studentCount / 2) : studentCount;
+        const groupDisplayLabel = (targetGroup === 'all' || !targetGroup) ? 'جميع المجموعات' : targetGroup;
 
         summaryCard.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
@@ -557,7 +561,7 @@
                     </div>
                     <div>
                         <div style="font-weight: 800; font-size: 0.95rem; color: #065f46;">
-                            مجموعة: ${targetGroup || 'لم تحدد'} (${studentCount} تلميذ)
+                            مجموعة: ${groupDisplayLabel} (${studentCount} تلميذ)
                         </div>
                         <div style="font-size: 0.78rem; color: #047857;">
                             شهر: ${targetMonth} • إجمالي الساعات: ${totalHoursAll} س • مجموع المستحقات: ${totalFeesAll} د.م
@@ -576,7 +580,8 @@
 
     // Helper: Build the complete printable HTML Document for the Batch Report
     window.generateBatchPerformanceReportHtml = function (targetGroup, targetMonth, layout, options) {
-        const students = (db.tutoring.students || []).filter(s => s.group === targetGroup);
+        if (!db.tutoring) db.tutoring = { students: [], groups: [], schedule: [], log: [] };
+        const students = (db.tutoring.students || []).filter(s => targetGroup === 'all' || !targetGroup ? true : s.group === targetGroup);
         if (students.length === 0) {
             return `<html><body style="font-family:sans-serif; text-align:center; padding:50px;">لا يوجد أي تلميذ مسجل في هذه المجموعة.</body></html>`;
         }
@@ -587,13 +592,14 @@
         const includeFinance = options.finance !== false;
         const includeNotesAndSign = options.notesAndSign !== false;
         const customNote = options.customNote || '';
+        const groupTitleLabel = (targetGroup === 'all' || !targetGroup) ? 'جميع المجموعات' : targetGroup;
 
         let html = `
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
             <head>
                 <meta charset="UTF-8">
-                <title>كشف أداء شهري مجمع - مجموعة ${targetGroup} - ${targetMonth}</title>
+                <title>كشف أداء شهري مجمع - مجموعة ${groupTitleLabel} - ${targetMonth}</title>
                 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
                 <style>
                     * { box-sizing: border-box; }
@@ -2105,7 +2111,7 @@
                 day: '2', // الثلاثاء
                 recurrence: 'weekly',
                 startTime: '17:00',
-                endTime: '18:30',
+                endTime: '18:00',
                 room: 'قاعة الدعم الفردي',
                 color: 'amber',
                 notes: 'إعداد مكثف للامتحان الوطني مع التركيز على المنهجية'
@@ -2366,7 +2372,7 @@
             if (groupInput) groupInput.value = '';
             if (levelSelect) levelSelect.value = '';
             if (startInput) startInput.value = isIndiv ? '17:00' : '16:00';
-            if (endInput) endInput.value = isIndiv ? '18:30' : '18:00';
+            if (endInput) endInput.value = '18:00';
             if (roomInput) roomInput.value = isIndiv ? 'قاعة الدعم الفردي' : 'قاعة 1';
             if (notesInput) notesInput.value = '';
             if (focusInput) focusInput.value = '';
@@ -2766,7 +2772,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px;">
                     <div style="text-align: right; font-size: 0.82rem; line-height: 1.4;">
                         <div style="font-weight: 800;">المملكة المغربية</div>
-                        <div>وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                        <div>وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                         <div>برنامج الدعم التربوي والتقوية الخصوصية</div>
                     </div>
                     <div style="text-align: center;">
@@ -3906,29 +3912,69 @@
                 <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px;">
                     <!-- Sessions list -->
                     <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
-                            <h4 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: #1e293b;">سجل الحصص المنفذة (${allSessions.length})</h4>
-                            <button type="button" onclick="openTutoringSessionModal('${std.id}')" style="background: #fef08a; color: #854d0e; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">
-                                + حصة جديدة
-                            </button>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                            <h4 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: #1e293b;">سجل المواظبة والحصص المنفذة (${allSessions.length})</h4>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <button type="button" onclick="openTutoringAttendancePeriodPrintModal('${std.id}')" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="طباعة التقرير الشامل لمواظبة وغياب هذا التلميذ حسب الفترة المحددة">
+                                    <span>🖨️</span>
+                                    <span>طبع تقرير المواظبة الشامل</span>
+                                </button>
+                                <button type="button" onclick="openTutoringSessionModal('${std.id}')" style="background: #fef08a; color: #854d0e; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">
+                                    + حصة جديدة
+                                </button>
+                            </div>
                         </div>
-                        <div style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+                        <div style="max-height: 290px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
                             ${allSessions.length === 0 ? `
-                                <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 0.8rem;">لا توجد حصص مسجلة بعد.</div>
-                            ` : allSessions.slice().reverse().map(sess => `
-                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center;">
-                                    <div>
-                                        <div style="font-weight: bold; color: #0f172a;">${sess.date} • ${sess.topic || sess.title || 'مراجعة'}</div>
-                                        <div style="font-size: 0.72rem; color: #64748b;">${sess.hours || 2} ساعات • ${sess.attendance === 'absent' ? 'غائب' : 'حاضر'}</div>
+                                <div style="text-align: center; padding: 20px; color: #94a3b8; font-size: 0.8rem;">لا توجد حصص مسجلة بعد لهذا التلميذ.</div>
+                            ` : allSessions.slice().reverse().map(sess => {
+                                const dayName = window.getArabicDayName ? window.getArabicDayName(sess.date) : '';
+                                const timeSpan = window.formatSessionTimeSpan ? window.formatSessionTimeSpan(sess.time || '18:00', sess.hours || 2) : (sess.time || '18:00');
+                                const isAbsent = sess.attendance === 'absent';
+                                const isExcused = sess.attendance === 'excused';
+                                const isLate = sess.attendance === 'late';
+                                const statusLabel = isAbsent ? 'غائب(ة)' : (isExcused ? 'غياب مبرر' : (isLate ? 'متأخر(ة)' : 'حاضر(ة)'));
+                                const statusColor = isAbsent ? '#dc2626' : (isExcused ? '#b45309' : (isLate ? '#c2410c' : '#16a34a'));
+                                const statusBg = isAbsent ? '#fee2e2' : (isExcused ? '#fef3c7' : (isLate ? '#fff7ed' : '#ecfdf5'));
+                                return `
+                                    <div style="background: #f8fafc; border: 1.5px solid ${isAbsent ? '#fecaca' : '#e2e8f0'}; border-radius: 8px; padding: 10px 12px; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                                        <div style="flex: 1;">
+                                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                                <span style="background: #e0e7ff; color: #3730a3; font-weight: 800; font-size: 0.72rem; padding: 2px 7px; border-radius: 4px;">
+                                                    📅 ${dayName || 'يوم'}
+                                                </span>
+                                                <strong style="color: #0f172a; font-size: 0.82rem;">${sess.date}</strong>
+                                                <span style="color: #0284c7; font-weight: 800; font-size: 0.76rem; background: #f0f9ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #bae6fd;">
+                                                    ⏰ ${timeSpan}
+                                                </span>
+                                                <span style="font-weight: 800; font-size: 0.74rem; color: #475569;">(${sess.hours || 2} س)</span>
+                                            </div>
+                                            <div style="margin-top: 4px; font-weight: 700; color: #1e3a8a; font-size: 0.82rem;">
+                                                ${sess.topic || sess.title || 'حصة دعم وتقوية'}
+                                            </div>
+                                            ${sess.homework ? `
+                                                <div style="font-size: 0.74rem; color: #854d0e; margin-top: 3px; background: #fefce8; padding: 2px 6px; border-radius: 4px; border: 1px solid #fef08a; display: inline-block;">
+                                                    📝 الواجب: ${escapeTutoringHtml(sess.homework)}
+                                                </div>
+                                            ` : ''}
+                                            ${sess.evaluationNotes ? `
+                                                <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px; font-style: italic;">
+                                                    💬 ${escapeTutoringHtml(sess.evaluationNotes)}
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+                                            <span style="background: ${statusBg}; color: ${statusColor}; font-weight: 800; padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; border: 1px solid ${statusColor}40;">
+                                                ${statusLabel}
+                                            </span>
+                                            <div style="display: flex; gap: 4px;">
+                                                <button type="button" onclick="openTutoringSessionModal('${std.id}', {id:'${sess.id}', date:'${sess.date}', time:'${sess.time || '18:00'}', hours:${sess.hours || 2}, topic:'${(sess.topic || sess.title || '').replace(/'/g, "\\'")}'})" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; border-radius: 4px; padding: 2px 6px; font-size: 0.72rem; font-weight: bold; cursor: pointer;" title="تعديل الحصة">تعديل</button>
+                                                <button type="button" onclick="shareTutoringSessionWhatsApp('${std.id}', '${sess.id}')" style="background: #25D366; color: #fff; border: none; border-radius: 4px; padding: 2px 6px; font-size: 0.72rem; font-weight: bold; cursor: pointer;" title="إرسال تقرير الحصة لولي الأمر">واتساب</button>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 6px;">
-                                        <span style="font-weight: 800; color: ${sess.attendance === 'absent' ? '#dc2626' : '#16a34a'};">
-                                            ${sess.attendance === 'absent' ? 'غائب' : 'حاضر'}
-                                        </span>
-                                        <button type="button" onclick="openTutoringSessionModal('${std.id}', {id:'${sess.id}', date:'${sess.date}', time:'${sess.time || '18:00'}', hours:${sess.hours || 2}, topic:'${(sess.topic || sess.title || '').replace(/'/g, "\\'")}'})" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; border-radius: 4px; padding: 2px 6px; font-size: 0.72rem; font-weight: bold; cursor: pointer;" title="تعديل الحصة">تعديل</button>
-                                    </div>
-                                </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
                         </div>
                     </div>
 
@@ -4898,10 +4944,214 @@
     window.initTutoringAnalyticsCharts = initTutoringAnalyticsCharts;
 
     // =========================================================================
-    // 11. TUTORING ATTENDANCE & PEDAGOGICAL TRACKING LEDGER
+    // 11. TUTORING ATTENDANCE & PEDAGOGICAL TRACKING LEDGER (INDIVIDUAL & GROUP)
     // =========================================================================
+    window.getArabicDayName = function (dateStr) {
+        if (!dateStr) return '';
+        try {
+            const parts = String(dateStr).trim().split('-');
+            if (parts.length === 3) {
+                const y = parseInt(parts[0], 10);
+                const m = parseInt(parts[1], 10) - 1;
+                const d = parseInt(parts[2], 10);
+                const dt = new Date(y, m, d);
+                const days = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+                return days[dt.getDay()] || '';
+            }
+        } catch (e) {
+            console.error('Error getting Arabic day name:', e);
+        }
+        return '';
+    };
+
+    window.formatSessionTimeSpan = function (timeStr, hours) {
+        if (!timeStr) timeStr = '18:00';
+        const hrs = parseFloat(hours) || 2;
+        try {
+            const parts = String(timeStr).trim().split(':');
+            if (parts.length >= 2) {
+                const startH = parseInt(parts[0], 10);
+                const startM = parseInt(parts[1], 10);
+                if (!isNaN(startH) && !isNaN(startM)) {
+                    const totalMinutes = startH * 60 + startM + Math.round(hrs * 60);
+                    const endH = Math.floor(totalMinutes / 60) % 24;
+                    const endM = totalMinutes % 60;
+                    const endStr = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+                    return `من ${timeStr} إلى ${endStr}`;
+                }
+            }
+        } catch (e) {
+            console.error('Error formatting session time span:', e);
+        }
+        return timeStr;
+    };
+
+    window.getTutoringAcademicPeriodDates = function (periodType, customFrom, customTo, activeMonth) {
+        const today = new Date();
+        const currYear = today.getFullYear();
+        const currMonth = today.getMonth() + 1;
+        const academicStartYear = currMonth >= 9 ? currYear : currYear - 1;
+        const academicEndYear = academicStartYear + 1;
+
+        if (periodType === 'month') {
+            const m = activeMonth || `${currYear}-${String(currMonth).padStart(2, '0')}`;
+            const parts = m.split('-');
+            const y = parseInt(parts[0], 10) || currYear;
+            const mon = parseInt(parts[1], 10) || currMonth;
+            const lastDay = new Date(y, mon, 0).getDate();
+            return {
+                from: `${m}-01`,
+                to: `${m}-${String(lastDay).padStart(2, '0')}`,
+                label: `شهر ${m}`
+            };
+        } else if (periodType === 'term1') {
+            return {
+                from: `${academicStartYear}-09-01`,
+                to: `${academicEndYear}-01-31`,
+                label: `الأسدس الأول (دورة 1) للسنة الدراسية ${academicStartYear}/${academicEndYear}`
+            };
+        } else if (periodType === 'term2') {
+            return {
+                from: `${academicEndYear}-02-01`,
+                to: `${academicEndYear}-06-30`,
+                label: `الأسدس الثاني (دورة 2) للسنة الدراسية ${academicStartYear}/${academicEndYear}`
+            };
+        } else if (periodType === 'all') {
+            return {
+                from: `${academicStartYear}-09-01`,
+                to: `${academicEndYear}-07-31`,
+                label: `كامل الموسم الدراسي ${academicStartYear}/${academicEndYear}`
+            };
+        } else {
+            // custom date range
+            const f = customFrom || `${academicStartYear}-09-01`;
+            const t = customTo || (window.formatLocalDate ? window.formatLocalDate() : today.toLocaleDateString('en-CA'));
+            return {
+                from: f,
+                to: t,
+                label: `الفترة المحددة: من ${f} إلى ${t}`
+            };
+        }
+    };
+
+    let tutoringAttViewMode = 'all'; // 'all' or 'individual'
+
+    window.setTutoringAttViewMode = function (mode) {
+        tutoringAttViewMode = mode || 'all';
+        const btnAll = document.getElementById('btnAttModeAll');
+        const btnInd = document.getElementById('btnAttModeIndividual');
+        const studentSelect = document.getElementById('tutoringAttStudentFilter');
+        const groupFilterBox = document.getElementById('tutoringAttGroupFilterBox');
+
+        if (tutoringAttViewMode === 'individual') {
+            if (btnAll) {
+                btnAll.style.background = 'transparent';
+                btnAll.style.color = '#475569';
+            }
+            if (btnInd) {
+                btnInd.style.background = '#4f46e5';
+                btnInd.style.color = '#ffffff';
+            }
+            if (groupFilterBox) groupFilterBox.style.display = 'none';
+
+            // Auto-select first student if 'all' was selected
+            if (studentSelect && (studentSelect.value === 'all' || !studentSelect.value)) {
+                const students = (db && db.tutoring && db.tutoring.students) ? db.tutoring.students : [];
+                if (students.length > 0) {
+                    studentSelect.value = students[0].id;
+                }
+            }
+        } else {
+            if (btnAll) {
+                btnAll.style.background = '#4f46e5';
+                btnAll.style.color = '#ffffff';
+            }
+            if (btnInd) {
+                btnInd.style.background = 'transparent';
+                btnInd.style.color = '#475569';
+            }
+            if (groupFilterBox) groupFilterBox.style.display = 'flex';
+        }
+        window.renderTutoringAttendanceLedger();
+    };
+
+    window.onTutoringAttStudentSelectChange = function (val) {
+        if (val && val !== 'all' && tutoringAttViewMode !== 'individual') {
+            window.setTutoringAttViewMode('individual');
+            return;
+        }
+        if (val === 'all' && tutoringAttViewMode === 'individual') {
+            window.setTutoringAttViewMode('all');
+            return;
+        }
+        window.renderTutoringAttendanceLedger();
+    };
+
+    window.onTutoringAttPeriodTypeChange = function (val) {
+        const monthBox = document.getElementById('tutoringAttMonthBox');
+        const customBox = document.getElementById('tutoringAttCustomDateBox');
+        const dateFrom = document.getElementById('tutoringAttDateFrom');
+        const dateTo = document.getElementById('tutoringAttDateTo');
+
+        if (val === 'month') {
+            if (monthBox) monthBox.style.display = 'inline-flex';
+            if (customBox) customBox.style.display = 'none';
+        } else if (val === 'custom') {
+            if (monthBox) monthBox.style.display = 'none';
+            if (customBox) customBox.style.display = 'inline-flex';
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            if (dateFrom && !dateFrom.value) {
+                dateFrom.value = `${y}-${m}-01`;
+            }
+            if (dateTo && !dateTo.value) {
+                const lastD = new Date(y, now.getMonth() + 1, 0).getDate();
+                dateTo.value = `${y}-${m}-${String(lastD).padStart(2, '0')}`;
+            }
+        } else {
+            if (monthBox) monthBox.style.display = 'none';
+            if (customBox) customBox.style.display = 'none';
+        }
+        window.renderTutoringAttendanceLedger();
+    };
+
+    window.setTutoringAttPeriodPreset = function (preset) {
+        const typeSelect = document.getElementById('tutoringAttPeriodType');
+        const monthInput = document.getElementById('tutoringAttMonthFilter');
+        const dateFrom = document.getElementById('tutoringAttDateFrom');
+        const dateTo = document.getElementById('tutoringAttDateTo');
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth() + 1;
+
+        if (preset === 'this_month') {
+            if (typeSelect) typeSelect.value = 'month';
+            if (monthInput) monthInput.value = `${y}-${String(m).padStart(2, '0')}`;
+            window.onTutoringAttPeriodTypeChange('month');
+        } else if (preset === 'last_month') {
+            if (typeSelect) typeSelect.value = 'month';
+            const lastMDate = new Date(y, now.getMonth() - 1, 1);
+            if (monthInput) monthInput.value = `${lastMDate.getFullYear()}-${String(lastMDate.getMonth() + 1).padStart(2, '0')}`;
+            window.onTutoringAttPeriodTypeChange('month');
+        } else if (preset === 'term1') {
+            if (typeSelect) typeSelect.value = 'term1';
+            window.onTutoringAttPeriodTypeChange('term1');
+        } else if (preset === 'term2') {
+            if (typeSelect) typeSelect.value = 'term2';
+            window.onTutoringAttPeriodTypeChange('term2');
+        } else if (preset === 'full_year') {
+            if (typeSelect) typeSelect.value = 'all';
+            window.onTutoringAttPeriodTypeChange('all');
+        }
+    };
+
     window.renderTutoringAttendanceLedger = function () {
         const monthInput = document.getElementById('tutoringAttMonthFilter');
+        const periodTypeSelect = document.getElementById('tutoringAttPeriodType');
+        const dateFromInput = document.getElementById('tutoringAttDateFrom');
+        const dateToInput = document.getElementById('tutoringAttDateTo');
+        const studentSelect = document.getElementById('tutoringAttStudentFilter');
         const groupFilter = document.getElementById('tutoringAttGroupFilter');
         const statusFilter = document.getElementById('tutoringAttStatusFilter');
         const searchInput = document.getElementById('tutoringAttSearchInput');
@@ -4910,31 +5160,356 @@
 
         if (!kpisContainer || !ledgerContainer) return;
 
-        // Default month
+        // Default month if empty
         if (monthInput && !monthInput.value) {
             monthInput.value = window.formatLocalMonth ? window.formatLocalMonth() : (window.formatLocalDate ? window.formatLocalDate().slice(0, 7) : new Date().toLocaleDateString('en-CA').slice(0, 7));
         }
-        const activeMonth = monthInput ? monthInput.value : '';
 
-        // Populate groups dropdown if needed
-        const students = db.tutoring.students || [];
+        const periodType = periodTypeSelect ? periodTypeSelect.value : 'month';
+        const activeMonth = monthInput ? monthInput.value : '';
+        const customFrom = dateFromInput ? dateFromInput.value : '';
+        const customTo = dateToInput ? dateToInput.value : '';
+        const periodInfo = window.getTutoringAcademicPeriodDates(periodType, customFrom, customTo, activeMonth);
+
+        const students = (db && db.tutoring && Array.isArray(db.tutoring.students)) ? db.tutoring.students : [];
+
+        // Synchronize students dropdown
+        if (studentSelect) {
+            const currentSelectedStudent = studentSelect.value || 'all';
+            let sOptions = '<option value="all">كل التلاميذ (عرض مجمع) 👥</option>';
+            students.forEach(s => {
+                const isSel = currentSelectedStudent === s.id;
+                sOptions += `<option value="${s.id}"${isSel ? ' selected' : ''}>${escapeTutoringHtml(s.name)} (${escapeTutoringHtml(s.group || 'فردي')})</option>`;
+            });
+            studentSelect.innerHTML = sOptions;
+        }
+
+        // Synchronize groups dropdown
         const uniqueGroups = Array.from(new Set(students.map(s => s.group).filter(Boolean))).sort();
         if (groupFilter) {
-            const currentSelected = groupFilter.value;
-            let options = '<option value="all">كل المجموعات</option>';
+            const currentSelectedGroup = groupFilter.value || 'all';
+            let gOptions = '<option value="all">كل المجموعات</option>';
             uniqueGroups.forEach(g => {
-                options += `<option value="${escapeTutoringHtml(g)}"${currentSelected === g ? ' selected' : ''}>${escapeTutoringHtml(g)}</option>`;
+                gOptions += `<option value="${escapeTutoringHtml(g)}"${currentSelectedGroup === g ? ' selected' : ''}>${escapeTutoringHtml(g)}</option>`;
             });
-            groupFilter.innerHTML = options;
+            groupFilter.innerHTML = gOptions;
         }
 
         const selectedGroup = groupFilter ? groupFilter.value : 'all';
         const selectedStatus = statusFilter ? statusFilter.value : 'all';
         const searchQuery = (searchInput ? searchInput.value : '').trim().toLowerCase();
+        const selectedStudentId = studentSelect ? studentSelect.value : 'all';
 
-        // Flatten all sessions with student info
+        // Check if individual view mode is active
+        const isIndividualMode = (tutoringAttViewMode === 'individual') && (selectedStudentId !== 'all');
+
+        if (isIndividualMode) {
+            // =========================================================================
+            // INDIVIDUAL STUDENT ATTENDANCE DOSSIER
+            // =========================================================================
+            const targetStudent = students.find(s => s.id === selectedStudentId) || students[0];
+            if (!targetStudent) {
+                ledgerContainer.innerHTML = `
+                    <div style="background: #fff; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 40px 20px; text-align: center; color: #64748b;">
+                        <span class="ui-icon" style="color: #94a3b8; margin-bottom: 8px;"><span data-lucide="user-x" data-size="36"></span></span>
+                        <h4 style="margin: 0 0 6px 0; color: #334155; font-size: 1rem; font-weight: bold;">لم يتم العثور على التلميذ المحدد</h4>
+                        <p style="margin: 0; font-size: 0.82rem;">يرجى اختيار تلميذ من القائمة المنسدلة بالأعلى.</p>
+                    </div>
+                `;
+                kpisContainer.innerHTML = '';
+                return;
+            }
+
+            // Filter student sessions in period
+            const studentSessions = (targetStudent.sessions || []).filter(sess => {
+                if (!sess.date) return false;
+                if (sess.date < periodInfo.from || sess.date > periodInfo.to) return false;
+
+                const att = sess.attendance || 'present';
+                if (selectedStatus === 'absent_only' && att !== 'absent') return false;
+                if (selectedStatus === 'present_only' && att !== 'present') return false;
+                if (selectedStatus === 'excused_only' && att !== 'excused') return false;
+                if (selectedStatus === 'late_only' && att !== 'late') return false;
+
+                if (searchQuery) {
+                    const matchTopic = (sess.topic || '').toLowerCase().includes(searchQuery);
+                    const matchHw = (sess.homework || '').toLowerCase().includes(searchQuery);
+                    const matchNotes = (sess.evaluationNotes || '').toLowerCase().includes(searchQuery);
+                    if (!matchTopic && !matchHw && !matchNotes) return false;
+                }
+                return true;
+            });
+
+            // Sort student sessions by date ascending for chronological pedagogical progression
+            studentSessions.sort((a, b) => {
+                const d = a.date.localeCompare(b.date);
+                if (d !== 0) return d;
+                return (a.time || '').localeCompare(b.time || '');
+            });
+
+            // Compute student KPIs
+            let totalSessions = 0;
+            let totalHours = 0;
+            let presentCount = 0;
+            let absentCount = 0;
+            let excusedCount = 0;
+            let lateCount = 0;
+            let hwCount = 0;
+            let excellentCount = 0;
+
+            (targetStudent.sessions || []).forEach(sess => {
+                if (!sess.date || sess.date < periodInfo.from || sess.date > periodInfo.to) return;
+                totalSessions++;
+                const att = sess.attendance || 'present';
+                if (att === 'present') {
+                    presentCount++;
+                    totalHours += parseFloat(sess.hours) || 2;
+                } else if (att === 'absent') {
+                    absentCount++;
+                } else if (att === 'excused') {
+                    excusedCount++;
+                } else if (att === 'late') {
+                    lateCount++;
+                    totalHours += parseFloat(sess.hours) || 2;
+                }
+
+                if (sess.homework && sess.homework.trim().length > 0) hwCount++;
+                if (sess.evaluation === 'excellent' || sess.evaluation === 'very_good') excellentCount++;
+            });
+
+            const effectiveAttended = presentCount + lateCount;
+            const attRate = totalSessions > 0 ? Math.round((effectiveAttended / totalSessions) * 100) : 100;
+            const hwRate = totalSessions > 0 ? Math.round((hwCount / totalSessions) * 100) : 0;
+
+            // Render Individual Student KPIs
+            kpisContainer.innerHTML = `
+                <div style="background: #fff; border: 1.5px solid #818cf8; border-radius: 12px; padding: 14px 16px; box-shadow: 0 2px 6px rgba(99, 102, 241, 0.08);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                        <span style="font-size: 0.78rem; color: #4338ca; font-weight: 800;">نسبة مواظبة التلميذ(ة)</span>
+                        <span style="color: #4f46e5;"><span data-lucide="award" data-size="16"></span></span>
+                    </div>
+                    <div style="font-size: 1.7rem; font-weight: 900; color: ${attRate >= 85 ? '#059669' : (attRate >= 70 ? '#d97706' : '#dc2626')};">${attRate}%</div>
+                    <div style="font-size: 0.74rem; color: #64748b; margin-top: 3px;">من أصل ${totalSessions} حصة مبرمجة في الفترة</div>
+                </div>
+
+                <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                        <span style="font-size: 0.78rem; color: #059669; font-weight: 800;">ساعات الدعم المستفاد منها</span>
+                        <span style="color: #059669;"><span data-lucide="clock" data-size="16"></span></span>
+                    </div>
+                    <div style="font-size: 1.7rem; font-weight: 900; color: #059669;">${totalHours} <span style="font-size: 0.85rem; font-weight: bold; color: #64748b;">ساعة</span></div>
+                    <div style="font-size: 0.74rem; color: #64748b; margin-top: 3px;">${presentCount} حضور كامل • ${lateCount} مع تأخر</div>
+                </div>
+
+                <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                        <span style="font-size: 0.78rem; color: #dc2626; font-weight: 800;">الغيابات عن الحصص</span>
+                        <span style="color: #dc2626;"><span data-lucide="user-x" data-size="16"></span></span>
+                    </div>
+                    <div style="font-size: 1.7rem; font-weight: 900; color: ${absentCount > 0 ? '#dc2626' : '#16a34a'};">${absentCount}</div>
+                    <div style="font-size: 0.74rem; color: #64748b; margin-top: 3px;">${excusedCount} غياب بعذر مبرر</div>
+                </div>
+
+                <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                        <span style="font-size: 0.78rem; color: #7c3aed; font-weight: 800;">إنجاز الواجبات والاستيعاب</span>
+                        <span style="color: #8b5cf6;"><span data-lucide="book-check" data-size="16"></span></span>
+                    </div>
+                    <div style="font-size: 1.7rem; font-weight: 900; color: #7c3aed;">${hwCount} <span style="font-size: 0.85rem; font-weight: bold; color: #64748b;">واجب (${hwRate}%)</span></div>
+                    <div style="font-size: 0.74rem; color: #64748b; margin-top: 3px;">${excellentCount} تقييم استيعاب متميز</div>
+                </div>
+            `;
+
+            // Render Individual Student Profile Header Box + Detailed Ledger Table
+            let indHtml = `
+                <!-- Student Identity Banner -->
+                <div style="background: linear-gradient(135deg, #1e1b4b, #312e81); border-radius: 14px; padding: 16px 20px; color: #ffffff; margin-bottom: 16px; box-shadow: 0 4px 14px rgba(30, 27, 75, 0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        <div style="width: 52px; height: 52px; border-radius: 12px; background: rgba(255, 255, 255, 0.15); border: 2px solid rgba(255, 255, 255, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 900;">
+                            ${escapeTutoringHtml((targetStudent.name || 'ت').charAt(0))}
+                        </div>
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <h3 style="margin: 0; font-family: 'Cairo', sans-serif; font-size: 1.25rem; font-weight: 900; color: #fff;">
+                                    ${escapeTutoringHtml(targetStudent.name)}
+                                </h3>
+                                <span style="background: #e0e7ff; color: #3730a3; font-weight: 800; font-size: 0.76rem; padding: 3px 8px; border-radius: 6px;">
+                                    ${targetStudent.group ? `مجموعة: ${escapeTutoringHtml(targetStudent.group)}` : 'دعم فردي'}
+                                </span>
+                                ${targetStudent.level ? `
+                                    <span style="background: rgba(255, 255, 255, 0.2); color: #fff; font-size: 0.74rem; padding: 2px 7px; border-radius: 6px;">
+                                        ${escapeTutoringHtml(targetStudent.level)}
+                                    </span>
+                                ` : ''}
+                            </div>
+                            <div style="margin-top: 4px; font-size: 0.78rem; color: #cbd5e1; display: flex; gap: 12px; flex-wrap: wrap;">
+                                <span>📱 هاتف التلميذ: <b dir="ltr" style="color: #fff;">${escapeTutoringHtml(targetStudent.phone || 'غير مسجل')}</b></span>
+                                <span>👨‍👩‍👦 هاتف الولي: <b dir="ltr" style="color: #fff;">${escapeTutoringHtml(targetStudent.parentPhone || targetStudent.phone || 'غير مسجل')}</b></span>
+                                <span>📅 نطاق التتبع: <b style="color: #93c5fd;">${periodInfo.label}</b></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" onclick="openTutoringAttendancePeriodPrintModal('${targetStudent.id}')" style="background: #ffffff; color: #1e1b4b; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);" title="طبع التقرير الشامل لمواظبة وغياب هذا التلميذ حسب الفترة المحددة">
+                            <span>🖨️</span>
+                            <span>طبع تقرير المواظبة الشامل لهذا التلميذ</span>
+                        </button>
+                        <button type="button" onclick="openTutoringStudentProfileModal('${targetStudent.id}')" style="background: rgba(255, 255, 255, 0.15); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.3); padding: 8px 12px; border-radius: 8px; font-weight: bold; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                            <span>الملف الشخصي</span>
+                        </button>
+                        <button type="button" onclick="openTutoringSessionModal('${targetStudent.id}')" style="background: #fbbf24; color: #78350f; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                            <span>+ تسجيل حصة</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            if (studentSessions.length === 0) {
+                indHtml += `
+                    <div style="background: #fff; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 40px 20px; text-align: center; color: #64748b;">
+                        <span class="ui-icon" style="color: #94a3b8; margin-bottom: 8px;"><span data-lucide="calendar-x" data-size="36"></span></span>
+                        <h4 style="margin: 0 0 6px 0; color: #334155; font-size: 1rem; font-weight: bold;">لا توجد حصص مسجلة للتلميذ "${escapeTutoringHtml(targetStudent.name)}" في ${periodInfo.label}</h4>
+                        <p style="margin: 0; font-size: 0.82rem;">يمكنك تسجيل حصة جديدة أو تغيير نطاق الفترة المحددة بالأعلى.</p>
+                    </div>
+                `;
+            } else {
+                indHtml += `
+                    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
+                        <div style="padding: 12px 18px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                            <span style="font-weight: 800; font-size: 0.88rem; color: #1e293b;">
+                                📜 سجل الحصص والمواظبة الفردية التفصيلية (${studentSessions.length} حصة مسجلة في الفترة):
+                            </span>
+                            <span style="font-size: 0.78rem; color: #64748b;">
+                                الفترة: <b>${periodInfo.label}</b>
+                            </span>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.84rem; text-align: right;">
+                                <thead>
+                                    <tr style="background: #f1f5f9; color: #334155; border-bottom: 2px solid #cbd5e1; font-weight: 800;">
+                                        <th style="padding: 10px 12px; text-align: center; width: 45px;">#</th>
+                                        <th style="padding: 10px 14px;">اليوم والتاريخ</th>
+                                        <th style="padding: 10px 14px;">التوقيت والمدة (الساعة)</th>
+                                        <th style="padding: 10px 14px;">حالة الحضور</th>
+                                        <th style="padding: 10px 14px;">موضوع الحصة والأنشطة</th>
+                                        <th style="padding: 10px 14px;">التقييم البيداغوجي</th>
+                                        <th style="padding: 10px 14px;">الواجبات والتكليفات</th>
+                                        <th style="padding: 10px 14px; text-align: center;">إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+
+                studentSessions.forEach((sess, idx) => {
+                    const dayName = window.getArabicDayName(sess.date);
+                    const timeSpan = window.formatSessionTimeSpan(sess.time || '18:00', sess.hours || 2);
+                    const att = sess.attendance || 'present';
+
+                    let attBadge = '';
+                    if (att === 'absent') {
+                        attBadge = '<span style="background: #fee2e2; color: #b91c1c; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #fca5a5; display: inline-flex; align-items: center; gap: 4px;">❌ غائب (0 س)</span>';
+                    } else if (att === 'excused') {
+                        attBadge = '<span style="background: #fef3c7; color: #b45309; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #fde68a; display: inline-flex; align-items: center; gap: 4px;">⚠️ غياب بعذر</span>';
+                    } else if (att === 'late') {
+                        attBadge = `<span style="background: #fff7ed; color: #c2410c; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #fed7aa; display: inline-flex; align-items: center; gap: 4px;">⏱️ متأخر (${sess.hours || 2} س)</span>`;
+                    } else {
+                        attBadge = `<span style="background: #ecfdf5; color: #059669; font-weight: 800; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 4px;">✓ حاضر (${sess.hours || 2} س)</span>`;
+                    }
+
+                    let evalBadge = '<span style="color: #94a3b8; font-size: 0.75rem;">-</span>';
+                    if (sess.evaluation === 'excellent') {
+                        evalBadge = '<span style="background: #ecfdf5; color: #059669; font-weight: bold; padding: 3px 8px; border-radius: 5px; border: 1px solid #a7f3d0; font-size: 0.74rem;">⭐⭐⭐ استيعاب ممتاز</span>';
+                    } else if (sess.evaluation === 'very_good') {
+                        evalBadge = '<span style="background: #eff6ff; color: #2563eb; font-weight: bold; padding: 3px 8px; border-radius: 5px; border: 1px solid #bfdbfe; font-size: 0.74rem;">⭐⭐ جيد جداً</span>';
+                    } else if (sess.evaluation === 'good') {
+                        evalBadge = '<span style="background: #f8fafc; color: #475569; font-weight: bold; padding: 3px 8px; border-radius: 5px; border: 1px solid #cbd5e1; font-size: 0.74rem;">⭐ حسن</span>';
+                    } else if (sess.evaluation === 'needs_support') {
+                        evalBadge = '<span style="background: #fef2f2; color: #dc2626; font-weight: bold; padding: 3px 8px; border-radius: 5px; border: 1px solid #fca5a5; font-size: 0.74rem;">⚠️ بحاجة لدعم</span>';
+                    }
+
+                    indHtml += `
+                        <tr style="border-bottom: 1px solid #f1f5f9; ${att === 'absent' ? 'background: #fff8f8;' : ''}">
+                            <td style="padding: 10px 12px; text-align: center; font-weight: bold; color: #64748b;">
+                                ${idx + 1}
+                            </td>
+                            <td style="padding: 10px 14px; white-space: nowrap;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="background: #e0e7ff; color: #3730a3; font-weight: 800; font-size: 0.74rem; padding: 2px 7px; border-radius: 5px;">
+                                        ${dayName || 'يوم'}
+                                    </span>
+                                    <strong style="color: #0f172a; font-size: 0.84rem;">${sess.date}</strong>
+                                </div>
+                            </td>
+                            <td style="padding: 10px 14px; white-space: nowrap;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span style="color: #0369a1; font-weight: 800; font-size: 0.78rem; background: #f0f9ff; padding: 2px 8px; border-radius: 5px; border: 1px solid #bae6fd;" dir="ltr">
+                                        ⏰ ${timeSpan}
+                                    </span>
+                                    <span style="color: #475569; font-size: 0.75rem; font-weight: bold;">(${sess.hours || 2} س)</span>
+                                </div>
+                            </td>
+                            <td style="padding: 10px 14px;">
+                                ${attBadge}
+                            </td>
+                            <td style="padding: 10px 14px; max-width: 220px;">
+                                ${sess.topic ? `
+                                    <div style="font-weight: 700; color: #1e3a8a; font-size: 0.82rem;">
+                                        ${escapeTutoringHtml(sess.topic)}
+                                    </div>
+                                ` : '<span style="color: #94a3b8; font-size: 0.76rem;">حصة عامة</span>'}
+                                ${sess.evaluationNotes ? `
+                                    <div style="font-size: 0.73rem; color: #64748b; margin-top: 3px; font-style: italic;">
+                                        💬 ${escapeTutoringHtml(sess.evaluationNotes)}
+                                    </div>
+                                ` : ''}
+                            </td>
+                            <td style="padding: 10px 14px;">
+                                ${evalBadge}
+                            </td>
+                            <td style="padding: 10px 14px; max-width: 180px;">
+                                ${sess.homework ? `
+                                    <div style="background: #fefce8; border: 1px solid #fef08a; padding: 3px 8px; border-radius: 5px; font-size: 0.75rem; color: #854d0e; font-weight: 600;">
+                                        📝 ${escapeTutoringHtml(sess.homework)}
+                                    </div>
+                                ` : '<span style="color: #94a3b8; font-size: 0.75rem;">-</span>'}
+                            </td>
+                            <td style="padding: 10px 14px; text-align: center; white-space: nowrap;">
+                                <div style="display: inline-flex; align-items: center; gap: 5px;">
+                                    <button type="button" onclick="shareTutoringSessionWhatsApp('${targetStudent.id}', '${sess.id}')" style="background: #25D366; color: #fff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.73rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;" title="إرسال تقرير هذه الحصة لولي الأمر عبر واتساب">
+                                        <span class="ui-icon" style="margin:0;"><span data-lucide="message-circle" data-size="12"></span></span>
+                                        <span>واتساب</span>
+                                    </button>
+                                    <button type="button" onclick="editTutoringSingleSession('${targetStudent.id}', '${sess.id}')" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 0.73rem; font-weight: bold;" title="تعديل الحصة">
+                                        تعديل
+                                    </button>
+                                    <button type="button" onclick="deleteTutoringSession('${targetStudent.id}', '${sess.id}')" style="background: #fee2e2; border: 1px solid #fecaca; color: #ef4444; cursor: pointer; padding: 4px 7px; border-radius: 6px;" title="حذف الحصة">
+                                        <span class="ui-icon" style="margin:0;"><span data-lucide="trash-2" data-size="13"></span></span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                indHtml += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }
+
+            ledgerContainer.innerHTML = indHtml;
+            setTimeout(() => { if (window.renderLucide) window.renderLucide(); }, 30);
+            return;
+        }
+
+        // =========================================================================
+        // GROUP / ALL SESSIONS VIEW MODE (WITH DAY & HOUR)
+        // =========================================================================
         const allEntries = [];
-        let totalMonthSessions = 0;
+        let totalSessionsInPeriod = 0;
         let totalPresent = 0;
         let totalAbsent = 0;
         let totalExcused = 0;
@@ -4946,9 +5521,10 @@
             if (selectedGroup !== 'all' && std.group !== selectedGroup) return;
 
             (std.sessions || []).forEach(sess => {
-                if (!sess.date || !sess.date.startsWith(activeMonth)) return;
+                if (!sess.date) return;
+                if (sess.date < periodInfo.from || sess.date > periodInfo.to) return;
 
-                totalMonthSessions++;
+                totalSessionsInPeriod++;
                 const att = sess.attendance || 'present';
                 if (att === 'present') totalPresent++;
                 else if (att === 'absent') totalAbsent++;
@@ -4988,8 +5564,8 @@
         });
 
         const effectiveAttended = totalPresent + totalLate;
-        const attRate = totalMonthSessions > 0 ? Math.round((effectiveAttended / totalMonthSessions) * 100) : 100;
-        const hwRate = totalMonthSessions > 0 ? Math.round((totalHomeworkCount / totalMonthSessions) * 100) : 0;
+        const attRate = totalSessionsInPeriod > 0 ? Math.round((effectiveAttended / totalSessionsInPeriod) * 100) : 100;
+        const hwRate = totalSessionsInPeriod > 0 ? Math.round((totalHomeworkCount / totalSessionsInPeriod) * 100) : 0;
 
         // Render KPI Cards
         kpisContainer.innerHTML = `
@@ -4999,12 +5575,12 @@
                     <span style="color: #2563eb;"><span data-lucide="award" data-size="16"></span></span>
                 </div>
                 <div style="font-size: 1.6rem; font-weight: 900; color: ${attRate >= 85 ? '#059669' : (attRate >= 70 ? '#d97706' : '#dc2626')};">${attRate}%</div>
-                <div style="font-size: 0.74rem; color: #64748b; margin-top: 3px;">من أصل ${totalMonthSessions} تسجيل حصة</div>
+                <div style="font-size: 0.74rem; color: #64748b; margin-top: 3px;">من أصل ${totalSessionsInPeriod} تسجيل في الفترة</div>
             </div>
 
             <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-                    <span style="font-size: 0.78rem; color: #64748b; font-weight: bold;">حضور فعلي (حاضر + تأخر)</span>
+                    <span style="font-size: 0.78rem; color: #64748b; font-weight: bold;">حضور فعلي (حاضر + متأخر)</span>
                     <span style="color: #059669;"><span data-lucide="user-check" data-size="16"></span></span>
                 </div>
                 <div style="font-size: 1.6rem; font-weight: 900; color: #059669;">${effectiveAttended}</div>
@@ -5030,13 +5606,13 @@
             </div>
         `;
 
-        // Render Main Ledger Table
+        // Render Group Ledger Table
         if (allEntries.length === 0) {
             ledgerContainer.innerHTML = `
                 <div style="background: #fff; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 40px 20px; text-align: center; color: #64748b;">
                     <span class="ui-icon" style="color: #94a3b8; margin-bottom: 8px;"><span data-lucide="inbox" data-size="36"></span></span>
-                    <h4 style="margin: 0 0 6px 0; color: #334155; font-size: 1rem; font-weight: bold;">لا توجد حصص تطابق معايير التصفية المحددة لشهر ${activeMonth}</h4>
-                    <p style="margin: 0; font-size: 0.82rem;">يمكنك تسجيل حصة جديدة أو تعديل خيارات التصفية بالأعلى (المجموعة، حالة الحضور، أو الشهر).</p>
+                    <h4 style="margin: 0 0 6px 0; color: #334155; font-size: 1rem; font-weight: bold;">لا توجد حصص مسجلة تطابق معايير التصفية المحددة في ${periodInfo.label}</h4>
+                    <p style="margin: 0; font-size: 0.82rem;">يمكنك تسجيل حصة جديدة أو تعديل خيارات التصفية بالأعلى (المجموعة، حالة الحضور، أو الفترة).</p>
                 </div>
             `;
             setTimeout(() => { if (window.renderLucide) window.renderLucide(); }, 30);
@@ -5050,7 +5626,7 @@
                         عرض سجل الحصص والمواظبة (${allEntries.length} تسجيل):
                     </span>
                     <span style="font-size: 0.78rem; color: #64748b;">
-                        شهر التتبع: <b>${activeMonth}</b> • المجموعة: <b>${selectedGroup === 'all' ? 'جميع المجموعات' : selectedGroup}</b>
+                        نطاق الفترة: <b>${periodInfo.label}</b> • المجموعة: <b>${selectedGroup === 'all' ? 'جميع المجموعات' : selectedGroup}</b>
                     </span>
                 </div>
                 <div style="overflow-x: auto;">
@@ -5058,7 +5634,8 @@
                         <thead>
                             <tr style="background: #f1f5f9; color: #334155; border-bottom: 2px solid #cbd5e1; font-weight: 800;">
                                 <th style="padding: 10px 14px;">التلميذ والمجموعة</th>
-                                <th style="padding: 10px 14px;">التاريخ والتوقيت</th>
+                                <th style="padding: 10px 14px;">اليوم والتاريخ</th>
+                                <th style="padding: 10px 14px;">التوقيت والمدة</th>
                                 <th style="padding: 10px 14px;">حالة الحضور</th>
                                 <th style="padding: 10px 14px;">موضوع الحصة والأنشطة</th>
                                 <th style="padding: 10px 14px;">التقييم البيداغوجي</th>
@@ -5070,19 +5647,22 @@
         `;
 
         allEntries.forEach(({ student, session }) => {
+            const dayName = window.getArabicDayName(session.date);
+            const timeSpan = window.formatSessionTimeSpan(session.time || '18:00', session.hours || 2);
             const att = session.attendance || 'present';
+
             let attBadge = '';
             if (att === 'absent') {
                 attBadge = '<span style="background: #fee2e2; color: #b91c1c; font-weight: 800; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #fca5a5; display: inline-flex; align-items: center; gap: 4px;">❌ غائب (0 س)</span>';
             } else if (att === 'excused') {
                 attBadge = '<span style="background: #fef3c7; color: #b45309; font-weight: 800; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #fde68a; display: inline-flex; align-items: center; gap: 4px;">⚠️ غياب مبرر</span>';
             } else if (att === 'late') {
-                attBadge = `<span style="background: #fff7ed; color: #c2410c; font-weight: 800; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #fed7aa; display: inline-flex; align-items: center; gap: 4px;">⏱️ متأخر (${session.hours} س)</span>`;
+                attBadge = `<span style="background: #fff7ed; color: #c2410c; font-weight: 800; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #fed7aa; display: inline-flex; align-items: center; gap: 4px;">⏱️ متأخر (${session.hours || 2} س)</span>`;
             } else {
-                attBadge = `<span style="background: #ecfdf5; color: #059669; font-weight: 800; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 4px;">✓ حاضر (${session.hours} س)</span>`;
+                attBadge = `<span style="background: #ecfdf5; color: #059669; font-weight: 800; padding: 3px 9px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 4px;">✓ حاضر (${session.hours || 2} س)</span>`;
             }
 
-            let evalBadge = '-';
+            let evalBadge = '<span style="color: #94a3b8; font-size: 0.75rem;">-</span>';
             if (session.evaluation === 'excellent') {
                 evalBadge = '<span style="background: #ecfdf5; color: #059669; font-weight: bold; padding: 2px 7px; border-radius: 4px; border: 1px solid #a7f3d0; font-size: 0.74rem;">⭐⭐⭐ استيعاب ممتاز</span>';
             } else if (session.evaluation === 'very_good') {
@@ -5097,9 +5677,12 @@
                 <tr style="border-bottom: 1px solid #f1f5f9; ${att === 'absent' ? 'background: #fffdfd;' : ''}">
                     <td style="padding: 10px 14px;">
                         <div style="font-weight: 800; color: #0f172a;">
-                            <a href="javascript:void(0)" onclick="openTutoringStudentProfileModal('${student.id}')" style="color: #0284c7; text-decoration: none;">
+                            <a href="javascript:void(0)" onclick="openTutoringStudentProfileModal('${student.id}')" style="color: #0284c7; text-decoration: none;" title="عرض الملف الشخصي">
                                 ${escapeTutoringHtml(student.name)}
                             </a>
+                            <button type="button" onclick="const sel=document.getElementById('tutoringAttStudentFilter'); if(sel){ sel.value='${student.id}'; window.setTutoringAttViewMode('individual'); }" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; padding: 1px 6px; font-size: 0.7rem; color: #475569; cursor: pointer; margin-right: 6px;" title="فتح السجل الفردي لهذا التلميذ">
+                                👤 السجل الفردي
+                            </button>
                         </div>
                         <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">
                             ${student.group ? `مجموعة: <b style="color:#334155;">${escapeTutoringHtml(student.group)}</b>` : 'فردي'}
@@ -5107,8 +5690,18 @@
                         </div>
                     </td>
                     <td style="padding: 10px 14px; white-space: nowrap;">
-                        <div style="font-weight: bold; color: #1e293b;">${session.date}</div>
-                        <div style="font-size: 0.75rem; color: #64748b;" dir="ltr">${session.time || '18:00'}</div>
+                        <div style="display: flex; align-items: center; gap: 5px;">
+                            <span style="background: #e0e7ff; color: #3730a3; font-weight: 800; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px;">
+                                ${dayName || 'يوم'}
+                            </span>
+                            <span style="font-weight: bold; color: #1e293b;">${session.date}</span>
+                        </div>
+                    </td>
+                    <td style="padding: 10px 14px; white-space: nowrap;">
+                        <div style="font-size: 0.76rem; color: #0284c7; font-weight: 800; background: #f0f9ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #bae6fd; display: inline-block;" dir="ltr">
+                            ⏰ ${timeSpan}
+                        </div>
+                        <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">المدة: ${session.hours || 2} ساعات</div>
                     </td>
                     <td style="padding: 10px 14px;">
                         ${attBadge}
@@ -5165,127 +5758,736 @@
     };
 
     // =========================================================================
-    // 12. PRINT TUTORING ATTENDANCE LEDGER
+    // 12. COMPREHENSIVE PERIOD REPORT PRINT MODAL & GENERATOR
     // =========================================================================
-    window.printTutoringAttendanceLedger = function () {
-        const monthInput = document.getElementById('tutoringAttMonthFilter');
-        const groupFilter = document.getElementById('tutoringAttGroupFilter');
+    window.openTutoringAttendancePeriodPrintModal = function (targetStudentId) {
+        const modal = document.getElementById('tutoringAttendancePeriodPrintModal');
+        const studentSelect = document.getElementById('tutPrintStudentSelect');
+        const groupSelect = document.getElementById('tutPrintGroupSelect');
+        const scopeInd = document.getElementById('tutPrintScopeIndividual');
+        const scopeGrp = document.getElementById('tutPrintScopeGroup');
+        const dateFromInput = document.getElementById('tutPrintDateFrom');
+        const dateToInput = document.getElementById('tutPrintDateTo');
 
-        const activeMonth = monthInput ? monthInput.value : '';
-        const selectedGroup = groupFilter ? groupFilter.value : 'all';
-        const groupLabel = selectedGroup === 'all' ? 'كافة المجموعات' : selectedGroup;
+        if (!modal) return;
 
-        const ledgerContainer = document.getElementById('tutoringAttendanceLedgerContainer');
-        const kpisContainer = document.getElementById('tutoringAttendanceKpis');
+        const students = (db && db.tutoring && Array.isArray(db.tutoring.students)) ? db.tutoring.students : [];
 
-        // استنساخ الجدول وحذف عمود "إجراءات سريعة" والأزرار التفاعلية
-        let cleanTableHtml = '<p>لا توجد بيانات مسجلة</p>';
-        if (ledgerContainer) {
-            const clone = ledgerContainer.cloneNode(true);
-            clone.querySelectorAll('button').forEach(b => b.remove());
-            clone.querySelectorAll('tr').forEach(tr => {
-                const cells = tr.querySelectorAll('th, td');
-                if (cells.length >= 9) {
-                    cells[cells.length - 1].remove();
-                }
+        // Populate student options
+        if (studentSelect) {
+            let sOpts = '';
+            students.forEach(s => {
+                sOpts += `<option value="${s.id}">${escapeTutoringHtml(s.name)} (${escapeTutoringHtml(s.group || 'فردي')})</option>`;
             });
-            cleanTableHtml = clone.innerHTML;
+            studentSelect.innerHTML = sOpts;
         }
 
-        const tp = (db && db.teacherProfile) ? db.teacherProfile : {};
-        const teacherName = tp.name || 'الأستاذ(ة) المشرف(ة)';
+        // Populate group options
+        const uniqueGroups = Array.from(new Set(students.map(s => s.group).filter(Boolean))).sort();
+        if (groupSelect) {
+            let gOpts = '<option value="all">كافة المجموعات والتلاميذ</option>';
+            uniqueGroups.forEach(g => {
+                gOpts += `<option value="${escapeTutoringHtml(g)}">${escapeTutoringHtml(g)}</option>`;
+            });
+            groupSelect.innerHTML = gOpts;
+        }
 
-        const printHTML = `
+        // Handle targetStudentId
+        if (targetStudentId && typeof targetStudentId === 'string') {
+            if (scopeInd) scopeInd.checked = true;
+            if (studentSelect) studentSelect.value = targetStudentId;
+            window.onTutPrintScopeChange('individual');
+        } else {
+            // Check current active view mode in pane
+            const currentStudentFilter = document.getElementById('tutoringAttStudentFilter');
+            if (tutoringAttViewMode === 'individual' && currentStudentFilter && currentStudentFilter.value !== 'all') {
+                if (scopeInd) scopeInd.checked = true;
+                if (studentSelect) studentSelect.value = currentStudentFilter.value;
+                window.onTutPrintScopeChange('individual');
+            } else {
+                if (scopeGrp) scopeGrp.checked = true;
+                window.onTutPrintScopeChange('group');
+            }
+        }
+
+        // Set default dates based on active period type in pane
+        const mainPeriodType = document.getElementById('tutoringAttPeriodType');
+        const activeMonth = document.getElementById('tutoringAttMonthFilter') ? document.getElementById('tutoringAttMonthFilter').value : '';
+        const customFrom = document.getElementById('tutoringAttDateFrom') ? document.getElementById('tutoringAttDateFrom').value : '';
+        const customTo = document.getElementById('tutoringAttDateTo') ? document.getElementById('tutoringAttDateTo').value : '';
+        const pType = mainPeriodType ? mainPeriodType.value : 'month';
+        const pInfo = window.getTutoringAcademicPeriodDates(pType, customFrom, customTo, activeMonth);
+
+        if (dateFromInput) dateFromInput.value = pInfo.from;
+        if (dateToInput) dateToInput.value = pInfo.to;
+
+        modal.style.display = 'flex';
+        setTimeout(() => { if (window.renderLucide) window.renderLucide(); }, 30);
+    };
+
+    window.closeTutoringAttendancePeriodPrintModal = function () {
+        const modal = document.getElementById('tutoringAttendancePeriodPrintModal');
+        if (modal) modal.style.display = 'none';
+    };
+
+    window.onTutPrintScopeChange = function (val) {
+        const studentBox = document.getElementById('tutPrintStudentSelectBox');
+        const groupBox = document.getElementById('tutPrintGroupSelectBox');
+        const waBtn = document.getElementById('btnTutPrintWhatsAppDirect');
+
+        if (val === 'individual') {
+            if (studentBox) studentBox.style.display = 'block';
+            if (groupBox) groupBox.style.display = 'none';
+            if (waBtn) waBtn.style.display = 'inline-flex';
+        } else {
+            if (studentBox) studentBox.style.display = 'none';
+            if (groupBox) groupBox.style.display = 'block';
+            if (waBtn) waBtn.style.display = 'none';
+        }
+    };
+
+    window.setTutPrintPeriodPreset = function (preset) {
+        const dateFromInput = document.getElementById('tutPrintDateFrom');
+        const dateToInput = document.getElementById('tutPrintDateTo');
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth() + 1;
+        const academicStartYear = m >= 9 ? y : y - 1;
+        const academicEndYear = academicStartYear + 1;
+
+        if (preset === 'this_month') {
+            const lastD = new Date(y, m, 0).getDate();
+            if (dateFromInput) dateFromInput.value = `${y}-${String(m).padStart(2, '0')}-01`;
+            if (dateToInput) dateToInput.value = `${y}-${String(m).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`;
+        } else if (preset === 'last_month') {
+            const lastMDate = new Date(y, now.getMonth() - 1, 1);
+            const lmY = lastMDate.getFullYear();
+            const lmM = lastMDate.getMonth() + 1;
+            const lastD = new Date(lmY, lmM, 0).getDate();
+            if (dateFromInput) dateFromInput.value = `${lmY}-${String(lmM).padStart(2, '0')}-01`;
+            if (dateToInput) dateToInput.value = `${lmY}-${String(lmM).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`;
+        } else if (preset === 'term1') {
+            if (dateFromInput) dateFromInput.value = `${academicStartYear}-09-01`;
+            if (dateToInput) dateToInput.value = `${academicEndYear}-01-31`;
+        } else if (preset === 'term2') {
+            if (dateFromInput) dateFromInput.value = `${academicEndYear}-02-01`;
+            if (dateToInput) dateToInput.value = `${academicEndYear}-06-30`;
+        } else if (preset === 'full_year') {
+            if (dateFromInput) dateFromInput.value = `${academicStartYear}-09-01`;
+            if (dateToInput) dateToInput.value = `${academicEndYear}-07-31`;
+        }
+    };
+
+    window.generateTutoringComprehensiveReportHTML = function (options) {
+        options = options || {};
+        const scope = options.scope || 'individual';
+        const studentId = options.studentId || '';
+        const groupName = options.groupName || 'all';
+        const dateFrom = options.dateFrom || '2026-09-01';
+        const dateTo = options.dateTo || '2026-06-30';
+        const includeKpis = options.includeKpis !== false;
+        const includeEval = options.includeEval !== false;
+        const includeHw = options.includeHw !== false;
+        const includeSignatures = options.includeSignatures !== false;
+
+        const tp = (db && db.teacherProfile) ? db.teacherProfile : {};
+        const teacherName = tp.name || 'أستاذ(ة) مادة الرياضيات';
+        const subjectName = tp.subject || 'مادة الرياضيات (السلك الثانوي التأهيلي)';
+        const schoolName = tp.school || 'المؤسسة التعليمية';
+        const academy = tp.academy || 'وزارة التربية الوطنية والتعليم الأولي والرياضة';
+
+        const students = (db && db.tutoring && Array.isArray(db.tutoring.students)) ? db.tutoring.students : [];
+
+        let reportTitle = '';
+        let subtitle = '';
+        let targetStudent = null;
+        let sessionsList = [];
+
+        if (scope === 'individual') {
+            targetStudent = students.find(s => s.id === studentId) || students[0];
+            if (!targetStudent) {
+                return '<div style="padding:40px;text-align:center;font-family:Cairo,sans-serif;">لم يتم العثور على التلميذ المحدد</div>';
+            }
+            reportTitle = `تقرير المواظبة والغياب الفردي والتتبع البيداغوجي`;
+            subtitle = `سجل الحصص الخاصة بالتلميذ(ة): ${targetStudent.name}`;
+
+            (targetStudent.sessions || []).forEach(sess => {
+                if (sess.date && sess.date >= dateFrom && sess.date <= dateTo) {
+                    sessionsList.push({
+                        student: targetStudent,
+                        session: sess
+                    });
+                }
+            });
+            // Chronological order for individual report
+            sessionsList.sort((a, b) => a.session.date.localeCompare(b.session.date));
+        } else {
+            reportTitle = `سجل المواظبة والغياب والتتبع البيداغوجي الشامل`;
+            subtitle = groupName === 'all' ? 'كافة المجموعات والتلاميذ' : `المجموعة: ${groupName}`;
+
+            students.forEach(std => {
+                if (groupName !== 'all' && std.group !== groupName) return;
+                (std.sessions || []).forEach(sess => {
+                    if (sess.date && sess.date >= dateFrom && sess.date <= dateTo) {
+                        sessionsList.push({
+                            student: std,
+                            session: sess
+                        });
+                    }
+                });
+            });
+            sessionsList.sort((a, b) => {
+                const d = a.session.date.localeCompare(b.session.date);
+                if (d !== 0) return d;
+                return (a.student.name || '').localeCompare(b.student.name || '');
+            });
+        }
+
+        // Compute KPIs for report
+        let totalSessions = sessionsList.length;
+        let totalHours = 0;
+        let countPresent = 0;
+        let countAbsent = 0;
+        let countExcused = 0;
+        let countLate = 0;
+        let countHw = 0;
+        let countGoodEval = 0;
+
+        sessionsList.forEach(({ session }) => {
+            const att = session.attendance || 'present';
+            const hrs = parseFloat(session.hours) || 2;
+            if (att === 'present') {
+                countPresent++;
+                totalHours += hrs;
+            } else if (att === 'absent') {
+                countAbsent++;
+            } else if (att === 'excused') {
+                countExcused++;
+            } else if (att === 'late') {
+                countLate++;
+                totalHours += hrs;
+            }
+
+            if (session.homework && session.homework.trim().length > 0) countHw++;
+            if (session.evaluation === 'excellent' || session.evaluation === 'very_good') countGoodEval++;
+        });
+
+        const effectiveAttended = countPresent + countLate;
+        const attRate = totalSessions > 0 ? Math.round((effectiveAttended / totalSessions) * 100) : 100;
+        const hwRate = totalSessions > 0 ? Math.round((countHw / totalSessions) * 100) : 0;
+
+        // Build printable HTML
+        let html = `
             <!DOCTYPE html>
             <html dir="rtl" lang="ar">
             <head>
                 <meta charset="utf-8">
-                <title>سجل_مواظبة_وحصص_الدعم_${activeMonth}</title>
+                <title>${escapeTutoringHtml(reportTitle)} - ${dateFrom} إلى ${dateTo}</title>
                 <style>
-                    body { font-family: 'Cairo', system-ui, -apple-system, sans-serif; direction: rtl; color: #0f172a; margin: 0; }
-                    h2, h3, h4 { margin-top: 0; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.8rem; }
-                    th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; }
-                    th { background: #1e1b4b !important; color: #ffffff !important; font-weight: 800; }
-                    .header-box { display:flex; justify-content:space-between; align-items:center; border-bottom: 2.5px solid #4f46e5; padding-bottom: 10px; margin-bottom: 14px; }
-                    .signature-box { margin-top: 26px; display: flex; justify-content: space-between; padding: 0 20px; font-size: 0.85rem; font-weight: 700; page-break-inside: avoid; }
+                    @page {
+                        size: A4 landscape;
+                        margin: 12mm 14mm;
+                    }
+                    body {
+                        font-family: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        direction: rtl;
+                        color: #0f172a;
+                        margin: 0;
+                        padding: 0;
+                        font-size: 11pt;
+                        background: #fff;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    .official-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        border-bottom: 2.5px solid #1e1b4b;
+                        padding-bottom: 10px;
+                        margin-bottom: 12px;
+                    }
+                    .official-title {
+                        text-align: center;
+                        margin: 6px 0;
+                    }
+                    .official-title h2 {
+                        margin: 0;
+                        font-size: 16pt;
+                        color: #1e1b4b;
+                        font-weight: 900;
+                    }
+                    .period-banner {
+                        background: #f1f5f9;
+                        border: 1.5px solid #cbd5e1;
+                        border-radius: 8px;
+                        padding: 8px 14px;
+                        margin-bottom: 12px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        font-size: 9.5pt;
+                        font-weight: 700;
+                    }
+                    .kpi-grid {
+                        display: grid;
+                        grid-template-columns: repeat(4, 1fr);
+                        gap: 10px;
+                        margin-bottom: 14px;
+                    }
+                    .kpi-card {
+                        background: #ffffff;
+                        border: 1.5px solid #cbd5e1;
+                        border-radius: 8px;
+                        padding: 8px 12px;
+                        text-align: center;
+                    }
+                    .kpi-val {
+                        font-size: 14pt;
+                        font-weight: 900;
+                        margin-top: 2px;
+                    }
+                    .kpi-label {
+                        font-size: 8.5pt;
+                        color: #475569;
+                        font-weight: 800;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 9pt;
+                        margin-bottom: 16px;
+                    }
+                    th, td {
+                        border: 1px solid #94a3b8;
+                        padding: 6px 8px;
+                        text-align: right;
+                    }
+                    th {
+                        background: #1e1b4b !important;
+                        color: #ffffff !important;
+                        font-weight: 800;
+                        text-align: center;
+                    }
+                    tr:nth-child(even) {
+                        background: #f8fafc;
+                    }
+                    .badge-att-present { background: #dcfce7; color: #166534; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: inline-block; font-size: 8pt; }
+                    .badge-att-absent { background: #fee2e2; color: #991b1b; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: inline-block; font-size: 8pt; }
+                    .badge-att-excused { background: #fef3c7; color: #92400e; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: inline-block; font-size: 8pt; }
+                    .badge-att-late { background: #ffedd5; color: #9a3412; font-weight: 800; padding: 2px 6px; border-radius: 4px; display: inline-block; font-size: 8pt; }
+                    .signatures-container {
+                        margin-top: 18px;
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 24px;
+                        page-break-inside: avoid;
+                    }
+                    .signature-box {
+                        border: 1.5px dashed #94a3b8;
+                        border-radius: 8px;
+                        padding: 12px;
+                        text-align: center;
+                        min-height: 85px;
+                    }
+                    .signature-box h5 {
+                        margin: 0 0 4px 0;
+                        font-size: 9.5pt;
+                        color: #1e293b;
+                    }
                 </style>
             </head>
             <body>
-                <div class="header-box">
+                <!-- Official Header -->
+                <div class="official-header">
+                    <div style="font-size: 9pt; line-height: 1.4;">
+                        <div style="font-weight: 900; color: #1e1b4b;">المملكة المغربية</div>
+                        <div>وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                        <div>${escapeTutoringHtml(academy)}</div>
+                        <div style="color: #475569;">${escapeTutoringHtml(schoolName)}</div>
+                    </div>
+                    <div class="official-title">
+                        <h2>${escapeTutoringHtml(reportTitle)}</h2>
+                        <div style="font-size: 10pt; font-weight: 800; color: #4338ca; margin-top: 2px;">
+                            ${escapeTutoringHtml(subtitle)}
+                        </div>
+                    </div>
+                    <div style="font-size: 9pt; text-align: left; line-height: 1.4;">
+                        <div><b>الأستاذ(ة):</b> ${escapeTutoringHtml(teacherName)}</div>
+                        <div><b>المادة:</b> ${escapeTutoringHtml(subjectName)}</div>
+                        <div><b>تاريخ التحرير:</b> ${new Date().toLocaleDateString('ar-MA')}</div>
+                    </div>
+                </div>
+
+                <!-- Period & Student Identity Banner -->
+                <div class="period-banner">
                     <div>
-                        <div style="font-size:0.78rem; color:#64748b; font-weight:700;">المملكة المغربية • منظومة الأستاذ لإدارة الدعم الخصوصي</div>
-                        <h2 style="color: #312e81; margin: 3px 0;">سجل المواظبة والغياب والتتبع البيداغوجي لحصص الدعم</h2>
+                        <span>📅 الفترة المحددة من طرف الأستاذ:</span>
+                        <b style="color: #1e1b4b; margin-right: 4px;">من ${dateFrom} إلى ${dateTo}</b>
                     </div>
-                    <div style="text-align:left; font-size:0.8rem; color:#334155; font-weight:700;">
-                        <div>الشهر: <b>${activeMonth || 'الكل'}</b> | المجموعة: <b>${groupLabel}</b></div>
-                        <div>إشراف: ${teacherName} | التاريخ: ${new Date().toLocaleDateString('ar-MA')}</div>
+                    ${targetStudent ? `
+                        <div>
+                            <span>👤 التلميذ(ة): <b>${escapeTutoringHtml(targetStudent.name)}</b></span>
+                            <span style="margin: 0 8px;">|</span>
+                            <span>المجموعة: <b>${escapeTutoringHtml(targetStudent.group || 'دعم فردي')}</b></span>
+                            <span style="margin: 0 8px;">|</span>
+                            <span>المستوى: <b>${escapeTutoringHtml(targetStudent.level || 'الثانوي التأهيلي')}</b></span>
+                        </div>
+                    ` : `
+                        <div>
+                            <span>👥 نطاق التقرير: <b>${groupName === 'all' ? 'جميع المجموعات والتلاميذ' : escapeTutoringHtml(groupName)}</b></span>
+                        </div>
+                    `}
+                </div>
+
+                <!-- KPI Analytical Grid -->
+                ${includeKpis ? `
+                    <div class="kpi-grid">
+                        <div class="kpi-card" style="border-top: 3px solid #2563eb;">
+                            <div class="kpi-label">نسبة المواظبة العامة</div>
+                            <div class="kpi-val" style="color: ${attRate >= 85 ? '#059669' : (attRate >= 70 ? '#d97706' : '#dc2626')};">${attRate}%</div>
+                            <div style="font-size: 7.5pt; color: #64748b;">${effectiveAttended} من أصل ${totalSessions} حصة</div>
+                        </div>
+                        <div class="kpi-card" style="border-top: 3px solid #059669;">
+                            <div class="kpi-label">ساعات الدعم المستفاد منها</div>
+                            <div class="kpi-val" style="color: #059669;">${totalHours} س</div>
+                            <div style="font-size: 7.5pt; color: #64748b;">${countPresent} حضور • ${countLate} مع تأخر</div>
+                        </div>
+                        <div class="kpi-card" style="border-top: 3px solid #dc2626;">
+                            <div class="kpi-label">الغيابات المرصودة</div>
+                            <div class="kpi-val" style="color: ${countAbsent > 0 ? '#dc2626' : '#16a34a'};">${countAbsent}</div>
+                            <div style="font-size: 7.5pt; color: #64748b;">${countExcused} غياب بعذر مبرر</div>
+                        </div>
+                        <div class="kpi-card" style="border-top: 3px solid #7c3aed;">
+                            <div class="kpi-label">إنجاز الواجبات والاستيعاب</div>
+                            <div class="kpi-val" style="color: #7c3aed;">${countHw} واجب (${hwRate}%)</div>
+                            <div style="font-size: 7.5pt; color: #64748b;">${countGoodEval} استيعاب ممتاز/جيد جداً</div>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- Sessions Attendance Ledger Table -->
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;">#</th>
+                            ${scope !== 'individual' ? '<th style="width: 140px;">التلميذ(ة) والمجموعة</th>' : ''}
+                            <th style="width: 95px;">اليوم والتاريخ</th>
+                            <th style="width: 125px;">التوقيت والمدة (الساعة)</th>
+                            <th style="width: 85px;">حالة الحضور</th>
+                            <th>الموضوع والفقرة الدراسية</th>
+                            ${includeEval ? '<th style="width: 110px;">تقييم الاستيعاب</th>' : ''}
+                            ${includeHw ? '<th style="width: 120px;">الواجب والتكليف</th>' : ''}
+                            <th>ملاحظات وتوجيهات الأستاذ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        if (sessionsList.length === 0) {
+            html += `
+                <tr>
+                    <td colspan="${scope !== 'individual' ? (5 + (includeEval ? 1 : 0) + (includeHw ? 1 : 0) + 1) : (4 + (includeEval ? 1 : 0) + (includeHw ? 1 : 0) + 1)}" style="text-align: center; padding: 24px; color: #64748b; font-weight: bold;">
+                        لا توجد حصص مسجلة في هذه الفترة المحددة (${dateFrom} إلى ${dateTo})
+                    </td>
+                </tr>
+            `;
+        } else {
+            sessionsList.forEach(({ student, session }, idx) => {
+                const dayName = window.getArabicDayName(session.date);
+                const timeSpan = window.formatSessionTimeSpan(session.time || '18:00', session.hours || 2);
+                const att = session.attendance || 'present';
+
+                let attBadge = '<span class="badge-att-present">✓ حاضر</span>';
+                if (att === 'absent') attBadge = '<span class="badge-att-absent">❌ غائب</span>';
+                else if (att === 'excused') attBadge = '<span class="badge-att-excused">⚠️ عذر مبرر</span>';
+                else if (att === 'late') attBadge = `<span class="badge-att-late">⏱️ متأخر (${session.hours || 2} س)</span>`;
+
+                let evalText = '-';
+                if (session.evaluation === 'excellent') evalText = '⭐⭐⭐ ممتاز';
+                else if (session.evaluation === 'very_good') evalText = '⭐⭐ جيد جداً';
+                else if (session.evaluation === 'good') evalText = '⭐ حسن';
+                else if (session.evaluation === 'needs_support') evalText = '⚠️ بحاجة لدعم';
+
+                html += `
+                    <tr>
+                        <td style="text-align: center; font-weight: bold;">${idx + 1}</td>
+                        ${scope !== 'individual' ? `
+                            <td>
+                                <b>${escapeTutoringHtml(student.name)}</b>
+                                <div style="font-size: 7.5pt; color: #475569;">${escapeTutoringHtml(student.group || 'فردي')}</div>
+                            </td>
+                        ` : ''}
+                        <td style="white-space: nowrap;">
+                            <b style="color: #1e1b4b;">${dayName || 'يوم'}</b><br>
+                            <span style="font-size: 8pt; color: #334155;">${session.date}</span>
+                        </td>
+                        <td style="white-space: nowrap;" dir="ltr">
+                            <span style="font-weight: 800; color: #0284c7;">${timeSpan}</span>
+                            <div style="font-size: 7.5pt; color: #64748b;">${session.hours || 2} ساعات</div>
+                        </td>
+                        <td style="text-align: center;">${attBadge}</td>
+                        <td>
+                            <b>${escapeTutoringHtml(session.topic || 'حصة دعم وتقوية')}</b>
+                        </td>
+                        ${includeEval ? `<td style="text-align: center; font-weight: bold; font-size: 8pt;">${evalText}</td>` : ''}
+                        ${includeHw ? `<td style="font-size: 8pt;">${session.homework ? escapeTutoringHtml(session.homework) : '-'}</td>` : ''}
+                        <td style="font-size: 8pt; color: #334155;">
+                            ${session.evaluationNotes ? escapeTutoringHtml(session.evaluationNotes) : '-'}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        html += `
+                    </tbody>
+                </table>
+
+                <!-- Pedagogical Recommendations & Observations -->
+                <div style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; margin-top: 10px; background: #fafafa; page-break-inside: avoid;">
+                    <div style="font-weight: 800; font-size: 9.5pt; color: #1e1b4b; margin-bottom: 4px;">
+                        📌 التوجيهات البيداغوجية والتقييم التركيبي للأستاذ(ة):
+                    </div>
+                    <div style="font-size: 8.5pt; color: #334155; line-height: 1.6;">
+                        ${attRate >= 85 ? `
+                            التلميذ(ة) يظهر التزاماً متميزاً بالحضور والمواظبة على حصص الدعم التربوي في مادة الرياضيات، مع استيعاب جيد للمفاهيم الرياضية وإنجاز منتظم للتمارين التطبيقية. يُوصى بالاستمرار في حل المسائل التركيبية والاستعداد للامتحانات الإشهادية.
+                        ` : (attRate >= 70 ? `
+                            مستوى مواظبة متوسط مع تسجيل بعض الغيابات التي تتطلب التدارك الفوري للحيلولة دون تراكم التعثرات في الهندسة الفضائية وحساب النهايات والدوال.
+                        ` : `
+                            تنبيه بيداغوجي: تكرار الغياب عن حصص الدعم يؤثر سلباً على وتيرة اكتساب المعارف الرياضية. يتعين على ولي الأمر التنسيق مع الأستاذ المشرف لضبط برنامج تعويضي عاجل.
+                        `)}
                     </div>
                 </div>
 
-                ${kpisContainer ? `<div style="margin-bottom:12px;">${kpisContainer.innerHTML}</div>` : ''}
-
-                ${cleanTableHtml}
-
-                <div class="signature-box">
-                    <div style="text-align: center;">
-                        <p style="margin: 0;">ملاحظات وتوجيهات الأستاذ(ة):</p>
-                        <div style="margin-top: 28px; color: #64748b;">................................................</div>
+                <!-- Signatures Box -->
+                ${includeSignatures ? `
+                    <div class="signatures-container">
+                        <div class="signature-box">
+                            <h5>تأشيرة واطلاع ولي أمر التلميذ(ة):</h5>
+                            <p style="font-size: 7.5pt; color: #64748b; margin: 2px 0 20px 0;">(توقيع الولي مع عبارة "اطلعت عليه")</p>
+                            <div style="color: #94a3b8; font-size: 8pt;">...............................................................</div>
+                        </div>
+                        <div class="signature-box">
+                            <h5>توقيع وخاتم الأستاذ(ة) المشرف(ة):</h5>
+                            <p style="font-size: 7.5pt; color: #64748b; margin: 2px 0 20px 0;">(أستاذ مادة الرياضيات)</p>
+                            <div style="color: #94a3b8; font-size: 8pt;">...............................................................</div>
+                        </div>
                     </div>
-                    <div style="text-align: center;">
-                        <p style="margin: 0;">توقيع وخاتم الأستاذ(ة) المشرف(ة):</p>
-                        <div style="margin-top: 28px; color: #64748b;">................................................</div>
-                    </div>
-                </div>
+                ` : ''}
             </body>
             </html>
         `;
 
+        return html;
+    };
+
+    window.printTutoringComprehensiveReportFromModal = function (orientation) {
+        orientation = orientation || 'landscape';
+        const scope = document.getElementById('tutPrintScopeIndividual') && document.getElementById('tutPrintScopeIndividual').checked ? 'individual' : 'group';
+        const studentSelect = document.getElementById('tutPrintStudentSelect');
+        const groupSelect = document.getElementById('tutPrintGroupSelect');
+        const dateFromInput = document.getElementById('tutPrintDateFrom');
+        const dateToInput = document.getElementById('tutPrintDateTo');
+
+        const optKpis = document.getElementById('tutPrintOptKpis') ? document.getElementById('tutPrintOptKpis').checked : true;
+        const optEval = document.getElementById('tutPrintOptEval') ? document.getElementById('tutPrintOptEval').checked : true;
+        const optHw = document.getElementById('tutPrintOptHomework') ? document.getElementById('tutPrintOptHomework').checked : true;
+        const optSignatures = document.getElementById('tutPrintOptSignatures') ? document.getElementById('tutPrintOptSignatures').checked : true;
+
+        const dateFrom = dateFromInput ? dateFromInput.value : '';
+        const dateTo = dateToInput ? dateToInput.value : '';
+        const studentId = studentSelect ? studentSelect.value : '';
+        const groupName = groupSelect ? groupSelect.value : 'all';
+
+        const htmlContent = window.generateTutoringComprehensiveReportHTML({
+            scope,
+            studentId,
+            groupName,
+            dateFrom,
+            dateTo,
+            includeKpis: optKpis,
+            includeEval: optEval,
+            includeHw: optHw,
+            includeSignatures: optSignatures
+        });
+
+        const students = (db && db.tutoring && Array.isArray(db.tutoring.students)) ? db.tutoring.students : [];
+        const targetStudent = scope === 'individual' ? students.find(s => s.id === studentId) : null;
+        const docTitle = scope === 'individual' ? `سجل_مواظبة_${(targetStudent && targetStudent.name) ? targetStudent.name.replace(/\s+/g, '_') : 'تلميذ'}_${dateFrom}_إلى_${dateTo}` : `سجل_مواظبة_شامل_${dateFrom}_إلى_${dateTo}`;
+
+        window.closeTutoringAttendancePeriodPrintModal();
+
         if (typeof window.openCustomPrintPreviewModal === 'function') {
-            window.openCustomPrintPreviewModal(printHTML, {
-                title: `سجل_مواظبة_وحصص_الدعم_${activeMonth || 'الشامل'}`,
-                orientation: 'landscape',
-                subtitle: `دفتر الحضور والغياب والمواكبة البيداغوجية — المجموعة: ${groupLabel}`
+            window.openCustomPrintPreviewModal(htmlContent, {
+                title: docTitle,
+                orientation: orientation,
+                subtitle: scope === 'individual' ? `تقرير المواظبة والغياب الفردي — التلميذ: ${(targetStudent && targetStudent.name) || ''}` : `سجل المواظبة والغياب الجماعي الشامل للفترة من ${dateFrom} إلى ${dateTo}`
             });
         } else if (typeof window.printDocumentDirectly === 'function') {
-            window.printDocumentDirectly(printHTML, `سجل_مواظبة_وحصص_الدعم_${activeMonth}`, 'landscape');
+            window.printDocumentDirectly(htmlContent, docTitle, orientation);
+        }
+    };
+
+    window.sendTutoringReportWhatsAppFromModal = function () {
+        const studentSelect = document.getElementById('tutPrintStudentSelect');
+        const studentId = studentSelect ? studentSelect.value : '';
+        const dateFrom = document.getElementById('tutPrintDateFrom') ? document.getElementById('tutPrintDateFrom').value : '';
+        const dateTo = document.getElementById('tutPrintDateTo') ? document.getElementById('tutPrintDateTo').value : '';
+
+        const students = (db && db.tutoring && Array.isArray(db.tutoring.students)) ? db.tutoring.students : [];
+        const student = students.find(s => s.id === studentId);
+        if (!student) {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('يرجى تحديد تلميذ لإرسال التقرير لولي أمره', 'warning');
+            }
+            return;
+        }
+
+        const phone = student.parentPhone || student.phone;
+        if (!phone) {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(`لا يوجد رقم هاتف مسجل للتلميذ(ة) ${student.name} أو ولي أمره!`, 'warning');
+            }
+            return;
+        }
+
+        // Filter sessions
+        const sessions = (student.sessions || []).filter(s => s.date && s.date >= dateFrom && s.date <= dateTo);
+        let present = 0;
+        let absent = 0;
+        let excused = 0;
+        let late = 0;
+        let hours = 0;
+
+        sessions.forEach(s => {
+            const att = s.attendance || 'present';
+            const h = parseFloat(s.hours) || 2;
+            if (att === 'present') { present++; hours += h; }
+            else if (att === 'absent') absent++;
+            else if (att === 'excused') excused++;
+            else if (att === 'late') { late++; hours += h; }
+        });
+
+        const total = sessions.length;
+        const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 100;
+
+        const tp = (db && db.teacherProfile) ? db.teacherProfile : {};
+        const teacherName = tp.name || 'أستاذ مادة الرياضيات';
+
+        const msgLines = [
+            `السلام عليكم ورحمة الله وبركاته، ولي أمر التلميذ(ة) المحترم(ة): *${student.name}*`,
+            ``,
+            `📊 *تقرير المواظبة والتتبع البيداغوجي لحصص الدعم والتقوية في مادة الرياضيات*`,
+            `📅 الفترة المحددة: من *${dateFrom}* إلى *${dateTo}*`,
+            ``,
+            `📌 *ملخص الحصص والمواظبة:*`,
+            `• عدد الحصص المبرمجة: *${total}* حصة`,
+            `• الحضور الفعلي: *${present + late}* حصة (${hours} ساعة دعم)`,
+            `• الغيابات: *${absent}* غير مبرر | *${excused}* بعذر`,
+            `• نسبة المواظبة العامة: *${rate}%*`,
+            ``,
+            `💡 الأستاذ المشرف: *${teacherName}*`,
+            `مع متمنياتنا بالتوفيق والتميز الدراسي الدائم.`
+        ];
+
+        const fullMsg = encodeURIComponent(msgLines.join('\n'));
+        let cleanPhone = phone.replace(/[^0-9]/g, '');
+        if (cleanPhone.startsWith('0')) {
+            cleanPhone = '212' + cleanPhone.slice(1);
+        }
+
+        window.closeTutoringAttendancePeriodPrintModal();
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(`جاري فتح واتساب لإرسال تقرير المواظبة لولي أمر ${student.name} 📲`, 'success');
+        }
+        window.open(`https://wa.me/${cleanPhone}?text=${fullMsg}`, '_blank');
+    };
+
+    window.printTutoringAttendanceLedger = function () {
+        // Quick print uses current filters
+        const periodTypeSelect = document.getElementById('tutoringAttPeriodType');
+        const monthInput = document.getElementById('tutoringAttMonthFilter');
+        const dateFromInput = document.getElementById('tutoringAttDateFrom');
+        const dateToInput = document.getElementById('tutoringAttDateTo');
+        const studentSelect = document.getElementById('tutoringAttStudentFilter');
+        const groupFilter = document.getElementById('tutoringAttGroupFilter');
+
+        const pType = periodTypeSelect ? periodTypeSelect.value : 'month';
+        const activeMonth = monthInput ? monthInput.value : '';
+        const customFrom = dateFromInput ? dateFromInput.value : '';
+        const customTo = dateToInput ? dateToInput.value : '';
+        const pInfo = window.getTutoringAcademicPeriodDates(pType, customFrom, customTo, activeMonth);
+
+        const scope = (tutoringAttViewMode === 'individual' && studentSelect && studentSelect.value !== 'all') ? 'individual' : 'group';
+        const studentId = studentSelect ? studentSelect.value : '';
+        const groupName = groupFilter ? groupFilter.value : 'all';
+
+        const printHTML = window.generateTutoringComprehensiveReportHTML({
+            scope,
+            studentId,
+            groupName,
+            dateFrom: pInfo.from,
+            dateTo: pInfo.to,
+            includeKpis: true,
+            includeEval: true,
+            includeHw: true,
+            includeSignatures: true
+        });
+
+        if (typeof window.openCustomPrintPreviewModal === 'function') {
+            window.openCustomPrintPreviewModal(printHTML, {
+                title: `سجل_مواظبة_${pInfo.from}_إلى_${pInfo.to}`,
+                orientation: 'landscape',
+                subtitle: `دفتر الحضور والغياب والمواكبة البيداغوجية — ${pInfo.label}`
+            });
+        } else if (typeof window.printDocumentDirectly === 'function') {
+            window.printDocumentDirectly(printHTML, `سجل_مواظبة_${pInfo.from}_إلى_${pInfo.to}`, 'landscape');
         }
     };
 
     // =========================================================================
-    // 13. NOTIFY ABSENT TUTORING STUDENTS VIA WHATSAPP
+    // 13. NOTIFY ABSENT TUTORING STUDENTS VIA WHATSAPP (NON-BLOCKING)
     // =========================================================================
     window.notifyAllAbsentTutoringWhatsApp = function () {
+        const periodTypeSelect = document.getElementById('tutoringAttPeriodType');
         const monthInput = document.getElementById('tutoringAttMonthFilter');
+        const dateFromInput = document.getElementById('tutoringAttDateFrom');
+        const dateToInput = document.getElementById('tutoringAttDateTo');
         const groupFilter = document.getElementById('tutoringAttGroupFilter');
+
+        const pType = periodTypeSelect ? periodTypeSelect.value : 'month';
         const activeMonth = monthInput ? monthInput.value : '';
+        const customFrom = dateFromInput ? dateFromInput.value : '';
+        const customTo = dateToInput ? dateToInput.value : '';
+        const periodInfo = window.getTutoringAcademicPeriodDates(pType, customFrom, customTo, activeMonth);
         const selectedGroup = groupFilter ? groupFilter.value : 'all';
 
-        const students = db.tutoring.students || [];
+        const students = (db && db.tutoring && Array.isArray(db.tutoring.students)) ? db.tutoring.students : [];
         const absentRecords = [];
 
         students.forEach(std => {
             if (selectedGroup !== 'all' && std.group !== selectedGroup) return;
             (std.sessions || []).forEach(sess => {
-                if (sess.date && sess.date.startsWith(activeMonth) && (sess.attendance === 'absent' || sess.attendance === 'excused')) {
+                if (sess.date && sess.date >= periodInfo.from && sess.date <= periodInfo.to && (sess.attendance === 'absent' || sess.attendance === 'excused')) {
                     absentRecords.push({ student: std, session: sess });
                 }
             });
         });
 
         if (absentRecords.length === 0) {
-            alert(`✓ رائع! لا يوجد أي غياب مسجل للتلاميذ في شهر ${activeMonth} للمجموعة المحددة.`);
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(`✓ رائع! لا يوجد أي غياب مسجل للتلاميذ في ${periodInfo.label}.`, 'info');
+            }
             return;
         }
 
-        // Show prompt or open first / copy list
-        const absentSummary = absentRecords.map((r, i) => `${i + 1}. ${r.student.name} (${r.session.date} - ${r.student.phone || 'بدون هاتف'})`).join('\n');
-        
-        const confirmSend = confirm(`تم رصد ${absentRecords.length} حالة غياب في شهر ${activeMonth}:\n\n${absentSummary}\n\nهل ترغب في فتح واتساب لإرسال إشعار غياب لولي أمر أول تلميذ في القائمة (${absentRecords[0].student.name})؟`);
-        
-        if (confirmSend) {
-            window.shareTutoringSessionWhatsApp(absentRecords[0].student.id, absentRecords[0].session.id);
+        // Open WhatsApp for the first absent student and notify teacher about the full count
+        const first = absentRecords[0];
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(`تم رصد ${absentRecords.length} حالة غياب في ${periodInfo.label}. جاري فتح إشعار أول تلميذ: ${first.student.name}`, 'warning');
         }
+        window.shareTutoringSessionWhatsApp(first.student.id, first.session.id);
     };
 
     // =========================================================================
@@ -5593,16 +6795,28 @@
                     }
                 }
 
+                // Pre-attach advanced fields if editing existing student so origSaveStudent saves once
+                if (editId && db.tutoring && Array.isArray(db.tutoring.students)) {
+                    const preTarget = db.tutoring.students.find(s => s.id === editId);
+                    if (preTarget) {
+                        preTarget.billingMode = billingMode;
+                        preTarget.monthlyFixedFee = monthlyFixedFee;
+                        preTarget.packSessions = packSessions;
+                        preTarget.packPrice = packPrice;
+                        preTarget.discountPercent = discountPercent;
+                        preTarget.gradeBefore = (gradeBeforeRaw !== '' && gradeBeforeRaw !== undefined) ? parseFloat(gradeBeforeRaw) : '';
+                        preTarget.gradeAfter = (gradeAfterRaw !== '' && gradeAfterRaw !== undefined) ? parseFloat(gradeAfterRaw) : '';
+                        preTarget.nextExamDate = nextExamDate;
+                        preTarget.nextExamTopic = nextExamTopic;
+                    }
+                }
+
                 origSaveStudent.apply(this, arguments);
 
-                if (db.tutoring && Array.isArray(db.tutoring.students)) {
-                    let target = null;
-                    if (editId) {
-                        target = db.tutoring.students.find(s => s.id === editId);
-                    } else if (nameVal) {
-                        const matches = db.tutoring.students.filter(s => (s.name || '').trim() === nameVal);
-                        target = matches[matches.length - 1];
-                    }
+                // For newly created student (no editId prior to origSaveStudent), attach fields and persist
+                if (!editId && db.tutoring && Array.isArray(db.tutoring.students) && nameVal) {
+                    const matches = db.tutoring.students.filter(s => (s.name || '').trim() === nameVal);
+                    const target = matches[matches.length - 1];
                     if (target) {
                         target.billingMode = billingMode;
                         target.monthlyFixedFee = monthlyFixedFee;
@@ -5614,7 +6828,6 @@
                         target.nextExamDate = nextExamDate;
                         target.nextExamTopic = nextExamTopic;
                         saveDB();
-                        if (typeof window.renderTutoringStudents === 'function') window.renderTutoringStudents();
                     }
                 }
             };

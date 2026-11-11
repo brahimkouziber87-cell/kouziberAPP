@@ -57,6 +57,8 @@ import {
   FileText
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
+import AttendanceAndBehaviorHub from './AttendanceAndBehaviorHub.tsx';
+import AcademicYearPerformanceTrends from './AcademicYearPerformanceTrends.tsx';
 
 interface Student {
   id: string;
@@ -230,6 +232,13 @@ function detectStreamMeta(className: string, db: any): {
     className.includes('تدبير');
 
   const isSm = upper.includes('SM') || className.includes('رياضية');
+  const isTech =
+    upper.includes('STE') ||
+    upper.includes('STM') ||
+    upper.includes('TECH') ||
+    className.includes('تكنولوجي') ||
+    className.includes('كهربائ') ||
+    className.includes('ميكانيك');
 
   if (
     upper.includes('2BAC') ||
@@ -249,8 +258,10 @@ function detectStreamMeta(className: string, db: any): {
       ? '2 باك علوم اقتصادية'
       : isLit
       ? '2 باك آداب وعلوم إنسانية'
+      : isTech
+      ? '2 باك علوم وتكنولوجيات (STE/STM)'
       : '2 باك علوم تجريبية (PC/SVT)';
-    defaultCoef = isLit ? 1 : isEco ? 4 : isSm ? 9 : 7;
+    defaultCoef = isLit ? 1 : isEco ? 4 : isTech ? 6 : isSm ? 9 : 7;
     defaultExams = isLit ? 2 : isSm ? 4 : 3;
   } else if (
     upper.includes('1BAC') ||
@@ -271,9 +282,11 @@ function detectStreamMeta(className: string, db: any): {
       ? '1 باك علوم اقتصادية'
       : isLit
       ? '1 باك آداب وعلوم إنسانية'
+      : isTech
+      ? '1 باك علوم وتكنولوجيات (STE/STM)'
       : '1 باك علوم تجريبية';
-    // المعامل الرسمي لمادة الرياضيات في 1 باك آداب وعلوم إنسانية هو 1 (المذكرة 142-08)
-    defaultCoef = isLit ? 1 : isEco ? 4 : isSm ? 7 : 7;
+    // المعامل الرسمي لمادة الرياضيات في 1 باك علوم رياضية هو 9، وعلوم تجريبية 7، وتكنولوجيات 6، واقتصاد 4، وآداب 1 (المذكرة 142-08)
+    defaultCoef = isLit ? 1 : isEco ? 4 : isTech ? 6 : isSm ? 9 : 7;
     defaultExams = isLit ? 2 : isSm ? 4 : 3;
   } else if (
     upper.includes('TC') ||
@@ -400,13 +413,32 @@ export default function DashboardView() {
   const [visualCardsDomainHighlight, setVisualCardsDomainHighlight] = useState<string>('all');
   const domainBreakdownRef = useRef<HTMLDivElement>(null);
 
-  const syncWithGlobalDb = () => {
+  const lastDbFingerprintRef = useRef<string>('');
+
+  const syncWithGlobalDb = (force = false) => {
     if (typeof window !== 'undefined' && (window as any).db) {
       const currentDb = (window as any).db;
+      const recs = Array.isArray(currentDb.records) ? currentDb.records : [];
+      const lastRec = recs[recs.length - 1];
+      const behLogsLen = Array.isArray(currentDb.behaviorLogs) ? currentDb.behaviorLogs.length : 0;
+      const clsKeys = Object.keys(currentDb.classes || {});
+      const behCount = Object.keys(currentDb.behaviors || {}).reduce(
+        (acc, c) => acc + Object.keys(currentDb.behaviors[c] || {}).length,
+        0
+      );
+      const fingerprint = `${clsKeys.length}_${recs.length}_${lastRec?.date || ''}_${lastRec?.status || ''}_${behLogsLen}_${behCount}_${currentDb.lastSaved || ''}`;
+
+      if (!force && fingerprint === lastDbFingerprintRef.current) {
+        return;
+      }
+      lastDbFingerprintRef.current = fingerprint;
+
       setDb({
         ...currentDb,
         classes: { ...(currentDb.classes || {}) },
-        records: [...(currentDb.records || [])],
+        records: [...recs],
+        behaviors: { ...(currentDb.behaviors || {}) },
+        behaviorLogs: Array.isArray(currentDb.behaviorLogs) ? [...currentDb.behaviorLogs] : [],
         grades: { ...(currentDb.grades || {}) },
         gradesS1: { ...(currentDb.gradesS1 || {}) },
         gradesS2: { ...(currentDb.gradesS2 || {}) }
@@ -415,7 +447,7 @@ export default function DashboardView() {
   };
 
   useEffect(() => {
-    syncWithGlobalDb();
+    syncWithGlobalDb(true);
 
     let chartTimer: ReturnType<typeof setTimeout> | null = null;
     let secTimer: ReturnType<typeof setTimeout> | null = null;
@@ -454,20 +486,28 @@ export default function DashboardView() {
       triggerStagedLazyCharts();
     }
 
-    const handleRefreshEvent = () => {
-      syncWithGlobalDb();
+    const handleTabOpenedEvent = () => {
+      syncWithGlobalDb(true);
       triggerStagedLazyCharts();
     };
-    window.addEventListener('dashboardTabOpened', handleRefreshEvent);
-    window.addEventListener('analysisTabOpened', handleRefreshEvent);
-    window.addEventListener('dbUpdated', handleRefreshEvent);
-    window.addEventListener('storage', handleRefreshEvent);
+    const handleDbUpdatedEvent = () => {
+      const dashEl = document.getElementById('dashboardView');
+      const isVisible = !dashEl || dashEl.style.display !== 'none';
+      if (isVisible) {
+        syncWithGlobalDb(false);
+        triggerStagedLazyCharts();
+      }
+    };
+    window.addEventListener('dashboardTabOpened', handleTabOpenedEvent);
+    window.addEventListener('analysisTabOpened', handleTabOpenedEvent);
+    window.addEventListener('dbUpdated', handleDbUpdatedEvent);
+    window.addEventListener('storage', handleDbUpdatedEvent);
 
-    // Poll lightly when dashboardView is visible
+    // Poll lightly when dashboardView is visible (skips setDb when fingerprint is unchanged)
     const interval = setInterval(() => {
       const dashEl = document.getElementById('dashboardView');
       if (dashEl && dashEl.style.display !== 'none' && (window as any).db) {
-        syncWithGlobalDb();
+        syncWithGlobalDb(false);
       }
     }, 2500);
 
@@ -475,10 +515,10 @@ export default function DashboardView() {
       if (chartTimer) clearTimeout(chartTimer);
       if (secTimer) clearTimeout(secTimer);
       if (observer) observer.disconnect();
-      window.removeEventListener('dashboardTabOpened', handleRefreshEvent);
-      window.removeEventListener('analysisTabOpened', handleRefreshEvent);
-      window.removeEventListener('dbUpdated', handleRefreshEvent);
-      window.removeEventListener('storage', handleRefreshEvent);
+      window.removeEventListener('dashboardTabOpened', handleTabOpenedEvent);
+      window.removeEventListener('analysisTabOpened', handleTabOpenedEvent);
+      window.removeEventListener('dbUpdated', handleDbUpdatedEvent);
+      window.removeEventListener('storage', handleDbUpdatedEvent);
       clearInterval(interval);
     };
   }, []);
@@ -505,11 +545,25 @@ export default function DashboardView() {
         // fallback below
       }
     }
-    const baseRecord = db?.grades?.[className]?.[studentId];
+    const baseRecord = db?.grades?.[className]?.[studentId] || {};
     if (sem === 's2') {
-      return db?.gradesS2?.[className]?.[studentId] || baseRecord?.s2 || {};
+      const s2Direct = db?.gradesS2?.[className]?.[studentId] || {};
+      const s2Sub = baseRecord?.s2 || {};
+      return {
+        f1: s2Sub.f1 !== undefined ? s2Sub.f1 : s2Direct.f1,
+        f2: s2Sub.f2 !== undefined ? s2Sub.f2 : s2Direct.f2,
+        f3: s2Sub.f3 !== undefined ? s2Sub.f3 : s2Direct.f3,
+        f4: s2Sub.f4 !== undefined ? s2Sub.f4 : s2Direct.f4,
+      };
     }
-    return db?.gradesS1?.[className]?.[studentId] || baseRecord?.s1 || baseRecord || {};
+    const s1Direct = db?.gradesS1?.[className]?.[studentId] || {};
+    const s1Sub = baseRecord?.s1 || {};
+    return {
+      f1: s1Sub.f1 !== undefined ? s1Sub.f1 : (s1Direct.f1 !== undefined ? s1Direct.f1 : baseRecord.f1),
+      f2: s1Sub.f2 !== undefined ? s1Sub.f2 : (s1Direct.f2 !== undefined ? s1Direct.f2 : baseRecord.f2),
+      f3: s1Sub.f3 !== undefined ? s1Sub.f3 : (s1Direct.f3 !== undefined ? s1Direct.f3 : baseRecord.f3),
+      f4: s1Sub.f4 !== undefined ? s1Sub.f4 : (s1Direct.f4 !== undefined ? s1Direct.f4 : baseRecord.f4),
+    };
   };
 
   const computeStudentAvg = (gradesObj: any, examsCount: number): number | null => {
@@ -526,35 +580,90 @@ export default function DashboardView() {
     return valid.reduce((a, b) => a + b, 0) / valid.length;
   };
 
+  // Single-pass O(R) indexing of attendance records by class and by (className, studentId) excluding protected holidays/leaves
+  const recordsIndex = useMemo(() => {
+    const byClass = new Map<string, any[]>();
+    const byStudent = new Map<string, any[]>();
+    const allRecords: any[] = Array.isArray(db?.records) ? db.records : [];
+    const isProtectedRecord =
+      typeof window !== 'undefined' && typeof (window as any).isRecordProtectedHolidayOrLeave === 'function'
+        ? (window as any).isRecordProtectedHolidayOrLeave
+        : null;
+    const isProtectedDate =
+      typeof window !== 'undefined' && typeof (window as any).isAbsenceDisabledOnDate === 'function'
+        ? (window as any).isAbsenceDisabledOnDate
+        : null;
+
+    for (let i = 0; i < allRecords.length; i++) {
+      const r = allRecords[i];
+      if (!r) continue;
+      if (isProtectedRecord && isProtectedRecord(r)) continue;
+      if (r.date && isProtectedDate) {
+        const chk = isProtectedDate(r.date, r.session);
+        if (typeof chk === 'boolean' ? chk : !!(chk && chk.disabled)) continue;
+      }
+      if (r.className) {
+        let cArr = byClass.get(r.className);
+        if (!cArr) {
+          cArr = [];
+          byClass.set(r.className, cArr);
+        }
+        cArr.push(r);
+      }
+      if (r.studentId) {
+        const compositeKey = r.className ? `${r.className}:::${r.studentId}` : String(r.studentId);
+        let sArr = byStudent.get(compositeKey);
+        if (!sArr) {
+          sArr = [];
+          byStudent.set(compositeKey, sArr);
+        }
+        sArr.push(r);
+      }
+    }
+    return { byClass, byStudent };
+  }, [db?.records]);
+
   const allClassesStats: ClassAggregatedStats[] = useMemo(() => {
     if (!db || !db.classes) return [];
-    const allRecords: any[] = Array.isArray(db.records) ? db.records : [];
     const expectedSessionsHoursPerStudent = 48; // ~24 weeks * 2h baseline for attendance %
 
     return classNames.map((className) => {
       const students: Student[] = db.classes[className] || [];
       const meta = detectStreamMeta(className, db);
-      const classRecords = allRecords.filter((r) => r.className === className);
+      const classRecords = recordsIndex.byClass.get(className) || [];
 
       let totalAbsenceHours = 0;
       let justifiedHours = 0;
       let unjustifiedHours = 0;
       let lateCount = 0;
       const studentAbsenceMap: Record<string, number> = {};
+      const studentUnjustifiedMap: Record<string, number> = {};
+      const studentLateMap: Record<string, number> = {};
 
-      classRecords.forEach((r) => {
+      // Single pass over classRecords instead of two separate loops
+      for (let i = 0; i < classRecords.length; i++) {
+        const r = classRecords[i];
         const dur = Number(r.duration) || 1;
         if (r.status === 'غائب' || r.status === 'مبرر') {
           totalAbsenceHours += dur;
-          if (r.status === 'مبرر') justifiedHours += dur;
-          else unjustifiedHours += dur;
+          if (r.status === 'مبرر') {
+            justifiedHours += dur;
+          } else {
+            unjustifiedHours += dur;
+            if (r.studentId) {
+              studentUnjustifiedMap[r.studentId] = (studentUnjustifiedMap[r.studentId] || 0) + dur;
+            }
+          }
           if (r.studentId) {
             studentAbsenceMap[r.studentId] = (studentAbsenceMap[r.studentId] || 0) + dur;
           }
         } else if (r.status === 'متأخر') {
           lateCount += 1;
+          if (r.studentId) {
+            studentLateMap[r.studentId] = (studentLateMap[r.studentId] || 0) + 1;
+          }
         }
-      });
+      }
 
       const atRiskAbsenceCount = Object.values(studentAbsenceMap).filter((h) => h >= 4).length;
       const avgAbsencePerStudent =
@@ -586,19 +695,6 @@ export default function DashboardView() {
       let tierPassable = 0;
       let tierWeak = 0;
 
-      const studentUnjustifiedMap: Record<string, number> = {};
-      const studentLateMap: Record<string, number> = {};
-      classRecords.forEach((r) => {
-        const dur = Number(r.duration) || 1;
-        if (r.studentId) {
-          if (r.status === 'غائب') {
-            studentUnjustifiedMap[r.studentId] = (studentUnjustifiedMap[r.studentId] || 0) + dur;
-          } else if (r.status === 'متأخر') {
-            studentLateMap[r.studentId] = (studentLateMap[r.studentId] || 0) + 1;
-          }
-        }
-      });
-
       let dualRiskCount = 0;
       const priorityStudentsRaw: PriorityStudentItem[] = [];
       let lowAxis1Count = 0;
@@ -619,12 +715,15 @@ export default function DashboardView() {
           if (a1 !== null && a2 !== null) studentAvg = (a1 + a2) / 2;
           else studentAvg = a1 !== null ? a1 : a2;
 
-          // Aggregate exam components from active data
-          const gRef = a2 !== null ? g2 : g1;
-          v1 = parseValidGrade(gRef?.f1);
-          v2 = parseValidGrade(gRef?.f2);
-          v3 = parseValidGrade(gRef?.f3);
-          v4 = parseValidGrade(gRef?.f4);
+          // Aggregate exam components across both semesters when available
+          const avgPair = (a: number | null, b: number | null): number | null => {
+            if (a !== null && b !== null) return Number(((a + b) / 2).toFixed(2));
+            return a !== null ? a : b;
+          };
+          v1 = avgPair(parseValidGrade(g1?.f1), parseValidGrade(g2?.f1));
+          v2 = avgPair(parseValidGrade(g1?.f2), parseValidGrade(g2?.f2));
+          v3 = avgPair(parseValidGrade(g1?.f3), parseValidGrade(g2?.f3));
+          v4 = avgPair(parseValidGrade(g1?.f4), parseValidGrade(g2?.f4));
           if (v1 !== null) {
             f1Sum += v1;
             f1Count++;
@@ -1412,8 +1511,13 @@ export default function DashboardView() {
             currLateCount = 2;
           }
         } else {
-          allRecords.forEach((r: any) => {
-            if (r.studentId === std.id && r.date && typeof r.date === 'string') {
+          const stdRecords =
+            recordsIndex.byStudent.get(`${clsName}:::${std.id}`) ||
+            recordsIndex.byStudent.get(String(std.id)) ||
+            [];
+          for (let i = 0; i < stdRecords.length; i++) {
+            const r = stdRecords[i];
+            if (r.date && typeof r.date === 'string') {
               const dur = Number(r.duration) || 1;
               if (r.date.startsWith(absenceCompPreviousMonth)) {
                 if (r.status === 'غائب' || r.status === 'مبرر') {
@@ -1433,7 +1537,7 @@ export default function DashboardView() {
                 }
               }
             }
-          });
+          }
         }
 
         const deltaHours = currTotalHours - prevTotalHours;
@@ -2058,7 +2162,7 @@ export default function DashboardView() {
 <body>
   <div style="border-bottom: 3px double #1e3a8a; padding-bottom: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
     <div style="font-size: 12px; font-weight: 700; line-height: 1.5;">
-      <div>المملكة المغربية — وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+      <div>المملكة المغربية — وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
       <div>${academyName} — ${schoolName}</div>
       <div>الأستاذ: ${teacherName} — مادة الرياضيات (المذكرة 142-08)</div>
     </div>
@@ -2110,7 +2214,7 @@ export default function DashboardView() {
         `----------------------------------------`,
         `${idx + 1}. *القسم: ${rep.className}* (${rep.streamLabel}) — التصنيف: [${rep.levelBadge}] (${rep.healthScore}/100)`,
         st
-          ? `• المعدل: ${getActiveExamAvgForClass(st) ?? '--'}/20 | نسبة النجاح: ${st.passRate}% | المتعثرون: ${st.strugglingCount} | المواظبة: ${st.attendanceRate}% (${st.totalAbsenceHours}س غياب)`
+          ? `• المعدل: ${getActiveExamAvgForClass(st) ?? '--'}/20 | نسبة الحاصلين على المعدل: ${st.passRate}% | المتعثرون: ${st.strugglingCount} | المواظبة: ${st.attendanceRate}% (${st.totalAbsenceHours}س غياب)`
           : '',
         `• تشخيص الفروض الممسوحة: ${rep.scannedExamsDiagnosis}`,
         `• تشخيص المواظبة والغياب: ${rep.attendanceImpactDiagnosis}`,
@@ -2159,7 +2263,7 @@ export default function DashboardView() {
                     <div style="font-weight:900; font-size:10.5pt; color:#0f172a;">${avgVal !== null ? avgVal.toFixed(2) : '--'} / 20</div>
                   </div>
                   <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:5px;">
-                    <div style="color:#166534;">نسبة النجاح (≥10)</div>
+                    <div style="color:#166534;">نسبة الحاصلين على المعدل (≥10)</div>
                     <div style="font-weight:900; font-size:10.5pt; color:#15803d;">${st.passRate}% (${st.passCount}/${st.gradedStudentsCount})</div>
                   </div>
                   <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:5px;">
@@ -2214,7 +2318,7 @@ export default function DashboardView() {
 <body>
   <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2.5px solid #1e3a8a; padding-bottom:8px; margin-bottom:12px;">
     <div>
-      <div style="font-weight:900; font-size:10.5pt;">المملكة المغربية • وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+      <div style="font-weight:900; font-size:10.5pt;">المملكة المغربية • وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
       <div style="font-size:8.5pt; color:#475569;">${academyName} • ${schoolName}</div>
     </div>
     <div style="text-align:center;">
@@ -2403,7 +2507,7 @@ export default function DashboardView() {
           {/* Refresh & Snapshot Actions */}
           <button
             type="button"
-            onClick={syncWithGlobalDb}
+            onClick={() => syncWithGlobalDb(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
             title="تحديث الإحصائيات المجمعة"
           >
@@ -3114,7 +3218,7 @@ export default function DashboardView() {
               >
                 {dragHeaderBar}
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-emerald-900">المعدل العام ونسبة النجاح</span>
+                  <span className="text-xs font-bold text-emerald-900">المعدل العام ونسبة الحاصلين على المعدل</span>
                   <Award className="w-4 h-4 text-emerald-700" />
                 </div>
                 <div className="mt-2 flex items-baseline justify-between">
@@ -3125,7 +3229,7 @@ export default function DashboardView() {
                     <span className="text-xs font-bold text-emerald-700">/ 20</span>
                   </div>
                   <span className="text-xs font-extrabold text-emerald-800">
-                    نجاح: {globalTotals.globalPassRate}%
+                    ≥10: {globalTotals.globalPassRate}%
                   </span>
                 </div>
                 <div className="mt-2 pt-2 border-t border-emerald-200/70 text-[11px] text-emerald-800 flex items-center justify-between">
@@ -3866,6 +3970,13 @@ export default function DashboardView() {
           </div>
         ) : (
           <>
+      {/* 2.0 Longitudinal Academic Year Performance Trends (S1 -> S2) */}
+      <AcademicYearPerformanceTrends
+        db={db}
+        classNames={classNames}
+        onNavigateToClass={handleNavigateToClass}
+      />
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
         {/* Chart A: Academic Performance & Supervised Exams Comparison across Classes */}
         <div className="p-4 rounded-xl border border-slate-200 bg-white flex flex-col">
@@ -4025,6 +4136,15 @@ export default function DashboardView() {
           </div>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* 2.25 30-Day Attendance Trends Chart & Behavior / Disciplinary Remarks Hub */}
+      {/* ========================================================================= */}
+      <AttendanceAndBehaviorHub
+        db={db}
+        classNames={classNames}
+        onRefreshDb={() => syncWithGlobalDb(true)}
+      />
 
       {/* ========================================================================= */}
       {/* 2.5 New Widget: Monthly Student Absences Comparative Recharts Widget      */}
@@ -4673,7 +4793,7 @@ export default function DashboardView() {
             <div>
               <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
                 <Activity className="w-4 h-4 text-indigo-700" />
-                <span>مقارنة نسب النجاح والتميز مع نسبة الغياب لكل قسم</span>
+                <span>مقارنة نسب الحاصلين على المعدل والتميز مع نسبة الغياب لكل قسم</span>
               </h3>
               <p className="text-[11px] text-slate-500 mt-0.5">
                 مقارنة نسبة الاستيفاء (≥10/20) ونسبة التميز (≥16/20) مقابل نسبة غياب كل قسم
@@ -4708,7 +4828,7 @@ export default function DashboardView() {
                 <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 700, paddingTop: '6px' }} />
                 <Bar
                   dataKey="passRate"
-                  name="نسبة النجاح (≥10) %"
+                  name="نسبة الحاصلين على المعدل (≥10) %"
                   fill="#10b981"
                   radius={[4, 4, 0, 0]}
                   barSize={18}
@@ -4766,7 +4886,7 @@ export default function DashboardView() {
                 <th className="py-2.5 px-3 border-l border-slate-700 text-center">متوسط F2</th>
                 <th className="py-2.5 px-3 border-l border-slate-700 text-center">متوسط F3</th>
                 <th className="py-2.5 px-3 border-l border-slate-700 text-center">المعدل العام</th>
-                <th className="py-2.5 px-3 border-l border-slate-700 text-center">نسبة النجاح</th>
+                <th className="py-2.5 px-3 border-l border-slate-700 text-center">نسبة الحاصلين على المعدل</th>
                 <th className="py-2.5 px-3 border-l border-slate-700 text-center">ساعات الغياب</th>
                 <th className="py-2.5 px-3 border-l border-slate-700 text-center">نسبة المواظبة</th>
                 <th className="py-2.5 px-3 border-l border-slate-700 text-center">نسبة الغياب</th>
@@ -4793,7 +4913,7 @@ export default function DashboardView() {
                     {cls.f2Avg !== null ? cls.f2Avg.toFixed(2) : '-'}
                   </td>
                   <td className="py-2.5 px-3 text-center font-semibold text-slate-700">
-                    {cls.examsCount === 3 ? (cls.f3Avg !== null ? cls.f3Avg.toFixed(2) : '-') : 'غير مقرر'}
+                    {cls.examsCount >= 3 ? (cls.f3Avg !== null ? cls.f3Avg.toFixed(2) : '-') : 'غير مقرر'}
                   </td>
                   <td className="py-2.5 px-3 text-center font-black">
                     {cls.semesterAvg !== null ? (

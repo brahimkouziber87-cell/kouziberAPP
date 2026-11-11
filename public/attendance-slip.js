@@ -59,23 +59,41 @@
         const noHwList = [];
         const presentList = [];
 
+        const prevCtx = (typeof window.getPreviousSessionAbsenceContext === 'function')
+            ? window.getPreviousSessionAbsenceContext(className, date, session)
+            : null;
+
         students.forEach(std => {
             let rec = null;
             if (typeof window.getRecord === 'function') {
-                rec = window.getRecord(std.id, date, session);
+                rec = window.getRecord(std.id, date, session, className);
             } else if (window.db.records) {
-                rec = window.db.records.find(r => r.studentId === std.id && r.date === date && r.session === session);
+                rec = window.db.records.find(r => String(r.studentId) === String(std.id) && r.date === date && (r.session === session || (typeof window.areSessionsEquivalentOrOverlapping === 'function' && window.areSessionsEquivalentOrOverlapping(r.session, session))));
             }
 
             const status = rec ? rec.status : 'حاضر';
             const part = rec ? (rec.part || 'all') : 'all';
             const hw = rec ? rec.homework : 'منجز';
-            const recDuration = rec ? (rec.duration || duration) : duration;
+            
+            // حساب المدة الدقيقة لغياب التلميذ مع مراعاة حصص الساعتين (س1 أو س2 = 1 ساعة)
+            let recDuration = 0;
+            if (part === 'h1' || part === 'h2') {
+                recDuration = 1;
+            } else if (typeof window.getRecordAbsenceDuration === 'function') {
+                recDuration = window.getRecordAbsenceDuration(rec, duration);
+            } else if (rec && typeof rec.duration === 'number' && !isNaN(rec.duration)) {
+                recDuration = rec.duration;
+            } else if (rec && !isNaN(parseFloat(rec.duration))) {
+                recDuration = parseFloat(rec.duration);
+            } else {
+                recDuration = duration;
+            }
+            const prevInfo = (prevCtx && prevCtx.studentStatusMap) ? prevCtx.studentStatusMap.get(std.id) : null;
 
             if (status === 'غائب') {
                 let durationText = `${recDuration} ساعة`;
-                if (part === 'h1') durationText = 'ساعة أولى (س1)';
-                else if (part === 'h2') durationText = 'ساعة ثانية (س2)';
+                if (part === 'h1') durationText = 'ساعة أولى (س1 - غياب 1س)';
+                else if (part === 'h2') durationText = 'ساعة ثانية (س2 - غياب 1س)';
                 else if (recDuration === 2) durationText = 'ساعتان (2س)';
 
                 absentList.push({
@@ -85,13 +103,18 @@
                     massar: std.massar || '-',
                     duration: recDuration,
                     durationText: durationText,
+                    part: part,
                     statusText: 'غائب',
-                    isJustified: false
+                    isJustified: false,
+                    wasAbsentLastSession: !!(prevInfo && prevInfo.wasAbsentLastSession),
+                    prevSessionDate: prevInfo ? prevInfo.shortDate : '',
+                    consecutiveCount: prevInfo ? prevInfo.consecutiveCount : 0
                 });
             } else if (status === 'مبرر') {
                 let durationText = `${recDuration} ساعة`;
-                if (part === 'h1') durationText = 'ساعة أولى (س1)';
-                else if (part === 'h2') durationText = 'ساعة ثانية (س2)';
+                if (part === 'h1') durationText = 'ساعة أولى (س1 - غياب 1س)';
+                else if (part === 'h2') durationText = 'ساعة ثانية (س2 - غياب 1س)';
+                else if (recDuration === 2) durationText = 'ساعتان (2س)';
 
                 absentList.push({
                     orderNum: std.orderNum,
@@ -100,8 +123,12 @@
                     massar: std.massar || '-',
                     duration: recDuration,
                     durationText: durationText,
+                    part: part,
                     statusText: 'غياب مبرر',
-                    isJustified: true
+                    isJustified: true,
+                    wasAbsentLastSession: !!(prevInfo && prevInfo.wasAbsentLastSession),
+                    prevSessionDate: prevInfo ? prevInfo.shortDate : '',
+                    consecutiveCount: prevInfo ? prevInfo.consecutiveCount : 0
                 });
             } else if (status === 'متأخر') {
                 lateList.push({
@@ -127,6 +154,7 @@
 
         const totalStudents = students.length;
         const absentCount = absentList.length;
+        const totalAbsentHours = absentList.reduce((sum, item) => sum + (item.duration || 0), 0);
         const lateCount = lateList.length;
         const presentCount = totalStudents - absentCount;
         const attendanceRate = totalStudents > 0 ? ((presentCount / totalStudents) * 100).toFixed(1) : '100';
@@ -142,6 +170,7 @@
             totalStudents,
             presentCount,
             absentCount,
+            totalAbsentHours,
             lateCount,
             attendanceRate,
             absentList,
@@ -249,10 +278,14 @@
                 const tagBg = st.isJustified ? '#fefce8' : '#fef2f2';
                 const tagBorder = st.isJustified ? '#fef08a' : '#fecaca';
 
+                const prevBadge = st.wasAbsentLastSession
+                    ? `<span style="display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 999px; font-size: 0.68rem; font-weight: 800; background: #fee2e2; color: #b91c1c; border: 1px solid #f87171;">🚨 غائب آخر حصة (${st.prevSessionDate})</span>`
+                    : '';
+
                 absentRowsHtml += `
                     <tr style="border-bottom: 1px solid #e2e8f0; background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
                         <td style="padding: 8px 10px; text-align: center; font-weight: 800; color: #475569; font-size: 0.85rem;">${st.orderNum}</td>
-                        <td style="padding: 8px 10px; font-weight: 800; color: #1e293b; font-size: 0.9rem;">${st.name}</td>
+                        <td style="padding: 8px 10px; font-weight: 800; color: #1e293b; font-size: 0.9rem;">${st.name} ${prevBadge}</td>
                         <td style="padding: 8px 10px; text-align: center; color: #64748b; font-size: 0.8rem; font-family: monospace;">${st.massar}</td>
                         <td style="padding: 8px 10px; text-align: center;">
                             <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 800; background: ${tagBg}; color: ${tagColor}; border: 1px solid ${tagBorder};">
@@ -260,7 +293,7 @@
                             </span>
                         </td>
                         <td style="padding: 8px 10px; text-align: center; font-size: 0.8rem; color: #64748b;">
-                            ${st.isJustified ? 'تبرير مسلم' : 'غير مبرر'}
+                            ${st.isJustified ? 'تبرير مسلم' : 'غير مبرر'}${st.part === 'h1' ? ' • غياب س1 (حاضر س2)' : st.part === 'h2' ? ' • غياب س2 (حاضر س1)' : ''}${st.wasAbsentLastSession ? ' • غياب متتالي' : ''}
                         </td>
                     </tr>
                 `;
@@ -295,7 +328,7 @@
                 <div style="text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 12px;">
                     ${typeof window.getDualLogosHTML === 'function' ? `<div style="margin-bottom: 6px;">${window.getDualLogosHTML('print')}</div>` : ''}
                     <div style="font-size: 0.75rem; color: #475569; font-weight: 700;">المملكة المغربية</div>
-                    <div style="font-size: 0.85rem; font-weight: 800; color: #0f172a;">وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                    <div style="font-size: 0.85rem; font-weight: 800; color: #0f172a;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                     <div style="font-size: 0.75rem; color: #64748b; margin-top: 1px;">الأكاديمية الجهوية للتربية والتكوين • المديرية الإقليمية</div>
                     <div style="display: inline-block; margin-top: 6px; background: #0f172a; color: #ffffff; padding: 4px 16px; border-radius: 4px; font-size: 0.95rem; font-weight: 800; letter-spacing: 0.5px;">
                         ورقة غياب الحصة الرسمية (الحراسة العامة)
@@ -323,8 +356,8 @@
                         <div style="font-size: 1.05rem; font-weight: 800; color: #059669;">${data.presentCount} (${data.attendanceRate}%)</div>
                     </div>
                     <div style="background: ${data.absentCount > 0 ? '#fef2f2' : '#f8fafc'}; padding: 6px 4px; border-radius: 6px; border: 1px solid ${data.absentCount > 0 ? '#fecaca' : '#e2e8f0'};">
-                        <div style="font-size: 0.7rem; color: ${data.absentCount > 0 ? '#dc2626' : '#64748b'}; font-weight: 700;">الغائبون</div>
-                        <div style="font-size: 1.05rem; font-weight: 800; color: ${data.absentCount > 0 ? '#dc2626' : '#1e293b'};">${data.absentCount}</div>
+                        <div style="font-size: 0.7rem; color: ${data.absentCount > 0 ? '#dc2626' : '#64748b'}; font-weight: 700;">الغائبون (ساعات الغياب)</div>
+                        <div style="font-size: 1.05rem; font-weight: 800; color: ${data.absentCount > 0 ? '#dc2626' : '#1e293b'};">${data.absentCount} تلميذ (${data.totalAbsentHours}س)</div>
                     </div>
                     <div style="background: ${data.lateCount > 0 ? '#fff7ed' : '#f8fafc'}; padding: 6px 4px; border-radius: 6px; border: 1px solid ${data.lateCount > 0 ? '#fed7aa' : '#e2e8f0'};">
                         <div style="font-size: 0.7rem; color: ${data.lateCount > 0 ? '#c2410c' : '#64748b'}; font-weight: 700;">المتأخرون</div>
@@ -335,7 +368,7 @@
                 <!-- جدول الغائبين -->
                 <div style="margin-bottom: 12px;">
                     <div style="font-size: 0.85rem; font-weight: 800; color: #1e293b; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
-                        <span>❌ لائحة التلاميذ الغائبين في هذه الحصة:</span>
+                        <span>❌ لائحة التلاميذ الغائبين في هذه الحصة (${data.absentCount} تلميذ • مجموع الغياب: ${data.totalAbsentHours} ساعة):</span>
                         <span style="font-size: 0.75rem; color: #64748b; font-weight: normal;">(يُسلم فوراً للحراسة العامة)</span>
                     </div>
 
@@ -443,7 +476,10 @@
             </html>
         `;
         if (typeof window.printDocumentDirectly === 'function') {
-            window.printDocumentDirectly(slipHtml, 'ورقة غياب الحصة - الحراسة العامة');
+            window.printDocumentDirectly(area.innerHTML, 'ورقة غياب الحصة - الحراسة العامة', {
+                orientation: 'landscape',
+                pageSize: 'A5'
+            });
         } else if (typeof window.printHtmlViaIframe === 'function') {
             window.printHtmlViaIframe(slipHtml);
         }
@@ -461,7 +497,8 @@
             absentText = '✔ *الحضور تام (0 غياب)* — نسبة الحضور: 100%\n';
         } else {
             data.absentList.forEach((st, i) => {
-                absentText += `${i + 1}. *${st.name}* (رقم: ${st.orderNum} | مسار: ${st.massar}) ⬅ *${st.durationText}* (${st.statusText})\n`;
+                const prevNote = st.wasAbsentLastSession ? ` ⚠️ *[غائب آخر حصة: ${st.prevSessionDate}]*` : '';
+                absentText += `${i + 1}. *${st.name}* (رقم: ${st.orderNum} | مسار: ${st.massar}) ⬅ *${st.durationText}* (${st.statusText})${prevNote}\n`;
             });
         }
 
@@ -515,7 +552,8 @@ _تقرير تلقائي من تطبيق الأستاذ للغياب والتن�
             absentText = '✔ *الحضور تام (0 غياب)*\n';
         } else {
             data.absentList.forEach((st, i) => {
-                absentText += `${i + 1}. *${st.name}* (رقم: ${st.orderNum}) ⬅ *${st.durationText}*\n`;
+                const prevNote = st.wasAbsentLastSession ? ` ⚠️ (غائب آخر حصة)` : '';
+                absentText += `${i + 1}. *${st.name}* (رقم: ${st.orderNum}) ⬅ *${st.durationText}*${prevNote}\n`;
             });
         }
 

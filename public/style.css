@@ -506,12 +506,21 @@
             vertical-align: middle !important;
             line-height: 1 !important;
             margin: 0 !important;
-            padding: 1px 7px !important;
+            padding: 1px 5px !important;
             border-radius: 6px !important;
-            font-size: 0.67rem !important;
-            gap: 4px !important;
+            font-size: 0.64rem !important;
+            gap: 3px !important;
             flex-shrink: 0 !important;
             white-space: nowrap !important;
+        }
+
+        #headerCommandPaletteBtn,
+        #headerQuickLockBtn {
+            padding: 0 4px !important;
+            width: 23px !important;
+            min-width: 23px !important;
+            max-width: 23px !important;
+            justify-content: center !important;
         }
 
         .header-top-row .ui-icon,
@@ -553,6 +562,21 @@
             min-height: 23px !important;
             line-height: 1 !important;
             box-sizing: border-box !important;
+        }
+
+        .header-merged-btn-group > button:first-child {
+            border-top-left-radius: 0 !important;
+            border-bottom-left-radius: 0 !important;
+            border-top-right-radius: 6px !important;
+            border-bottom-right-radius: 6px !important;
+        }
+
+        .header-merged-btn-group > button:last-child {
+            border-top-right-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+            border-top-left-radius: 6px !important;
+            border-bottom-left-radius: 6px !important;
+            margin-right: -1px !important;
         }
 
         .header-top-row .chip-sub-label {
@@ -3219,6 +3243,106 @@
             border-radius: 5px;
             border: 1px solid rgba(139, 92, 246, 0.25);
         }
+        .badge-last-session-absent {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            line-height: 1.3;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(220, 38, 38, 0.14);
+            animation: prevAbsentPulse 2.4s infinite ease-in-out;
+        }
+        .badge-last-session-absent.unjustified {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            color: #b91c1c;
+            border: 1.5px solid #f87171;
+        }
+        .badge-last-session-absent.justified {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            color: #1d4ed8;
+            border: 1.5px solid #60a5fa;
+            animation: none;
+        }
+        .badge-last-session-absent.late {
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            color: #b45309;
+            border: 1.5px solid #fbbf24;
+            animation: none;
+        }
+        .btn-justify-prev-session {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-size: 0.68rem;
+            font-weight: 800;
+            background: #ffffff;
+            color: #0369a1;
+            border: 1px solid #7dd3fc;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: inherit;
+        }
+        .btn-justify-prev-session:hover {
+            background: #e0f2fe;
+            border-color: #0284c7;
+            transform: translateY(-1px);
+        }
+        .student-item.was-absent-last-session-unjustified {
+            border-top: 2px solid #fca5a5;
+        }
+        .prev-session-inline-alert {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 4px 10px;
+            margin-bottom: 6px;
+            border-radius: 7px;
+            font-size: 0.73rem;
+            font-weight: 700;
+        }
+        .prev-session-inline-alert.unjustified {
+            background: #fff1f2;
+            color: #9f1239;
+            border: 1px solid #fecdd3;
+            border-right: 3.5px solid #e11d48;
+        }
+        .prev-session-inline-alert.justified {
+            background: #f0f9ff;
+            color: #075985;
+            border: 1px solid #bae6fd;
+            border-right: 3.5px solid #0284c7;
+        }
+        .prev-session-inline-alert.consecutive-active {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1.5px solid #f87171;
+            border-right: 4px solid #dc2626;
+        }
+        @keyframes prevAbsentPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.25); }
+            50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.08); }
+        }
+        .student-item.student-highlight-pulse {
+            animation: studentRowHighlightPulse 1.2s ease-in-out 2;
+            border-color: #e11d48 !important;
+        }
+        @keyframes studentRowHighlightPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+            50% { box-shadow: 0 0 0 5px rgba(225, 29, 72, 0.28); background-color: #fff1f2; }
+        }
+        @media print {
+            .btn-justify-prev-session {
+                display: none !important;
+            }
+        }
         
         .btn-delete-student {
             background: none;
@@ -3236,7 +3360,7 @@
         
         .actions-group { display: flex; gap: 5px; }
         
-        /* Absence and Homework Action Buttons */
+        /* Absence and Homework Action Buttons with Subtle Tactile CSS Animations */
         .status-buttons {
             display: flex;
             gap: 5px;
@@ -3254,29 +3378,101 @@
             background: var(--bg);
             color: var(--text-muted);
             cursor: pointer;
-            transition: all 0.15s ease;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+                        box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+                        background-color 0.16s ease,
+                        border-color 0.16s ease,
+                        color 0.16s ease;
             display: inline-flex;
             align-items: center;
             gap: 3px;
             user-select: none;
             line-height: 1.2;
+            will-change: transform;
         }
         
-        /* Strict small size for status, homework and behavior icons */
+        /* Strict small size for status, homework and behavior icons + subtle icon transition */
         .btn-status .status-ico, .btn-hw .hw-ico, .btn-behavior .behavior-ico {
             font-size: 0.5rem !important;
             display: inline-block;
             line-height: 1;
             vertical-align: middle;
+            transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
         }
         
-        .btn-status:hover, .btn-hw:hover {
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-sm);
+        .btn-status:hover:not(:disabled), .btn-hw:hover:not(:disabled) {
+            transform: translateY(-1.5px);
+            box-shadow: 0 3px 6px -1px rgba(15, 23, 42, 0.08);
+            border-color: #cbd5e1;
+        }
+
+        .btn-status:hover:not(:disabled) .status-ico,
+        .btn-hw:hover:not(:disabled) .hw-ico,
+        .btn-behavior:hover:not(:disabled) .behavior-ico {
+            transform: scale(1.16);
         }
         
-        .btn-status:active, .btn-hw:active {
-            transform: scale(0.95);
+        .btn-status:active:not(:disabled), .btn-hw:active:not(:disabled), .btn-behavior:active:not(:disabled) {
+            transform: translateY(0) scale(0.93);
+            transition-duration: 0.08s;
+        }
+
+        @keyframes statusToggleConfirmPop {
+            0% {
+                transform: scale(0.91);
+            }
+            55% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes statusIconPopBounce {
+            0% {
+                transform: scale(0.65) rotate(-10deg);
+            }
+            60% {
+                transform: scale(1.24) rotate(4deg);
+            }
+            100% {
+                transform: scale(1) rotate(0deg);
+            }
+        }
+
+        @keyframes studentCardToggleHighlight {
+            0% {
+                transform: scale(0.996);
+            }
+            45% {
+                transform: scale(1.003);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .student-item.no-entrance-anim {
+            animation: none !important;
+        }
+
+        .student-item.just-toggled-card {
+            animation: studentCardToggleHighlight 0.22s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+        }
+
+        .btn-status.just-toggled-btn,
+        .btn-hw.just-toggled-btn,
+        .btn-behavior.just-toggled-btn {
+            animation: statusToggleConfirmPop 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        .btn-status.just-toggled-btn .status-ico,
+        .btn-hw.just-toggled-btn .hw-ico,
+        .btn-behavior.just-toggled-btn .behavior-ico {
+            animation: statusIconPopBounce 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
         
         .btn-status.active-present {
@@ -3333,15 +3529,32 @@
             border: 1px solid var(--border);
             background: var(--bg);
             cursor: pointer;
-            transition: all 0.15s ease;
+            transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+                        box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+                        background-color 0.16s ease,
+                        border-color 0.16s ease;
             display: inline-flex;
             align-items: center;
             gap: 4px;
             line-height: 1.2;
         }
-        .btn-behavior.active.behavior-good { background: var(--success-light); color: var(--success-dark); border-color: var(--success); }
-        .btn-behavior.active.behavior-warn { background: var(--warning-light); color: var(--warning-dark); border-color: var(--warning); }
-        .btn-behavior.active.behavior-bad { background: var(--danger-light); color: var(--danger-dark); border-color: var(--danger); }
+        .btn-behavior:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(15, 23, 42, 0.06);
+        }
+        .btn-behavior.active.behavior-good { background: var(--success-light); color: var(--success-dark); border-color: var(--success); box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.18); }
+        .btn-behavior.active.behavior-warn { background: var(--warning-light); color: var(--warning-dark); border-color: var(--warning); box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18); }
+        .btn-behavior.active.behavior-bad { background: var(--danger-light); color: var(--danger-dark); border-color: var(--danger); box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18); }
+
+        @media (prefers-reduced-motion: reduce) {
+            .btn-status, .btn-hw, .btn-behavior,
+            .btn-status .status-ico, .btn-hw .hw-ico, .btn-behavior .behavior-ico,
+            .student-item.just-toggled-card,
+            .btn-status.just-toggled-btn, .btn-hw.just-toggled-btn, .btn-behavior.just-toggled-btn {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
         
         /* Reduce details-row gap */
         .details-row {
@@ -5137,20 +5350,6 @@
 @media print {
     @page {
         margin: 0 !important;
-        @bottom-center {
-            content: "منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر";
-            font-family: 'Cairo', 'Amiri', sans-serif;
-            font-size: 8pt;
-            color: #1e3a8a;
-            font-weight: 800;
-        }
-        @bottom-left {
-            content: "منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر";
-            font-family: 'Cairo', 'Amiri', sans-serif;
-            font-size: 8pt;
-            color: #1e3a8a;
-            font-weight: 800;
-        }
     }
 
     html, body {
@@ -5164,14 +5363,12 @@
         overflow: visible !important;
     }
 
-    /* Fixed official footer printed at bottom of every page replacing browser printed URL */
+    /* Official footer bar at the bottom of the report without fixed overlay duplication */
     .print-official-footer-bar,
     .print-system-footer-fixed {
         display: block !important;
-        position: fixed !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
+        position: static !important;
+        margin-top: 12px !important;
         text-align: center !important;
         font-size: 8.5pt !important;
         font-weight: 800 !important;
@@ -5182,7 +5379,21 @@
         background: #ffffff !important;
         font-family: var(--print-font-family, 'Cairo', 'Amiri', sans-serif) !important;
         direction: rtl !important;
-        z-index: 999999 !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    body.student-print-mode .print-official-footer-bar,
+    body.printing-student-report .print-official-footer-bar,
+    body.printing-universal-doc .print-official-footer-bar,
+    body.printing-full-report .print-official-footer-bar,
+    body.printing-portfolio .print-official-footer-bar,
+    body.printing-admin-report .print-official-footer-bar,
+    body.printing-cahier .print-official-footer-bar,
+    body.printing-preventative-plan .print-official-footer-bar,
+    body.printing-calendar-view .print-official-footer-bar,
+    body.printing-custom-preview .print-official-footer-bar {
+        display: none !important;
     }
 
     /* Remove any browser printed URLs from links and footers */
@@ -12098,25 +12309,30 @@ body.student-print-mode.print-mode-size-a5 .student-a4-minimalist-sheet .student
         display: table-footer-group;
     }
 
-    /* ضمان طباعة كل قسم في صفحة واحدة مستقلة لكشف الغياب الشهري */
+    /* ضمان ملء الصفحة عمودياً وطباعة كل قسم في صفحة واحدة A4 مستقلة */
     .monthly-absence-single-page,
-    .monthly-absence-class-sheet {
+    .monthly-absence-class-sheet,
+    .chunked-pdf-page-container {
+        width: 100% !important;
+        max-width: 210mm !important;
+        height: 297mm !important;
+        min-height: 297mm !important;
+        max-height: 297mm !important;
         page-break-after: always !important;
         break-after: page !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
-        height: 100% !important;
-        max-height: 100vh !important;
         box-sizing: border-box !important;
         overflow: hidden !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
-        padding: 4mm 6mm !important;
+        padding: 6mm 8mm !important;
         background: #ffffff !important;
     }
     .monthly-absence-single-page:last-child,
-    .monthly-absence-class-sheet:last-child {
+    .monthly-absence-class-sheet:last-child,
+    .chunked-pdf-page-container:last-child {
         page-break-after: auto !important;
         break-after: auto !important;
     }
@@ -12206,8 +12422,7 @@ body.student-print-mode.print-mode-size-a5 .student-a4-minimalist-sheet .student
 #dashGlobalKpiGrid,
 .dash-global-kpi-two-rows-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    grid-template-rows: repeat(2, 1fr) !important;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)) !important;
     gap: 12px !important;
     align-items: stretch;
 }
@@ -12505,5 +12720,80 @@ body.dark-mode #whiteboardDesktopHubModal .wb-desk-tab-btn.active {
         outline: none !important;
         box-shadow: none !important;
         background-color: #ffffff !important;
+    }
+}
+
+/* =========================================================================
+   تحسينات شبكة ومصفوفة الخريطة الحرارية الفردية للتلميذ (Student Heatmap Matrix & Grid)
+   ========================================================================= */
+.student-personal-heatmap-section table td {
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.student-personal-heatmap-section .shm-matrix-cell:hover,
+.student-personal-heatmap-section .shm-timeline-cell:hover {
+    filter: brightness(0.96);
+    outline: 2px solid #1e3a8a;
+    outline-offset: -1px;
+    z-index: 10;
+    position: relative;
+    transform: scale(1.08);
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.16);
+}
+
+.student-personal-heatmap-section .shm-metric-btn:hover {
+    filter: brightness(0.97);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+@media print {
+    .student-personal-heatmap-section .no-print,
+    .student-report-print-choice-bar {
+        display: none !important;
+    }
+    body.print-opt-show-matrix .student-personal-heatmap-section .shm-print-matrix-pane {
+        display: block !important;
+    }
+    body.print-opt-hide-matrix .student-personal-heatmap-section .shm-print-matrix-pane {
+        display: none !important;
+    }
+    body.print-opt-show-weekgrid .student-personal-heatmap-section .shm-print-timeline-pane {
+        display: block !important;
+        margin-top: 8px !important;
+    }
+    body.print-opt-hide-weekgrid .student-personal-heatmap-section .shm-print-timeline-pane {
+        display: none !important;
+    }
+    body.print-opt-hide-matrix.print-opt-hide-weekgrid .student-personal-heatmap-section {
+        display: none !important;
+    }
+    body.print-opt-hide-incidents .student-incidents-log-section {
+        display: none !important;
+    }
+    .student-personal-heatmap-section .shm-print-analytics-pane {
+        display: none !important;
+    }
+    .student-personal-heatmap-section {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        border: 1.5px solid #000000 !important;
+        box-shadow: none !important;
+        background: #ffffff !important;
+        margin-bottom: 10px !important;
+        padding: 8px !important;
+    }
+    .student-personal-heatmap-section table {
+        border: 1.5px solid #000000 !important;
+    }
+    .student-personal-heatmap-section th,
+    .student-personal-heatmap-section td {
+        border: 1px solid #000000 !important;
+    }
+    .student-personal-heatmap-section .shm-matrix-cell:hover,
+    .student-personal-heatmap-section .shm-timeline-cell:hover {
+        transform: none !important;
+        box-shadow: none !important;
+        outline: none !important;
+        filter: none !important;
     }
 }

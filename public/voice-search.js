@@ -294,7 +294,10 @@
                         }
                     });
                     const beh = classBehaviors[std.id] || { status: 'منضبط', note: '' };
-                    const stdGrades = classGrades[std.id] || {};
+                    const activeSemVoice = typeof window.activeSemester !== 'undefined' ? window.activeSemester : 's1';
+                    const stdGrades = (typeof window.getStudentGradesBySemester === 'function')
+                        ? window.getStudentGradesBySemester(cls, std.id, activeSemVoice)
+                        : (classGrades[std.id] || {});
                     const gradeAvg = typeof calculateStudentAvg === 'function' ? calculateStudentAvg(stdGrades, cls) : null;
 
                     allStudents.push({

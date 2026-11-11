@@ -183,22 +183,53 @@ function detectClassCertificationTarget(className: string): {
   coefLabel: string;
   description: string;
 } {
-  const norm = (className || '').toUpperCase();
-  if (norm.includes('2BAC') || norm.includes('2 BAC') || norm.includes('الثانية') || norm.includes('ثانية باك') || norm.includes('2B')) {
-    const isSM = norm.includes('SM') || norm.includes('رياضية');
+  const raw = className || '';
+  const norm = raw.toUpperCase();
+  const isSM = norm.includes('SM') || raw.includes('رياضية');
+  const isLit =
+    norm.includes('LSH') ||
+    norm.includes('TCL') ||
+    /(?:^|[^A-Z])SH(?:$|[^A-Z])/.test(norm) ||
+    norm.includes('LET') ||
+    norm.includes('LIT') ||
+    raw.includes('آداب') ||
+    raw.includes('اداب') ||
+    raw.includes('إنسانية') ||
+    raw.includes('انسانية');
+  const isEco = norm.includes('ECO') || norm.includes('SEG') || norm.includes('SGC') || raw.includes('اقتصاد') || raw.includes('تدبير');
+  const isTech = norm.includes('STE') || norm.includes('STM') || norm.includes('TECH') || raw.includes('تكنولوجي') || raw.includes('كهربائ') || raw.includes('ميكانيك');
+
+  if (norm.includes('2BAC') || norm.includes('2 BAC') || norm.includes('2-BAC') || raw.includes('الثانية') || raw.includes('ثانية') || norm.includes('2B')) {
+    const coefLabel = isSM
+      ? 'المعامل الرسمي: 9 (علوم رياضية - 4 فروض)'
+      : isLit
+      ? 'المعامل الرسمي: 1 (آداب وعلوم إنسانية - فرضان)'
+      : isEco
+      ? 'المعامل الرسمي: 4 (علوم اقتصادية وتدبير - 3 فروض)'
+      : isTech
+      ? 'المعامل الرسمي: 6 (علوم وتكنولوجيات STE/STM - 3 فروض)'
+      : 'المعامل الرسمي: 7 (علوم تجريبية PC/SVT - 3 فروض)';
     return {
       badge: 'الامتحان الوطني الموحد للبكالوريا',
       examTitle: 'مؤشر الجاهزية للامتحان الوطني الموحد للبكالوريا (مادة الرياضيات)',
-      coefLabel: isSM ? 'المعامل الرسمي: 9 (علوم رياضية)' : 'المعامل الرسمي: 7 (علوم تجريبية / تقنية)',
+      coefLabel,
       description: 'تنبؤ استباقي بجاهزية تلاميذ السنة الثانية بكالوريا لاجتياز الامتحان الوطني في الرياضيات بناءً على (تطور نقط الفروض المحروسة 50% + المواظبة 25% + التزام سلاسل التمارين 25%).'
     };
   }
-  if (norm.includes('1BAC') || norm.includes('1 BAC') || norm.includes('الأولى') || norm.includes('أولى باك') || norm.includes('1B')) {
-    const isLit = norm.includes('LSH') || norm.includes('SH') || norm.includes('آداب') || norm.includes('إنسانية') || norm.includes('اداب') || norm.includes('انسانية');
+  if (norm.includes('1BAC') || norm.includes('1 BAC') || norm.includes('1-BAC') || raw.includes('الأولى') || raw.includes('أولى') || raw.includes('اولى') || norm.includes('1B')) {
+    const coefLabel = isLit
+      ? 'المعامل الرسمي: 1 (الامتحان الجهوي الموحد - فرضان)'
+      : isSM
+      ? 'المعامل الرسمي: 9 (1 باك علوم رياضية - 4 فروض)'
+      : isEco
+      ? 'المعامل الرسمي: 4 (1 باك علوم اقتصادية وتدبير - 3 فروض)'
+      : isTech
+      ? 'المعامل الرسمي: 6 (1 باك علوم وتكنولوجيات - 3 فروض)'
+      : 'المعامل الرسمي: 7 (1 باك علوم تجريبية - 3 فروض)';
     return {
       badge: isLit ? 'الأولى بكالوريا آداب وإنسانية • الامتحان الجهوي الموحد' : 'الأولى بكالوريا • الاستحقاق الإشهادي والترقية',
       examTitle: isLit ? 'مؤشر الجاهزية للامتحان الجهوي الموحد (1BAC SH / 1BAC LSH)' : 'مؤشر الجاهزية الإشهادية والتمكن الرياضي (السنة الأولى بكالوريا)',
-      coefLabel: isLit ? 'المعامل الرسمي: 1 (فرضان محروسان)' : 'تأهيل مباشر لسلك الثانية بكالوريا',
+      coefLabel,
       description: isLit
         ? 'تتبع دقيق لجاهزية تلاميذ 1 باك آداب وعلوم إنسانية (1BAC SH / 1BAC LSH) لاجتياز الامتحان الجهوي الموحد في الرياضيات (المعامل 1) بناءً على الفروض المحروسة والمواظبة.'
         : 'قياس مدى تملك الكفايات الرياضية الأساسية (النهايات، الاشتقاق، المتتاليات، التحليل) اللازمة للنجاح في الامتحانات الإشهادية والعبور الآمن للثانية بكالوريا.'
@@ -207,7 +238,7 @@ function detectClassCertificationTarget(className: string): {
   return {
     badge: 'التأهيل العلمي والتوجيه السليم',
     examTitle: 'مؤشر الجاهزية الرياضية والتمكن من الكفايات الأساسية',
-    coefLabel: 'السلك الثانوي التأهيلي - مادة الرياضيات',
+    coefLabel: isLit ? 'المعامل الرسمي: 2 (الجذع المشترك الأدبي - فرضان)' : 'المعامل الرسمي: 4 (الجذع المشترك العلمي/التكنولوجي - 3 فروض)',
     description: 'مؤشر تركيبي يدمج (نسبة المواظبة + تطور نقط الفروض المحروسة + نسبة إنجاز سلاسل التمارين المنزلية) للتنبؤ المبكر بالتلاميذ المهددين بالتعثر قبل نهاية الدورة.'
   };
 }
@@ -255,11 +286,20 @@ export default function ReportsEvolutionChart() {
   const [isExporting, setIsExporting] = useState<boolean>(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastSyncSigRef = useRef<string>('');
 
-  // Load database from window or localStorage
-  const loadDb = () => {
+  // Load database from window or localStorage with lightweight fingerprint check
+  const loadDb = (force = false) => {
     if (typeof window !== 'undefined' && (window as any).db) {
-      setDb({ ...(window as any).db });
+      const wdb = (window as any).db;
+      const recLen = Array.isArray(wdb.records) ? wdb.records.length : 0;
+      const lastRec = recLen > 0 ? wdb.records[recLen - 1] : null;
+      const clsKeys = wdb.classes ? Object.keys(wdb.classes).length : 0;
+      const sig = `${clsKeys}|${recLen}|${lastRec?.id || ''}|${lastRec?.status || ''}|${wdb._lastSavedAt || ''}`;
+      if (force || sig !== lastSyncSigRef.current) {
+        lastSyncSigRef.current = sig;
+        setDb({ ...wdb });
+      }
     } else {
       const localData = localStorage.getItem('absence_massar_v8_manual');
       if (localData) {
@@ -273,10 +313,10 @@ export default function ReportsEvolutionChart() {
   };
 
   useEffect(() => {
-    loadDb();
+    loadDb(true);
 
     const handleTabOpened = (e: any) => {
-      loadDb();
+      loadDb(true);
       if (e && e.detail) {
         if (e.detail.className && e.detail.className !== '__ALL__') {
           setSelectedClass(e.detail.className);
@@ -293,7 +333,11 @@ export default function ReportsEvolutionChart() {
     };
 
     const handleDbUpdated = () => {
-      loadDb();
+      const reportsEl = document.getElementById('reportsView');
+      const isVisible = !reportsEl || reportsEl.style.display !== 'none';
+      if (isVisible) {
+        loadDb(false);
+      }
     };
 
     const handleSelectStudent = (e: any) => {
@@ -658,6 +702,69 @@ export default function ReportsEvolutionChart() {
     };
   }, [students, examKeys, evoScope, trajectoryGroupFilter, db, selectedClass]);
 
+  // Single-pass O(R) index of student attendance & homework metrics for selectedClass (excluding protected holidays/leaves)
+  const studentAttendanceMetricsMap = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        totalAbsenceHours: number;
+        unjustifiedHours: number;
+        justifiedHours: number;
+        lateCount: number;
+        missedHw: number;
+        totalSessionsCount: number;
+      }
+    >();
+    if (!db || !Array.isArray(db.records) || !selectedClass) return map;
+    const isProtectedRecord =
+      typeof window !== 'undefined' && typeof (window as any).isRecordProtectedHolidayOrLeave === 'function'
+        ? (window as any).isRecordProtectedHolidayOrLeave
+        : null;
+    const isProtectedDate =
+      typeof window !== 'undefined' && typeof (window as any).isAbsenceDisabledOnDate === 'function'
+        ? (window as any).isAbsenceDisabledOnDate
+        : null;
+    const classRecords: any[] =
+      typeof window !== 'undefined' && typeof (window as any).getClassRecordsFast === 'function'
+        ? (window as any).getClassRecordsFast(selectedClass)
+        : db.records;
+    for (let i = 0; i < classRecords.length; i++) {
+      const r = classRecords[i];
+      if (!r || r.className !== selectedClass || !r.studentId) continue;
+      if (isProtectedRecord ? isProtectedRecord(r) : (r.date && isProtectedDate && (() => { const c = isProtectedDate(r.date, r.session); return typeof c === 'boolean' ? c : !!(c && c.disabled); })())) {
+        continue;
+      }
+      const sid = String(r.studentId);
+      let entry = map.get(sid);
+      if (!entry) {
+        entry = {
+          totalAbsenceHours: 0,
+          unjustifiedHours: 0,
+          justifiedHours: 0,
+          lateCount: 0,
+          missedHw: 0,
+          totalSessionsCount: 0
+        };
+        map.set(sid, entry);
+      }
+      entry.totalSessionsCount++;
+      const dur = parseFloat(r.duration || r.hours) || 1;
+      if (r.status === 'غائب') {
+        entry.totalAbsenceHours += dur;
+        entry.unjustifiedHours += dur;
+      } else if (r.status === 'مبرر') {
+        entry.totalAbsenceHours += dur;
+        entry.justifiedHours += dur;
+      } else if (r.status === 'متأخر') {
+        entry.lateCount++;
+      }
+      if (r.homework === 'لم ينجز') {
+        entry.missedHw++;
+      }
+    }
+    return map;
+  }, [db, selectedClass]);
+
   // =========================================================================
   // NEW FEATURE 2 (Point 4): مؤشر الجاهزية للامتحان الوطني والجهوي (Bac Readiness Index)
   // =========================================================================
@@ -677,34 +784,14 @@ export default function ReportsEvolutionChart() {
     }
 
     const list: StudentBacReadinessData[] = students.map(s => {
-      // 1. Attendance & Homework Records
-      let totalAbsenceHours = 0;
-      let unjustifiedHours = 0;
-      let justifiedHours = 0;
-      let lateCount = 0;
-      let missedHw = 0;
-      let totalSessionsCount = 0;
-
-      if (db && Array.isArray(db.records)) {
-        db.records.forEach((r: any) => {
-          if (r.studentId === s.id && r.className === selectedClass) {
-            totalSessionsCount++;
-            const dur = parseFloat(r.duration || r.hours) || 1;
-            if (r.status === 'غائب') {
-              totalAbsenceHours += dur;
-              unjustifiedHours += dur;
-            } else if (r.status === 'مبرر') {
-              totalAbsenceHours += dur;
-              justifiedHours += dur;
-            } else if (r.status === 'متأخر') {
-              lateCount++;
-            }
-            if (r.homework === 'لم ينجز') {
-              missedHw++;
-            }
-          }
-        });
-      }
+      // 1. Attendance & Homework Records (O(1) lookup from pre-indexed studentAttendanceMetricsMap)
+      const att = studentAttendanceMetricsMap.get(String(s.id));
+      const totalAbsenceHours = att ? att.totalAbsenceHours : 0;
+      const unjustifiedHours = att ? att.unjustifiedHours : 0;
+      const justifiedHours = att ? att.justifiedHours : 0;
+      const lateCount = att ? att.lateCount : 0;
+      const missedHw = att ? att.missedHw : 0;
+      const totalSessionsCount = att ? att.totalSessionsCount : 0;
 
       // 2. Exam Grades & Trajectory Slope across all available exams
       const s1Avg = getStudentOverallAvg(s.id, 's1');
@@ -853,7 +940,7 @@ export default function ReportsEvolutionChart() {
         total
       }
     };
-  }, [students, selectedClass, db, examKeys]);
+  }, [students, selectedClass, db, examKeys, studentAttendanceMetricsMap]);
 
   const filteredBacReadinessList = useMemo(() => {
     let list = [...classBacReadinessAnalytics.list];
@@ -1084,8 +1171,8 @@ export default function ReportsEvolutionChart() {
         'الأسدس الأول (S1)': s1Avg,
         'الأسدس الثاني (S2)': s2Avg,
         'فارق التطور': delta,
-        'نسبة النجاح S1 (%)': s1Rate,
-        'نسبة النجاح S2 (%)': s2Rate,
+        'نسبة الحاصلين على المعدل S1 (%)': s1Rate,
+        'نسبة الحاصلين على المعدل S2 (%)': s2Rate,
         totalStudents: clsStudents.length
       };
     });
@@ -1219,31 +1306,12 @@ export default function ReportsEvolutionChart() {
     if (!students || students.length === 0) return [];
 
     return students.map(s => {
-      let totalAbsenceHours = 0;
-      let unjustifiedHours = 0;
-      let justifiedHours = 0;
-      let lateCount = 0;
-      let missedHw = 0;
-
-      if (db && Array.isArray(db.records)) {
-        db.records.forEach((r: any) => {
-          if (r.studentId === s.id && r.className === selectedClass) {
-            const dur = r.duration || 1;
-            if (r.status === 'غائب') {
-              totalAbsenceHours += dur;
-              unjustifiedHours += dur;
-            } else if (r.status === 'مبرر') {
-              totalAbsenceHours += dur;
-              justifiedHours += dur;
-            } else if (r.status === 'متأخر') {
-              lateCount++;
-            }
-            if (r.homework === 'لم ينجز') {
-              missedHw++;
-            }
-          }
-        });
-      }
+      const att = studentAttendanceMetricsMap.get(String(s.id));
+      const totalAbsenceHours = att ? att.totalAbsenceHours : 0;
+      const unjustifiedHours = att ? att.unjustifiedHours : 0;
+      const justifiedHours = att ? att.justifiedHours : 0;
+      const lateCount = att ? att.lateCount : 0;
+      const missedHw = att ? att.missedHw : 0;
 
       const s1Avg = getStudentOverallAvg(s.id, 's1');
       const s2Avg = getStudentOverallAvg(s.id, 's2');
@@ -1381,7 +1449,7 @@ export default function ReportsEvolutionChart() {
         zRisk: failureRiskScore
       };
     });
-  }, [students, selectedClass, db, examKeys]);
+  }, [students, selectedClass, db, examKeys, studentAttendanceMetricsMap]);
 
   const classRiskSummary = useMemo(() => {
     if (classFailureRiskList.length === 0) {
@@ -1532,7 +1600,7 @@ export default function ReportsEvolutionChart() {
         <div style="border-bottom:2px solid #1e3a8a;padding-bottom:10px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;font-size:11px;">
           <div style="line-height:1.5;font-weight:700;">
             <div>المملكة المغربية</div>
-            <div>وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+            <div>وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
             <div>السلك الثانوي التأهيلي • مادة الرياضيات</div>
           </div>
           <div style="text-align:center;">
@@ -2158,7 +2226,7 @@ export default function ReportsEvolutionChart() {
                       <span>منحنى تطور مستويات التلاميذ ومعدل التحصيل عبر الفروض المحروسة ({selectedClass})</span>
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      يوضح تطور أعداد التلاميذ في كل مستوى معياري مع منحنى معدل القسم (بالنيلي الملكي) ومنحنى الوسيط الحسابي (بالذهبي الكهرماني).
+                      يوضح تطور أعداد التلاميذ في كل مستوى معياري مع منحنى معدل القسم (بالنيلي الملكي) ومنحنى الوسيط / القيمة الوسطية (بالذهبي الكهرماني).
                     </p>
                   </div>
                   <div className="flex items-center gap-3 text-[11px] font-bold bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
@@ -2261,7 +2329,7 @@ export default function ReportsEvolutionChart() {
                                     <span>{d['فئة التعثر (<8)']} تلميذ</span>
                                   </div>
                                   <div className="pt-1.5 mt-1 border-t border-slate-100 flex justify-between font-extrabold text-[#1e1b4b]">
-                                    <span>الوسيط الحسابي:</span>
+                                    <span>الوسيط (القيمة الوسطية):</span>
                                     <span className="text-[#d97706] font-mono">{d['الوسيط الحسابي'] ?? '—'} / 20</span>
                                   </div>
                                   <div className="flex justify-between font-extrabold text-[#1e1b4b]">
@@ -2285,6 +2353,7 @@ export default function ReportsEvolutionChart() {
                         yAxisId="right"
                         type="monotone"
                         dataKey="الوسيط الحسابي"
+                        name="الوسيط (القيمة الوسطية)"
                         stroke="#d97706"
                         strokeWidth={3}
                         strokeDasharray="6 3"
@@ -2312,10 +2381,10 @@ export default function ReportsEvolutionChart() {
                   <div>
                     <h3 className="text-base font-black text-[#1e1b4b] flex items-center gap-2">
                       <Activity className="w-5 h-5 text-[#312e81]" />
-                      <span>منحنى تطور المعدل والوسيط الحسابي والمدى عبر الفروض المحروسة ({selectedClass})</span>
+                      <span>منحنى تطور المعدل والوسيط (القيمة الوسطية) والمدى عبر الفروض المحروسة ({selectedClass})</span>
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      مقارنة تطور المعدل الحسابي (المنحنى النيلي الملكي) والوسيط الحسابي (المنحنى الذهبي) وأعلى/أدنى نقطة مسجلة في كل فرض محروس.
+                      مقارنة تطور المعدل الحسابي (المنحنى النيلي الملكي) والوسيط / القيمة الوسطية (المنحنى الذهبي) وأعلى/أدنى نقطة مسجلة في كل فرض محروس.
                     </p>
                   </div>
                 </div>
@@ -2366,6 +2435,7 @@ export default function ReportsEvolutionChart() {
                       <Area
                         type="monotone"
                         dataKey="الوسيط الحسابي"
+                        name="الوسيط (القيمة الوسطية)"
                         stroke="#d97706"
                         fill="url(#goldSecondaryCurveFill)"
                         strokeWidth={3.2}

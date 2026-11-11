@@ -2214,7 +2214,7 @@
         g.fillStyle = '#0f172a';
         g.font = 'bold 14px "Cairo", sans-serif';
         g.textAlign = 'right';
-        g.fillText('المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والرياضة', pageW - 50, 60);
+        g.fillText('المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل', pageW - 50, 60);
         g.fillStyle = '#1e3a8a';
         g.font = 'bold 13px "Cairo", sans-serif';
         g.fillText('مادة الرياضيات | السلك الثانوي التأهيلي | الأستاذ: إبراهيم قزيبر', pageW - 50, 84);
@@ -5580,14 +5580,28 @@
                 const found = [];
                 const activeClassKey = window.currentClass || (document.getElementById('classSelect') && document.getElementById('classSelect').value) || '';
                 const classKeys = (activeClassKey && window.db.classes[activeClassKey]) ? [activeClassKey, ...Object.keys(window.db.classes).filter(k => k !== activeClassKey)] : Object.keys(window.db.classes);
+                const todayStr = (typeof window.formatLocalDate === 'function')
+                    ? window.formatLocalDate()
+                    : new Date().toISOString().slice(0, 10);
                 for (const cKey of classKeys) {
                     const c = window.db.classes[cKey];
                     const arr = Array.isArray(c) ? c : (c && Array.isArray(c.students) ? c.students : []);
                     const absMap = (window.db.absences && window.db.absences[cKey]) ? window.db.absences[cKey] : {};
+                    const clsRecs = (typeof window.getClassRecordsFast === 'function')
+                        ? window.getClassRecordsFast(cKey)
+                        : (Array.isArray(window.db.records) ? window.db.records.filter(r => r && r.className === cKey) : []);
+                    const absentTodaySet = new Set();
+                    for (let i = 0; i < clsRecs.length; i++) {
+                        const r = clsRecs[i];
+                        if (r && r.date === todayStr && (r.status === 'غائب' || r.status === 'مبرر')) {
+                            absentTodaySet.add(String(r.studentId));
+                        }
+                    }
                     arr.forEach(s => {
                         if (s && s.name) {
-                            const isAbs = absMap[s.id] && absMap[s.id].status && absMap[s.id].status !== 'present' && absMap[s.id].status !== 'حاضر';
-                            if (!isAbs) {
+                            const isAbsAux = absMap[s.id] && absMap[s.id].status && absMap[s.id].status !== 'present' && absMap[s.id].status !== 'حاضر';
+                            const isAbsToday = absentTodaySet.has(String(s.id));
+                            if (!isAbsAux && !isAbsToday) {
                                 found.push(`${s.name} (${cKey})`);
                             }
                         }

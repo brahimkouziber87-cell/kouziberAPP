@@ -215,8 +215,8 @@ function loadShareSecret(): { secret: string; source: 'env' | 'file' | 'ephemera
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
-  // Local-first by default; containers (Cloud Run) need an externally reachable bind address.
-  const HOST = process.env.HOST || (process.env.K_SERVICE ? '0.0.0.0' : '127.0.0.1');
+  // Bind to 0.0.0.0 by default for container and preview environments.
+  const HOST = process.env.HOST || '0.0.0.0';
 
   const aiLimiter = createRateLimiter({
     windowMs: 60_000,
@@ -1315,7 +1315,7 @@ ${JSON.stringify(classesPayload, null, 2)}
   });
 
   // API route to directly download ministerial milestones ICS file
-  app.get(["/api/calendar/ministerial-milestones.ics", "/api/calendar/decree.ics"], (req, res) => {
+  app.get(["/api/calendar/ministerial-milestones.ics", "/api/calendar/decree.ics"], createRateLimiter({ windowMs: 60_000, max: 60 }), (req, res) => {
     const academicYear = (req.query.year as string) || '2026-2027';
     const isDownload = req.query.download !== "0";
 
@@ -2739,6 +2739,9 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
           const incomingIds = new Set(events.map(e => e.id));
           storedPortfolioEvents = storedPortfolioEvents.filter(e => !incomingIds.has(e.id)).concat(events);
         }
+        if (storedPortfolioEvents.length > 2000) {
+          storedPortfolioEvents = storedPortfolioEvents.slice(-2000);
+        }
       }
       res.json({ success: true, count: storedPortfolioEvents.length });
     } catch (e: any) {
@@ -2903,6 +2906,12 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
         viewCount: 0
       };
 
+      if (sharedRecordsStore.size >= 1000) {
+        const nowMs = Date.now();
+        for (const [k, v] of sharedRecordsStore) {
+          if (new Date(v.expiresAt).getTime() < nowMs) sharedRecordsStore.delete(k);
+        }
+      }
       sharedRecordsStore.set(shareId, item);
 
       // Determine public share URL (Host header is untrusted: sanitize before use)
@@ -2935,7 +2944,7 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
   });
 
   // 2. Retrieve a shared record (with optional PIN verification)
-  app.get("/api/share/:id", (req, res) => {
+  app.get("/api/share/:id", createRateLimiter({ windowMs: 60_000, max: 60 }), (req, res) => {
     try {
       const shareId = req.params.id;
       const record = sharedRecordsStore.get(shareId);
@@ -3025,12 +3034,12 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
   });
 
   // 3. Dynamic QR code generator endpoint
-  app.post("/api/share/generate-qr", async (req, res) => {
+  app.post("/api/share/generate-qr", sameOriginGuard, createRateLimiter({ windowMs: 60_000, max: 60 }), async (req, res) => {
     try {
       const { text, width = 360 } = req.body || {};
-      if (!text) return res.status(400).json({ error: "النص المطلوب غير متوفر" });
+      if (!text || typeof text !== 'string' || text.length > 4096) return res.status(400).json({ error: "النص المطلوب غير متوفر أو طويل جداً" });
       const qrCodeDataUrl = await QRCode.toDataURL(text, {
-        width: Math.min(600, Math.max(160, width)),
+        width: Math.min(600, Math.max(160, Number(width) || 360)),
         margin: 2,
         color: { dark: '#0f172a', light: '#ffffff' }
       });
@@ -3042,7 +3051,8 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
 
   // Direct friendly share route
   app.get('/share/:id', (req, res) => {
-    res.redirect(`/?share=${req.params.id}`);
+    const safeId = encodeURIComponent(String(req.params.id || '').replace(/[^a-zA-Z0-9_\-]/g, ''));
+    res.redirect(`/?share=${safeId}`);
   });
 
   // 4. AI Smart Pedagogical Absence Summary & WhatsApp Message Generator

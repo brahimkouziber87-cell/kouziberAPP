@@ -58,7 +58,7 @@
   <!-- Circular Typography: Ministry & Institution in Arabic -->
   <text font-family="'Cairo', 'Amiri', 'Traditional Arabic', serif" font-size="20" font-weight="900" fill="#fef08a" letter-spacing="1.5">
     <textPath href="#topTextArc" startOffset="50%" text-anchor="middle">
-      المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والرياضة
+      المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل
     </textPath>
   </text>
 

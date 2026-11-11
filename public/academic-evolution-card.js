@@ -60,14 +60,17 @@
         }
 
         const parseMark = (v) => {
-            if (v === undefined || v === null || v === '' || isNaN(v)) return null;
-            const n = parseFloat(v);
-            return (n >= 0 && n <= 20) ? n : null;
+            if (v === undefined || v === null || typeof v === 'boolean') return null;
+            const s = String(v).trim().replace(',', '.');
+            if (s === '') return null;
+            const n = parseFloat(s);
+            return (!isNaN(n) && isFinite(n) && n >= 0 && n <= 20) ? n : null;
         };
 
         const f1 = parseMark(grades.f1);
         const f2 = parseMark(grades.f2);
         const f3 = parseMark(grades.f3);
+        const f4 = parseMark(grades.f4);
 
         let m1 = null;
         let m2 = null;
@@ -80,11 +83,12 @@
             label1 = 'الفرض 2';
             label2 = 'الفرض 3';
         } else if (examMode === 'f_all') {
-            // مقارنة أول فرض تم تسجيله بآخر فرض مسجل
+            // مقارنة أول فرض تم تسجيله بآخر فرض مسجل (يشمل الفرض 4 لشعبة العلوم الرياضية)
             const valid = [];
             if (f1 !== null) valid.push({ val: f1, label: 'الفرض 1' });
             if (f2 !== null) valid.push({ val: f2, label: 'الفرض 2' });
             if (f3 !== null) valid.push({ val: f3, label: 'الفرض 3' });
+            if (f4 !== null) valid.push({ val: f4, label: 'الفرض 4' });
 
             if (valid.length >= 2) {
                 m1 = valid[0].val;
@@ -516,7 +520,7 @@
                 <div class="cert-border">
                     <div class="watermark-seal">🏆</div>
                     <div class="cert-header">
-                        <div class="cert-kingdom">المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                        <div class="cert-kingdom">المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                         <div class="cert-ministry">${escapeHtml(institutionName)} | مادة الرياضيات بالسلك الثانوي التأهيلي</div>
                         <div class="cert-main-title">🎖️ شهادة تنويه وتشجيع بالتقدم الدراسي 🎖️</div>
                         <div class="cert-subtitle">تقدير الجهد والمثابرة في تطوير التحصيل الدراسي لمادة الرياضيات</div>
@@ -692,7 +696,7 @@ ${teacherName}`;
                         <p>${data.improversRate}% (${data.improversCount})</p>
                     </div>
                     <div class="kpi-item">
-                        <h4>تغير نسبة النجاح</h4>
+                        <h4>تغير نسبة الحاصلين على المعدل</h4>
                         <p>${data.passRateDiff > 0 ? '+' : ''}${data.passRateDiff}%</p>
                     </div>
                 </div>
@@ -881,9 +885,9 @@ ${teacherName}`;
                         </div>
                     </div>
 
-                    <!-- 3. تطور نسبة النجاح -->
+                    <!-- 3. تطور نسبة الحاصلين على المعدل -->
                     <div style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 11px; padding: 12px 14px;">
-                        <div style="font-size: 0.74rem; font-weight: 800; color: #1e40af;">🎯 نسبة المعدل (≥10/20)</div>
+                        <div style="font-size: 0.74rem; font-weight: 800; color: #1e40af;">🎯 نسبة الحاصلين على المعدل (≥10/20)</div>
                         <div style="font-size: 1.7rem; font-weight: 900; color: #1e3a8a; margin: 4px 0 2px 0;">
                             ${data.passRateM2}%
                         </div>
@@ -1667,7 +1671,7 @@ ${teacherName}`;
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #fde68a; padding-bottom: 5px; margin-bottom: 6px; font-size: 8.5pt;">
                     <div style="line-height: 1.4;">
                         <strong>المملكة المغربية</strong><br>
-                        <span style="color: #1e3a8a; font-weight: 800;">وزارة التربية الوطنية والتعليم الأولي والرياضة</span><br>
+                        <span style="color: #1e3a8a; font-weight: 800;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</span><br>
                         <span>${escapeHtml(academy)} — ${escapeHtml(direction)}</span><br>
                         <strong>المؤسسة: ${escapeHtml(school)}</strong>
                     </div>
@@ -1737,7 +1741,7 @@ ${teacherName}`;
                 </div>
             </div>
             <div style="border-top: 1px solid #cbd5e1; padding-top: 3px; margin-top: 4px; display: flex; justify-content: space-between; font-size: 7.2pt; color: #64748b;">
-                <span>المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والرياضة · نادي أولمبياد الرياضيات والتميز (${escapeHtml(school)})</span>
+                <span>المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل · نادي أولمبياد الرياضيات والتميز (${escapeHtml(school)})</span>
                 <span>وثيقة رسمية للإدارة التربوية والمديرية الإقليمية — A4</span>
             </div>
         </div>
@@ -1817,7 +1821,7 @@ ${teacherName}`;
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #fde68a; padding-bottom:8px; font-size:9.5pt;">
                 <div style="text-align:right;">
                     <strong>المملكة المغربية</strong><br>
-                    وزارة التربية الوطنية والتعليم الأولي والرياضة<br>
+                    وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
                     ${escapeHtml(academy)} — ${escapeHtml(direction)}
                 </div>
                 <div style="font-size:24pt;">🏆</div>

@@ -215,13 +215,17 @@
         const student = window.db.classes[className].find(s => s.id === studentId);
         if (!student) return null;
 
-        // 1. سجلات الحضور والغياب للتلميذ
-        const allRecords = Array.isArray(window.db.records) 
-            ? window.db.records.filter(r => r.studentId === studentId && r.className === className)
-            : [];
-        
-        // فرز السجلات ترتيباً زمنياً تصاعدياً
-        allRecords.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        // 1. سجلات الحضور والغياب للتلميذ (باستخدام الفهرس السريع واستبعاد العطل الرسمية المحمية)
+        const rawRecords = (typeof window.getStudentClassRecordsFast === 'function')
+            ? window.getStudentClassRecordsFast(studentId, className)
+            : (Array.isArray(window.db.records) ? window.db.records.filter(r => r.studentId === studentId && r.className === className) : []);
+        const isProtFn = (typeof window.isRecordProtectedHolidayOrLeave === 'function')
+            ? window.isRecordProtectedHolidayOrLeave
+            : null;
+        const allRecords = rawRecords
+            .filter(r => !(isProtFn && isProtFn(r)))
+            .slice()
+            .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
         let totalAbsentHours = 0;
         let unjustifiedHours = 0;
@@ -233,7 +237,14 @@
         const absencesTimeline = [];
 
         allRecords.forEach(r => {
-            const dur = r.duration || 1;
+            const dur = (typeof window.getRecordAbsenceDuration === 'function') 
+                ? window.getRecordAbsenceDuration(r)
+                : (r.part === 'h1' || r.part === 'h2' ? 1 : (r.duration || 1));
+            const part = r.part || 'all';
+            let partText = '';
+            if (part === 'h1') partText = ' (س1: غائب ساعة 1 / حاضر ساعة 2)';
+            else if (part === 'h2') partText = ' (س2: حاضر ساعة 1 / غائب ساعة 2)';
+
             if (r.status === 'غائب') {
                 totalAbsentHours += dur;
                 unjustifiedHours += dur;
@@ -242,8 +253,8 @@
                     session: r.session,
                     duration: dur,
                     status: 'غائب',
-                    part: r.part || 'all',
-                    reason: r.justificationNote || 'غياب غير مبرر'
+                    part: part,
+                    reason: (r.justificationNote || 'غياب غير مبرر') + partText
                 });
             } else if (r.status === 'مبرر') {
                 totalAbsentHours += dur;
@@ -253,8 +264,8 @@
                     session: r.session,
                     duration: dur,
                     status: 'مبرر',
-                    part: r.part || 'all',
-                    reason: r.justificationNote || 'مبرر بعذر أو شهادة طبية'
+                    part: part,
+                    reason: (r.justificationNote || 'مبرر بعذر أو شهادة طبية') + partText
                 });
             } else if (r.status === 'متأخر') {
                 lateCount++;
@@ -284,36 +295,49 @@
             ? window.getStudentGradesBySemester(className, studentId, 's2') 
             : {};
 
-        // حساب معدلات القسم لكل فرض للمقارنة
-        const examKeys = examsCount === 2 ? ['f1', 'f2'] : ['f1', 'f2', 'f3'];
+        // حساب معدلات القسم لكل فرض للمقارنة في دورة واحدة (O(N) بدلاً من 6 دورات منفصلة)
+        const examKeys = examsCount === 2 ? ['f1', 'f2'] : (examsCount === 4 ? ['f1', 'f2', 'f3', 'f4'] : ['f1', 'f2', 'f3']);
         const classStudents = window.db.classes[className] || [];
+        const classExamBenchmarks = { s1: {}, s2: {} };
+        examKeys.forEach(k => {
+            classExamBenchmarks.s1[k] = { sum: 0, count: 0, max: 0 };
+            classExamBenchmarks.s2[k] = { sum: 0, count: 0, max: 0 };
+        });
+
+        classStudents.forEach(st => {
+            ['s1', 's2'].forEach(sem => {
+                const g = (typeof window.getStudentGradesBySemester === 'function')
+                    ? window.getStudentGradesBySemester(className, st.id, sem)
+                    : {};
+                examKeys.forEach(k => {
+                    const val = parseFloat(g[k]);
+                    if (!isNaN(val)) {
+                        const b = classExamBenchmarks[sem][k];
+                        b.sum += val;
+                        b.count++;
+                        if (val > b.max) b.max = val;
+                    }
+                });
+            });
+        });
 
         function getClassExamAverage(sem, key) {
-            let sum = 0, count = 0, max = 0;
-            classStudents.forEach(st => {
-                const g = (typeof window.getStudentGradesBySemester === 'function') 
-                    ? window.getStudentGradesBySemester(className, st.id, sem) 
-                    : {};
-                const val = parseFloat(g[key]);
-                if (!isNaN(val)) {
-                    sum += val;
-                    count++;
-                    if (val > max) max = val;
-                }
-            });
+            const b = (classExamBenchmarks[sem] && classExamBenchmarks[sem][key]) || { sum: 0, count: 0, max: 0 };
             return {
-                avg: count > 0 ? (sum / count) : null,
-                max: count > 0 ? max : null,
-                count
+                avg: b.count > 0 ? (b.sum / b.count) : null,
+                max: b.count > 0 ? b.max : null,
+                count: b.count
             };
         }
 
         const examsData = [];
         // فحص الأسدوس الأول
         examKeys.forEach(k => {
-            const mark = (s1Grades[k] !== undefined && s1Grades[k] !== '') ? parseFloat(s1Grades[k]) : null;
+            const rawS1 = s1Grades[k];
+            const parsedS1 = (rawS1 !== undefined && rawS1 !== null && rawS1 !== '') ? parseFloat(rawS1) : NaN;
+            const mark = !isNaN(parsedS1) ? parsedS1 : null;
             const classBenchmark = getClassExamAverage('s1', k);
-            const labelMap = { f1: 'الفرض 1 (د1)', f2: 'الفرض 2 (د1)', f3: 'الفرض 3 (د1)' };
+            const labelMap = { f1: 'الفرض 1 (د1)', f2: 'الفرض 2 (د1)', f3: 'الفرض 3 (د1)', f4: 'الفرض 4 (د1)' };
             examsData.push({
                 code: `s1_${k}`,
                 title: labelMap[k] || k,
@@ -326,9 +350,11 @@
 
         // فحص الأسدوس الثاني
         examKeys.forEach(k => {
-            const mark = (s2Grades[k] !== undefined && s2Grades[k] !== '') ? parseFloat(s2Grades[k]) : null;
+            const rawS2 = s2Grades[k];
+            const parsedS2 = (rawS2 !== undefined && rawS2 !== null && rawS2 !== '') ? parseFloat(rawS2) : NaN;
+            const mark = !isNaN(parsedS2) ? parsedS2 : null;
             const classBenchmark = getClassExamAverage('s2', k);
-            const labelMap = { f1: 'الفرض 1 (د2)', f2: 'الفرض 2 (د2)', f3: 'الفرض 3 (د2)' };
+            const labelMap = { f1: 'الفرض 1 (د2)', f2: 'الفرض 2 (د2)', f3: 'الفرض 3 (د2)', f4: 'الفرض 4 (د2)' };
             examsData.push({
                 code: `s2_${k}`,
                 title: labelMap[k] || k,
@@ -359,10 +385,13 @@
         }
         const studentPortfolioNotes = window.db.portfolioNotes[studentId] || [];
 
-        // نسبة الحضور الإجمالية (بناءً على الحصص الفعلية المسجلة للقسم أو الحد الأدنى المرجعي 40 ساعة)
+        // نسبة الحضور الإجمالية (بناءً على الحصص الفعلية المسجلة للقسم عبر الفهرس السريع)
+        const clsFastRecords = (typeof window.getClassRecordsFast === 'function')
+            ? window.getClassRecordsFast(className)
+            : (window.db.records || []).filter(r => r && r.className === className);
         const classSessionDates = new Set(
-            (window.db.records || [])
-                .filter(r => r && r.className === className && r.date && r.status !== 'عطلة رسمية' && !r.migratedHoliday)
+            clsFastRecords
+                .filter(r => r && r.date && !(isProtFn && isProtFn(r)))
                 .map(r => `${r.date}_${r.session || r.period || 1}`)
         );
         const estimatedTotalClassHours = Math.max(classSessionDates.size * 2, allRecords.length * 2, totalAbsentHours + 2, 40);
@@ -1397,42 +1426,82 @@
     }
 
     /**
-     * تبويب 3: سجل السلوك والملاحظات التربوية عبر العام
+     * تبويب 3: سجل السلوك والملاحظات التربوية المصنفة عبر العام
      */
     function renderPortfolioBehaviorTabContent(container) {
         const d = currentStudentPortfolioData;
         const beh = d.behaviorRecord;
         const notes = d.portfolioNotes || [];
 
+        // استرجاع الإحصائيات النوعية الموحدة للتلميذ (شاملة سجل الملاحظات + ملف الإنجاز + ملاحظة السلوك)
+        let qualRow = null;
+        if (typeof window.computeClassAndStudentNotesQualitativeStats === 'function' && d.className && d.studentId) {
+            const clsStats = window.computeClassAndStudentNotesQualitativeStats(d.className);
+            if (clsStats && clsStats.studentMap && clsStats.studentMap[d.studentId]) {
+                qualRow = clsStats.studentMap[d.studentId];
+            }
+        }
+
+        let qualSummaryHtml = '';
+        if (qualRow) {
+            qualSummaryHtml = `
+                <div style="background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); border: 1.5px solid #c7d2fe; border-radius: 10px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="background: #4f46e5; color: #fff; padding: 5px 10px; border-radius: 7px; font-size: 0.76rem; font-weight: 800;">📊 الحصيلة النوعية للملاحظات (${qualRow.totalNotes})</span>
+                        <span style="background: ${qualRow.diagnosisBg}; color: ${qualRow.diagnosisColor}; border: 1px solid ${qualRow.diagnosisColor}40; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 800;">${qualRow.diagnosisLabel}</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.76rem; font-weight: 800;">
+                        <span style="background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 3px 9px; border-radius: 6px;">🎓 بيداغوجية: ${qualRow.pedagogical} (${qualRow.pedPct}%)</span>
+                        <span style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 3px 9px; border-radius: 6px;">⚖️ سلوكية: ${qualRow.behavioral} (${qualRow.behPct}%)</span>
+                        <span style="background: #f0fdfa; color: #0f766e; border: 1px solid #99f6e4; padding: 3px 9px; border-radius: 6px;">🏛️ إدارية: ${qualRow.administrative} (${qualRow.admPct}%)</span>
+                        <span style="background: #ecfdf5; color: #059669; padding: 3px 8px; border-radius: 6px;">🌟 ${qualRow.positive}</span>
+                        <span style="background: #eff6ff; color: #2563eb; padding: 3px 8px; border-radius: 6px;">💡 ${qualRow.guidance}</span>
+                        <span style="background: #fef2f2; color: #dc2626; padding: 3px 8px; border-radius: 6px;">⚠️ ${qualRow.alert}</span>
+                    </div>
+                </div>
+            `;
+        }
+
         let notesHtml = '';
         if (notes.length === 0) {
             notesHtml = `
                 <div style="text-align: center; padding: 25px; color: #64748b; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
                     <span data-lucide="clipboard" data-size="28" style="color: #94a3b8; margin-bottom: 6px;"></span>
-                    <div style="font-weight: 700; font-size: 0.88rem;">لا توجد ملاحظات تربوية إضافية مسجلة حتى الآن</div>
-                    <div style="font-size: 0.76rem; color: #64748b; margin-top: 3px;">يمكنك إضافة ملاحظة أو توجيه خاص بملف الإنجاز باستخدام النموذج أدناه.</div>
+                    <div style="font-weight: 700; font-size: 0.88rem;">لا توجد ملاحظات تربوية إضافية مسجلة في ملف الإنجاز حتى الآن</div>
+                    <div style="font-size: 0.76rem; color: #64748b; margin-top: 3px;">يمكنك إضافة ملاحظة مصنفة (بيداغوجية، سلوكية، إدارية) باستخدام النموذج أدناه.</div>
                 </div>
             `;
         } else {
-            notesHtml = notes.map((n, i) => `
-                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid #4f46e5; border-radius: 8px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
-                    <div>
-                        <div style="font-size: 0.74rem; color: #64748b; margin-bottom: 4px;">
-                            ${n.date || 'تاريخ التسجيل'} • بواسطة: ${escapeHtml(n.author || 'أستاذ المادة')}
+            notesHtml = notes.map((n, i) => {
+                const dim = typeof window.analyzePedagogicalNoteDimensions === 'function'
+                    ? window.analyzePedagogicalNoteDimensions(n)
+                    : {
+                        catMeta: { shortLabel: 'بيداغوجية', emoji: '🎓', color: '#4338ca', bg: '#eef2ff', border: '#c7d2fe' },
+                        sentMeta: { label: 'توجيه', emoji: '💡', color: '#2563eb', bg: '#eff6ff' }
+                    };
+                return `
+                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid ${dim.catMeta.color}; border-radius: 8px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 0.74rem; color: #64748b; margin-bottom: 5px;">
+                                <span style="background: ${dim.catMeta.bg}; color: ${dim.catMeta.color}; border: 1px solid ${dim.catMeta.border}; padding: 1px 8px; border-radius: 999px; font-weight: 800; font-size: 0.7rem;">${dim.catMeta.emoji} ${dim.catMeta.shortLabel}</span>
+                                <span style="background: ${dim.sentMeta.bg}; color: ${dim.sentMeta.color}; padding: 1px 7px; border-radius: 999px; font-weight: 700; font-size: 0.68rem;">${dim.sentMeta.emoji} ${dim.sentMeta.label}</span>
+                                <span>• ${n.date || 'تاريخ التسجيل'} • بواسطة: ${escapeHtml(n.author || 'أستاذ المادة')}</span>
+                            </div>
+                            <div style="font-size: 0.88rem; color: #0f172a; font-weight: 700; line-height: 1.5;">
+                                ${escapeHtml(n.text)}
+                            </div>
                         </div>
-                        <div style="font-size: 0.88rem; color: #0f172a; font-weight: 700; line-height: 1.5;">
-                            ${escapeHtml(n.text)}
-                        </div>
+                        <button type="button" onclick="deletePortfolioNote(${i})" style="background: transparent; border: none; color: #dc2626; cursor: pointer; padding: 3px;" title="حذف الملاحظة">
+                            <span data-lucide="trash-2" data-size="14"></span>
+                        </button>
                     </div>
-                    <button type="button" onclick="deletePortfolioNote(${i})" style="background: transparent; border: none; color: #dc2626; cursor: pointer; padding: 3px;" title="حذف الملاحظة">
-                        <span data-lucide="trash-2" data-size="14"></span>
-                    </button>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         container.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 16px;">
+                ${qualSummaryHtml}
                 <!-- بطاقة التقييم السلوكي الحالي والواجبات -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
                     <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px;">
@@ -1471,13 +1540,19 @@
                         ${notesHtml}
                     </div>
 
-                    <!-- نموذج إضافة ملاحظة جديدة -->
+                    <!-- نموذج إضافة ملاحظة جديدة مع التصنيف -->
                     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
                         <div style="font-weight: 700; font-size: 0.82rem; color: #334155; margin-bottom: 6px;">
-                            إضافة ملاحظة بيداغوجية / توجيه تربوي إلى ملف الإنجاز:
+                            إضافة ملاحظة تربوية مصنفة إلى ملف الإنجاز:
                         </div>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="text" id="portfolioNewNoteInput" placeholder="اكتب ملاحظة حول تقدم التلميذ، مشاركته، أو تعثراته المرصودة..." style="flex: 1; padding: 8px 12px; font-size: 0.82rem; border: 1px solid #cbd5e1; border-radius: 7px; outline: none;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <select id="portfolioNewNoteCategorySelect" style="padding: 8px 10px; font-size: 0.8rem; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #1e293b;">
+                                <option value="auto">✨ تصنيف تلقائي ذكي</option>
+                                <option value="pedagogical">🎓 بيداغوجية</option>
+                                <option value="behavioral">⚖️ سلوكية</option>
+                                <option value="administrative">🏛️ إدارية</option>
+                            </select>
+                            <input type="text" id="portfolioNewNoteInput" placeholder="اكتب ملاحظة حول تحصيل التلميذ، سلوكه، أو وضعيته الإدارية..." style="flex: 1; min-width: 220px; padding: 8px 12px; font-size: 0.82rem; border: 1px solid #cbd5e1; border-radius: 7px; outline: none;">
                             <button type="button" onclick="saveNewPortfolioNote()" style="background: #4f46e5; color: #fff; border: none; padding: 8px 16px; border-radius: 7px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                                 <span data-lucide="plus" data-size="14"></span> حفظ
                             </button>
@@ -1493,10 +1568,13 @@
      */
     function saveNewPortfolioNote() {
         const input = document.getElementById('portfolioNewNoteInput');
+        const catSel = document.getElementById('portfolioNewNoteCategorySelect');
         if (!input) return;
         const text = input.value.trim();
         if (!text) {
-            alert('يرجى كتابة نص الملاحظة.');
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('يرجى كتابة نص الملاحظة التربوية أولاً.', 'warning');
+            }
             return;
         }
 
@@ -1506,10 +1584,17 @@
         if (!window.db.portfolioNotes) window.db.portfolioNotes = {};
         if (!window.db.portfolioNotes[d.studentId]) window.db.portfolioNotes[d.studentId] = [];
 
+        const rawCat = catSel ? catSel.value : 'auto';
+        const dim = typeof window.analyzePedagogicalNoteDimensions === 'function'
+            ? window.analyzePedagogicalNoteDimensions({ text, category: rawCat !== 'auto' ? rawCat : undefined })
+            : { category: rawCat !== 'auto' ? rawCat : 'pedagogical', sentiment: 'guidance' };
+
         const dateStr = typeof window.formatLocalDate === 'function' ? window.formatLocalDate() : new Date().toISOString().split('T')[0];
         window.db.portfolioNotes[d.studentId].unshift({
             id: 'pnote_' + Date.now(),
             text,
+            category: dim.category,
+            sentiment: dim.sentiment,
             date: dateStr,
             author: (window.db.teacherProfile && window.db.teacherProfile.name) || 'أستاذ المادة'
         });
@@ -1519,10 +1604,11 @@
         // تحديث الكاش وإعادة رسم التبويب
         d.portfolioNotes = window.db.portfolioNotes[d.studentId];
         renderPortfolioBehaviorTabContent(document.getElementById('portfolioTabBodyContent'));
+        if (typeof window.renderNotes === 'function') window.renderNotes();
         if (window.renderLucide) window.renderLucide();
 
         if (typeof window.showNotification === 'function') {
-            window.showNotification('تمت إضافة الملاحظة إلى ملف الإنجاز الرقمي بنجاح', 'success');
+            window.showNotification('تمت إضافة الملاحظة المصنفة إلى ملف الإنجاز الرقمي بنجاح', 'success');
         }
     }
     window.saveNewPortfolioNote = saveNewPortfolioNote;
@@ -1534,13 +1620,12 @@
         const d = currentStudentPortfolioData;
         if (!d || !window.db.portfolioNotes || !window.db.portfolioNotes[d.studentId]) return;
 
-        if (!confirm('هل أنت متأكد من حذف هذه الملاحظة من ملف الإنجاز؟')) return;
-
         window.db.portfolioNotes[d.studentId].splice(index, 1);
         if (typeof window.saveDB === 'function') window.saveDB();
 
         d.portfolioNotes = window.db.portfolioNotes[d.studentId];
         renderPortfolioBehaviorTabContent(document.getElementById('portfolioTabBodyContent'));
+        if (typeof window.renderNotes === 'function') window.renderNotes();
         if (window.renderLucide) window.renderLucide();
     }
     window.deletePortfolioNote = deletePortfolioNote;
@@ -2134,7 +2219,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px;">
                     <div style="font-size: 0.8rem; font-weight: 700; line-height: 1.5;">
                         <div>المملكة المغربية</div>
-                        <div>وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                        <div>وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                         <div>${escapeHtml(academyName)}</div>
                         <div>${escapeHtml(directorateName)}</div>
                         <div style="color: #1e3a8a;">المؤسسة: <strong>${escapeHtml(schoolName)}</strong></div>
