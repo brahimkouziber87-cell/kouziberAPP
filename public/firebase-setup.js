@@ -575,7 +575,7 @@ function updateDriveSyncHeaderBadge(state, text = '') {
 
 function syncBackupUI(user) {
   const emailText = user ? `تم تسجيل الدخول كـ: ${user.email}` : 'غير مسجل الدخول';
-  
+
   const backupStatus = document.getElementById('backupStatus');
   const backupLoginBtn = document.getElementById('backupLoginBtn');
   const backupLogoutBtn = document.getElementById('backupLogoutBtn');
@@ -716,7 +716,7 @@ function getLocalSummary() {
   const localRaw = localStorage.getItem('absence_massar_v8_manual');
   let parsed = null;
   try { parsed = JSON.parse(localRaw); } catch(_) {}
-  
+
   const savedTimeStr = localStorage.getItem('absence_massar_v8_last_saved_time') || (parsed && parsed._lastSavedAt);
   return extractBackupSummary(parsed, 'local', savedTimeStr);
 }
@@ -908,7 +908,7 @@ window.autoSyncToGoogleDrive = (data) => {
     isDriveSyncing = true;
     try {
       updateDriveSyncHeaderBadge('saving', 'جاري الحفظ السحابي...');
-      
+
       const rawDataObj = Object.assign({}, data || window.db || {});
       const payloadObj = typeof window.buildFilteredCloudPayloadForAutoSync === 'function'
         ? window.buildFilteredCloudPayloadForAutoSync(rawDataObj)
@@ -916,7 +916,7 @@ window.autoSyncToGoogleDrive = (data) => {
       payloadObj._lastSavedAt = new Date().toISOString();
       payloadObj._lastSavedTimestamp = Date.now();
       payloadObj._lastSavedDevice = navigator.userAgent.includes('Mobile') ? 'هاتف محمول' : (navigator.userAgent.includes('Mac') ? 'جهاز Mac' : 'حاسوب مكتبي');
-      
+
       const serialized = safeStringify(payloadObj);
 
       if (isRealOAuthToken(cachedAccessToken)) {
@@ -925,7 +925,7 @@ window.autoSyncToGoogleDrive = (data) => {
         if (fileId) {
           driveRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
             method: 'PATCH',
-            headers: { 
+            headers: {
               Authorization: `Bearer ${cachedAccessToken}`,
               'Content-Type': 'application/json'
             },
@@ -1787,12 +1787,12 @@ window.handleBackupToDrive = async () => {
   _isDriveBackupRunning = true;
   try {
       document.querySelectorAll('.backup-drive-text, #backupBtnText').forEach(el => el.innerText = 'جاري النسخ...');
-      
+
       const payloadObj = Object.assign({}, window.db || {});
       payloadObj._lastSavedAt = new Date().toISOString();
       payloadObj._lastSavedTimestamp = Date.now();
       payloadObj._lastSavedDevice = navigator.userAgent.includes('Mobile') ? 'هاتف محمول' : (navigator.userAgent.includes('Mac') ? 'جهاز Mac' : 'حاسوب');
-      
+
       const serialized = safeStringify(payloadObj);
 
       // 1. الحفظ المحلي الأساسي الفوري
@@ -1819,7 +1819,7 @@ window.handleBackupToDrive = async () => {
               if (fileId) {
                   const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
                       method: 'PATCH',
-                      headers: { 
+                      headers: {
                           Authorization: `Bearer ${cachedAccessToken}`,
                           'Content-Type': 'application/json'
                       },

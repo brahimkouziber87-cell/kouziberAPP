@@ -485,8 +485,8 @@
                                 `}
                             </div>
                             <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #64748b;">
-                                رصد تلقائي للتلاميذ المتجاوزين لعتبة الغياب خلال آخر 7 أيام 
-                                (من <strong style="color: #0369a1;">${data.startDate}</strong> إلى <strong style="color: #0369a1;">${data.endDate}</strong>) 
+                                رصد تلقائي للتلاميذ المتجاوزين لعتبة الغياب خلال آخر 7 أيام
+                                (من <strong style="color: #0369a1;">${data.startDate}</strong> إلى <strong style="color: #0369a1;">${data.endDate}</strong>)
                                 مع خيار إرسال التقرير الرسمي للإدارة التربوية بنقرة واحدة.
                             </p>
                         </div>
@@ -961,7 +961,7 @@
         const printDate = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
 
         const rows = data.students.map((s, idx) => {
-            const sessionsSummary = s.weeklySessions.map(sec => 
+            const sessionsSummary = s.weeklySessions.map(sec =>
                 `${sec.dayName} ${sec.date.slice(5)} (ح${sec.session}: ${sec.duration}س - ${sec.status})`
             ).join(' | ');
 
@@ -1242,7 +1242,7 @@
         const data = getWeeklyAbsenceSummaryData();
         const text = generateWeeklyAdminMemoText(data);
         const subject = `تقرير الغياب الأسبوعي (${data.startDate} إلى ${data.endDate}) - ${data.classFilter === 'all' ? 'كافة الأقسام' : data.classFilter}`;
-        
+
         // محاولة الفتح المباشر عبر واجهة Gmail على الويب
         const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
         const win = window.open(gmailUrl, '_blank');
@@ -1696,7 +1696,7 @@
                             </span>
                         </div>
                         <p style="margin: 3px 0 0 0; font-size: 0.79rem; color: #64748b;">
-                            توزيع تفصيلي لعدد الساعات المفقودة لكل تلميذ عبر أيام الأسبوع الدراسي من 
+                            توزيع تفصيلي لعدد الساعات المفقودة لكل تلميذ عبر أيام الأسبوع الدراسي من
                             <strong style="color: #0f766e;">الإثنين ${data.startDate}</strong> إلى <strong style="color: #0f766e;">السبت ${data.endDate}</strong> مع إمكانية التصدير المباشر.
                         </p>
                     </div>

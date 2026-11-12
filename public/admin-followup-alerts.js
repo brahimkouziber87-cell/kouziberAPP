@@ -482,7 +482,7 @@
         const subject = tp.subject || 'الرياضيات';
         const school = tp.school || 'المؤسسة التعليمية';
 
-        const defaultReminderText = 
+        const defaultReminderText =
 `سلام تام بوجود مولانا الإمام المؤيد بالله،
 
 الموضوع: تذكير إداري مستعجل بخصوص كشف المتابعة والإنذار المبكر رقم (${processedSlip.slipNumber})

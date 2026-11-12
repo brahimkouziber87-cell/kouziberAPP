@@ -95,8 +95,8 @@
             if (isNaN(dt.getTime())) continue;
 
             const dayIdx = dt.getDay(); // 0-6
-            const dur = (typeof window.getRecordAbsenceDuration === 'function') 
-                ? window.getRecordAbsenceDuration(rec) 
+            const dur = (typeof window.getRecordAbsenceDuration === 'function')
+                ? window.getRecordAbsenceDuration(rec)
                 : (rec.part === 'h1' || rec.part === 'h2' ? 1 : (parseFloat(rec.duration) || 1));
 
             grandTotalHours += dur;

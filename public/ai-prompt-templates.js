@@ -592,7 +592,7 @@
         let rows = [
             ['رقم مسار', 'الاسم والنسب', 'الفرض 1', 'الفرض 2', 'الفرض 3', 'الأنشطة المندمجة', 'المعدل الدوري', 'مجموع ساعات الغياب', 'غياب غير مبرر']
         ];
-        
+
         let foundStudents = false;
         const activeClass = document.getElementById('lessonLogClassSelect')?.value ||
                            document.getElementById('classSelect')?.value ||
@@ -1077,8 +1077,8 @@
             else count = templates.filter(t => t.category === cat.id).length;
 
             return `
-                <button type="button" 
-                    onclick="window.setPromptActiveCategory('${cat.id}')" 
+                <button type="button"
+                    onclick="window.setPromptActiveCategory('${cat.id}')"
                     class="prompt-cat-tab-btn ${isActive ? 'active' : ''}"
                     style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; border: 1.5px solid ${isActive ? '#2563eb' : '#cbd5e1'}; background: ${isActive ? '#eff6ff' : '#ffffff'}; color: ${isActive ? '#1d4ed8' : '#475569'}; transition: all 0.15s ease; white-space: nowrap;">
                     <span data-lucide="${cat.icon || 'layers'}" data-size="14"></span>
@@ -1090,15 +1090,15 @@
 
         const toolbarControlsHtml = `
             <div style="display: flex; align-items: center; gap: 6px; margin-right: auto; padding-right: 10px; border-right: 1.5px solid #e2e8f0;">
-                <button type="button" 
-                    onclick="window.togglePromptGroupedView()" 
+                <button type="button"
+                    onclick="window.togglePromptGroupedView()"
                     style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 8px; font-size: 0.78rem; font-weight: 800; cursor: pointer; border: 1.5px solid ${_isGroupedByCategoryView ? '#7c3aed' : '#cbd5e1'}; background: ${_isGroupedByCategoryView ? '#f5f3ff' : '#ffffff'}; color: ${_isGroupedByCategoryView ? '#6d28d9' : '#475569'}; transition: all 0.15s ease;"
                     title="تجميع وترتيب القوالب وفق الفئات لتسهيل تصفحها وتنظيمها">
                     <span data-lucide="layers" data-size="14"></span>
                     <span>${_isGroupedByCategoryView ? 'عرض مجمّع بالفئات (نشط) 🗂️' : 'تجميع حسب الفئات 🗂️'}</span>
                 </button>
-                <button type="button" 
-                    onclick="window.openManagePromptCategoriesModal()" 
+                <button type="button"
+                    onclick="window.openManagePromptCategoriesModal()"
                     style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer; border: 1.5px solid #cbd5e1; background: #ffffff; color: #334155;"
                     title="إدارة وتخصيص الفئات (إضافة فئات جديدة، حذف وتعديل)">
                     <span data-lucide="settings" data-size="14"></span>
@@ -1181,12 +1181,12 @@
             <div onclick="window.selectPromptTemplate('${tpl.id}')"
                 class="prompt-card-item ${isSelected ? 'selected' : ''}"
                 style="padding: 12px 14px; border-radius: 10px; border: 1.5px solid ${isSelected ? '#3b82f6' : '#e2e8f0'}; background: ${isSelected ? '#f8fafc' : '#ffffff'}; cursor: pointer; transition: all 0.15s ease; box-shadow: ${isSelected ? '0 3px 10px rgba(59, 130, 246, 0.12)' : '0 1px 3px rgba(0,0,0,0.02)'}; display: flex; flex-direction: column; gap: 6px;">
-                
+
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
                     <h4 style="margin: 0; font-size: 0.88rem; font-weight: 800; color: ${isSelected ? '#1e40af' : '#0f172a'}; line-height: 1.4; flex: 1;">
                         ${escapeHtml(tpl.title)}
                     </h4>
-                    <button type="button" 
+                    <button type="button"
                         onclick="event.stopPropagation(); window.togglePromptFavorite('${tpl.id}')"
                         style="background: ${tpl.isFavorite ? '#fef3c7' : 'transparent'}; border: 1px solid ${tpl.isFavorite ? '#fde68a' : 'transparent'}; border-radius: 6px; cursor: pointer; color: ${tpl.isFavorite ? '#f59e0b' : '#94a3b8'}; padding: 3px 5px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease;"
                         title="${tpl.isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة ⭐'}">
@@ -1420,9 +1420,9 @@
                                     <span style="color: #1d4ed8; font-family: monospace; font-weight: 800;">{{${escapeHtml(v)}}}</span>
                                     <span style="font-weight: 700; color: #1e293b;">${escapeHtml(varMeta.label)}</span>
                                 </label>
-                                <input type="text" 
+                                <input type="text"
                                     id="promptVarInput_${v}"
-                                    value="${escapeQuotes(val)}" 
+                                    value="${escapeQuotes(val)}"
                                     onfocus="window.spotlightTemplateVariable('${escapeQuotes(v)}')"
                                     onblur="window.spotlightTemplateVariable(null)"
                                     oninput="window.onPromptVariableChange('${v}', this.value)"
@@ -1437,7 +1437,7 @@
 
         detailsContainer.innerHTML = `
             <div style="display: flex; flex-direction: column; gap: 12px; height: 100%;">
-                
+
                 <!-- رأس تفاصيل القالب -->
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0;">
                     <div style="flex: 1; min-width: 240px;">
@@ -1455,18 +1455,18 @@
 
                     <!-- أزرار الإجراءات الإدارية على القالب -->
                     <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <button type="button" 
-                            onclick="window.togglePromptFavorite('${tpl.id}')" 
-                            class="btn-math-chip" 
-                            style="padding: 5px 10px; font-size: 0.75rem; background: ${tpl.isFavorite ? '#fef3c7' : '#ffffff'}; border-color: ${tpl.isFavorite ? '#f59e0b' : '#cbd5e1'}; color: ${tpl.isFavorite ? '#92400e' : '#475569'}; font-weight: 800;" 
+                        <button type="button"
+                            onclick="window.togglePromptFavorite('${tpl.id}')"
+                            class="btn-math-chip"
+                            style="padding: 5px 10px; font-size: 0.75rem; background: ${tpl.isFavorite ? '#fef3c7' : '#ffffff'}; border-color: ${tpl.isFavorite ? '#f59e0b' : '#cbd5e1'}; color: ${tpl.isFavorite ? '#92400e' : '#475569'}; font-weight: 800;"
                             title="${tpl.isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة ⭐'}">
                             <span data-lucide="star" data-size="13" ${tpl.isFavorite ? 'style="fill: #f59e0b; color: #f59e0b;"' : 'style="color: #64748b;"'}></span>
                             <span>${tpl.isFavorite ? 'مفضل ⭐' : 'مفضلة'}</span>
                         </button>
-                        <button type="button" 
-                            onclick="window.openPromptTestModal('${tpl.id}')" 
-                            class="btn-math-chip" 
-                            style="padding: 5px 10px; font-size: 0.75rem; background: #ecfdf5; border-color: #6ee7b7; color: #065f46; font-weight: 800;" 
+                        <button type="button"
+                            onclick="window.openPromptTestModal('${tpl.id}')"
+                            class="btn-math-chip"
+                            style="padding: 5px 10px; font-size: 0.75rem; background: #ecfdf5; border-color: #6ee7b7; color: #065f46; font-weight: 800;"
                             title="فتح نافذة منبثقة لتعبئة المتغيرات وتجربة الأمر">
                             <span data-lucide="play-circle" data-size="13"></span>
                             <span>تجربة 🧪</span>
@@ -1536,10 +1536,10 @@
                 <!-- شريط أزرار الإجراءات السريعة (تجربة، نسخ، تشغيل بالذكاء) -->
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 10px; border-top: 1.5px solid #e2e8f0;">
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" 
-                            onclick="window.openPromptTestModal('${tpl.id}')" 
-                            class="btn-primary" 
-                            style="background: linear-gradient(135deg, #059669, #047857); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(5,150,105,0.25); color: #fff; cursor: pointer;" 
+                        <button type="button"
+                            onclick="window.openPromptTestModal('${tpl.id}')"
+                            class="btn-primary"
+                            style="background: linear-gradient(135deg, #059669, #047857); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(5,150,105,0.25); color: #fff; cursor: pointer;"
                             title="فتح نافذة منبثقة لتعبئة المتغيرات {{...}} ومعاينة كيف سيبدو الأمر النهائي قبل نسخه">
                             <span data-lucide="play-circle" data-size="16"></span>
                             <span>تجربة 🧪</span>
@@ -2054,7 +2054,7 @@
             updateFavoritesToolbarUI();
             renderPromptTemplatesList();
             renderCategoryFilterButtons();
-            
+
             // تحديث بطاقة التفاصيل إذا كان هذا القالب هو المعروض حالياً
             if (_selectedTemplateId === id) {
                 renderPromptTemplateDetails();
@@ -2501,7 +2501,7 @@
      */
     function autoClassifyPromptCategory(title = '', content = '', existingTags = []) {
         const textToAnalyze = `${title} ${title} ${title} ${existingTags.join(' ')} ${content}`.toLowerCase();
-        
+
         let bestCategory = 'didactics'; // افتراضي ديداكتيك ورياضيات
         let maxScore = 0;
         let bestMeta = CATEGORY_KEYWORDS_DICTIONARY.didactics;
@@ -2963,7 +2963,7 @@
             isCustom: true
         });
         saveCustomPromptCategories(customCats);
-        
+
         const catSelect = document.getElementById('editPromptCategory');
         if (catSelect) {
             const opt = document.createElement('option');
@@ -2995,7 +2995,7 @@
         if (!container) return;
 
         container.innerHTML = COMMON_PROMPT_VARIABLES.map(v => `
-            <button type="button" 
+            <button type="button"
                 onclick="window.insertVariableIntoPromptEditor('${v.key}')"
                 style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 6px; padding: 3px 8px; font-size: 0.74rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;"
                 title="${escapeQuotes(v.desc)} (${escapeQuotes(v.label)})">
@@ -3049,7 +3049,7 @@
         }
 
         let tags = tagsRaw.split(/[,،]/).map(t => t.trim()).filter(Boolean);
-        
+
         // تطبيق التصنيف التلقائي الذكي للكلمات المفتاحية إذا كانت الفئة عام أو غير محددة
         let finalCategory = category;
         let finalCatLabel = (getAllPromptCategories().find(c => c.id === category) || { label: 'عام' }).label;
@@ -3504,7 +3504,7 @@
         for (const cat of allCategories) {
             const catNormLabel = normalizeArabicText(cat.label);
             const aliases = CATEGORY_VOICE_ALIASES[cat.id] || [];
-            
+
             if (cleanSpoken === catNormLabel || normSpoken.includes(catNormLabel)) {
                 matchedCategory = cat;
                 break;

@@ -104,15 +104,13 @@
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <!-- مكتبة أيقونات Lucide المتناسقة -->
-    <script src="/lucide-icons.js?v=3.5"></script>
-    
+    <script src="/lucide-icons.js?v=3.6"></script>
+
     <!-- الخطوط المغربية الأصيلة وخطوط الرقعة واليد العربية للتقارير والواجهة -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700;800;900&family=Harmattan:wght@400;700&family=Lemonada:wght@400;600;700&family=Marhey:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Readex+Pro:wght@400;600;700&family=Reem+Kufi:wght@400;700&family=Scheherazade+New:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css?v=3.5">
-
-
+    <link rel="stylesheet" href="/style.css?v=3.6">
 
     <script type="module" src="/firebase-setup.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -135,8 +133,8 @@
           } catch (err) {}
         });
 
-        var BASE_VERSION_NUM = 3.5;
-        var BASE_BUILD_VERSION = '2026.10.28.v3.5';
+        var BASE_VERSION_NUM = 3.6;
+        var BASE_BUILD_VERSION = '2026.11.12.v3.6';
         var savedBuildVersion = null;
         var savedAppVersion = null;
         try {
@@ -147,7 +145,7 @@
         var savedVerNum = parseFloat(savedAppVersion);
         var isOlderThanBase = isNaN(savedVerNum) || savedVerNum < BASE_VERSION_NUM;
 
-        // Upgrade only if older than base version (preserve user-bumped versions >= 3.5)
+        // Upgrade only if older than base version (preserve user-bumped versions >= 3.6)
         if (isOlderThanBase) {
           try {
             localStorage.setItem('prof_digital_app_version', BASE_VERSION_NUM.toFixed(1));
@@ -159,7 +157,7 @@
           if ('caches' in window) {
             caches.keys().then(function(keys) {
               return Promise.all(keys.map(function(key) {
-                if (key !== 'prof-digital-v3.5') {
+                if (key !== 'prof-digital-v3.6') {
                   return caches.delete(key);
                 }
               }));
@@ -303,7 +301,7 @@
             </div>
             <h2 style="color: var(--primary); margin-bottom: 6px; font-size: 1.4rem; font-family: 'Cairo', sans-serif; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px;"><span class="math-symbol-accent" style="font-size: 1.25em;">∑</span> منظومة التدبير التربوي</h2>
             <p style="color: var(--math-accent); margin-bottom: 20px; font-size: 0.92rem; font-weight: 700; background: var(--math-accent-light); padding: 4px 14px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px;"><span class="math-symbol-accent">π</span> أستاذ مادة الرياضيات : <span style="color: #ef4444; font-weight: 900; font-size: 1.05rem;">الأستاذ إبراهيم قزيبر</span> <span class="math-symbol-accent">∞</span></p>
-            
+
             <!-- قسم المزامنة السحابية متعددة الأجهزة (Google Drive) -->
             <div id="loginDriveSyncSection" style="background: linear-gradient(135deg, #f0fdf4, #e0f2fe); border: 1.5px solid #bae6fd; border-radius: 12px; padding: 14px 14px; margin-bottom: 16px; text-align: right; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.08);">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
@@ -315,7 +313,7 @@
                         <div style="font-size: 0.72rem; color: #475569;">حماية مشدّدة: ربط بمعرّف البريد الموثّق (Verified Email + UID) بدل المعرّف المفتوح</div>
                     </div>
                 </div>
-                
+
                 <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
                     <!-- الخيار 1: تسجيل الدخول الرسمي المعتمد بـ Google -->
                     <button type="button" onclick="if(window.handleGoogleSignInOfficial) window.handleGoogleSignInOfficial({ forcePopup: true }); else window.handleDriveLogin();" class="gsi-material-button" style="display: flex; background: #ffffff; color: #1e293b; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; font-family: inherit; cursor: pointer; align-items: center; justify-content: center; width: 100%; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.06); gap: 10px;">
@@ -347,7 +345,7 @@
                             🛡️ brahim.kouziber87@gmail.com
                         </button>
                     </div>
-                    
+
                     <!-- الزر الثانوي: توثيق البريد المدخل عبر Google -->
                     <button type="button" onclick="handleLoginScreenDirectGmail()" class="btn-primary" style="display: flex; background: linear-gradient(135deg, #059669, #047857); color: #ffffff; border: none; border-radius: 8px; padding: 10px 14px; font-family: inherit; cursor: pointer; align-items: center; justify-content: center; width: 100%; transition: all 0.2s; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25); gap: 6px; font-weight: 800; font-size: 0.85rem;">
                         <span class="ui-icon" style="color: white; margin: 0;"><span data-lucide="shield-check" data-size="14"></span></span>
@@ -371,7 +369,7 @@
                 <input type="password" id="setupPassword" placeholder="القن السري الجديد" autocomplete="new-password" style="width: 100%; margin-bottom: 15px; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit;">
                 <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; font-size: 1rem;">حفظ والبدء</button>
             </form>
-            
+
             <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();" style="display: none;">
                 <p style="margin-bottom: 15px; color: #333; font-weight: bold;">تسجيل الدخول</p>
                 <input type="text" id="loginUsername" placeholder="اسم المستخدم" autocomplete="username" style="width: 100%; margin-bottom: 15px; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-family: inherit;">
@@ -420,7 +418,7 @@
     <header id="appHeader" class="app-header-main">
         <!-- Main Structured Two-Row Layout (سطران اثنان فقط) -->
         <div class="header-container-inner header-main-wrapper">
-            
+
             <!-- الشعار الدائري المكبر في أقصى اليمين (بارتفاع السطرين معاً) -->
             <div class="header-main-logo-slot">
                 <div class="header-logo-wrapper" onclick="if(typeof openTeacherSettings==='function') openTeacherSettings();" title="منظومة التدبير التربوي - الأستاذ: ابراهيم قزيبر" style="cursor: pointer;">
@@ -487,7 +485,7 @@
                     <button type="button" id="headerDesktopAppHubBtn" class="header-chip header-chip-desktop" onclick="if (typeof window.openDesktopAppModal === 'function') window.openDesktopAppModal();" title="مركز تطبيق سطح المكتب والأندرويد (Desktop & Android Hub) وتحديث المنظومة والنسخ الاحتياطي">
                         <span class="ui-icon" style="color: #38bdf8; margin: 0;"><span data-lucide="monitor" data-size="12"></span></span>
                         <span>تطبيق المكتب والأندرويد</span>
-                        <span id="headerDesktopVersionBadge" style="background: rgba(16, 185, 129, 0.22); border: 1px solid rgba(52, 211, 153, 0.5); color: #6ee7b7; padding: 1px 5px; border-radius: 4px; font-size: 0.56rem; font-weight: 800; direction: ltr; line-height: 1.15;">v3.5</span>
+                        <span id="headerDesktopVersionBadge" style="background: rgba(16, 185, 129, 0.22); border: 1px solid rgba(52, 211, 153, 0.5); color: #6ee7b7; padding: 1px 5px; border-radius: 4px; font-size: 0.56rem; font-weight: 800; direction: ltr; line-height: 1.15;">v3.6</span>
                     </button>
                 </div>
             </div>
@@ -600,14 +598,14 @@
         </div>
     </header>
 
-    
+
     <!-- File Preview & Built-in Media Player Modal -->
     <div id="filePreviewModal" class="preview-modal-backdrop" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(4px); z-index: 12000; align-items: center; justify-content: center; flex-direction: column; padding: 12px; transition: all 0.2s ease;">
         <div id="filePreviewDialog" class="card preview-modal-card" style="width: 100%; max-width: 1100px; height: 92vh; display: flex; flex-direction: column; background: #ffffff; border-radius: 14px; overflow: hidden; padding: 0; position: relative; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45); border: 1px solid #cbd5e1;">
-            
+
             <!-- Modal Header / Player Toolbar -->
             <div id="previewModalHeader" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; gap: 12px; flex-wrap: wrap;">
-                
+
                 <!-- Title & Badge (Right in RTL) -->
                 <div style="display: flex; align-items: center; gap: 10px; min-width: 200px; max-width: 45%; overflow: hidden;">
                     <span id="previewModalIcon" class="ui-icon" style="color: #2563eb; display: flex; align-items: center;">
@@ -632,9 +630,9 @@
                     <button type="button" id="pdfNextPageBtn" onclick="onPdfNextPage()" class="preview-tool-btn" title="الصفحة التالية">
                         <span data-lucide="chevron-left" data-size="16"></span>
                     </button>
-                    
+
                     <span style="display: inline-block; width: 1px; height: 16px; background: #cbd5e1; margin: 0 4px;"></span>
-                    
+
                     <button type="button" onclick="onPdfZoomOut()" class="preview-tool-btn" title="تصغير">
                         <span data-lucide="zoom-out" data-size="15"></span>
                     </button>
@@ -692,7 +690,7 @@
                     <span data-lucide="x" data-size="18"></span>
                 </button>
             </div>
-            
+
             <p style="font-size: 0.85rem; color: #64748b; margin: 0 0 16px 0; line-height: 1.6;">
                 يمكنك هنا متابعة كافة مجلدات Google Drive المربوطة بمكتبتك الرقمية، وتفعيل أو تعطيل المزامنة التلقائية لكل مجلد، أو إجراء مزامنة فورية وإلغاء الربط.
             </p>
@@ -1462,7 +1460,7 @@
                     <span>خيارات الضبط السريع والإزاحة:</span>
                     <span style="font-size: 0.7rem; color: #94a3b8;">(حل مشكلة التوقيت الشتوي/الصيفي)</span>
                 </div>
-                
+
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px;">
                     <button type="button" id="btnTimePresetMorocco" onclick="syncAppWithMoroccoTime()" style="padding: 7px 4px; font-size: 0.72rem; font-weight: 700; border-radius: 7px; border: 1.5px solid #86efac; background: #f0fdf4; color: #166534; cursor: pointer;">
                         توقيت المغرب (GMT+1)
@@ -1580,10 +1578,10 @@
                             <span>التبديل بنقرة واحدة (4 حالات)</span>
                         </div>
                         <p style="margin: 0; font-size: 0.77rem; color: #475569; line-height: 1.5;">
-                            انقر على بطاقة التلميذ للتنقل الفوري بين: 
-                            <strong style="color: #16a34a;">[حاضر 🟢]</strong>، 
-                            <strong style="color: #dc2626;">[غائب 🔴]</strong>، 
-                            <strong style="color: #2563eb;">[مبرر 🔵]</strong>، أو 
+                            انقر على بطاقة التلميذ للتنقل الفوري بين:
+                            <strong style="color: #16a34a;">[حاضر 🟢]</strong>،
+                            <strong style="color: #dc2626;">[غائب 🔴]</strong>،
+                            <strong style="color: #2563eb;">[مبرر 🔵]</strong>، أو
                             <strong style="color: #d97706;">[متأخر 🟡]</strong>.
                         </p>
                     </div>
@@ -1886,7 +1884,7 @@
                     <span class="ui-icon"><span data-lucide="info" data-size="16"></span></span>
                     <span>تُعتمد هذه البيانات رسمياً في الترويسات الرسمية للتقارير المطبوعة، بطاقات التنقيط، واستمارات تتبع الغياب.</span>
                 </div>
-                
+
                 <div class="settings-field-group">
                     <label class="settings-field-label" for="settingsTeacherName">
                         <span class="settings-field-icon" style="background: #eff6ff; color: #2563eb;"><span data-lucide="user" data-size="15"></span></span>
@@ -1897,7 +1895,7 @@
                         <input type="text" id="settingsTeacherName" placeholder="مثال: ذ. محمد العلوي" autocomplete="name">
                     </div>
                 </div>
-                
+
                 <div class="settings-form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div class="settings-field-group">
                         <label class="settings-field-label" for="settingsAcademy">
@@ -1908,7 +1906,7 @@
                             <input type="text" id="settingsAcademy" placeholder="مثال: جهة الدار البيضاء سطات">
                         </div>
                     </div>
-                    
+
                     <div class="settings-field-group">
                         <label class="settings-field-label" for="settingsDirectorate">
                             <span class="settings-field-icon" style="background: #fdf2f8; color: #db2777;"><span data-lucide="compass" data-size="15"></span></span>
@@ -1919,7 +1917,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="settings-field-group">
                     <label class="settings-field-label" for="settingsSchool">
                         <span class="settings-field-icon" style="background: #faf5ff; color: #9333ea;"><span data-lucide="school" data-size="15"></span></span>
@@ -2183,7 +2181,7 @@
                     </div>
                 </div>
 
-                
+
                 <!-- نظام التنبيهات للأحداث القادمة (Push Notifications) -->
                 <div class="settings-subcard" style="border-right: 4px solid #f59e0b; background: linear-gradient(to left, rgba(255,255,255,0.92), rgba(255,251,235,0.85)); padding: 14px 16px; margin-bottom: 15px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 14px;">
@@ -2208,7 +2206,7 @@
                             </label>
                         </div>
                     </div>
-                    
+
                     <div id="eventReminderSettingsBox" style="margin-top: 12px; background: rgba(255,255,255,0.85); padding: 12px; border-radius: 10px; border: 1px solid #fde68a;">
                         <label class="settings-field-label" style="font-size: 0.8rem; margin-bottom: 6px;">
                             <span class="settings-field-icon" style="background: #fef3c7; color: #d97706;"><span data-lucide="clock" data-size="13"></span></span>
@@ -2436,7 +2434,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- مفتاح تبديل التذكير التلقائي عبر واتساب -->
                 <div class="settings-subcard" style="border-right: 4px solid #25D366; background: linear-gradient(to left, rgba(255,255,255,0.92), rgba(240,253,244,0.85)); padding: 14px 16px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 14px;">
@@ -2466,7 +2464,7 @@
                         <span id="whatsappReminderSubInfoText">الخدمة مفعّلة: يتم إتاحة خيارات وشارات التذكير التلقائي في منظومة الدعم والمتابعة.</span>
                     </div>
                 </div>
-                
+
                 <div class="settings-subcard" style="margin-top: 15px;">
                     <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px;">
                         <div class="settings-option-icon-badge" style="background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); color: #ea580c; border: 1px solid #fed7aa;">
@@ -2479,7 +2477,7 @@
                             <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0; line-height: 1.4;">عدد ساعات الغياب التي عندها يتم تمييز التلميذ باللون الأحمر تلقائياً وتوجيه إشعار للأستاذ والإدارة.</p>
                         </div>
                     </div>
-                    
+
                     <div style="display: flex; align-items: center; gap: 10px; max-width: 260px; margin-right: 52px;">
                         <div class="settings-input-wrapper" style="flex: 1;">
                             <input type="number" id="settingsAbsenceThreshold" min="1" max="50" placeholder="10" style="text-align: center; font-weight: bold; font-size: 1rem;">
@@ -2487,7 +2485,7 @@
                         <span style="font-size: 0.8rem; color: #475569; font-weight: 600; background: #e2e8f0; padding: 7px 12px; border-radius: 8px; white-space: nowrap;">ساعات / حصص</span>
                     </div>
                 </div>
-                
+
                 <div class="settings-subcard" style="margin-top: 15px;">
                     <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px;">
                         <div class="settings-option-icon-badge" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); color: #0284c7; border: 1px solid #bae6fd;">
@@ -2506,7 +2504,7 @@
                             <option value="frequency">حسب تكرار الاستخدام</option>
                             <option value="manual">ترتيب يدوي</option>
                         </select>
-                        
+
                         <div id="manualClassSortContainer" style="display: none; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
                         </div>
                     </div>
@@ -2845,7 +2843,7 @@
                 </div>
             </div>
             </div> <!-- end settings-body -->
-            
+
             <!-- Modal Actions Footer -->
             <div style="display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 14px; border-top: 1px solid rgba(226, 232, 240, 0.9); background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(8px);">
                 <div id="settingsAutoSaveBadge" style="font-size: 0.82rem; color: #15803d; display: flex; align-items: center; gap: 6px; font-weight: 600; transition: color 0.2s ease;">
@@ -3053,7 +3051,7 @@
                     <span style="color: #cbd5e1; font-size: 0.8rem;">•</span>
                     <span class="home-icons-hero-desc" style="color: #64748b; font-size: 0.78rem; font-weight: 600;">تنظيم ذكي في شاشة واحدة متكاملة لمادة الرياضيات</span>
                 </div>
-                
+
                 <div class="home-toolbar-wrap">
                     <!-- حقل البحث السريع الفوري -->
                     <div class="home-search-box">
@@ -3129,7 +3127,7 @@
                  5 اختصارات رئيسية تجمع الوحدات المتقاربة دلالياً
                  ======================================================== -->
             <div id="homeUnifiedClustersGrid" class="home-cluster-grid">
-                
+
                 <!-- 1. اختصار: التقويم والمراقبة المدرسية (6 وحدات) -->
                 <div class="home-cluster-card cluster-top" id="clusterAssessmentCard">
                     <div class="home-cluster-header">
@@ -3145,7 +3143,7 @@
                         <span class="home-cluster-badge" style="background: #fff1f2; color: #be123c; border-color: #fecdd3;">6 وحدات</span>
                     </div>
                     <div class="home-cluster-desc">لوحة القيادة، الغياب اليومي، نقط الفروض، الأداء السنوي، مجالس الأقسام والتوجيه، والتقارير</div>
-                    
+
                     <div class="home-cluster-pills">
                         <button type="button" class="home-cluster-pill" onclick="switchTab('dashboard')" title="لوحة القيادة والإنذار المبكر">
                             <span class="pill-icon" style="color: #e11d48;"><span data-lucide="layout-dashboard" data-size="13"></span></span>
@@ -3195,7 +3193,7 @@
                         <span class="home-cluster-badge" style="background: #fffbeb; color: #b45309; border-color: #fde68a;">6 وحدات</span>
                     </div>
                     <div class="home-cluster-desc">جدول الحصص، دفتر النصوص، مؤقت الحصة، مفكرة الواجبات، السبورة ووضع العرض</div>
-                    
+
                     <div class="home-cluster-pills">
                         <button type="button" class="home-cluster-pill" onclick="switchTab('timetable')" title="جدول الحصص واستعمال الزمن">
                             <span class="pill-icon" style="color: #d97706;"><span data-lucide="calendar-clock" data-size="13"></span></span>
@@ -3244,7 +3242,7 @@
                         <span class="home-cluster-badge" style="background: #faf5ff; color: #6d28d9; border-color: #ddd6fe;">4 وحدات</span>
                     </div>
                     <div class="home-cluster-desc">قوالب الذكاء الاصطناعي، لوحة الرموز ∑، معاملات مسار والتوصيف، والمكتبة الرقمية</div>
-                    
+
                     <div class="home-cluster-pills">
                         <button type="button" class="home-cluster-pill" onclick="openPromptTemplatesModal()" title="مكتبة قوالب وتوليد الذكاء الاصطناعي">
                             <span class="pill-icon" style="color: #7c3aed;"><span data-lucide="sparkles" data-size="13"></span></span>
@@ -3285,7 +3283,7 @@
                         <span class="home-cluster-badge" style="background: #ecfeff; color: #0e7490; border-color: #a5f3fc;">3 وحدات</span>
                     </div>
                     <div class="home-cluster-desc">الملف المهني للأستاذ، إدارة الدعم والدروس الخصوصية، والتقويم السنوي والعطل الرسمية</div>
-                    
+
                     <div class="home-cluster-pills">
                         <button type="button" class="home-cluster-pill" onclick="switchTab('profile')" title="الملف المهني الشخصي للأستاذ والشواهد">
                             <span class="pill-icon" style="color: #0284c7;"><span data-lucide="user-check" data-size="13"></span></span>
@@ -3322,7 +3320,7 @@
                         <span class="home-cluster-badge" style="background: #f1f5f9; color: #334155; border-color: #cbd5e1;">5 وحدات</span>
                     </div>
                     <div class="home-cluster-desc">تخصيص الهوية، إدارة البيانات والنسخ الاحتياطي، المزامنة السحابية، وتطبيق سطح المكتب المستقل</div>
-                    
+
                     <div class="home-cluster-pills">
                         <button type="button" class="home-cluster-pill" onclick="openTeacherSettings('settingsPersonal')" title="إعدادات المنظومة وهوية الأستاذ والمؤسسة">
                             <span class="pill-icon" style="color: #334155;"><span data-lucide="sliders-horizontal" data-size="13"></span></span>
@@ -3339,7 +3337,7 @@
                         <button type="button" class="home-cluster-pill" onclick="window.openDesktopAppModal()" title="تطبيق سطح المكتب والأندرويد المستقل (Desktop & Android App)">
                             <span class="pill-icon" style="color: #059669;"><span data-lucide="monitor" data-size="13"></span></span>
                             <span>تطبيق المكتب والأندرويد</span>
-                            <span id="homeDesktopClusterVerBadge" style="background: #d1fae5; color: #065f46; font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 999px; direction: ltr;">v3.5</span>
+                            <span id="homeDesktopClusterVerBadge" style="background: #d1fae5; color: #065f46; font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 999px; direction: ltr;">v3.6</span>
                         </button>
                         <button type="button" class="home-cluster-pill" onclick="runInteractiveMemoryOptimization(this)" title="تحسين الذاكرة الحية وتفريغ الكاش المؤقت (Memory Optimization)">
                             <span class="pill-icon" style="color: #0d9488;"><span data-lucide="zap" data-size="13"></span></span>
@@ -3601,7 +3599,7 @@
                     <div class="home-icon-symbol" style="background: linear-gradient(135deg, #059669, #047857); color: #ffffff; box-shadow: 0 8px 18px -4px rgba(5, 150, 105, 0.45);">
                         <span data-lucide="monitor" data-size="42"></span>
                     </div>
-                    <span class="home-icon-tab-tag" id="homeDesktopCardVerBadge" style="color: #047857; background: #ecfdf5; border-color: #a7f3d0;">تطبيق المكتب والأندرويد (v3.5)</span>
+                    <span class="home-icon-tab-tag" id="homeDesktopCardVerBadge" style="color: #047857; background: #ecfdf5; border-color: #a7f3d0;">تطبيق المكتب والأندرويد (v3.6)</span>
                     <span class="home-icon-title">تطبيق المكتب والأندرويد</span>
                     <span class="home-icon-desc">التثبيت على الهواتف واللوحات (Android) والحواسيب (Windows / PWA / Electron) والعمل بدون إنترنت</span>
                     <span class="home-icon-arrow"><span data-lucide="arrow-left" data-size="14"></span></span>
@@ -3632,7 +3630,7 @@
             </div>
 
         </div>
-        
+
         <div class="today-schedule-card" id="todayScheduleBlock" style="padding: 12px 16px; border-radius: 12px; background: linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%); border: 1.5px solid #bae6fd; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.06);">
             <div class="today-schedule-header" style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed #bae6fd; flex-wrap: wrap;">
                 <span class="today-schedule-title" id="todayTitle" style="font-size: 0.96rem; font-weight: 800; color: #0369a1; display: inline-flex; align-items: center; gap: 6px; margin: 0;"><span class="math-symbol-accent">≈</span> حصص اليوم</span>
@@ -4608,11 +4606,11 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
                 <div style="display: flex; gap: 8px; background: #f1f5f9; padding: 4px; border-radius: 12px; border: 1px solid #cbd5e1;">
                     <button id="ttSubnavMatrix" type="button" class="timetable-subnav-btn active" onclick="switchTimetableSubTab('matrix')">
-                        <span class="ui-icon" style="margin: 0;"><span data-lucide="layout-grid" data-size="16"></span></span> 
+                        <span class="ui-icon" style="margin: 0;"><span data-lucide="layout-grid" data-size="16"></span></span>
                         الشبكة الأسبوعية الشاملة (عرض وطباعة)
                     </button>
                     <button id="ttSubnavEditor" type="button" class="timetable-subnav-btn" onclick="switchTimetableSubTab('editor')">
-                        <span class="ui-icon" style="margin: 0;"><span data-lucide="sliders" data-size="16"></span></span> 
+                        <span class="ui-icon" style="margin: 0;"><span data-lucide="sliders" data-size="16"></span></span>
                         إعداد وتعديل الحصص والمواقيت
                     </button>
                 </div>
@@ -4645,7 +4643,7 @@
                                     <div style="font-size: 1.4rem; font-weight: 900; color: #1e293b;" id="ttTotalWeeklyHours">0 ساعة</div>
                                 </div>
                             </div>
-                            
+
                             <div style="display: flex; align-items: center; gap: 12px; border-right: 1px solid #e2e8f0; padding-right: 24px;">
                                 <div style="width: 44px; height: 44px; border-radius: 10px; background: #f0fdf4; color: #16a34a; display: flex; align-items: center; justify-content: center;">
                                     <span class="ui-icon" style="margin: 0;"><span data-lucide="layers" data-size="22"></span></span>
@@ -4678,7 +4676,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; flex-wrap: wrap; gap: 10px;">
                         <div>
                             <h3 style="color: var(--primary); margin: 0; font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-                                <span class="ui-icon" style="color: #2563eb;"><span data-lucide="calendar" data-size="18"></span></span> 
+                                <span class="ui-icon" style="color: #2563eb;"><span data-lucide="calendar" data-size="18"></span></span>
                                 جدول الحصص الأسبوعي للموسم الدراسي <span id="ttAcademicYearTitle">2026/2027</span>
                             </h3>
                             <div style="color: #64748b; font-size: 0.85rem; margin-top: 3px;" id="ttTeacherHeaderInfo">الأستاذ(ة): - | المؤسسة: -</div>
@@ -5025,35 +5023,31 @@
         <div id="reportsView" style="display: none;">
             <!-- بطاقة اختيار القسم والفترة الزمنية والتحكم في التقارير (أعلى محاور التقرير) -->
             <div class="card" id="reportMasterFilterCard" style="margin-bottom: 12px; padding: 14px 16px; background: #ffffff; border: 1.5px solid #2563eb; border-radius: 12px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
-                    <h3 style="color: #1e3a8a; margin: 0; font-size: 1.05rem; font-weight: 800; display: flex; align-items: center; gap: 8px;">
-                        <span class="math-symbol-accent" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff; width: 28px; height: 28px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 1rem;">∫</span>
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
+                    <h3 style="color: #1e3a8a; margin: 0; font-size: 1rem; font-weight: 800; display: flex; align-items: center; gap: 7px;">
+                        <span class="math-symbol-accent" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff; width: 26px; height: 26px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.95rem;">∫</span>
                         <span>اختيار القسم والفترة الزمنية لتقارير المنظومة</span>
                     </h3>
-                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                        <button type="button" class="btn-primary" onclick="renderReport()" style="background: linear-gradient(135deg, #0284c7, #0369a1); font-size: 0.78rem; padding: 5px 12px; font-weight: 800; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" title="تحديث بيانات وإحصائيات التقارير">
-                            <span>🔄</span>
-                            <span>تحديث التقرير</span>
+                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; width: 100%; overflow-x: auto;">
+                        <button type="button" class="btn-primary" id="btnCombinedAttendanceCardTopPdf" onclick="generateCombinedAttendanceCardPDF('preview')" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #047857, #059669); color: #ffffff; font-weight: 800; font-size: 0.75rem; padding: 6px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25); cursor: pointer; white-space: nowrap;" title="توليد ومعاينة بطاقة حضور مجمعة لجميع الأقسام بصيغة PDF تتضمن نسبة المواظبة الإجمالية والملاحظات المسجلة لكل قسم">
+                            <span>📋</span>
+                            <span>بطاقة حضور مجمعة لجميع الأقسام (PDF)</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="printFullUnifiedReport()" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); font-weight: 800; font-size: 0.78rem; padding: 5px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" title="طباعة وتحميل التقرير الشامل للقسم أو لجميع الأقسام (PDF / A4)">
-                            <span data-lucide="printer" data-size="14"></span>
+                        <button type="button" class="btn-primary" onclick="printFullUnifiedReport()" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #1e3a8a, #2563eb); font-weight: 800; font-size: 0.75rem; padding: 6px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;" title="طباعة وتحميل التقرير الشامل للقسم أو لجميع الأقسام (PDF / A4)">
+                            <span data-lucide="printer" data-size="13"></span>
                             <span>استخراج التقرير الشامل (PDF / طباعة)</span>
                         </button>
-                        <button type="button" class="btn-secondary" onclick="exportUnifiedReportWord()" style="background: #eff6ff; border: 1.5px solid #2563eb; color: #1e40af; font-weight: 800; font-size: 0.76rem; padding: 5px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" title="استخراج التقرير الشامل بصيغة Word قابلة للتعديل (.doc)">
+                        <button type="button" class="btn-secondary" onclick="exportUnifiedReportWord()" style="flex: 1; justify-content: center; background: #eff6ff; border: 1.5px solid #2563eb; color: #1e40af; font-weight: 800; font-size: 0.75rem; padding: 6px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap;" title="استخراج التقرير الشامل بصيغة Word قابلة للتعديل (.doc)">
                             <span>📝</span>
                             <span>تصدير التقرير (Word)</span>
                         </button>
-                        <button type="button" class="btn-secondary" onclick="exportUnifiedReportExcel()" style="background: #ecfdf5; border: 1.5px solid #059669; color: #065f46; font-weight: 800; font-size: 0.76rem; padding: 5px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" title="استخراج البيانات الإحصائية الشاملة للقسم أو لجميع الأقسام بصيغة Excel (.xlsx)">
+                        <button type="button" class="btn-secondary" onclick="exportUnifiedReportExcel()" style="flex: 1; justify-content: center; background: #ecfdf5; border: 1.5px solid #059669; color: #065f46; font-weight: 800; font-size: 0.75rem; padding: 6px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap;" title="استخراج البيانات الإحصائية الشاملة للقسم أو لجميع الأقسام بصيغة Excel (.xlsx)">
                             <span>📊</span>
                             <span>استخراج البيانات (Excel)</span>
                         </button>
-                        <button type="button" class="btn-primary" id="btnUnifiedClassAbsenceLateTopPdf" onclick="exportUnifiedClassAbsenceAndLatenessPDF(null, 'preview')" style="background: linear-gradient(135deg, #b91c1c, #dc2626); color: #ffffff; font-weight: 800; font-size: 0.78rem; padding: 5px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25); cursor: pointer;" title="تصدير ومعاينة تقرير شامل وموحد لجميع حالات الغياب والتأخرات في القسم المختار بصيغة PDF قابلة للطباعة الرسمية والمصادقة الإدارية">
+                        <button type="button" class="btn-primary" id="btnUnifiedClassAbsenceLateTopPdf" onclick="exportUnifiedClassAbsenceAndLatenessPDF(null, 'preview')" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #b91c1c, #dc2626); color: #ffffff; font-weight: 800; font-size: 0.75rem; padding: 6px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25); cursor: pointer; white-space: nowrap;" title="تصدير ومعاينة تقرير شامل وموحد لجميع حالات الغياب والتأخرات في القسم المختار بصيغة PDF قابلة للطباعة الرسمية والمصادقة الإدارية">
                             <span>📑</span>
                             <span>تقرير الغياب والتأخرات للقسم (PDF رسمي)</span>
-                        </button>
-                        <button type="button" class="btn-primary" id="btnCombinedAttendanceCardTopPdf" onclick="generateCombinedAttendanceCardPDF('preview')" style="background: linear-gradient(135deg, #047857, #059669); color: #ffffff; font-weight: 800; font-size: 0.78rem; padding: 5px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25); cursor: pointer;" title="توليد ومعاينة بطاقة حضور مجمعة لجميع الأقسام بصيغة PDF تتضمن نسبة المواظبة الإجمالية والملاحظات المسجلة لكل قسم">
-                            <span>📋</span>
-                            <span>بطاقة حضور مجمعة لجميع الأقسام (PDF)</span>
                         </button>
                     </div>
                 </div>
@@ -5072,9 +5066,13 @@
                         <label style="font-size: 0.78rem; font-weight: 800; color: #475569; display: block; margin-bottom: 4px;">فترة الرصد السريعة:</label>
                         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                             <button type="button" id="btnPeriodChip_all" onclick="setReportQuickPeriod('all')" style="background: #1e3a8a; color: #fff; border: 1px solid #1e3a8a; padding: 5px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer;">📅 كامل السنة (شتنبر - يوليوز)</button>
+                            <button type="button" id="btnPeriodChip_current_month" onclick="setReportQuickPeriod('current_month')" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer;">🗓️ الشهر الحالي</button>
                             <button type="button" id="btnPeriodChip_term1" onclick="setReportQuickPeriod('term1')" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer;">🍂 الدورة الأولى</button>
                             <button type="button" id="btnPeriodChip_term2" onclick="setReportQuickPeriod('term2')" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer;">🌱 الدورة الثانية</button>
-                            <button type="button" id="btnPeriodChip_current_month" onclick="setReportQuickPeriod('current_month')" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer;">🗓️ الشهر الحالي</button>
+                            <button type="button" class="btn-primary" onclick="renderReport()" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; border: 1px solid #0284c7; font-size: 0.74rem; padding: 5px 10px; font-weight: 800; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;" title="تحديث بيانات وإحصائيات التقارير">
+                                <span>🔄</span>
+                                <span>تحديث التقرير</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -5092,64 +5090,67 @@
                 </div>
 
                 <!-- شريط مؤشرات الرصد السريع للقسم -->
-                <div class="stats-bar" id="reportStatsBar" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px;">
-                    <div class="stat-item stat-absent">
-                        <span class="math-symbol-accent">∑</span> غياب: <span id="reportTotalAbsent">0</span> س
-                        <span id="reportAbsentRateBadge" style="font-size: 0.72rem; background: rgba(220, 38, 38, 0.12); color: #dc2626; padding: 1px 6px; border-radius: 4px; font-weight: 800; margin-right: 4px;">0%</span>
+                <div class="stats-bar" id="reportStatsBar" style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; align-items: stretch; margin-bottom: 12px;">
+                    <div class="stat-item stat-absent" style="min-height: 76px; height: 100%; justify-content: center; padding: 8px 6px; box-sizing: border-box;">
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 0.78rem; font-weight: 800; line-height: 1.2;">
+                            <span class="math-symbol-accent" style="font-size: 0.9rem;">∑</span>
+                            <span>غياب:</span>
+                            <span id="reportTotalAbsent" style="font-size: 1.05rem; font-weight: 900;">0</span>
+                            <span>س</span>
+                        </div>
+                        <span id="reportAbsentRateBadge" style="font-size: 0.72rem; background: rgba(255, 255, 255, 0.22); color: #ffffff; padding: 2px 8px; border-radius: 999px; font-weight: 800; margin-top: 4px;">0%</span>
                     </div>
-                    <div class="stat-item stat-late">
-                        <span class="math-symbol-accent">Δt</span> تأخر: <span id="reportTotalLate">0</span>
-                        <span id="reportLateRateBadge" style="font-size: 0.72rem; background: rgba(234, 88, 12, 0.12); color: #ea580c; padding: 1px 6px; border-radius: 4px; font-weight: 800; margin-right: 4px;">0%</span>
+                    <div class="stat-item stat-late" style="min-height: 76px; height: 100%; justify-content: center; padding: 8px 6px; box-sizing: border-box;">
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 0.78rem; font-weight: 800; line-height: 1.2;">
+                            <span class="math-symbol-accent" style="font-size: 0.9rem;">Δt</span>
+                            <span>تأخر:</span>
+                            <span id="reportTotalLate" style="font-size: 1.05rem; font-weight: 900;">0</span>
+                        </div>
+                        <span id="reportLateRateBadge" style="font-size: 0.72rem; background: rgba(255, 255, 255, 0.22); color: #ffffff; padding: 2px 8px; border-radius: 999px; font-weight: 800; margin-top: 4px;">0%</span>
                     </div>
-                    <div class="stat-item stat-hw">
-                        <span class="math-symbol-accent">∅</span> إخلال واجب: <span id="reportTotalHw">0</span>
-                        <span id="reportHwRateBadge" style="font-size: 0.72rem; background: rgba(147, 51, 234, 0.12); color: #9333ea; padding: 1px 6px; border-radius: 4px; font-weight: 800; margin-right: 4px;">0%</span>
+                    <div class="stat-item stat-hw" style="min-height: 76px; height: 100%; justify-content: center; padding: 8px 6px; box-sizing: border-box;">
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 0.78rem; font-weight: 800; line-height: 1.2;">
+                            <span class="math-symbol-accent" style="font-size: 0.9rem;">∅</span>
+                            <span>إخلال بالواجب:</span>
+                            <span id="reportTotalHw" style="font-size: 1.05rem; font-weight: 900;">0</span>
+                        </div>
+                        <span id="reportHwRateBadge" style="font-size: 0.72rem; background: rgba(255, 255, 255, 0.22); color: #ffffff; padding: 2px 8px; border-radius: 999px; font-weight: 800; margin-top: 4px;">0%</span>
                     </div>
-                    <div class="stat-item" style="background: #f0fdf4; border: 1px solid #86efac; color: #15803d; font-weight: 800;">
-                        <span>📈 نسبة الحضور: </span>
-                        <span id="reportAttendanceRateBadge" style="font-size: 0.85rem; color: #15803d; margin-right: 2px;">100%</span>
+                    <div class="stat-item" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1.5px solid #86efac; color: #15803d; font-weight: 800; min-height: 76px; height: 100%; justify-content: center; padding: 8px 6px; box-sizing: border-box;">
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 0.78rem; font-weight: 800; line-height: 1.2; color: #166534;">
+                            <span style="font-size: 0.9rem;">📈</span>
+                            <span>نسبة الحضور</span>
+                        </div>
+                        <span id="reportAttendanceRateBadge" style="font-size: 1.05rem; font-weight: 900; color: #15803d; background: rgba(21, 128, 61, 0.1); padding: 2px 10px; border-radius: 999px; margin-top: 4px;">100%</span>
                     </div>
-                    <div class="stat-item" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-weight: 800;">
-                        <span>🎯 نسبة الحاصلين على المعدل: </span>
-                        <span id="reportPassRateBadge" style="font-size: 0.85rem; color: #1d4ed8; margin-right: 2px;">100%</span>
+                    <div class="stat-item" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1.5px solid #93c5fd; color: #1d4ed8; font-weight: 800; min-height: 76px; height: 100%; justify-content: center; padding: 8px 6px; box-sizing: border-box;">
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 0.78rem; font-weight: 800; line-height: 1.2; color: #1e40af;">
+                            <span style="font-size: 0.9rem;">🎯</span>
+                            <span>نسبة الحاصلين على المعدل</span>
+                        </div>
+                        <span id="reportPassRateBadge" style="font-size: 1.05rem; font-weight: 900; color: #1d4ed8; background: rgba(29, 78, 216, 0.1); padding: 2px 10px; border-radius: 999px; margin-top: 4px;">100%</span>
                     </div>
                 </div>
 
                 <!-- أزرار التصدير والحزم المجمعة -->
-                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
-                    <button type="button" class="btn-primary" id="btnUnifiedClassAbsenceLatePdf" onclick="exportUnifiedClassAbsenceAndLatenessPDF(null, 'preview')" style="background: linear-gradient(135deg, #b91c1c, #dc2626); font-weight: 800; box-shadow: 0 2px 5px rgba(220, 38, 38, 0.28); display: inline-flex; align-items: center; gap: 6px; font-size: 0.80rem;" title="تصدير ومعاينة تقرير شامل وموحد لجميع حالات الغياب والتأخرات في القسم المختار بصيغة PDF قابلة للطباعة الرسمية والمصادقة الإدارية">
-                        <span data-lucide="file-warning" data-size="14"></span>
-                        <span>تقرير الغياب والتأخرات للقسم المختار (PDF)</span>
-                    </button>
-                    <button type="button" class="btn-secondary" id="btnUnifiedClassAbsenceLatePdfDownload" onclick="exportUnifiedClassAbsenceAndLatenessPDF(null, 'download')" style="background: #fef2f2; border: 1.5px solid #dc2626; color: #991b1b; font-weight: 800; font-size: 0.76rem; padding: 5px 12px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" title="تحميل مباشر لتقرير الغياب والتأخرات الشامل للقسم المختار بصيغة PDF">
-                        <span data-lucide="download" data-size="13"></span>
-                        <span>تحميل تقرير الغياب والتأخرات للقسم (PDF مباشر)</span>
-                    </button>
-                    <button type="button" class="btn-primary" id="btnCombinedAttendanceCardPdf" onclick="generateCombinedAttendanceCardPDF('preview')" style="background: linear-gradient(135deg, #047857, #059669); font-weight: 800; box-shadow: 0 2px 5px rgba(5, 150, 105, 0.28); display: inline-flex; align-items: center; gap: 6px; font-size: 0.80rem;" title="توليد ومعاينة بطاقة حضور مجمعة لجميع الأقسام بصيغة PDF تتضمن نسبة المواظبة الإجمالية والملاحظات المسجلة لكل قسم">
-                        <span data-lucide="clipboard-check" data-size="14"></span>
-                        <span>بطاقة حضور مجمعة لجميع الأقسام (PDF)</span>
-                    </button>
-                    <button type="button" class="btn-secondary" id="btnCombinedAttendanceCardPdfDownload" onclick="generateCombinedAttendanceCardPDF('download')" style="background: #ecfdf5; border: 1.5px solid #059669; color: #065f46; font-weight: 800; font-size: 0.76rem; padding: 5px 12px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" title="تحميل مباشر لبطاقة الحضور المجمعة لجميع الأقسام بصيغة PDF">
-                        <span data-lucide="download" data-size="13"></span>
-                        <span>تحميل بطاقة الحضور المجمعة (PDF مباشر)</span>
-                    </button>
-                    <button type="button" class="btn-primary" onclick="openMassarExportModal()" style="background: linear-gradient(135deg, #15803d, #166534); font-weight: 800; box-shadow: 0 2px 4px rgba(21, 128, 61, 0.25); display: inline-flex; align-items: center; gap: 6px; font-size: 0.80rem;" title="تصدير نقط الفروض والمراقبة المستمرة بصيغة إكسيل منظومة مسار">
-                        <span data-lucide="file-spreadsheet" data-size="14"></span>
+                <div style="display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: nowrap; width: 100%; overflow-x: auto; margin: 2px auto 4px auto;">
+                    <button type="button" class="btn-primary" onclick="openMassarExportModal()" style="justify-content: center; background: linear-gradient(135deg, #15803d, #166534); font-weight: 800; box-shadow: 0 2px 4px rgba(21, 128, 61, 0.25); display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; padding: 6px 14px; border-radius: 6px; white-space: nowrap; cursor: pointer;" title="تصدير نقط الفروض والمراقبة المستمرة بصيغة إكسيل منظومة مسار">
+                        <span data-lucide="file-spreadsheet" data-size="13"></span>
                         <span>تصدير مسار (Excel)</span>
                     </button>
-                    <button type="button" class="btn-primary" onclick="openMonthlyAdministrativeAbsenceModal()" style="background: linear-gradient(135deg, #0f766e, #115e59); font-weight: 800; display: inline-flex; align-items: center; gap: 6px; font-size: 0.80rem;" title="لائحة الغياب الشهرية الإدارية الرسمية القابلة للطباعة والتأشير">
-                        <span data-lucide="file-check-2" data-size="14"></span>
+                    <button type="button" class="btn-primary" onclick="openMonthlyAdministrativeAbsenceModal()" style="justify-content: center; background: linear-gradient(135deg, #0f766e, #115e59); font-weight: 800; display: inline-flex; align-items: center; gap: 5px; font-size: 0.76rem; padding: 6px 14px; border-radius: 6px; white-space: nowrap; cursor: pointer;" title="لائحة الغياب الشهرية الإدارية الرسمية القابلة للطباعة والتأشير">
+                        <span data-lucide="file-check-2" data-size="13"></span>
                         <span>كشف الغياب الشهري (PDF)</span>
                     </button>
-                    <button type="button" class="btn-secondary" id="btnBatchAttendancePdf" onclick="exportAllClassesAttendancePDFWithCovers()" style="background: #ffffff; border: 1px solid #0f766e; color: #0f766e; font-weight: 800; font-size: 0.76rem; padding: 5px 12px; display: inline-flex; align-items: center; gap: 5px;" title="تصدير كشوفات الغياب الرسمية لكافة الأقسام دفعة واحدة">
+                    <button type="button" class="btn-secondary" id="btnBatchAttendancePdf" onclick="exportAllClassesAttendancePDFWithCovers()" style="justify-content: center; background: #ffffff; border: 1.5px solid #0f766e; color: #0f766e; font-weight: 800; font-size: 0.76rem; padding: 6px 14px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; cursor: pointer;" title="تصدير كشوفات الغياب الرسمية لكافة الأقسام دفعة واحدة">
                         <span data-lucide="file-text" data-size="13"></span>
                         <span>كشوفات الغياب لجميع الأقسام</span>
                     </button>
-                    <button type="button" class="btn-secondary" onclick="exportAllClassesPDF()" style="background: #ffffff; border: 1px solid #475569; color: #334155; font-weight: 800; font-size: 0.76rem; padding: 5px 12px; display: inline-flex; align-items: center; gap: 5px;" title="تصدير تقارير جميع الأقسام مجمعة">
+                    <button type="button" class="btn-secondary" onclick="exportAllClassesPDF()" style="justify-content: center; background: #ffffff; border: 1.5px solid #475569; color: #334155; font-weight: 800; font-size: 0.76rem; padding: 6px 14px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; cursor: pointer;" title="تصدير تقارير جميع الأقسام مجمعة">
                         <span data-lucide="files" data-size="13"></span>
                         <span>تقارير جميع الأقسام المجمعة</span>
                     </button>
-                    <button type="button" class="btn-secondary" onclick="exportClassQuarterlyReportsPDF()" style="background: #ffffff; border: 1px solid #059669; color: #059669; font-weight: 800; font-size: 0.76rem; padding: 5px 12px; display: inline-flex; align-items: center; gap: 5px;" title="تصدير تقارير الأداء الفصلية الشاملة">
+                    <button type="button" class="btn-secondary" onclick="exportClassQuarterlyReportsPDF()" style="justify-content: center; background: #ffffff; border: 1.5px solid #059669; color: #059669; font-weight: 800; font-size: 0.76rem; padding: 6px 14px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; cursor: pointer;" title="تصدير تقارير الأداء الفصلية الشاملة">
                         <span data-lucide="book-open" data-size="13"></span>
                         <span>التقارير الفصلية الشاملة</span>
                     </button>
@@ -5662,7 +5663,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="card" id="reportTableCard">
                 <!-- Header with table title and live search filter -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
@@ -5746,7 +5747,7 @@
                         </strong>
                         <button type="button" onclick="window.toggleUpcomingExamForm(false)" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; width: 26px; height: 26px; color: #64748b; cursor: pointer; font-size: 0.9rem; font-weight: bold; display: inline-flex; align-items: center; justify-content: center;">✕</button>
                     </div>
-                    
+
                     <form id="upcomingExamForm" onsubmit="window.handleSaveUpcomingExam(event)">
                         <!-- أزرار الاختصارات السريعة لتسمية الفرض -->
                         <div style="margin-bottom: 12px; background: #ffffff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 8px 10px;">
@@ -6147,17 +6148,20 @@
 
             <!-- At-Risk Students Card -->
             <div class="card" id="atRiskStudentsCard" style="display: none; margin-top: 14px; border: 1px solid #fecaca; background: #fffcfc;">
-                <h4 style="color: #b91c1c; font-size: 1rem; margin-bottom: 12px; margin-top: 0; display: flex; align-items: center; gap: 8px;">
-                    <span class="ui-icon"><span data-lucide="alert-triangle" data-size="16"></span></span> التلاميذ المعرضون للخطر (تعثر دراسي / غياب متكرر)
-                </h4>
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                    <h4 style="color: #b91c1c; font-size: 1rem; margin: 0; display: flex; align-items: center; gap: 8px;">
+                        <span class="ui-icon"><span data-lucide="alert-triangle" data-size="16"></span></span> التلاميذ المعرضون للخطر ومؤشر الإنذار المبكر التنبؤي (تعثر دراسي / غياب متكرر / تراجع الفروض)
+                    </h4>
+                    <span style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 800;">⚡ محرك اليقظة التربوية التنبؤي v3.6</span>
+                </div>
                 <div class="table-responsive">
                     <table class="report-table">
                         <thead>
                             <tr>
                                 <th style="width: 40px;">ر.ت</th>
-                                <th style="text-align: right; padding-right: 10px;">الاسم الكامل</th>
-                                <th>سبب التصنيف</th>
-                                <th style="width: 100px;">إجراء سريع</th>
+                                <th style="text-align: right; padding-right: 10px;">الاسم الكامل ومؤشر الخطر</th>
+                                <th>أسباب التصنيف التنبؤي</th>
+                                <th style="width: 175px;">إجراء سريع وبطاقة QR</th>
                             </tr>
                         </thead>
                         <tbody id="atRiskTableBody">
@@ -6207,7 +6211,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="card" id="attendancePieChartCard" style="display: none; margin-top: 12px; border: 1px solid var(--primary);">
                 <h4 style="color: var(--primary); font-size: 0.95rem; margin-bottom: 12px; text-align: center;"><span class="math-symbol-accent">%</span> نسبة الحضور والغياب (العام)</h4>
                 <div style="position: relative; height: 250px; display: flex; justify-content: center;">
@@ -6239,7 +6243,7 @@
                             </p>
                         </div>
                     </div>
-                    
+
                     <!-- أزرار التبديل بين ساعات الغياب وعدد الحالات -->
                     <div style="display: flex; align-items: center; gap: 4px; background: #f1f5f9; padding: 3px; border-radius: 8px; border: 1px solid #e2e8f0;">
                         <button type="button" id="btnMonthlyAbsenceMetricHours" onclick="setMonthlyAbsenceMetric('hours')" style="border: none; background: #ffffff; color: #4338ca; padding: 5px 12px; font-size: 0.75rem; font-weight: 800; border-radius: 6px; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.2s;">
@@ -6285,7 +6289,7 @@
                             </p>
                         </div>
                     </div>
-                    
+
                     <!-- أدوات التحكم وأنماط العرض -->
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <!-- محدد الفترة -->
@@ -6567,7 +6571,7 @@
                         <div id="notesActiveFilterSummaryText" style="font-size: 0.76rem; color: #64748b; font-weight: 700;"></div>
                     </div>
                 </div>
-                
+
                 <!-- Homework Agenda Card -->
                 <div class="card" id="hwAgendaCard" style="display: none; margin-bottom: 15px; border: 1px solid var(--purple); background: #faf5ff;">
                     <h3 style="color: var(--purple); font-size: 1.1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
@@ -6648,14 +6652,14 @@
                         <!-- Student chips go here -->
                     </div>
                 </div>
-                
+
                 <!-- Note Editor & Smart Pedagogical Engine Container -->
                 <div class="card" id="notesListContainer" style="display: none; border-radius: 14px;">
                     <h3 style="color: var(--primary); font-size: 1.1rem; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                         <span style="display: flex; align-items: center; gap: 8px;"><span data-lucide="pen-tool" data-size="16"></span> تدوين وتصنيف ملاحظة تربوية جديدة</span>
                         <span style="font-size: 0.78rem; font-weight: normal; color: #64748b;">اختر التلميذ وتصنيف الملاحظة (بيداغوجية / سلوكية / إدارية) أو اعتمد التصنيف الذكي الآلي</span>
                     </h3>
-                    
+
                     <div class="hide-in-presentation" style="margin-bottom: 20px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 16px;">
                         <!-- Row: Student selection + Note Category + Note Sentiment -->
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px;">
@@ -6775,7 +6779,7 @@
 
                         <!-- Note Text Input -->
                         <textarea id="newNoteText" oninput="onNewNoteCategoryOrTextChange()" placeholder="اكتب ملاحظة أو توجيهاً تربوياً هنا (بيداغوجية، سلوكية، أو إدارية)..." style="width: 100%; min-height: 85px; padding: 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-family: 'Cairo', sans-serif; resize: vertical; font-size: 0.9rem; line-height: 1.5; background: #fff;"></textarea>
-                        
+
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
                             <button class="btn-primary" onclick="addNote()" style="padding: 8px 20px; font-weight: 800; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
                                 <span data-lucide="plus" data-size="14"></span> حفظ وإضافة الملاحظة المصنفة
@@ -6885,8 +6889,6 @@
                 </div>
             </div>
 
-
-        
         <div id="lessonLogView" style="display: none;">
             <div id="lessonLogReminderContainer" class="hide-in-presentation" style="display: none; margin-bottom: 15px;"></div>
 
@@ -7569,7 +7571,7 @@
             <div id="libBrowseTabPane" style="display: block;">
             <div class="card hide-in-presentation">
                 <h3 style="color: var(--primary); margin-bottom: 15px; font-family: 'Cairo', sans-serif;"><span class="ui-icon"><span data-lucide="plus" data-size="13"></span></span> إضافة مورد رقمي جديد</h3>
-                
+
                 <!-- Toggle between Google Drive, Local File, and External Link -->
                 <div class="lib-mode-switch">
                     <button type="button" class="lib-mode-btn active" id="btnModeDrive" onclick="switchLibMode('drive')">
@@ -7786,12 +7788,12 @@
                         </button>
                     </div>
                     <input type="text" id="libTitle" placeholder="مثال: سلسلة تمارين 1 - الحساب العددي" oninput="debounceAiSuggest('local')">
-                    
+
                     <!-- Smart AI Suggestion Box for Local File -->
                     <div id="libAiLocalSuggestionBox" style="display: none; margin-bottom: 12px; background: linear-gradient(135deg, #fcfaff, #f5f3ff); border: 1px solid #ddd6fe; border-radius: 8px; padding: 10px 14px; font-size: 0.84rem;">
                         <!-- dynamic suggestion content -->
                     </div>
-                    
+
                     <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
                         <div style="flex: 1; min-width: 140px;">
                             <label>تصنيف المورد التربوي:</label>
@@ -7846,7 +7848,7 @@
                             <input type="text" id="libTopic" placeholder="مثال: الحساب العددي" style="margin-top: 4px;">
                         </div>
                     </div>
-                    
+
                     <button class="btn-success" id="btnSaveLibResource" onclick="addLibraryItem()"><span class="ui-icon"><span data-lucide="save" data-size="13"></span></span> حفظ المورد في المكتبة</button>
                 </div>
 
@@ -7863,12 +7865,12 @@
                         </button>
                     </div>
                     <input type="text" id="libUrlTitle" placeholder="مثال: رابط درس تلميذ تيس أو فيديو توضيحي" oninput="debounceAiSuggest('url')">
-                    
+
                     <!-- Smart AI Suggestion Box for URL Resource -->
                     <div id="libAiUrlSuggestionBox" style="display: none; margin-bottom: 12px; background: linear-gradient(135deg, #fcfaff, #f5f3ff); border: 1px solid #ddd6fe; border-radius: 8px; padding: 10px 14px; font-size: 0.84rem;">
                         <!-- dynamic suggestion content -->
                     </div>
-                    
+
                     <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
                         <div style="flex: 1; min-width: 140px;">
                             <label>تصنيف المورد التربوي:</label>
@@ -7925,7 +7927,7 @@
                     <button class="btn-success" onclick="addUrlLibraryItem()"><span class="ui-icon"><span data-lucide="save" data-size="13"></span></span> إضافة الرابط إلى المكتبة</button>
                 </div>
             </div>
-            
+
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
                     <h3 style="color: var(--primary); margin: 0; font-family: 'Cairo', sans-serif;"><span class="ui-icon"><span data-lucide="book-open" data-size="13"></span></span> الموارد التعليمية الرقمية</h3>
@@ -7978,11 +7980,11 @@
 
                 <!-- شريط أزرار التصنيف البيداغوجي السريع (درس، سلسلة تمارين، فرض منزلي، فرض محروس، بطاقة تقنية) -->
                 <div id="libCategoryPillsContainer" style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding: 4px 2px; flex-wrap: wrap;"></div>
-                
+
                 <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; align-items: center;">
                     <span style="font-size: 0.85rem; font-weight: bold; color: #64748b; margin-left: 5px;"><span data-lucide="filter" data-size="14"></span> تصفية:</span>
                     <input type="text" class="search-box" id="libSearch" placeholder="بحث بالاسم أو المحور أو المجلد..." onkeyup="renderLibrary()" style="flex: 1; min-width: 140px; margin-bottom: 0;">
-                    
+
                     <select id="libFilterCategory" onchange="onLibCategoryFilterChange(this.value)" style="flex: 1.2; min-width: 160px; margin-bottom: 0; padding: 8px 12px; border-radius: 8px; border: 2px solid #3b82f6; font-size: 0.86rem; font-weight: 700; color: #1e3a8a; background: #eff6ff;">
                         <option value="all">كل التصنيفات التربوية 📚</option>
                         <option value="درس">📖 درس</option>
@@ -8035,7 +8037,7 @@
                         <option value="link">روابط ومواقع</option>
                     </select>
                 </div>
-                
+
                 <!-- Main Browse Layout: Cards Grid + Interactive Growth Sidebar -->
                 <div id="libMainLayoutContainer" style="display: flex; gap: 18px; align-items: flex-start; margin-top: 15px; position: relative;">
                     <!-- Resources Grid Container -->
@@ -8228,8 +8230,6 @@
             </div> <!-- /libAnalyticsTabPane -->
         </div> <!-- /libraryView -->
 
-        
-        
         <div id="tutoringView" style="display: none;">
             <div class="card" style="padding: 24px; border-radius: 16px; border: 1.5px solid #e2e8f0; background: #ffffff;">
                 <!-- Modern Harmonized Header Top Section -->
@@ -8238,7 +8238,7 @@
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
                             <span class="ui-icon" style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #4f46e5, #4338ca); color: #fff; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);">
                                 <span data-lucide="graduation-cap" data-size="22"></span>
-                            </span> 
+                            </span>
                             <h3 style="color: var(--primary); margin: 0; font-family: 'Cairo', sans-serif; font-size: 1.35rem; font-weight: 900;">
                                 إدارة الدعم والدروس الخصوصية
                             </h3>
@@ -8409,7 +8409,7 @@
                             </div>
                             <div style="font-size: 0.72rem; color: #64748b;">إجمالي الساعات × الواجب</div>
                         </div>
-                        
+
                         <!-- Card 4: Collected Revenue -->
                         <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1.5px solid #bbf7d0; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; justify-content: space-between; min-height: 96px; transition: transform 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                             <div style="color: #166534; font-size: 0.8rem; font-weight: 800; display: flex; align-items: center; gap: 6px;">
@@ -8422,7 +8422,7 @@
                             </div>
                             <div style="font-size: 0.72rem; color: #16a34a;">تم تسويتها بوصل ✅</div>
                         </div>
-                        
+
                         <!-- Card 5: Unpaid Revenue -->
                         <div style="background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%); border: 1.5px solid #fbcfe8; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; justify-content: space-between; min-height: 96px; transition: transform 0.15s ease;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                             <div style="color: #be185d; font-size: 0.8rem; font-weight: 800; display: flex; align-items: center; justify-content: space-between;">
@@ -8470,7 +8470,7 @@
                     <!-- Smart Pedagogical ROI, School Exam Readiness, Pack Balance & Net Profit Strip -->
                     <div id="tutoringSmartInsightsStrip" style="margin-top: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;"></div>
                 </div>
-                
+
                 <!-- Enhanced Month Navigation & Filters Bar -->
                 <div style="margin-bottom: 20px; display: flex; gap: 12px; align-items: center; background: #fff; padding: 12px 16px; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.02); flex-wrap: wrap;">
                     <div style="display: flex; gap: 6px; align-items: center;">
@@ -8480,7 +8480,7 @@
                         <button type="button" onclick="changeTutoringMonth(1)" title="الشهر القادم" style="padding: 6px 10px; border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 6px; cursor: pointer; font-weight: bold;">▶</button>
                         <button type="button" onclick="setCurrentTutoringMonth()" style="padding: 6px 10px; border: 1px solid #cbd5e1; background: #eff6ff; color: #2563eb; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: bold;">الشهر الحالي</button>
                     </div>
-                    
+
                     <div style="display: flex; gap: 6px; align-items: center; margin-right: auto; flex-wrap: wrap;">
                         <label style="margin: 0; font-weight: bold; color: #334155; display: flex; align-items: center; gap: 6px; font-size: 0.85rem;"><span data-lucide="filter" data-size="16"></span> المجموعة:</label>
                         <select id="tutoringGroupFilter" onchange="renderTutoringStudents()" style="margin: 0; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: 'Cairo', sans-serif; background: #f8fafc; font-weight: bold; color: #0f172a; cursor: pointer; font-size: 0.85rem;">
@@ -8577,7 +8577,7 @@
         }
                     .tutoring-cards-container { display: none; }
                     .tutoring-table-container { display: block; }
-                    
+
                     /* Automatic responsive breakpoint */
                     @media (max-width: 860px) {
                         #tutoringView:not(.tutoring-force-table) .tutoring-cards-container {
@@ -8803,7 +8803,7 @@
                         min-height: 0 !important;
                     }
                 </style>
-                
+
                 <!-- Global Visual Alert for Remaining / Unpaid Balances -->
                 <div id="tutoringOutstandingAlertBanner" style="display: none; margin-bottom: 16px; background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%); border: 1.5px solid #fecdd3; border-right: 5px solid #e11d48; border-radius: 10px; padding: 12px 16px; box-shadow: 0 2px 5px rgba(225, 29, 72, 0.06); align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -8948,7 +8948,7 @@
                             <!-- Dynamic stats summary badges -->
                             <div id="tutoringScheduleStatsBadges" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;"></div>
                         </div>
-                        
+
                         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                             <!-- View mode toggle -->
                             <div class="tutoring-schedule-view-toggle">
@@ -9994,7 +9994,7 @@
                             <span data-lucide="users" data-size="16" style="color: #059669;"></span>
                             <span>2. تحديد الأقسام المستهدفة للتطبيق (<span id="multiCopySelectedCount" style="color: #0284c7; font-weight: 900;">0</span> محددة)</span>
                         </div>
-                        
+
                         <!-- Filter chips -->
                         <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                             <button type="button" onclick="multiCopyFilterSelect('same-level')" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 6px; padding: 4px 10px; font-size: 0.76rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="تحديد الأقسام التي تدرس نفس المادة والمستوى والشعبة">
@@ -11142,7 +11142,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                
+
                                 <tr style="background: #fff; font-weight: 700;">
                                     <td rowspan="13" style="padding: 8px; border: 1px solid #cbd5e1; background: #faf5ff; color: #6b21a8; font-weight: 800;">السلك الثانوي التأهيلي</td>
                                     <td style="padding: 8px; border: 1px solid #cbd5e1; text-align: right;">الجذع المشترك العلمي والتكنولوجي</td>
@@ -11620,7 +11620,7 @@
                     </h3>
                     <button type="button" onclick="closeTutoringAllSessionsModal()" style="background: none; border: none; cursor: pointer; color: #64748b; font-size: 1.2rem;">✕</button>
                 </div>
-                
+
                 <div id="allSessionsListContainer" style="display: flex; flex-direction: column; gap: 10px;">
                 </div>
 
@@ -11650,7 +11650,7 @@
                     </div>
                     <button type="button" onclick="closeTutoringSessionModal()" style="background: rgba(255,255,255,0.12); border: none; cursor: pointer; color: #fff; font-size: 1.15rem; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">✕</button>
                 </div>
-                
+
                 <input type="hidden" id="sessionStudentId">
                 <input type="hidden" id="editingSessionId">
 
@@ -11716,7 +11716,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Date & Time Row -->
                     <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 10px; margin-bottom: 14px;">
                         <div>
@@ -11734,7 +11734,7 @@
                             <input type="time" id="sessionTime" value="18:00" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.88rem; font-weight: 700; color: #0f172a; background: #fff;">
                         </div>
                     </div>
-                    
+
                     <!-- Duration & Quick Presets -->
                     <div style="margin-bottom: 14px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 10px 12px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
@@ -11809,7 +11809,7 @@
                             <input type="text" id="sessionEvaluationNotes" placeholder="مثال: تمكن جيد من التقنيات، بطء طفيف في الحساب الجبري..." style="width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid #cbd5e1; font-size: 0.82rem; background: #fff;">
                         </div>
                     </div>
-                    
+
                     <!-- Action Buttons -->
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
                         <button type="button" class="btn-success" onclick="saveTutoringSession(false)" style="flex: 1.4; padding: 11px 14px; font-weight: 900; font-size: 0.92rem; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); border: none; cursor: pointer;">
@@ -11832,7 +11832,7 @@
                             <span>مشاركة تقرير وملخص الحصة مع ولي الأمر عبر واتساب 📲</span>
                         </button>
                     </div>
-                    
+
                     <!-- Student Sessions History Accordion/List -->
                     <div id="studentSessionsList" style="margin-top: 18px; border-top: 1.5px solid #e2e8f0; padding-top: 14px;">
                         <!-- Scheduled sessions list dynamically injected -->
@@ -11851,9 +11851,9 @@
                     </h3>
                     <button type="button" onclick="closeTutoringModal()" style="background: none; border: none; font-size: 1.1rem; cursor: pointer; color: #64748b;">✕</button>
                 </div>
-                
+
                 <input type="hidden" id="tutoringStudentId">
-                
+
                 <!-- Independent Registry Notice -->
                 <div style="margin-bottom: 14px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; color: #166534; display: flex; align-items: center; gap: 6px;">
                     <span class="ui-icon" style="margin: 0; color: #16a34a;"><span data-lucide="shield-check" data-size="15"></span></span>
@@ -11864,7 +11864,7 @@
                     <label>الاسم الكامل:</label>
                     <input type="text" id="tutoringName" placeholder="الاسم والنسب">
                 </div>
-                
+
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
                     <div>
                         <label>المجموعة:</label>
@@ -11896,13 +11896,13 @@
                         </select>
                     </div>
                 </div>
-                
+
                 <div style="margin-bottom: 12px;">
                     <label>رقم الهاتف (اختياري):</label>
                     <input type="text" id="tutoringPhone" placeholder="مثال: 0612345678" dir="ltr" style="text-align: right;">
                     <small style="color: #64748b; font-size: 0.75rem;">يُستخدم للتواصل وإرسال الإشعارات عبر واتساب</small>
                 </div>
-                
+
                 <!-- Axis 1: Flexible Billing & Pricing System -->
                 <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px; margin-bottom: 12px;">
                     <div style="font-weight: 800; font-size: 0.84rem; color: #0f172a; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
@@ -11975,7 +11975,7 @@
                     <label>ملاحظات تربوية أو أهداف خاصة (اختياري):</label>
                     <input type="text" id="tutoringNotes" placeholder="مثال: بحاجة لتقوية الحساب التكاملي، التحضير لمباراة..." style="margin: 0;">
                 </div>
-                
+
                 <div style="display: flex; gap: 10px;">
                     <button class="btn-success" onclick="saveTutoringStudent()" style="flex: 1.2;">حفظ البيانات</button>
                     <button class="btn-action" onclick="closeTutoringModal()" style="flex: 1; border-radius: 8px; width: auto; background: var(--border); border-color: transparent;">إلغاء</button>
@@ -12051,7 +12051,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Tutoring Group Batch Performance Report Modal -->
         <div id="tutoringGroupBatchReportModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.65); z-index: 10003; align-items: center; justify-content: center; flex-direction: column; padding: 15px;">
             <div class="batch-modal-card">
@@ -12176,7 +12176,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Tutoring WhatsApp Reminder Modal (Single Student) -->
         <div id="tutoringWhatsAppModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.65); z-index: 10002; align-items: center; justify-content: center; flex-direction: column; padding: 15px;">
             <div class="card" style="width: 100%; max-width: 540px; padding: 24px; max-height: 92vh; overflow-y: auto; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
@@ -12758,7 +12758,7 @@
                     <label style="font-weight: bold; margin-bottom: 4px; display: block; font-size: 0.85rem;">مجموعة الدعم المستهدفة:</label>
                     <input type="text" id="scheduleSlotGroup" list="tutoringGroupDatalist" placeholder="مثال: مجموعة 1 - ثانية باك علوم" style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: 'Cairo', sans-serif;">
                 </div>
-                
+
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
                     <div>
                         <label style="font-weight: bold; margin-bottom: 4px; display: block; font-size: 0.85rem;">يوم الأسبوع:</label>
@@ -13225,7 +13225,7 @@
                 <!-- بانر تنبيه الفروض والامتحانات المخصصة للتقويم -->
                 <div id="calendarSmartExamAlertBanner" style="display: none; margin-bottom: 12px;"></div>
                 <div id="agendaAlerts" style="display: none; margin-bottom: 12px; flex-direction: column; gap: 8px;"></div>
-                
+
                 <!-- رادار التذكير المسبق بالحصة القادمة وتنبيهات الواجبات المنزلية المرتبطة -->
                 <div id="upcomingSessionRadarBanner" class="upcoming-session-radar" style="display: none; margin-bottom: 12px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
@@ -13249,7 +13249,7 @@
                                 <div id="sessionRadarTitle" style="font-weight: 800; color: #0f172a; font-size: 1.05rem; margin-top: 4px;">
                                     حصة قسم: 1APIC-1 (08:00 - 10:00)
                                 </div>
-                                
+
                                 <!-- تنبيه الواجب المنزلي المرتبط إن وجد -->
                                 <div id="sessionRadarHomeworkBox" style="display: none; margin-top: 8px; background: #faf5ff; border: 1px solid #e9d5ff; border-right: 4px solid #7c3aed; padding: 8px 12px; border-radius: 8px;">
                                     <div style="display: flex; align-items: center; gap: 6px; font-weight: 800; color: #6b21a8; font-size: 0.85rem;">
@@ -13381,7 +13381,7 @@
                             </button>
                         </div>
                     </div>
-                    
+
                     <!-- شريط ملخص التزامن الفوري للشهر المعروض بين التقويم الشهري والمحطات البيداغوجية والتقويم السنوي -->
                     <div id="monthlyCalendarSyncSummaryBar" style="margin-bottom: 14px;"></div>
 
@@ -13394,7 +13394,7 @@
                             <!-- Calendar days go here -->
                         </div>
                     </div>
-                    
+
                     <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; font-size: 0.84rem;">
                         <div style="display: flex; align-items: center; gap: 8px; background: #fef2f2; border: 1px solid #fecaca; border-right: 3.5px solid #dc2626; padding: 5px 14px; border-radius: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
                             <span style="width: 8px; height: 8px; border-radius: 50%; background: #dc2626; display: inline-block;"></span>
@@ -13437,8 +13437,8 @@
                 <div id="calendarRoadmapContentMount"></div>
             </div>
         </div>
-        
-        
+
+
         <!-- Fast Grading Modal (Upgraded with Auto-Advance after 2 digits, Physical Keyboard & Voice Dictation) -->
         <div id="fastGradingModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f8fafc; z-index: 11000; flex-direction: column;">
             <div style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%); color: white; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); flex-wrap: wrap; gap: 10px;">
@@ -13456,7 +13456,7 @@
                 </div>
                 <button onclick="closeFastGrading()" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; font-size: 1rem; font-weight: 800; cursor: pointer; padding: 6px 14px; border-radius: 8px;">✕ إغلاق وحفظ</button>
             </div>
-            
+
             <!-- شريط الإعدادات السريعة: الفرض، الانتقال التلقائي، والإملاء الصوتي -->
             <div style="padding: 10px 16px; background: white; border-bottom: 1px solid #e2e8f0; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -13514,23 +13514,23 @@
                     <button type="button" onclick="fgQuickSetAndNext('18')" style="background:#fff; border:1px solid #cbd5e1; border-radius:6px; padding:4px 9px; font-size:0.78rem; font-weight:800; color:#7e22ce; cursor:pointer;">18</button>
                     <button type="button" onclick="fgQuickSetAndNext('20')" style="background:#fef3c7; border:1px solid #f59e0b; border-radius:6px; padding:4px 9px; font-size:0.78rem; font-weight:900; color:#b45309; cursor:pointer;">20 🌟</button>
                 </div>
-                
+
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-width: 520px; width: 100%;">
                     <button class="fg-btn" onclick="fgInput('1')">1</button>
                     <button class="fg-btn" onclick="fgInput('2')">2</button>
                     <button class="fg-btn" onclick="fgInput('3')">3</button>
                     <button class="fg-btn" onclick="fgInput('.25')" style="background: var(--bg); color: var(--primary);">.25</button>
-                    
+
                     <button class="fg-btn" onclick="fgInput('4')">4</button>
                     <button class="fg-btn" onclick="fgInput('5')">5</button>
                     <button class="fg-btn" onclick="fgInput('6')">6</button>
                     <button class="fg-btn" onclick="fgInput('.5')" style="background: var(--bg); color: var(--primary);">.50</button>
-                    
+
                     <button class="fg-btn" onclick="fgInput('7')">7</button>
                     <button class="fg-btn" onclick="fgInput('8')">8</button>
                     <button class="fg-btn" onclick="fgInput('9')">9</button>
                     <button class="fg-btn" onclick="fgInput('.75')" style="background: var(--bg); color: var(--primary);">.75</button>
-                    
+
                     <button class="fg-btn" onclick="fgInput('0')">0</button>
                     <button class="fg-btn" onclick="fgInput('.')">.</button>
                     <button class="fg-btn" onclick="fgDelete()" style="background: var(--danger-light); color: var(--danger); border-color: var(--danger);">⌫</button>
@@ -13547,7 +13547,7 @@
                         <span>غائب (0) + التالي ⏩</span>
                     </button>
                 </div>
-                
+
                 <div style="display: flex; gap: 12px; width: 100%; max-width: 520px; justify-content: space-between;">
                     <button class="btn-action" onclick="fgPrevStudent()" style="flex: 1; padding: 11px; font-size: 1rem; border-radius: 10px; background: white; border: 2px solid var(--border);"><span data-lucide="chevron-right" data-size="14"></span> السابق</button>
                     <button class="btn-action" onclick="fgNextStudent()" style="flex: 1; padding: 11px; font-size: 1rem; border-radius: 10px; background: white; border: 2px solid var(--border);">التالي <span data-lucide="chevron-left" data-size="14"></span></button>
@@ -13556,12 +13556,12 @@
         </div>
 
         <!-- Event Add Modal -->
-        
+
         <!-- Quick Actions Modal -->
         <div id="quickActionsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; flex-direction: column;">
             <div class="card" style="width: 90%; max-width: 320px; padding: 24px; text-align: center; border-top: 4px solid var(--info);">
                 <h3 id="qaStudentName" style="color: var(--primary); margin-bottom: 20px; font-family: 'Cairo', sans-serif; font-size: 1.1rem;">اسم التلميذ</h3>
-                
+
                 <div style="display: flex; flex-direction: column; gap: 10px;">
                     <button class="btn-primary" id="qaBtnReport" style="background-color: var(--info); display: flex; align-items: center; justify-content: center; gap: 8px;">
                         <span class="ui-icon"><span data-lucide="bar-chart-2" data-size="13"></span></span> عرض التقرير الفردي
@@ -13579,25 +13579,25 @@
                         <span class="ui-icon"><span data-lucide="file-text" data-size="13"></span></span> عرض الملاحظات
                     </button>
                 </div>
-                
+
                 <button class="btn-action" onclick="closeQuickActionsMenu()" style="margin-top: 20px; width: 100%; border-radius: 8px; background: var(--border-light); border: 1px solid var(--border); color: var(--text-main);">إلغاء</button>
             </div>
         </div>
 
-        
+
         <!-- Day Details Modal -->
         <div id="dayDetailsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; padding: 15px;">
             <div class="card" style="width: 100%; max-width: 500px; padding: 25px; max-height: 80vh; overflow-y: auto;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
                     <h3 style="color: var(--primary); margin: 0; font-family: 'Cairo', sans-serif; display: flex; align-items: center; gap: 8px;">
-                        <span class="ui-icon"><span data-lucide="calendar-days" data-size="20"></span></span> 
+                        <span class="ui-icon"><span data-lucide="calendar-days" data-size="20"></span></span>
                         أحداث يوم: <span id="dayDetailsDateText" style="color: var(--secondary);"></span>
                     </h3>
                     <button class="btn-action" onclick="closeDayDetailsModal()" style="border: none; background: #f1f5f9; padding: 6px; width: 32px; height: 32px; border-radius: 50%;">
                         <span class="ui-icon" style="margin: 0;"><span data-lucide="x" data-size="16"></span></span>
                     </button>
                 </div>
-                
+
                 <input type="hidden" id="dayDetailsCurrentDate">
 
                 <div id="dayDetailsEventsList" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
@@ -13611,18 +13611,18 @@
                 </div>
             </div>
         </div>
-        
+
         <div id="eventModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; flex-direction: column;">
             <div class="card" style="width: 90%; max-width: 400px; padding: 30px;">
                 <h3 style="color: var(--primary); margin-bottom: 20px; font-family: 'Cairo', sans-serif;">إضافة حدث جديد</h3>
                 <input type="hidden" id="eventDate">
-                
+
                 <label>تاريخ الحدث:</label>
                 <input type="text" id="eventDateDisplay" disabled style="background: var(--border-light); font-weight: bold; text-align: center;">
 
                 <label>عنوان الحدث:</label>
                 <input type="text" id="eventTitle" placeholder="مثال: الفرض المحروس الأول دورة 1">
-                
+
                 <label>نوع الحدث (التصنيف واللون في التقويم):</label>
                 <select id="eventType" style="font-weight: 600; padding: 10px; border-radius: 8px; border: 1.5px solid var(--border);">
                     <option value="exam">📝 فرض / امتحان (أحمر خفيف)</option>
@@ -13631,7 +13631,7 @@
                     <option value="holiday">🌿 عطلة / مناسبة وطنية (أخضر خفيف)</option>
                     <option value="other">⚙️ أخرى / ملاحظة عامة</option>
                 </select>
-                
+
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button class="btn-success" onclick="saveEvent()" style="flex: 1;">حفظ الحدث</button>
                     <button class="btn-action" onclick="closeEventModal()" style="flex: 1; border-radius: 8px; width: auto; background: var(--border); border-color: transparent;">إلغاء</button>
@@ -13643,7 +13643,7 @@
         <div id="distanceTeachingView" style="display: none; width: 100%; margin: 0 auto; box-sizing: border-box;">
             <!-- الحاوية الموحدة للسبورة التفاعلية ومعاينة PDF -->
             <div id="distanceBoardPane" class="card" style="padding: 10px 12px; background: #ffffff; border: 1.5px solid #2563eb; border-radius: 14px; box-shadow: 0 4px 20px rgba(37,99,235,0.08); display: flex; flex-direction: column; gap: 6px; transition: all 0.25s ease;">
-                
+
                 <!-- 1. الشريط العلوي المدمج والمنظم (لا يأخذ حيزاً كبيراً) -->
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">
                     <!-- العنوان وحالة الحفظ -->
@@ -13825,7 +13825,7 @@
                 <!-- 3. منطقة العمل الرئيسية: مصغرات PDF + مساحة السبورة + شريط الأدوات على يسار السبورة -->
                 <!-- في واجهة RTL، العنصر الأول يظهر يميناً والعنصر الأخير يظهر على يسار السبورة -->
                 <div id="whiteboardWorkspaceWrapper" style="display: flex; flex-direction: row; gap: 8px; width: 100%; min-height: 620px; flex: 1; position: relative; align-items: stretch;">
-                    
+
                     <!-- الشريط الجانبي لمصغرات صفحات PDF (يظهر عند تفعيله مع مستند PDF) -->
                     <div id="whiteboardPdfThumbnailsPanel" style="display: none; width: 145px; min-width: 145px; max-height: 640px; overflow-y: auto; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 6px; flex-direction: column; gap: 6px; box-sizing: border-box;">
                         <div style="font-size: 0.72rem; font-weight: 800; color: #1e3a8a; text-align: center; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0;">
@@ -13941,7 +13941,7 @@
 
                     <!-- شريط الأدوات الجانبي المنظم على يسار السبورة (#whiteboardLeftToolsDock) -->
                     <aside id="whiteboardLeftToolsDock" style="width: 132px; min-width: 132px; max-height: 640px; overflow-y: auto; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 8px 6px; display: flex; flex-direction: column; gap: 6px; box-sizing: border-box; box-shadow: 0 2px 8px rgba(15,23,42,0.04);">
-                        
+
                         <!-- قسم أدوات الرسم والتأشير -->
                         <div style="font-size: 0.68rem; font-weight: 800; color: #1e3a8a; text-align: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px;">
                             🛠️ أدوات السبورة
@@ -14103,8 +14103,6 @@
             </div>
         </div>
 
-
-
         <!-- صفحة الملف المهني الشخصي للأستاذ (Teacher Professional Profile View) -->
         <div id="teacherProfileView" style="display: none; width: 100%; max-width: 1440px; margin: 0 auto; box-sizing: border-box;">
             <div id="teacherProfileMount">
@@ -14155,7 +14153,7 @@
                             <option value="">-- اختر القسم --</option>
                         </select>
                     </div>
-                    
+
                     <div style="flex: 0.95; min-width: 145px;">
                         <label style="margin-bottom: 4px; font-size: 0.82rem;">مدة الحصة أولاً:</label>
                         <div class="duration-toggle" style="margin-bottom: 0; height: 38px; align-items: center; box-sizing: border-box;">
@@ -14353,7 +14351,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="home-alert-actions">
                         <div style="font-size: 0.78rem; color: #991b1b; background: #fff; padding: 3px 8px; border-radius: 6px; border: 1px solid #fecaca; display: inline-flex; align-items: center; gap: 4px;">
                             <span>السقف:</span>
@@ -14371,7 +14369,7 @@
                         </button>
                     </div>
                 </div>
-                
+
                 <div id="absenceAlertList" style="display: flex; flex-direction: column; gap: 6px;"></div>
             </div>
 
@@ -14390,7 +14388,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="home-alert-actions">
                         <button type="button" id="btnRestoreHwAlerts" onclick="restoreHiddenAlerts('hw')" class="alert-action-btn btn-restore" style="display: none;" title="استعادة التنبيهات التي تم إخفاؤها">
                             <span><span data-lucide="refresh-cw" data-size="11"></span></span> <span id="btnRestoreHwText">استعادة المخفي</span>
@@ -14403,7 +14401,7 @@
                         </button>
                     </div>
                 </div>
-                
+
                 <div id="hwAlertList" style="display: flex; flex-direction: column; gap: 6px;"></div>
             </div>
 
@@ -14604,11 +14602,11 @@
                     <span class="search-icon-adornment">
                         <span data-lucide="search" data-size="18"></span>
                     </span>
-                    <input type="text" id="studentSearchInput" 
-                        placeholder="بحث سريع بالاسم الشخصي أو العائلي أو رقم مسار (مثال: أحمد، مروان، G134...)..." 
-                        oninput="onStudentSearchInput()" 
+                    <input type="text" id="studentSearchInput"
+                        placeholder="بحث سريع بالاسم الشخصي أو العائلي أو رقم مسار (مثال: أحمد، مروان، G134...)..."
+                        oninput="onStudentSearchInput()"
                         onkeydown="handleStudentSearchKeydown(event)"
-                        autocomplete="off" 
+                        autocomplete="off"
                         spellcheck="false"
                         aria-label="ابحث بالاسم أو رقم مسار">
                     <button type="button" id="btnStudentSearchClear" class="btn-search-clear" onclick="clearStudentSearch()" style="display: none;" title="مسح البحث (Esc)">
@@ -17041,7 +17039,7 @@
                                 تحليل واستخراج آلي لمحطات الثانوي التأهيلي ومادة الرياضيات ومحطات الأستاذ كـ <strong>الامتحان المهني</strong>
                             </span>
                         </div>
-                        
+
                         <!-- زر استيراد ملف PDF -->
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <input type="file" id="decreePdfFileInput" accept="application/pdf" style="display: none;" onchange="handleDecreePdfUpload(event)">
@@ -17088,7 +17086,7 @@
                     </div>
 
                     <textarea id="decreeTextInput" rows="8" placeholder="الصق نص المقرر الوزاري لتنظيم السنة الدراسية، أو قم برفع ملف المقرر بصيغة PDF ليتم تحليله واستخراج محطات التأهيلي ومادة الرياضيات والامتحان المهني آلياً..." style="width: 100%; padding: 12px; font-size: 0.85rem; font-family: monospace, sans-serif; line-height: 1.5; border: 1.5px solid #cbd5e1; border-radius: 8px; resize: vertical; box-sizing: border-box;"></textarea>
-                    
+
                     <div style="font-size: 0.74rem; color: #64748b; margin-top: 6px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
                         <span>💡 يدعم السحب والإفلات المباشر لملفات PDF أو لصق النصوص الرسمية، ويستخرج الجداول والتواريخ تلقائياً.</span>
                         <span id="decreeTextCharCount" style="color: #94a3b8; font-weight: 700;">0 حرف</span>
@@ -17438,7 +17436,7 @@
                                 <span data-lucide="search" data-size="16"></span>
                             </span>
                             <input type="text" id="promptSearchInput" data-has-voice-btn-attached="true" oninput="window.onPromptSearchInput ? window.onPromptSearchInput(this.value) : (window._searchQuery = this.value, window.renderPromptTemplatesList && window.renderPromptTemplatesList());" placeholder="بحث صوتي أو كتابي: انطق اسم القالب أو الفئة..." style="width: 100%; padding: 7px 32px 7px 42px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 0.82rem; font-weight: 600; background: #fff; color: #0f172a; box-sizing: border-box;">
-                            
+
                             <!-- Dedicated Voice Search Microphone Button (البحث الصوتي الذكي في القوالب) -->
                             <button type="button" id="btnPromptVoiceSearch" onclick="window.togglePromptVoiceSearch()" class="prompt-voice-search-btn" title="البحث الصوتي الذكي: انقر للتحدث باسم القالب أو الفئة للوصول الفوري (Alt + V)">
                                 <span id="promptVoiceMicIcon" class="prompt-voice-mic-icon">
@@ -17891,43 +17889,43 @@
         </div>
     </div>
 
-    <script src="/secondary-math-curriculum.js?v=3.5"></script>
-    <script src="/latex-math-engine.js?v=3.5"></script>
-    <script src="/app.js?v=3.5"></script>
+    <script src="/secondary-math-curriculum.js?v=3.6"></script>
+    <script src="/latex-math-engine.js?v=3.6"></script>
+    <script src="/app.js?v=3.6"></script>
     <div id="root-pwa-install"></div>
-    <script src="/resources.js?v=3.5"></script>
-    <script src="/tutoring-advanced.js?v=3.5"></script>
-    <script src="/attendance-slip.js?v=3.5"></script>
-    <script src="/timetable-sync.js?v=3.5"></script>
-    <script src="/annual-calendar.js?v=3.5"></script>
-    <script src="/pedagogical-roadmap.js?v=3.5"></script>
-    <script src="/google-calendar-sync.js?v=3.5"></script>
-    <script src="/math-remediation-ai.js?v=3.5"></script>
-    <script src="/ai-prompt-templates.js?v=3.5"></script>
-    <script src="/smart-exam-alerts.js?v=3.5"></script>
-    <script src="/student-portfolio.js?v=3.5"></script>
-    <script src="/admin-followup-alerts.js?v=3.5"></script>
-    <script src="/weekday-absence-plan.js?v=3.5"></script>
-    <script src="/weekly-absence-summary.js?v=3.5"></script>
-    <script src="/onboarding-guide.js?v=3.5"></script>
-    <script src="/absence-heatmap.js?v=3.5"></script>
-    <script src="/absence-periodic-analytics.js?v=3.5"></script>
-    <script src="/collective-absence-evolution.js?v=3.5"></script>
-    <script src="/diagnostic-evaluation.js?v=3.5"></script>
-    <script src="/interactive-teaching.js?v=3.5"></script>
-    <script src="/distance-teaching.js?v=3.5"></script>
-    <script src="/pedagogical-sharing.js?v=3.5"></script>
-    <script src="/voice-search.js?v=3.5"></script>
-    <script src="/upcoming-exams-timeline.js?v=3.5"></script>
-    <script src="/exam-report.js?v=3.5"></script>
-    <script src="/academic-evolution-card.js?v=3.5"></script>
-    <script src="/grades-absence-impact-chart.js?v=3.5"></script>
-    <script src="/teacher-profile.js?v=3.5"></script>
-    <script src="/desktop-app.js?v=3.5"></script>
-    <script src="/chunked-pdf-engine.js?v=3.5"></script>
-    <script src="/pedagogical-council-pv.js?v=3.5"></script>
-    <script src="/value-added-analytics.js?v=3.5"></script>
-    <script src="/ministerial-decrees-library.js?v=3.5"></script>
+    <script src="/resources.js?v=3.6"></script>
+    <script src="/tutoring-advanced.js?v=3.6"></script>
+    <script src="/attendance-slip.js?v=3.6"></script>
+    <script src="/timetable-sync.js?v=3.6"></script>
+    <script src="/annual-calendar.js?v=3.6"></script>
+    <script src="/pedagogical-roadmap.js?v=3.6"></script>
+    <script src="/google-calendar-sync.js?v=3.6"></script>
+    <script src="/math-remediation-ai.js?v=3.6"></script>
+    <script src="/ai-prompt-templates.js?v=3.6"></script>
+    <script src="/smart-exam-alerts.js?v=3.6"></script>
+    <script src="/student-portfolio.js?v=3.6"></script>
+    <script src="/admin-followup-alerts.js?v=3.6"></script>
+    <script src="/weekday-absence-plan.js?v=3.6"></script>
+    <script src="/weekly-absence-summary.js?v=3.6"></script>
+    <script src="/onboarding-guide.js?v=3.6"></script>
+    <script src="/absence-heatmap.js?v=3.6"></script>
+    <script src="/absence-periodic-analytics.js?v=3.6"></script>
+    <script src="/collective-absence-evolution.js?v=3.6"></script>
+    <script src="/diagnostic-evaluation.js?v=3.6"></script>
+    <script src="/interactive-teaching.js?v=3.6"></script>
+    <script src="/distance-teaching.js?v=3.6"></script>
+    <script src="/pedagogical-sharing.js?v=3.6"></script>
+    <script src="/voice-search.js?v=3.6"></script>
+    <script src="/upcoming-exams-timeline.js?v=3.6"></script>
+    <script src="/exam-report.js?v=3.6"></script>
+    <script src="/academic-evolution-card.js?v=3.6"></script>
+    <script src="/grades-absence-impact-chart.js?v=3.6"></script>
+    <script src="/teacher-profile.js?v=3.6"></script>
+    <script src="/desktop-app.js?v=3.6"></script>
+    <script src="/chunked-pdf-engine.js?v=3.6"></script>
+    <script src="/pedagogical-council-pv.js?v=3.6"></script>
+    <script src="/value-added-analytics.js?v=3.6"></script>
+    <script src="/ministerial-decrees-library.js?v=3.6"></script>
 
     <!-- زر الرجوع إلى أعلى الصفحة بتمرير ناعم -->
     <button type="button" id="btnScrollToTop" class="scroll-to-top-btn" onclick="scrollToTop()" title="الرجوع إلى أعلى الصفحة" aria-label="الرجوع للأعلى">

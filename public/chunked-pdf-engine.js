@@ -101,7 +101,7 @@
                     <div style="font-size: 0.84rem; font-weight: 800; color: #1e3a8a; margin-bottom: 4px;" id="chunkedPdfDocTitle">
                         ${docTitle || 'جاري استخراج الملف الرسمي'}
                     </div>
-                    
+
                     <!-- Current Target Class and Stage Badge -->
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; margin-bottom: 6px;">
                         <span id="chunkedPdfCurrentStepLabel" style="font-size: 0.8rem; font-weight: 800; color: #0f172a;">
@@ -376,7 +376,7 @@
 
         classes.forEach((className, classIdx) => {
             const students = classesMap[className] || [];
-            
+
             // Chunk 1: صفحة الغلاف الإدارية للقسم
             chunks.push({
                 id: `cover_${className}`,

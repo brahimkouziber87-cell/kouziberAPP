@@ -469,7 +469,7 @@
 
                 <!-- شبكة الرسوم البيانية الثلاثة -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-                    
+
                     <!-- 1. الرسم البياني لسنوات الخبرة والأقدمية -->
                     <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; justify-content: space-between;">
                         <div>
@@ -700,7 +700,7 @@
 
         let html = `
             <div class="teacher-profile-wrapper" style="direction: rtl; text-align: right; font-family: inherit; color: #1e293b; padding-bottom: 40px;">
-                
+
                 <!-- 1. ترويسة الملف الشخصي المطورة للأستاذ (Hero Header) بتنظيم وتناسق كامل للأيقونات والأزرار -->
                 <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #0f172a 100%); border: 1.5px solid #334155; border-radius: 22px; padding: 22px 28px 26px 28px; color: #ffffff; margin-bottom: 24px; box-shadow: 0 12px 32px -6px rgba(15, 23, 42, 0.45); position: relative; overflow: hidden;">
                     <!-- إضاءات خلفية هادئة -->
@@ -753,10 +753,10 @@
 
                     <!-- الصف الرئيسي للترويسة: الهوية البصرية المزدوجة + المعلومات المهنية + لوحة الأزرار المتناسقة -->
                     <div style="display: flex; justify-content: space-between; align-items: stretch; flex-wrap: wrap; gap: 22px; position: relative; z-index: 2;">
-                        
+
                         <!-- الجانب الأيمن: الإطار المزدوج (الصورة الشخصية + شعار المؤسسة) والبيانات التعريفية -->
                         <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; flex: 1; min-width: 300px;">
-                            
+
                             <!-- وحدة الهوية البصرية المتناسقة (الأفاتار + شعار المؤسسة) -->
                             <div style="display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); padding: 10px; border-radius: 22px;">
                                 <!-- إطار الصورة الشخصية للأستاذ -->
@@ -962,10 +962,10 @@
 
                 <!-- 4. الشبكة الرئيسية المكونة من عمودين للبيانات والإنجازات -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px; margin-bottom: 24px;">
-                    
+
                     <!-- العمود الأيمن: البطاقة الإدارية ومسار التوظيف -->
                     <div style="display: flex; flex-direction: column; gap: 24px;">
-                        
+
                         <!-- بطاقة البيانات الإدارية والوظيفية -->
                         <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
                             <div style="padding: 14px 20px; background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
@@ -1109,7 +1109,7 @@
 
                     <!-- العمود الأيسر: الإنجازات والأنشطة التربوية والديداكتيكية -->
                     <div style="display: flex; flex-direction: column; gap: 24px;">
-                        
+
                         <!-- بطاقة الإنجازات التعليمية والتربوية الكبرى -->
                         <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
                             <div style="padding: 14px 20px; background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
@@ -1322,7 +1322,7 @@
 
                 <div style="padding: 22px; display: flex; flex-direction: column; gap: 18px;">
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
-                        
+
                         <!-- 1. بطاقة الصورة الشخصية للأستاذ -->
                         <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 14px; padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px;">
                             <div style="font-weight: 900; font-size: 0.9rem; color: #1e3a8a;">👤 الصورة الشخصية للأستاذ(ة)</div>
@@ -1879,7 +1879,7 @@
 
         modalDiv.innerHTML = `
             <div style="background: #ffffff; border-radius: 18px; width: 100%; max-width: 860px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.25); border: 1.5px solid #cbd5e1;">
-                
+
                 <!-- رأس النافذة -->
                 <div style="padding: 16px 24px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; display: flex; justify-content: space-between; align-items: center;">
                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -1920,13 +1920,13 @@
 
                 <!-- جسم النافذة القابل للتمرير -->
                 <div style="flex: 1; overflow-y: auto; padding: 20px 24px;">
-                    
+
                     <!-- 1. لوحة البيانات الإدارية والتوظيف -->
                     <div id="tpEditPane_info" style="display: block;">
                         <div style="font-weight: 800; font-size: 0.88rem; color: #1e3a8a; margin-bottom: 14px; border-bottom: 1.5px solid #dbeafe; padding-bottom: 6px;">
                             📌 البيانات الشخصية والإدارية ومقر العمل
                         </div>
-                        
+
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 16px;">
                             <div>
                                 <label style="display: block; font-size: 0.78rem; font-weight: 800; color: #334155; margin-bottom: 4px;">الاسم الكامل للأستاذ(ة) بالعربية *</label>
@@ -2173,7 +2173,7 @@
 
         return `
             <div class="official-profile-pdf-sheet" style="font-family: 'Tajawal', 'Cairo', system-ui, -apple-system, sans-serif; color: #0f172a; direction: rtl; text-align: right; line-height: 1.45; font-size: 11.5px; background: #ffffff; padding: 18px 22px; box-sizing: border-box;">
-                
+
                 <!-- 1. الترويسة الرسمية للوثيقة -->
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2.5px solid #1e3a8a; padding-bottom: 12px; margin-bottom: 14px; gap: 12px;">
                     <div style="width: 82px; text-align: right; flex-shrink: 0;">
@@ -2240,7 +2240,7 @@
                     ثانياً: الرسوم البيانية التحليلية للخبرة المهنية وتوزيع الشواهد وساعات التكوين المستمر
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;">
-                    
+
                     <!-- رسم 1: مؤشرات الخبرة والأقدمية -->
                     <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; background: #f8fafc;">
                         <div style="font-weight: 900; font-size: 10.5px; color: #1e3a8a; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">
@@ -2519,7 +2519,7 @@
 
         modal.innerHTML = `
             <div style="background: #f1f5f9; border-radius: 18px; width: 100%; max-width: 920px; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.45); border: 1.5px solid #cbd5e1;">
-                
+
                 <!-- شريط أدوات نافذة تصدير PDF والطباعة الرسمية -->
                 <div style="padding: 14px 22px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                     <div style="display: flex; align-items: center; gap: 10px;">

@@ -180,8 +180,8 @@
         }
 
         const students = db.classes[className] || [];
-        const examCount = (typeof window.getExamsCountForClass === 'function') 
-            ? window.getExamsCountForClass(className) 
+        const examCount = (typeof window.getExamsCountForClass === 'function')
+            ? window.getExamsCountForClass(className)
             : 3;
 
         let totalPoints = 0;
@@ -843,7 +843,7 @@
         sessionsToProcess.forEach(s => {
             // 1. فحص وتجنب تكرار العمليات في التقويم (Prevent Calendar Duplicates)
             if (addToCalendar) {
-                const isCalDuplicate = window.db.calendarEvents.some(ev => 
+                const isCalDuplicate = window.db.calendarEvents.some(ev =>
                     ev && ev.date === s.date && (
                         (ev.title && ev.title.includes(className) && ev.title.includes('دعم')) ||
                         (ev.details && ev.details.includes(s.topic))
@@ -870,7 +870,7 @@
             // 2. فحص وتجنب تكرار العمليات في دفتر النصوص (Prevent Lesson Log Duplicates)
             if (addToLessonLog) {
                 const logs = window.db.lessonLogs[className];
-                const isLogDuplicate = logs.some(l => 
+                const isLogDuplicate = logs.some(l =>
                     l && l.date === s.date && (
                         (l.timeSlot && l.timeSlot.replace(/\s+/g, '') === s.slot.replace(/\s+/g, '')) ||
                         (l.number && l.number.includes(s.topic)) ||
@@ -1104,7 +1104,7 @@
     // نظام اقتراح أنشطة الدعم التربوي التلقائي والربط بجدول الحصص المبرمج
     // (Automated Pedagogical Support Recommendation & Programmed Timetable Sync)
     // =========================================================================
-    
+
     let _activeAutoRemediationClass = null;
     let _activeAutoRemediationSemester = 's1';
     let _selectedRemediationActivityIdx = 0;
@@ -1351,7 +1351,7 @@
                                     </div>
 
                                     <!-- Link to Timetable Button -->
-                                    <button type="button" 
+                                    <button type="button"
                                         onclick="window.toggleActivityTimetableLinking('${act.id}', ${idx})"
                                         style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(37,99,235,0.25);"
                                         title="ربط هذا النشاط بحصة مبرمجة في جدول الحصص الأسبوعي">
@@ -1428,7 +1428,7 @@
                                             </label>
                                         </div>
 
-                                        <button type="button" 
+                                        <button type="button"
                                             onclick="window.confirmRemediationTimetableLink('${act.id}', '${escapeQuotes(act.title)}', '${escapeQuotes(act.objective)}', '${cls}')"
                                             style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; padding: 7px 18px; border-radius: 8px; font-weight: 900; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(16,185,129,0.3);">
                                             <span data-lucide="check-circle" data-size="14"></span>

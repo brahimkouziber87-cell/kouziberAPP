@@ -1,14 +1,14 @@
 /**
  * interactive-teaching.js
- * 
+ *
  * 1. addQuickSession(targetClass):
  *    نافذة سريعة ومختصرة لتدوين وإضافة حصة دراسية جديدة إلى دفتر النصوص (Cahier de Textes)
  *    مبنية على تاريخ اليوم والقسم المختار وحساب رقم الحصة والمدة تلقائياً.
- * 
+ *
  * 2. getAbsenceTrends(targetClass, targetMonth):
  *    دالة تحليلية تحسب نسبة الغياب الشهرية للقسم وتولد نصاً ملخصاً يحدد
  *    الأسبوع الذي سجل أعلى عدد غيابات لعرضه في لوحة القيادة (Dashboard).
- * 
+ *
  * 3. وضع التدريس التفاعلي (Interactive Teaching Mode):
  *    مؤقت حصة عائم يظهر الوقت المتبقي من الحصة وينبه صوتياً عبر نغمة موسيقية (Web Audio API)
  *    عند نهايتها، مع ربطه بجدول الحصص الأسبوعي للكشف التلقائي عن القسم والحصة الجارية.
@@ -71,15 +71,15 @@
         const selectedClass = classSelect ? classSelect.value : '';
 
         // 2. تعبئة التاريخ تلقائياً بتاريخ اليوم
-        const todayStr = (typeof window.formatLocalDate === 'function') 
-            ? window.formatLocalDate() 
+        const todayStr = (typeof window.formatLocalDate === 'function')
+            ? window.formatLocalDate()
             : new Date().toISOString().split('T')[0];
         if (dateInput) dateInput.value = prefill.date || todayStr;
 
         // 3. حساب رقم الحصة تلقائياً للقسم المختار
         if (numInput) {
-            const classLogs = (db.lessonLogs && selectedClass && db.lessonLogs[selectedClass]) 
-                ? db.lessonLogs[selectedClass] 
+            const classLogs = (db.lessonLogs && selectedClass && db.lessonLogs[selectedClass])
+                ? db.lessonLogs[selectedClass]
                 : [];
             numInput.value = classLogs.length + 1;
         }
@@ -226,8 +226,8 @@
 
         // منع تكرار العمليات والحصص المتطابقة
         const cleanSlot = timeSlot.replace(/\s+/g, '');
-        const isDuplicate = db.lessonLogs[className].some(l => 
-            l && l.date === date && 
+        const isDuplicate = db.lessonLogs[className].some(l =>
+            l && l.date === date &&
             (l.timeSlot || '').replace(/\s+/g, '') === cleanSlot &&
             ((l.number && l.number.trim().toLowerCase() === (number || '').trim().toLowerCase()) ||
              (l.summary && l.summary.trim().toLowerCase() === (summary || '').trim().toLowerCase()))
@@ -292,11 +292,11 @@
      */
     window.getAbsenceTrends = function (targetClass, targetMonth) {
         const db = window.db || {};
-        
+
         // 1. تحديد القسم
         if (!targetClass) {
-            targetClass = window.currentClass || 
-                (document.getElementById('classSelect') ? document.getElementById('classSelect').value : '') || 
+            targetClass = window.currentClass ||
+                (document.getElementById('classSelect') ? document.getElementById('classSelect').value : '') ||
                 (document.getElementById('dashAbsenceTrendsClassSelect') ? document.getElementById('dashAbsenceTrendsClassSelect').value : '') ||
                 Object.keys(db.classes || {})[0] || '';
         }
@@ -314,8 +314,8 @@
         const classRecords = (typeof window.getClassRecordsFast === 'function')
             ? window.getClassRecordsFast(targetClass)
             : (db.records || []).filter(r => r.className === targetClass);
-        const records = classRecords.filter(r => 
-            r.date && 
+        const records = classRecords.filter(r =>
+            r.date &&
             r.date.startsWith(targetMonth)
         );
 
@@ -414,8 +414,8 @@
         }
         container.style.display = 'block';
 
-        const currentMonth = (typeof window.formatLocalMonth === 'function') 
-            ? window.formatLocalMonth() 
+        const currentMonth = (typeof window.formatLocalMonth === 'function')
+            ? window.formatLocalMonth()
             : new Date().toISOString().slice(0, 7);
 
         const activeClassSelect = document.getElementById('dashAbsenceTrendsClassSelect');
@@ -963,8 +963,8 @@
      */
     function updateFloatingTimerTickDOM() {
         const timeStr = formatTime(teachingState.remainingSeconds);
-        const percent = teachingState.totalSeconds > 0 
-            ? Math.min(100, Math.max(0, Math.round(((teachingState.totalSeconds - teachingState.remainingSeconds) / teachingState.totalSeconds) * 100))) 
+        const percent = teachingState.totalSeconds > 0
+            ? Math.min(100, Math.max(0, Math.round(((teachingState.totalSeconds - teachingState.remainingSeconds) / teachingState.totalSeconds) * 100)))
             : 0;
         const isTimeUp = teachingState.remainingSeconds <= 0;
         const isWarning = !isTimeUp && teachingState.remainingSeconds < 300;
@@ -1331,8 +1331,8 @@
         widget.style.display = 'block';
 
         const timeStr = formatTime(teachingState.remainingSeconds);
-        const percent = teachingState.totalSeconds > 0 
-            ? Math.min(100, Math.max(0, Math.round(((teachingState.totalSeconds - teachingState.remainingSeconds) / teachingState.totalSeconds) * 100))) 
+        const percent = teachingState.totalSeconds > 0
+            ? Math.min(100, Math.max(0, Math.round(((teachingState.totalSeconds - teachingState.remainingSeconds) / teachingState.totalSeconds) * 100)))
             : 0;
 
         const isTimeUp = teachingState.remainingSeconds <= 0;
@@ -1537,7 +1537,7 @@
 
         widget.innerHTML = `
             <div style="background: linear-gradient(160deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 27, 75, 0.98) 100%); backdrop-filter: blur(14px); border: 2px solid ${isTimeUp ? '#ef4444' : '#d4af37'}; border-radius: 14px; width: ${cardWidth}; max-width: 96vw; max-height: ${teachingState.isProjectorMode ? '94vh' : 'calc(100vh - 68px)'}; display: flex; flex-direction: column; padding: ${teachingState.isProjectorMode ? '16px 20px' : '9px 11px'}; box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.7); color: #f8fafc; font-family: 'Cairo', sans-serif; box-sizing: border-box;">
-                
+
                 <!-- Header (Drag Handle) -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; border-bottom: 1px solid rgba(212, 175, 55, 0.25); padding-bottom: 4px; cursor: ${teachingState.isProjectorMode ? 'default' : 'move'};" id="teachingTimerDragHandle">
                     <div style="display: flex; align-items: center; gap: 6px;">
@@ -1829,15 +1829,15 @@
         const selectedClass = classSelect ? classSelect.value : '';
 
         // 2. تعبئة التاريخ تلقائياً بتاريخ اليوم
-        const todayStr = (typeof window.formatLocalDate === 'function') 
-            ? window.formatLocalDate() 
+        const todayStr = (typeof window.formatLocalDate === 'function')
+            ? window.formatLocalDate()
             : new Date().toISOString().split('T')[0];
         if (dateInput) dateInput.value = prefillData.date || todayStr;
 
         // 3. اقتراح ترقيم الحصة الاستدراكية
         if (numInput) {
-            const classLogs = (db.lessonLogs && selectedClass && db.lessonLogs[selectedClass]) 
-                ? db.lessonLogs[selectedClass] 
+            const classLogs = (db.lessonLogs && selectedClass && db.lessonLogs[selectedClass])
+                ? db.lessonLogs[selectedClass]
                 : [];
             numInput.value = `${classLogs.length + 1} (استدراك)`;
         }

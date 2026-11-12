@@ -271,8 +271,8 @@
             }
 
             item.studentsCount = item.studentsSet.size;
-            item.avgHoursPerStudent = totalEnrolledStudents > 0 
-                ? (item.totalHours / totalEnrolledStudents).toFixed(1) 
+            item.avgHoursPerStudent = totalEnrolledStudents > 0
+                ? (item.totalHours / totalEnrolledStudents).toFixed(1)
                 : 0;
 
             // تراكم الأقسام
@@ -291,8 +291,8 @@
             }
         });
 
-        const unjustifiedPct = grandTotalHours > 0 
-            ? Math.round((grandUnjustifiedHours / grandTotalHours) * 100) 
+        const unjustifiedPct = grandTotalHours > 0
+            ? Math.round((grandUnjustifiedHours / grandTotalHours) * 100)
             : 0;
 
         return {
@@ -521,14 +521,14 @@
         const classes = Object.keys(db.classes || {}).sort();
         const data = computeAbsencePeriodicData();
 
-        const periodLabel = _periodicState.period === 'weekly' 
-            ? 'أسبوعي' 
-            : _periodicState.period === 'monthly' 
-            ? 'شهري' 
+        const periodLabel = _periodicState.period === 'weekly'
+            ? 'أسبوعي'
+            : _periodicState.period === 'monthly'
+            ? 'شهري'
             : 'فصلي / دوري';
 
-        const peakTitle = data.peakBucket 
-            ? `${data.peakBucket.label} (${data.peakBucket.totalHours} س)` 
+        const peakTitle = data.peakBucket
+            ? `${data.peakBucket.label} (${data.peakBucket.totalHours} س)`
             : 'لا توجد غيابات';
 
         mount.innerHTML = `
@@ -670,11 +670,11 @@
                             </thead>
                             <tbody>
                                 ${data.items.map(item => {
-                                    const changeBadge = item.changePct !== null 
-                                        ? (item.changePct > 0 
-                                            ? `<span style="color: #dc2626; font-weight: 800;">▲ +${item.changePct}%</span>` 
-                                            : item.changePct < 0 
-                                            ? `<span style="color: #16a34a; font-weight: 800;">▼ ${item.changePct}%</span>` 
+                                    const changeBadge = item.changePct !== null
+                                        ? (item.changePct > 0
+                                            ? `<span style="color: #dc2626; font-weight: 800;">▲ +${item.changePct}%</span>`
+                                            : item.changePct < 0
+                                            ? `<span style="color: #16a34a; font-weight: 800;">▼ ${item.changePct}%</span>`
                                             : `<span style="color: #64748b;">0%</span>`)
                                         : '<span style="color: #94a3b8;">-</span>';
 

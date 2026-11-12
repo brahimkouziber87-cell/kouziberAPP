@@ -14,36 +14,36 @@
             --primary-dark: #0f172a; /* Slate 900 */
             --math-accent: #3b82f6; /* Blue 500 */
             --math-accent-light: #eff6ff; /* Blue 50 */
-            
+
             /* Status Colors (Optimized for contrast) */
             --success: #10b981; /* Emerald 500 */
             --success-light: #d1fae5;
             --success-dark: #047857;
-            
+
             --danger: #ef4444; /* Red 500 */
             --danger-light: #fee2e2;
             --danger-dark: #b91c1c;
-            
+
             --warning: #f59e0b; /* Amber 500 */
             --warning-light: #fef3c7;
             --warning-dark: #b45309;
-            
+
             --info: #0ea5e9; /* Sky 500 */
             --info-light: #e0f2fe;
             --info-dark: #0369a1;
-            
+
             --purple: #8b5cf6; /* Violet 500 */
             --purple-light: #ede9fe;
-            
+
             /* Backgrounds and Surfaces */
             --bg: #f8fafc; /* Slate 50 */
             --card-bg: #ffffff;
             --card-hover: #f1f5f9; /* Slate 100 */
-            
+
             /* Typography */
             --text-main: #0f172a; /* Slate 900 */
             --text-muted: #64748b; /* Slate 500 */
-            
+
             /* Borders and Layout */
             --border: #e2e8f0; /* Slate 200 */
             --border-light: #f1f5f9;
@@ -66,17 +66,17 @@
             }
         }
 
-        * { 
-            box-sizing: border-box; 
-            margin: 0; 
-            padding: 0; 
-            font-family: var(--app-font-family, 'Tajawal', 'Cairo', system-ui, -apple-system, sans-serif); 
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: var(--app-font-family, 'Tajawal', 'Cairo', system-ui, -apple-system, sans-serif);
         }
 
-        body { 
-            background-color: var(--bg); 
-            color: var(--text-main); 
-            padding-bottom: 90px; 
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            padding-bottom: 90px;
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
             scroll-behavior: smooth;
@@ -92,7 +92,7 @@
             z-index: -1;
             pointer-events: none;
         }
-        
+
         .ui-icon {
             display: inline-flex;
             align-items: center;
@@ -148,7 +148,7 @@
             vertical-align: middle;
             display: inline-block;
         }
-        
+
         .math-symbol-accent {
             font-family: 'Cambria Math', 'KaTeX_Math', 'Times New Roman', serif;
             font-style: italic;
@@ -160,7 +160,7 @@
             vertical-align: middle;
             line-height: 1;
         }
-        
+
         .btn-primary .math-symbol-accent,
         .btn-success .math-symbol-accent,
         .btn-action .math-symbol-accent,
@@ -186,7 +186,7 @@
             justify-content: center;
             line-height: 1;
         }
-        
+
         /* Strict compact sizing for status buttons and list icons */
         .btn-status .status-ico, .btn-hw .hw-ico, .btn-behavior .behavior-ico {
             display: inline-flex;
@@ -203,7 +203,7 @@
             justify-content: center;
             line-height: 1;
         }
-        
+
         header {
             background: linear-gradient(135deg, #090d18 0%, #0f172a 45%, #131d36 100%);
             color: #ffffff;
@@ -216,8 +216,8 @@
             justify-content: center;
             align-items: center;
         }
-        header h1 { 
-            font-size: 1.05rem; 
+        header h1 {
+            font-size: 1.05rem;
             font-family: 'Cairo', sans-serif;
             font-weight: 700;
             color: #ffffff;
@@ -1214,7 +1214,7 @@
                 padding: 4px 5px;
             }
         }
-        
+
         .nav-tabs {
             display: flex;
             align-items: center;
@@ -1244,13 +1244,13 @@
             background: #cbd5e1;
             border-radius: 3px;
         }
-        
+
         .nav-tabs.is-sticky {
             box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
             background: rgba(255, 255, 255, 0.99);
             border-bottom-color: var(--primary);
         }
-        
+
         .nav-tab {
             flex: 1 1 0;
             min-width: 44px;
@@ -2617,7 +2617,7 @@
             -webkit-overflow-scrolling: touch;
         }
         .home-sections-nav::-webkit-scrollbar { display: none; }
-        
+
         .section-nav-pill {
             background: #ffffff;
             border: 1px solid #e2e8f0;
@@ -2649,7 +2649,7 @@
             box-shadow: 0 1px 4px rgba(37, 99, 235, 0.1);
             font-weight: 700;
         }
-        
+
         @keyframes sectionHighlightPulse {
             0% {
                 box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
@@ -2665,7 +2665,7 @@
             animation: sectionHighlightPulse 1.1s ease-out;
             border-color: var(--math-accent) !important;
         }
-        
+
         /* Floating Scroll-To-Top Button */
         .scroll-to-top-btn {
             position: fixed;
@@ -2702,18 +2702,18 @@
         .scroll-to-top-btn:active {
             transform: translateY(0);
         }
-        
-        .container { 
-            padding: 16px 20px; 
-            max-width: 1440px; 
-            margin: 0 auto; 
+
+        .container {
+            padding: 16px 20px;
+            max-width: 1440px;
+            margin: 0 auto;
             width: 100%;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
             gap: 16px;
         }
-        
+
         .card {
             background: var(--card-bg);
             border-radius: var(--radius-md);
@@ -2725,7 +2725,7 @@
         .card:hover {
             box-shadow: var(--shadow-md);
         }
-        
+
         .today-schedule-card {
             background: linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%);
             border: 1.5px solid #bae6fd;
@@ -2773,7 +2773,7 @@
         }
         .session-info { font-size: 0.88rem; font-weight: 600; display: flex; align-items: center; gap: 6px; min-width: 0; }
         .session-info b { color: var(--primary); font-weight: 800; }
-        
+
         .btn-quick-open {
             background: var(--info);
             color: white;
@@ -2795,16 +2795,16 @@
         }
         .btn-quick-open:active { transform: scale(0.95); }
         .btn-quick-open:hover { background: #0284c7; }
-        
-        label { 
-            font-size: 0.9rem; 
-            font-weight: 700; 
-            color: var(--primary); 
-            display: block; 
-            margin-bottom: 8px; 
+
+        label {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: block;
+            margin-bottom: 8px;
             font-family: 'Cairo', sans-serif;
         }
-        
+
         input, select, textarea {
             width: 100%;
             padding: 9px 13px;
@@ -2823,7 +2823,7 @@
             box-shadow: 0 0 0 2.5px rgba(59, 130, 246, 0.15);
             background-color: #fff;
         }
-        
+
         button {
             padding: 9px 16px;
             border-radius: var(--radius-sm);
@@ -2832,22 +2832,22 @@
             transition: all 0.18s ease;
             font-family: 'Cairo', sans-serif;
         }
-        
-        .btn-primary { 
-            background-color: var(--primary); 
-            color: white; 
-            border: none; 
-            font-weight: 700; 
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            font-weight: 700;
             box-shadow: var(--shadow-sm);
         }
         .btn-primary:hover { background-color: var(--primary-dark); box-shadow: var(--shadow-md); }
         .btn-primary:active { transform: translateY(1px); }
-        
-        .btn-success { 
-            background-color: var(--success); 
-            color: white; 
-            border: none; 
-            font-weight: 700; 
+
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+            border: none;
+            font-weight: 700;
             box-shadow: var(--shadow-sm);
         }
         .btn-success:hover { background-color: var(--success-dark); box-shadow: var(--shadow-md); }
@@ -2889,52 +2889,52 @@
             gap: 5px;
             border-radius: var(--radius-sm);
         }
-        
-        .duration-toggle, .exam-count-toggle { 
-            display: flex; 
-            gap: 8px; 
-            margin-bottom: 14px; 
+
+        .duration-toggle, .exam-count-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
             background: var(--bg);
             padding: 3px;
             border-radius: var(--radius-md);
             border: 1px solid var(--border);
         }
         .toggle-btn {
-            flex: 1; 
-            padding: 8px; 
+            flex: 1;
+            padding: 8px;
             text-align: center;
-            border: none; 
-            background: transparent; 
+            border: none;
+            background: transparent;
             color: var(--text-muted);
-            border-radius: var(--radius-sm); 
-            font-weight: 700; 
-            font-size: 0.85rem; 
-            cursor: pointer; 
+            border-radius: var(--radius-sm);
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
             margin-bottom: 0;
             transition: all 0.18s ease;
         }
         .toggle-btn:hover {
             color: var(--primary);
         }
-        .toggle-btn.active { 
-            background-color: white; 
-            color: var(--primary); 
+        .toggle-btn.active {
+            background-color: white;
+            color: var(--primary);
             box-shadow: var(--shadow-sm);
         }
-        
-        .stats-bar { 
-            display: flex; 
-            gap: 8px; 
-            margin-bottom: 16px; 
+
+        .stats-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
         }
-        .stat-item { 
-            flex: 1; 
-            padding: 10px 6px; 
-            text-align: center; 
-            border-radius: var(--radius-sm); 
-            color: white; 
-            font-size: 0.78rem; 
-            font-weight: 700; 
+        .stat-item {
+            flex: 1;
+            padding: 10px 6px;
+            text-align: center;
+            border-radius: var(--radius-sm);
+            color: white;
+            font-size: 0.78rem;
+            font-weight: 700;
             box-shadow: 0 1px 3px rgba(0,0,0,0.06);
             display: flex;
             flex-direction: column;
@@ -2949,7 +2949,7 @@
         .stat-absent { background: linear-gradient(135deg, var(--danger) 0%, var(--danger-dark) 100%); }
         .stat-late { background: linear-gradient(135deg, var(--warning) 0%, var(--warning-dark) 100%); }
         .stat-hw { background: linear-gradient(135deg, var(--purple) 0%, #6d28d9 100%); }
-        
+
         /* بطاقات التنبيهات المحسنة في الصفحة الرئيسية */
         .home-alert-card {
             border-radius: 10px;
@@ -3120,7 +3120,7 @@
             border-color: #fca5a5;
             transform: scale(1.02);
         }
-        
+
         /* ====================================================================
            حركات الدخول البصرية الانسيابية لبطاقات التلاميذ في الغياب ولوحة القيادة
            Subtle CSS Entrance Animations for Student & Dashboard Cards
@@ -3168,7 +3168,7 @@
                 opacity: 1 !important;
             }
         }
-        
+
         .student-item {
             display: flex;
             flex-direction: column;
@@ -3187,7 +3187,7 @@
             box-shadow: 0 3px 10px rgba(15, 23, 42, 0.04);
         }
         .student-item:last-child { border-bottom: none; }
-        
+
         .student-header {
             display: flex;
             justify-content: space-between;
@@ -3209,16 +3209,16 @@
             border: 1px solid var(--border);
             vertical-align: middle;
         }
-        .student-name { 
-            font-weight: 700; 
-            font-size: 0.98rem; 
+        .student-name {
+            font-weight: 700;
+            font-size: 0.98rem;
             color: var(--primary);
             font-family: 'Cairo', sans-serif;
             margin-bottom: 2px;
         }
         .student-meta { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
         .student-meta span.abs-count { color: var(--danger); font-weight: bold; }
-        
+
         .student-badges {
             display: flex;
             gap: 5px;
@@ -3343,7 +3343,7 @@
                 display: none !important;
             }
         }
-        
+
         .btn-delete-student {
             background: none;
             border: none;
@@ -3357,9 +3357,9 @@
         .btn-delete-student:hover {
             opacity: 1;
         }
-        
+
         .actions-group { display: flex; gap: 5px; }
-        
+
         /* Absence and Homework Action Buttons with Subtle Tactile CSS Animations */
         .status-buttons {
             display: flex;
@@ -3368,7 +3368,7 @@
             flex-wrap: wrap;
             align-items: center;
         }
-        
+
         .btn-status, .btn-hw {
             padding: 3px 7px;
             border-radius: 5px;
@@ -3392,7 +3392,7 @@
             line-height: 1.2;
             will-change: transform;
         }
-        
+
         /* Strict small size for status, homework and behavior icons + subtle icon transition */
         .btn-status .status-ico, .btn-hw .hw-ico, .btn-behavior .behavior-ico {
             font-size: 0.5rem !important;
@@ -3401,7 +3401,7 @@
             vertical-align: middle;
             transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        
+
         .btn-status:hover:not(:disabled), .btn-hw:hover:not(:disabled) {
             transform: translateY(-1.5px);
             box-shadow: 0 3px 6px -1px rgba(15, 23, 42, 0.08);
@@ -3413,7 +3413,7 @@
         .btn-behavior:hover:not(:disabled) .behavior-ico {
             transform: scale(1.16);
         }
-        
+
         .btn-status:active:not(:disabled), .btn-hw:active:not(:disabled), .btn-behavior:active:not(:disabled) {
             transform: translateY(0) scale(0.93);
             transition-duration: 0.08s;
@@ -3474,48 +3474,48 @@
         .btn-behavior.just-toggled-btn .behavior-ico {
             animation: statusIconPopBounce 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
-        
+
         .btn-status.active-present {
             background-color: var(--success-light);
             color: var(--success-dark);
             border-color: var(--success);
             box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
         }
-        
+
         .btn-status.active-absent {
             background-color: var(--danger-light);
             color: var(--danger-dark);
             border-color: var(--danger);
             box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
         }
-        
+
         .btn-status.active-late {
             background-color: var(--warning-light);
             color: var(--warning-dark);
             border-color: var(--warning);
             box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
         }
-        
+
         .btn-status.active-justified {
             background-color: var(--info-light);
             color: var(--info-dark);
             border-color: var(--info);
             box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
         }
-        
+
         .btn-hw.hw-missed {
             background-color: var(--purple-light);
             color: var(--purple);
             border-color: var(--purple);
             box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
         }
-        
+
         .btn-hw.hw-done {
             background-color: var(--bg);
             color: var(--success);
             border-color: var(--border);
         }
-        
+
         /* Smaller behavior buttons */
         .behavior-btn-group {
             display: flex;
@@ -3555,7 +3555,7 @@
                 transition: none !important;
             }
         }
-        
+
         /* Reduce details-row gap */
         .details-row {
             display: flex;
@@ -3569,7 +3569,7 @@
             color: var(--primary);
             min-width: 80px;
         }
-        
+
         .behavior-note-input {
             width: 100%;
             font-size: 0.78rem;
@@ -3688,8 +3688,8 @@
             flex-direction: column;
             gap: 12px;
             box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
-            transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), 
-                        box-shadow 0.26s cubic-bezier(0.16, 1, 0.3, 1), 
+            transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1),
+                        box-shadow 0.26s cubic-bezier(0.16, 1, 0.3, 1),
                         border-color 0.22s ease,
                         background-color 0.22s ease;
             position: relative;
@@ -3698,7 +3698,7 @@
 
         .lib-resource-card:hover {
             transform: translateY(-6px);
-            box-shadow: 0 16px 32px -4px rgba(15, 23, 42, 0.12), 
+            box-shadow: 0 16px 32px -4px rgba(15, 23, 42, 0.12),
                         0 8px 16px -4px var(--cat-glow, rgba(37, 99, 235, 0.18)),
                         0 0 0 1.5px var(--cat-accent, #2563eb);
             border-color: var(--cat-accent, #2563eb);
@@ -3917,41 +3917,41 @@
             width: 32px;
             padding: 0;
         }
-        
+
         .btn-action:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
-        
+
         .btn-action:active {
             transform: scale(0.9);
         }
-        
-        .btn-action.active-present { 
-            background-color: var(--success-light); 
-            color: var(--success-dark); 
+
+        .btn-action.active-present {
+            background-color: var(--success-light);
+            color: var(--success-dark);
             border-color: var(--success);
             box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
         }
-        .btn-action.active-absent { 
-            background-color: var(--danger-light); 
-            color: var(--danger-dark); 
+        .btn-action.active-absent {
+            background-color: var(--danger-light);
+            color: var(--danger-dark);
             border-color: var(--danger);
             box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
         }
-        .btn-action.active-late { 
-            background-color: var(--warning-light); 
-            color: var(--warning-dark); 
+        .btn-action.active-late {
+            background-color: var(--warning-light);
+            color: var(--warning-dark);
             border-color: var(--warning);
             box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
         }
-        .btn-action.active-hw { 
-            background-color: var(--purple-light); 
-            color: var(--purple); 
+        .btn-action.active-hw {
+            background-color: var(--purple-light);
+            color: var(--purple);
             border-color: var(--purple);
             box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
         }
-        
+
         /* Grades Input Grid */
         .grades-grid {
             display: grid;
@@ -3983,7 +3983,7 @@
             color: var(--text-muted);
             font-weight: 600;
         }
-        
+
         .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 1rem; border-radius: var(--radius-sm); }
         .table-responsive table { min-width: 650px; }
         table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
@@ -3991,11 +3991,11 @@
         th { background-color: var(--bg); font-weight: 700; color: var(--primary); font-family: 'Cairo', sans-serif; font-size: 0.95rem; white-space: nowrap; }
         tr:last-child td { border-bottom: none; }
         tbody tr:hover { background-color: var(--card-hover); }
-        
+
         @media (max-width: 768px) {
             th, td { padding: 10px 8px; font-size: 0.85rem; }
         }
-        
+
         .floating-action {
             position: fixed;
             bottom: 22px;
@@ -4019,7 +4019,7 @@
             transform: translateY(-2px) scale(1.04);
             box-shadow: 0 8px 18px rgba(15, 23, 42, 0.28);
         }
-        
+
         .search-box {
             width: 100%;
             padding: 12px 16px;
@@ -4295,7 +4295,7 @@
         .timetable-slot:last-child { border-bottom: none; }
         .timetable-slot select { margin-bottom: 0; padding: 8px; flex: 1; }
         .timetable-time { width: 100px; font-weight: 600; color: var(--text-muted); font-size: 0.85rem; text-align: center; }
-        
+
         .student-item.warn-absence {
             border-right: 4px solid var(--danger);
             background-color: var(--danger-light);
@@ -4331,13 +4331,13 @@
             background: transparent;
             padding: 0;
         }
-        
+
         /* Fancy Scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg); }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
+
         /* Modal Animation */
         #teacherSettingsModal {
             backdrop-filter: blur(5px);
@@ -4379,8 +4379,8 @@
             max-height: 90vh;
             border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.85);
-            box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.28), 
-                        0 0 0 1px rgba(226, 232, 240, 0.7), 
+            box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.28),
+                        0 0 0 1px rgba(226, 232, 240, 0.7),
                         inset 0 1px 2px rgba(255, 255, 255, 0.95);
             display: flex;
             flex-direction: column;
@@ -4661,7 +4661,7 @@
                 min-height: 44px;
             }
         }
-    
+
         /* Calendar Styles */
         .monthly-calendar-grid-wrapper {
             width: 100%;
@@ -4968,7 +4968,7 @@
         .day-cat-dot.dot-meeting { background-color: #3b82f6; box-shadow: 0 0 0 1.5px #bfdbfe; }
         .day-cat-dot.dot-task { background-color: #8b5cf6; box-shadow: 0 0 0 1.5px #ddd6fe; }
         .day-cat-dot.dot-holiday { background-color: #22c55e; box-shadow: 0 0 0 1.5px #bbf7d0; }
-        
+
         /* Modern Scrollbar for calendar days */
         .calendar-day::-webkit-scrollbar { width: 4px; }
         .calendar-day::-webkit-scrollbar-track { background: transparent; }
@@ -4978,8 +4978,8 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-    
-    
+
+
         .fg-btn {
             background: white;
             border: 2px solid var(--border);
@@ -5170,7 +5170,7 @@
             margin-top: 5px;
             justify-content: flex-end;
         }
-    
+
         /* === Timetable Matrix & Schedule Enhancements === */
         .timetable-subnav-btn {
             display: inline-flex;
@@ -5344,7 +5344,7 @@
             font-weight: 600;
         }
 
-    
+
 /* Print specific styles for Reports section */
 /* Global print rules and Zero-Blank-Pages optimization */
 @media print {
@@ -5401,7 +5401,7 @@
         content: none !important;
         display: none !important;
     }
-    
+
     /* Strict prevention of empty / blank trailing pages */
     *:last-child {
         page-break-after: auto !important;
@@ -5428,10 +5428,10 @@
     }
 
     /* Keep rows and card items intact without splitting in half */
-    tr, 
-    .page-break-avoid, 
-    .no-break, 
-    .signature-row, 
+    tr,
+    .page-break-avoid,
+    .no-break,
+    .signature-row,
     .slip-cut-divider {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
@@ -5450,12 +5450,12 @@
     }
 
     /* Hide non-printable UI elements */
-    header, 
-    .nav-bar, 
-    button, 
-    select, 
-    input[type="date"], 
-    .btn-primary, 
+    header,
+    .nav-bar,
+    button,
+    select,
+    input[type="date"],
+    .btn-primary,
     .floating-action,
     .floating-action-btn,
     #teacherSettingsModal,
@@ -5467,7 +5467,7 @@
     }
 
     /* Only show reportsView when printing the main dashboard/reports tab directly (and not when calendarView is active) */
-    body:not(.printing-universal-doc):not(.printing-full-report):not(.printing-portfolio):not(.printing-admin-report):not(.printing-cahier):not(.printing-preventative-plan):not(.printing-calendar-view):not(.printing-custom-preview) #mainWorkView[style*="block"], 
+    body:not(.printing-universal-doc):not(.printing-full-report):not(.printing-portfolio):not(.printing-admin-report):not(.printing-cahier):not(.printing-preventative-plan):not(.printing-calendar-view):not(.printing-custom-preview) #mainWorkView[style*="block"],
     body:not(.printing-universal-doc):not(.printing-full-report):not(.printing-portfolio):not(.printing-admin-report):not(.printing-cahier):not(.printing-preventative-plan):not(.printing-calendar-view):not(.printing-custom-preview) #reportsView[style*="block"] {
         display: block !important;
     }
@@ -5549,13 +5549,13 @@
         background: transparent !important;
         page-break-inside: avoid;
     }
-    
+
     #reportsView h3 {
         color: #000 !important;
         border-bottom: 2px solid #000;
         padding-bottom: 5px;
     }
-    
+
     /* Format the tables for printing */
     .table-responsive {
         max-height: none !important;
@@ -5573,7 +5573,7 @@
         padding: 8px !important;
         background: transparent !important;
     }
-    
+
     .report-table th {
         background-color: #f0f0f0 !important;
         -webkit-print-color-adjust: exact;
@@ -5584,7 +5584,7 @@
     #aiReportCard {
         display: none !important;
     }
-    
+
     #reportStatsBar, #disciplineRateCard {
         border: 1px solid #000 !important;
         background: transparent !important;
@@ -5598,12 +5598,12 @@
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
-    
+
     /* Ensure page breaks don't cut rows */
     tr {
         page-break-inside: avoid;
     }
-    
+
     /* Hide inactive tabs while allowing active #calendarView to print when visible */
     #timetableEditorView, #libraryView {
         display: none !important;
@@ -5625,7 +5625,7 @@
     #calendarWhatsappReminderBanner {
         display: none !important;
     }
-    
+
     /* Show the main table when active */
     #reportsView {
         width: 100% !important;
@@ -11152,24 +11152,6 @@ body.presentation-mode {
     border-color: #fecaca;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* ========================================================================= */
 /* تحسين جدول الغياب للشاشات الصغيرة وتثبيت عمود أسماء التلاميذ مع التمرير الأفقي */
 /* ========================================================================= */
@@ -12365,8 +12347,6 @@ body.student-print-mode.print-mode-size-a5 .student-a4-minimalist-sheet .student
     transform: rotate(-1.5deg);
     display: inline-block;
 }
-
-
 
 /* ========================================================
    Dashboard Two-Row Symmetrical Grids:

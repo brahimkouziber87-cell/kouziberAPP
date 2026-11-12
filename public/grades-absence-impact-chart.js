@@ -146,8 +146,8 @@
                 const dailyAbsences = [];
 
                 allRecords.forEach(r => {
-                    const dur = (typeof window.getRecordAbsenceDuration === 'function') 
-                        ? window.getRecordAbsenceDuration(r) 
+                    const dur = (typeof window.getRecordAbsenceDuration === 'function')
+                        ? window.getRecordAbsenceDuration(r)
                         : (r.part === 'h1' || r.part === 'h2' ? 1 : (r.duration !== undefined ? Number(r.duration) : 1));
                     absentHours += dur;
                     if (r.status === 'غائب' || r.status === 'غير مبرر') {

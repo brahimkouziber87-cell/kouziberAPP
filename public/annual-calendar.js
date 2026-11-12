@@ -1770,7 +1770,7 @@
                 }
 
                 gridHtml += `
-                    <div class="annual-day-cell ${isHoliday ? 'has-official-holiday' : ''} ${isLeave ? 'has-teacher-leave' : ''}" 
+                    <div class="annual-day-cell ${isHoliday ? 'has-official-holiday' : ''} ${isLeave ? 'has-teacher-leave' : ''}"
                          style="height: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 6px; font-size: 0.78rem; font-weight: ${isHoliday || isLeave || hasMilestone || isToday ? '900' : '600'}; background: ${cellBg}; color: ${cellColor}; border: ${cellBorder}; cursor: pointer; position: relative; transition: all 0.15s;"
                          title="${escapeHtml(titleText)}"
                          onclick="window.onAnnualDayCellClick('${dateStr}', '${holiday ? escapeQuotes(holiday.title) : ''}')">
@@ -2427,7 +2427,7 @@
         const innerHtml = `
             <div dir="rtl" style="font-family: 'Cairo', 'Tajawal', sans-serif; color: #0f172a; background: #fff;">
                 ${buildCalendarOfficialHeaderHtml('التقويم السنوي الشامل للموسم الدراسي ولائحة العطل الرسمية', 'مرتبط آلياً بمنظومة تتبع المواظبة والغياب والمحطات التربوية', '#4f46e5')}
-                
+
                 <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px;">
                     <div style="border: 1px solid #cbd5e1; border-right: 4px solid #10b981; border-radius: 6px; padding: 6px 10px; background: #f8fafc;">
                         <div style="font-size: 9.5px; color: #64748b; font-weight: 800;">مجموع أيام العطل الرسمية</div>
@@ -3488,14 +3488,14 @@
     function detectClassLevelCode(className) {
         if (!className) return 'all';
         const str = String(className).toLowerCase().replace(/[-_\s]+/g, '');
-        
+
         // 2BAC
         if (str.includes('2bac') || str.includes('ثانيةباك') || str.includes('2b')) {
             if (str.includes('sm') || str.includes('رياضي')) return '2bac_sm';
             if (str.includes('eco') || str.includes('اقتصاد')) return '2bac_eco';
             return '2bac_pc';
         }
-        
+
         // 1BAC
         if (str.includes('1bac') || str.includes('اولىباك') || str.includes('أولىباك') || str.includes('1b')) {
             if (str.includes('sm') || str.includes('رياضي')) return '1bac_sm';
@@ -3731,7 +3731,7 @@
         const topics = meta.suggestedTopics || [];
 
         container.innerHTML = topics.map(t => `
-            <button type="button" 
+            <button type="button"
                 onclick="window.addMilestoneTopic('${escapeQuotes(t)}')"
                 style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 5px; padding: 3px 8px; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; transition: all 0.15s;"
                 title="انقر لإدراج هذا الدرس أو المفهوم فورياً في موضوع المحطة">
@@ -4523,13 +4523,13 @@
         if (levelKey === 'custom') {
             finalTargetLevels = (document.getElementById('milestoneTargetLevelsInput')?.value || '').trim() || 'مستوى مخصص';
         } else if (levelKey === 'all') {
-            finalTargetLevels = checkedClasses.length > 0 
-                ? `جميع الأقسام (${checkedClasses.join('، ')})` 
+            finalTargetLevels = checkedClasses.length > 0
+                ? `جميع الأقسام (${checkedClasses.join('، ')})`
                 : 'كافة المستويات والأقسام المسندة';
         } else {
             const meta = MOROCCAN_LEVELS_META[levelKey] || { shortName: levelKey };
-            finalTargetLevels = checkedClasses.length > 0 
-                ? `${meta.shortName} (${checkedClasses.join('، ')})` 
+            finalTargetLevels = checkedClasses.length > 0
+                ? `${meta.shortName} (${checkedClasses.join('، ')})`
                 : meta.shortName;
         }
 
@@ -5847,8 +5847,8 @@
             filteredLeaves.forEach((leave) => {
                 const typeObj = TEACHER_LEAVE_TYPES[leave.type] || TEACHER_LEAVE_TYPES.other;
                 const isAbsenceProtected = (leave.disableStudentAbsence !== false);
-                const scopeLabel = leave.sessionsScope === 'morning' ? 'الفترة الصباحية فقط' 
-                                 : leave.sessionsScope === 'afternoon' ? 'الفترة المسائية فقط' 
+                const scopeLabel = leave.sessionsScope === 'morning' ? 'الفترة الصباحية فقط'
+                                 : leave.sessionsScope === 'afternoon' ? 'الفترة المسائية فقط'
                                  : 'كامل اليوم';
 
                 html += `
@@ -6181,8 +6181,8 @@
         renderAnnualSchoolCalendar();
         if (typeof window.renderStudents === 'function') window.renderStudents();
 
-        const msg = leave.disableStudentAbsence 
-            ? 'تم تفعيل حماية وإعفاء غياب التلاميذ طيلة فترة الرخصة 🛡️' 
+        const msg = leave.disableStudentAbsence
+            ? 'تم تفعيل حماية وإعفاء غياب التلاميذ طيلة فترة الرخصة 🛡️'
             : 'تم إلغاء إعفاء غياب التلاميذ لهذه الرخصة';
         if (typeof window.showNotification === 'function') {
             window.showNotification(msg, 'success');
@@ -6199,8 +6199,8 @@
 
         const meta = getCalendarPrintHeaderMetadata();
         const typeObj = TEACHER_LEAVE_TYPES[leave.type] || TEACHER_LEAVE_TYPES.other;
-        const scopeLabel = leave.sessionsScope === 'morning' ? 'الفترة الصباحية فقط' 
-                         : leave.sessionsScope === 'afternoon' ? 'الفترة المسائية فقط' 
+        const scopeLabel = leave.sessionsScope === 'morning' ? 'الفترة الصباحية فقط'
+                         : leave.sessionsScope === 'afternoon' ? 'الفترة المسائية فقط'
                          : 'كامل اليوم الدراسي';
 
         const printHtml = `<!DOCTYPE html>
@@ -7186,7 +7186,7 @@
 
         const title = `🎯 ${ms.title}`;
         const startStr = ms.startDate.replace(/-/g, '');
-        
+
         // نهاية الحدث في Google Calendar للأيام الكاملة (+1 day)
         const dEnd = new Date(ms.endDate || ms.startDate);
         dEnd.setDate(dEnd.getDate() + 1);

@@ -214,17 +214,17 @@
         const semLabel = stats.semester === 's2' ? 'الدورة الثانية' : 'الدورة الأولى';
 
         const vaBadge = stats.globalValueAdded !== null ? (
-            stats.globalValueAdded >= 0 
-                ? `<span style="color:#86efac; font-weight:900;">+${stats.globalValueAdded} نقطة (قيمة مضافة إيجابية)</span>` 
+            stats.globalValueAdded >= 0
+                ? `<span style="color:#86efac; font-weight:900;">+${stats.globalValueAdded} نقطة (قيمة مضافة إيجابية)</span>`
                 : `<span style="color:#fca5a5; font-weight:900;">${stats.globalValueAdded} نقطة (تراجع بيداغوجي)</span>`
         ) : '<span style="color:#e2e8f0;">غير محدد (يتطلب رائز تشخيصي)</span>';
 
         const rowsHtml = stats.students.map((std, i) => {
             const deltaBadge = std.delta !== null ? (
-                std.delta > 0 
-                    ? `<span style="color:#15803d; font-weight:800; background:#f0fdf4; padding:2px 8px; border-radius:6px;">+${std.delta}</span>` 
-                    : (std.delta < 0 
-                        ? `<span style="color:#dc2626; font-weight:800; background:#fef2f2; padding:2px 8px; border-radius:6px;">${std.delta}</span>` 
+                std.delta > 0
+                    ? `<span style="color:#15803d; font-weight:800; background:#f0fdf4; padding:2px 8px; border-radius:6px;">+${std.delta}</span>`
+                    : (std.delta < 0
+                        ? `<span style="color:#dc2626; font-weight:800; background:#fef2f2; padding:2px 8px; border-radius:6px;">${std.delta}</span>`
                         : `<span style="color:#475569; font-weight:800; background:#f8fafc; padding:2px 8px; border-radius:6px;">0.00</span>`)
             ) : '<span style="color:#94a3b8; font-size:0.75rem;">—</span>';
 

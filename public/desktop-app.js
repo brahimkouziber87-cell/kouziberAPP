@@ -1117,7 +1117,7 @@
         input.click();
     }
 
-    const BASE_APP_VERSION = '3.5';
+    const BASE_APP_VERSION = '3.6';
 
     function isAndroidHapticEnabled() {
         try {
@@ -1541,7 +1541,7 @@
 
                 <!-- Tab Contents -->
                 <div style="padding: 16px 18px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px;">
-                    
+
                     <!-- 1. PWA Direct Update & Universal Install Tab -->
                     <div id="deskTabContentPwa" class="desk-tab-pane" style="display: flex; flex-direction: column; gap: 12px;">
                         <!-- Instant Application Update & Version Bump Card -->

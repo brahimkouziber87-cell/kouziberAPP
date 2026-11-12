@@ -126,7 +126,7 @@
     function diffInDays(targetDateStr, baseDate) {
         if (!targetDateStr) return 999;
         const base = baseDate instanceof Date ? baseDate : (typeof window.getAppNow === 'function' ? window.getAppNow() : new Date());
-        
+
         // استخراج أجزاء التاريخ المحلي لتفادي مشاكل فروق التوقيت
         const baseParts = [base.getFullYear(), base.getMonth(), base.getDate()];
         const targetParts = targetDateStr.split('-').map(Number);
@@ -134,7 +134,7 @@
 
         const dBase = new Date(baseParts[0], baseParts[1], baseParts[2]);
         const dTarget = new Date(targetParts[0], targetParts[1] - 1, targetParts[2]);
-        
+
         const diffMs = dTarget.getTime() - dBase.getTime();
         return Math.round(diffMs / (1000 * 60 * 60 * 24));
     }
@@ -162,10 +162,10 @@
             _cachedNextExamTime = nowMs;
             return null;
         }
-        
+
         const now = typeof window.getAppNow === 'function' ? window.getAppNow() : new Date();
         const todayStr = (window.formatLocalDate ? window.formatLocalDate() : now.toLocaleDateString('en-CA'));
-        
+
         // الفروض القادمة (اليوم أو في المستقبل)
         const upcoming = exams.filter(ex => {
             if (!ex.startDate) return false;
@@ -194,18 +194,18 @@
         if (!exam || !exam.startDate) return null;
         const now = typeof window.getAppNow === 'function' ? window.getAppNow() : new Date();
         const todayStr = (window.formatLocalDate ? window.formatLocalDate() : now.toLocaleDateString('en-CA'));
-        
+
         const timeStr = exam.time || '08:00:00';
         let target = new Date(`${exam.startDate}T${timeStr.length === 5 ? timeStr + ':00' : timeStr}`);
         if (isNaN(target.getTime())) {
             target = new Date(`${exam.startDate}T08:00:00`);
         }
-        
+
         const isToday = (exam.startDate === todayStr);
         let diffMs = target.getTime() - now.getTime();
         let isLiveNow = false;
         let isPast = false;
-        
+
         if (diffMs <= 0) {
             if (isToday) {
                 const endOfDay = new Date(`${exam.startDate}T18:00:00`);
@@ -221,12 +221,12 @@
                 diffMs = 0;
             }
         }
-        
+
         const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
-        
+
         return {
             exam,
             diffMs,
@@ -252,7 +252,7 @@
         if (!cd) return '';
         const { days, hours, minutes, seconds, isCritical, isToday, isLiveNow, isPast } = cd;
         const { compact = false, showHeader = true, idPrefix = 'banner' } = opts;
-        
+
         if (isPast) {
             return `
                 <div class="smart-exam-countdown-card" data-exam-id="${exam.id}" data-exam-date="${exam.startDate}" style="display: inline-flex; align-items: center; gap: 6px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px 10px; font-size: 0.74rem; color: #64748b; font-weight: 700;">
@@ -265,7 +265,7 @@
         const borderCol = isLiveNow ? '#dc2626' : isCritical ? '#ea580c' : '#2563eb';
         const bgCol = isLiveNow ? '#fef2f2' : isCritical ? '#fff7ed' : '#eff6ff';
         const numCol = isLiveNow ? '#dc2626' : isCritical ? '#c2410c' : '#1e3a8a';
-        
+
         return `
         <div class="smart-exam-countdown-card" id="${idPrefix}_exam_cd_card_${exam.id}" data-exam-id="${exam.id}" data-exam-date="${exam.startDate}" style="background: ${bgCol}; border: 1.5px solid ${borderCol}55; border-radius: 12px; padding: ${compact ? '6px 12px' : '8px 14px'}; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap;">
             ${showHeader ? `
@@ -315,10 +315,10 @@
         if (typeof document !== 'undefined' && document.hidden) return;
         const nextExam = getNextUpcomingExam();
         if (!nextExam) return;
-        
+
         const cd = getExamCountdown(nextExam);
         if (!cd) return;
-        
+
         // 1. تحديث زر وشارة شريط الهيدر بدون إعادة بناء الـ DOM وبصيغة مدمجة
         const headerPill = document.getElementById('headerSmartExamCountdownPill');
         if (headerPill) {
@@ -345,12 +345,12 @@
                 thisCd = getExamCountdown({ id: examId, startDate: examDate });
             }
             if (!thisCd) continue;
-            
+
             const daysEl = card.querySelector('.exam-cd-val-days');
             const hoursEl = card.querySelector('.exam-cd-val-hours');
             const minsEl = card.querySelector('.exam-cd-val-mins');
             const secsEl = card.querySelector('.exam-cd-val-secs');
-            
+
             if (daysEl && daysEl.textContent !== String(thisCd.days)) daysEl.textContent = thisCd.days;
             const hStr = String(thisCd.hours).padStart(2, '0');
             if (hoursEl && hoursEl.textContent !== hStr) hoursEl.textContent = hStr;
@@ -657,12 +657,12 @@
                 const gain = ctx.createGain();
                 osc.type = idx === 1 ? 'sine' : (idx === 2 ? 'triangle' : 'sine');
                 osc.frequency.setValueAtTime(freq, startTime);
-                
+
                 const noteVol = (idx === 0 ? 0.65 : (idx === 1 ? 0.35 : 0.15)) * vol;
                 gain.gain.setValueAtTime(0, startTime);
                 gain.gain.linearRampToValueAtTime(noteVol, startTime + 0.015);
                 gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-                
+
                 osc.connect(gain);
                 gain.connect(dest);
                 osc.start(startTime);
@@ -1143,8 +1143,8 @@
                                 </span>
                             </div>
                             <div style="font-size: 0.78rem; color: #475569; margin-top: 4px;">
-                                ${count > 0 
-                                    ? `<span style="color: #dc2626; font-weight: 700;">⚠️ تم رصد ${count} تلاميذ لديهم غيابات متكررة أو تعثر بيداغوجي بالقسم</span>` 
+                                ${count > 0
+                                    ? `<span style="color: #dc2626; font-weight: 700;">⚠️ تم رصد ${count} تلاميذ لديهم غيابات متكررة أو تعثر بيداغوجي بالقسم</span>`
                                     : `<span style="color: #059669; font-weight: 700;">✅ لا توجد غيابات مقلقة بالقسم المعني</span>`}
                             </div>
                             <div style="margin-top: 6px;">
@@ -1272,7 +1272,7 @@
                             </span>
                         </div>
                         <div style="font-size: 0.84rem; color: #1e293b; margin-top: 4px; font-weight: 700; line-height: 1.4;">
-                            ${count > 0 
+                            ${count > 0
                                 ? `تم رصد <strong style="color: #dc2626;">${count} تلاميذ</strong> لديهم غيابات متكررة بأقسام الفرض، مما قد يعرضهم للتعثر الدراسي.`
                                 : `جميع التلاميذ في الأقسام المعنية ملتزمون بالمواظبة ولا توجد غيابات مقلقة.`}
                         </div>
@@ -1508,8 +1508,8 @@
                             </div>
                         </td>
                         <td style="padding: 10px 12px; text-align: center; font-size: 0.8rem;">
-                            ${std.missedHw > 0 
-                                ? `<span style="color: #b45309; font-weight: 700; background: #fef3c7; padding: 2px 7px; border-radius: 5px;">${std.missedHw} مرات</span>` 
+                            ${std.missedHw > 0
+                                ? `<span style="color: #b45309; font-weight: 700; background: #fef3c7; padding: 2px 7px; border-radius: 5px;">${std.missedHw} مرات</span>`
                                 : '<span style="color: #10b981; font-size: 0.75rem;">منضبط</span>'}
                         </td>
                         <td style="padding: 10px 12px; text-align: center;">

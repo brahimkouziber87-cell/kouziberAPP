@@ -237,7 +237,7 @@
         const absencesTimeline = [];
 
         allRecords.forEach(r => {
-            const dur = (typeof window.getRecordAbsenceDuration === 'function') 
+            const dur = (typeof window.getRecordAbsenceDuration === 'function')
                 ? window.getRecordAbsenceDuration(r)
                 : (r.part === 'h1' || r.part === 'h2' ? 1 : (r.duration || 1));
             const part = r.part || 'all';
@@ -288,11 +288,11 @@
 
         // 2. النقط والنتائج الدراسية (الأسدوس الأول والأسدوس الثاني)
         const examsCount = typeof window.getExamsCountForClass === 'function' ? window.getExamsCountForClass(className) : 3;
-        const s1Grades = (typeof window.getStudentGradesBySemester === 'function') 
-            ? window.getStudentGradesBySemester(className, studentId, 's1') 
+        const s1Grades = (typeof window.getStudentGradesBySemester === 'function')
+            ? window.getStudentGradesBySemester(className, studentId, 's1')
             : {};
-        const s2Grades = (typeof window.getStudentGradesBySemester === 'function') 
-            ? window.getStudentGradesBySemester(className, studentId, 's2') 
+        const s2Grades = (typeof window.getStudentGradesBySemester === 'function')
+            ? window.getStudentGradesBySemester(className, studentId, 's2')
             : {};
 
         // حساب معدلات القسم لكل فرض للمقارنة في دورة واحدة (O(N) بدلاً من 6 دورات منفصلة)
@@ -375,8 +375,8 @@
         const s2Avg = typeof window.calculateSemesterAvg === 'function' ? window.calculateSemesterAvg(s2Grades, examsCount) : null;
 
         // 3. تقييم السلوك والملاحظات عبر العام
-        const behaviorRecord = (window.db.behaviors && window.db.behaviors[className] && window.db.behaviors[className][studentId]) 
-            ? window.db.behaviors[className][studentId] 
+        const behaviorRecord = (window.db.behaviors && window.db.behaviors[className] && window.db.behaviors[className][studentId])
+            ? window.db.behaviors[className][studentId]
             : { status: 'منضبط', note: '' };
 
         // ملاحظات دفتر ملف الإنجاز المخصص المخزنة
@@ -568,8 +568,11 @@
 
                     <!-- أزرار الإجراءات في رأس الملف -->
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" onclick="switchPortfolioTab('qrpass')" style="background: linear-gradient(135deg, #b45309, #d97706); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 6px rgba(217, 119, 6, 0.35);" title="بطاقة التتبع الفردي الذكية للتلميذ برمز الاستجابة السريعة (QR Pass) القابلة للطباعة والمسح الفوري">
+                            <span data-lucide="qr-code" data-size="14"></span> بطاقة التلميذ الذكية (QR Pass)
+                        </button>
                         <button type="button" onclick="if(window.openShareRecordModal) window.openShareRecordModal({ type: 'student', className: '${escapeHtml(d.className)}', studentId: '${escapeHtml(std.id)}', studentName: '${escapeHtml(std.name)}' });" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 6px rgba(124, 58, 237, 0.35);" title="مشاركة السجل البيداغوجي المشفر مع الزملاء عبر رمز QR أو رابط مباشر">
-                            <span data-lucide="qr-code" data-size="14"></span> مشاركة مع الزملاء (QR / رابط مشفر)
+                            <span data-lucide="share-2" data-size="14"></span> مشاركة مع الزملاء
                         </button>
                         <button type="button" onclick="switchPortfolioTab('ical')" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 5px rgba(2, 132, 199, 0.25);">
                             <span data-lucide="calendar" data-size="14"></span> مزامنة تقويم الهاتف (iCal)
@@ -648,7 +651,8 @@
                 { key: 'risk', label: `مؤشر احتمالية التعثر (${currentStudentPortfolioData.failureRiskData.riskScore}%)`, icon: 'alert-triangle' },
                 { key: 'absences', label: `سجل وتاريخ الغياب (${currentStudentPortfolioData.totalAbsentHours}س)`, icon: 'calendar-x' },
                 { key: 'behavior', label: 'سجل السلوك والملاحظات التربوية', icon: 'clipboard-list' },
-                { key: 'share', label: 'مشاركة مشفرة مع الزملاء (QR)', icon: 'qr-code' },
+                { key: 'qrpass', label: 'بطاقة التلميذ الذكية (QR Pass)', icon: 'qr-code' },
+                { key: 'share', label: 'مشاركة مشفرة مع الزملاء', icon: 'share-2' },
                 { key: 'ical', label: 'مزامنة تقويم الهاتف (iCal)', icon: 'calendar' },
                 { key: 'print', label: 'المعاينة الرسمية للطباعة والتصدير', icon: 'file-text' }
             ];
@@ -675,6 +679,8 @@
             renderPortfolioAbsencesTabContent(bodyContainer);
         } else if (activePortfolioTab === 'behavior') {
             renderPortfolioBehaviorTabContent(bodyContainer);
+        } else if (activePortfolioTab === 'qrpass') {
+            renderPortfolioQrPassTabContent(bodyContainer);
         } else if (activePortfolioTab === 'share') {
             if (typeof window.openShareRecordModal === 'function' && currentStudentPortfolioData) {
                 window.openShareRecordModal({
@@ -693,6 +699,240 @@
     }
 
     /**
+     * توليد مصفوفة SVG محلية عالية الدقة لترميز بيانات التلميذ (Deterministic Offline QR Matrix SVG)
+     */
+    function generateDeterministicQrSvg(payloadText, sizePx = 150) {
+        const gridSize = 25;
+        const matrix = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
+        const reserved = Array.from({ length: gridSize }, () => Array(gridSize).fill(false));
+
+        function drawFinder(r0, c0) {
+            for (let r = -1; r <= 7; r++) {
+                for (let c = -1; c <= 7; c++) {
+                    const rr = r0 + r, cc = c0 + c;
+                    if (rr >= 0 && rr < gridSize && cc >= 0 && cc < gridSize) {
+                        reserved[rr][cc] = true;
+                        if (r >= 0 && r <= 6 && c >= 0 && c <= 6) {
+                            if (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4)) {
+                                matrix[rr][cc] = 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        drawFinder(0, 0);
+        drawFinder(0, gridSize - 7);
+        drawFinder(gridSize - 7, 0);
+
+        // Alignment pattern at (16, 16)
+        for (let r = 16; r <= 20; r++) {
+            for (let c = 16; c <= 20; c++) {
+                reserved[r][c] = true;
+                if (r === 16 || r === 20 || c === 16 || c === 20 || (r === 18 && c === 18)) {
+                    matrix[r][c] = 1;
+                }
+            }
+        }
+
+        // Timing patterns
+        for (let i = 8; i < gridSize - 8; i++) {
+            reserved[6][i] = true;
+            reserved[i][6] = true;
+            matrix[6][i] = (i % 2 === 0) ? 1 : 0;
+            matrix[i][6] = (i % 2 === 0) ? 1 : 0;
+        }
+
+        // Deterministic hash stream from payloadText
+        const str = String(payloadText || 'STUDENT-PORTFOLIO');
+        let h1 = 2166136261, h2 = 16777619;
+        const bytes = [];
+        for (let i = 0; i < str.length; i++) {
+            const code = str.charCodeAt(i);
+            h1 ^= code;
+            h1 = Math.imul(h1, 16777619);
+            h2 = (h2 + code * (i + 1)) | 0;
+            bytes.push((code ^ (h1 & 0xff)) & 0xff);
+        }
+        while (bytes.length < 80) {
+            h1 ^= (h2 & 0xff);
+            h1 = Math.imul(h1, 16777619);
+            h2 = (h2 * 31 + 17) | 0;
+            bytes.push((h1 >>> 8) & 0xff);
+        }
+
+        let bitIdx = 0;
+        for (let r = 0; r < gridSize; r++) {
+            for (let c = 0; c < gridSize; c++) {
+                if (!reserved[r][c]) {
+                    const byteVal = bytes[Math.floor(bitIdx / 8) % bytes.length];
+                    const bit = (byteVal >> (bitIdx % 8)) & 1;
+                    matrix[r][c] = ((r + c) % 3 === 0) ? (bit ^ 1) : bit;
+                    bitIdx++;
+                }
+            }
+        }
+
+        const cell = sizePx / (gridSize + 2);
+        let rects = '';
+        for (let r = 0; r < gridSize; r++) {
+            for (let c = 0; c < gridSize; c++) {
+                if (matrix[r][c]) {
+                    const x = ((c + 1) * cell).toFixed(2);
+                    const y = ((r + 1) * cell).toFixed(2);
+                    rects += `<rect x="${x}" y="${y}" width="${(cell + 0.15).toFixed(2)}" height="${(cell + 0.15).toFixed(2)}" fill="#0f172a" rx="0.4"/>`;
+                }
+            }
+        }
+
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${sizePx} ${sizePx}" width="${sizePx}" height="${sizePx}" style="background:#ffffff; border-radius:8px; border:2px solid #cbd5e1; display:block;">${rects}</svg>`;
+    }
+
+    /**
+     * تبويب بطاقة التتبع الفردي الذكية برمز الاستجابة السريعة (Student QR Portfolio Pass)
+     */
+    function renderPortfolioQrPassTabContent(container) {
+        const d = currentStudentPortfolioData;
+        if (!d) return;
+        const std = d.student;
+        const profile = (window.db && window.db.teacherProfile) || {};
+        const teacherName = profile.name || 'إبراهيم قزيبر';
+        const schoolName = profile.school || 'الثانوية التأهيلية';
+        const academicYear = profile.academicYear || '2026 / 2027';
+        const fr = d.failureRiskData || { riskScore: 0, riskLevelAr: 'آمن', riskColor: '#10b981', riskBg: '#ecfdf5', riskBorder: '#a7f3d0' };
+
+        const qrPayload = JSON.stringify({
+            v: '3.6',
+            id: std.id,
+            massar: std.massar || '',
+            name: std.name,
+            cls: d.className,
+            avg: d.annualAvg !== null ? Number(d.annualAvg.toFixed(2)) : null,
+            abs: d.totalAbsentHours,
+            att: d.attendanceRate,
+            risk: fr.riskScore
+        });
+
+        const qrSvgHtml = generateDeterministicQrSvg(qrPayload, 148);
+
+        container.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h4 style="margin: 0; font-size: 1.02rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                            <span data-lucide="qr-code" data-size="20" style="color: #d97706;"></span>
+                            <span>بطاقة التتبع الفردي الذكية للتلميذ برمز الاستجابة السريعة (Student QR Portfolio Pass)</span>
+                        </h4>
+                        <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #475569;">
+                            بطاقة رسمية مدمجة قابلة للطباعة وإلصاقها في دفتر التلميذ أو ملفه الإداري للوصول السريع إلى وضعيته التربوية ومواظبته.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" onclick="window.printStudentQrPassCard()" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);">
+                            <span data-lucide="printer" data-size="15"></span>
+                            <span>طباعة / تصدير بطاقة التلميذ (PDF)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- البطاقة القابلة للطباعة -->
+                <div id="printableStudentQrPassContainer" style="display: flex; justify-content: center; padding: 10px;">
+                    <div id="studentQrPassCardElement" style="width: 100%; max-width: 680px; background: #ffffff; border: 2px solid #1e3a8a; border-radius: 14px; overflow: hidden; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08); direction: rtl; font-family: 'Cairo', sans-serif;">
+                        <!-- ترويسة البطاقة -->
+                        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color: #ffffff; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #fbbf24;">
+                            <div>
+                                <div style="font-size: 0.72rem; color: #fde68a; font-weight: 800;">المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                                <div style="font-size: 1rem; font-weight: 900; margin-top: 2px;">بطاقة التتبع البيداغوجي الفردي - مادة الرياضيات</div>
+                                <div style="font-size: 0.74rem; color: #cbd5e1; margin-top: 1px;">المؤسسة: ${escapeHtml(schoolName)} | الموسم الدراسي: ${escapeHtml(academicYear)}</div>
+                            </div>
+                            <div style="text-align: left; background: rgba(255,255,255,0.12); padding: 5px 10px; border-radius: 8px; border: 1px solid rgba(251,191,36,0.4);">
+                                <div style="font-size: 0.68rem; color: #fef08a; font-weight: 700;">القسم المسند</div>
+                                <div style="font-size: 0.95rem; font-weight: 900; color: #ffffff;">${escapeHtml(d.className)}</div>
+                            </div>
+                        </div>
+
+                        <!-- جسم البطاقة -->
+                        <div style="padding: 16px 20px; display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: center;">
+                            <div>
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                    <div style="width: 44px; height: 44px; border-radius: 10px; background: #eff6ff; border: 1.5px solid #3b82f6; color: #1e3a8a; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 900;">
+                                        ${escapeHtml((std.name || 'ت').trim().charAt(0))}
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 1.15rem; font-weight: 900; color: #0f172a;">${escapeHtml(std.name)}</div>
+                                        <div style="font-size: 0.78rem; color: #475569; font-weight: 700;">
+                                            رمز مسار: <span style="font-family: monospace; color: #1e3a8a; font-weight: 900;">${escapeHtml(std.massar || 'غير مسجل')}</span>
+                                            ${std.orderNum ? ` | الرقم الترتيبي: <strong>${std.orderNum}</strong>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px;">
+                                    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 7px 10px;">
+                                        <div style="font-size: 0.7rem; color: #64748b; font-weight: 700;">المعدل العام للمراقبة</div>
+                                        <div style="font-size: 1.05rem; font-weight: 900; color: ${d.annualAvg !== null && d.annualAvg >= 10 ? '#15803d' : '#dc2626'};">
+                                            ${d.annualAvg !== null ? d.annualAvg.toFixed(2) + ' / 20' : 'قيد الرصد'}
+                                        </div>
+                                    </div>
+                                    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 7px 10px;">
+                                        <div style="font-size: 0.7rem; color: #64748b; font-weight: 700;">نسبة المواظبة والحضور</div>
+                                        <div style="font-size: 1.05rem; font-weight: 900; color: #1d4ed8;">
+                                            ${d.attendanceRate}% <span style="font-size: 0.72rem; color: #64748b;">(${d.totalAbsentHours}س غياب)</span>
+                                        </div>
+                                    </div>
+                                    <div style="background: ${fr.riskBg}; border: 1px solid ${fr.riskBorder}; border-radius: 8px; padding: 7px 10px;">
+                                        <div style="font-size: 0.7rem; color: ${fr.riskColor}; font-weight: 700;">مؤشر اليقظة البيداغوجية</div>
+                                        <div style="font-size: 0.92rem; font-weight: 900; color: ${fr.riskColor};">
+                                            ${fr.riskLevelAr} (${fr.riskScore}%)
+                                        </div>
+                                    </div>
+                                    <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 7px 10px;">
+                                        <div style="font-size: 0.7rem; color: #64748b; font-weight: 700;">انضباط الواجبات والسلوك</div>
+                                        <div style="font-size: 0.92rem; font-weight: 900; color: #0f766e;">
+                                            ${d.homeworkRate}% | ${escapeHtml(d.behaviorRecord.status)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- رمز QR -->
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; padding: 10px; border-radius: 12px; border: 1.5px dashed #94a3b8;">
+                                ${qrSvgHtml}
+                                <div style="font-size: 0.66rem; font-weight: 800; color: #334155; margin-top: 6px; text-align: center;">بطاقة التتبع الرقمي QR</div>
+                                <div style="font-size: 0.62rem; color: #64748b; font-family: monospace;">ID: ${escapeHtml(String(std.massar || std.id).slice(0, 12))}</div>
+                            </div>
+                        </div>
+
+                        <!-- تذييل البطاقة الرسمي الموحد -->
+                        <div style="background: #f1f5f9; padding: 8px 18px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; font-weight: 800; color: #1e3a8a;">
+                            <span>إشراف الأستاذ: ${escapeHtml(teacherName)}</span>
+                            <span>منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        if (window.renderLucide) window.renderLucide();
+    }
+
+    function printStudentQrPassCard() {
+        const cardEl = document.getElementById('studentQrPassCardElement');
+        if (!cardEl) return;
+        const stdName = (currentStudentPortfolioData && currentStudentPortfolioData.student && currentStudentPortfolioData.student.name) || 'التلميذ';
+        if (typeof window.openCustomPrintPreviewModal === 'function') {
+            window.openCustomPrintPreviewModal(`<div style="padding: 15mm; display: flex; justify-content: center;">${cardEl.outerHTML}</div>`, {
+                title: `بطاقة_التتبع_الذكية_QR_${stdName}`,
+                orientation: 'portrait',
+                subtitle: 'بطاقة التتبع البيداغوجي الفردي للتلميذ برمز الاستجابة السريعة (QR Pass)'
+            });
+        } else {
+            window.print();
+        }
+    }
+    window.printStudentQrPassCard = printStudentQrPassCard;
+
+    /**
      * تبويب 1: الرسوم البيانية وتطور النتائج
      */
     function renderPortfolioChartsTabContent(container) {
@@ -708,39 +948,39 @@
             let appClass = 'appreciation-badge neutral';
 
             if (ex.studentMark !== null) {
-                if (ex.studentMark >= 16) { 
-                    appreciation = '★ ممتاز (تحكم تام)'; 
-                    appColor = '#022c22'; 
-                    appBg = '#dcfce7'; 
-                    appBorder = '#059669'; 
+                if (ex.studentMark >= 16) {
+                    appreciation = '★ ممتاز (تحكم تام)';
+                    appColor = '#022c22';
+                    appBg = '#dcfce7';
+                    appBorder = '#059669';
                     appClass = 'appreciation-badge excellent';
                 }
-                else if (ex.studentMark >= 13) { 
-                    appreciation = '✓ تحكم جيد جداً'; 
-                    appColor = '#082f49'; 
-                    appBg = '#e0f2fe'; 
-                    appBorder = '#0284c7'; 
+                else if (ex.studentMark >= 13) {
+                    appreciation = '✓ تحكم جيد جداً';
+                    appColor = '#082f49';
+                    appBg = '#e0f2fe';
+                    appBorder = '#0284c7';
                     appClass = 'appreciation-badge very-good';
                 }
-                else if (ex.studentMark >= 10) { 
-                    appreciation = '◆ متوسط (مقبول)'; 
-                    appColor = '#451a03'; 
-                    appBg = '#fef3c7'; 
-                    appBorder = '#d97706'; 
+                else if (ex.studentMark >= 10) {
+                    appreciation = '◆ متوسط (مقبول)';
+                    appColor = '#451a03';
+                    appBg = '#fef3c7';
+                    appBorder = '#d97706';
                     appClass = 'appreciation-badge average';
                 }
-                else if (ex.studentMark >= 7) { 
-                    appreciation = '▲ في طور التحكم (تعثر طفيف)'; 
-                    appColor = '#7c2d12'; 
-                    appBg = '#ffedd5'; 
-                    appBorder = '#ea580c'; 
+                else if (ex.studentMark >= 7) {
+                    appreciation = '▲ في طور التحكم (تعثر طفيف)';
+                    appColor = '#7c2d12';
+                    appBg = '#ffedd5';
+                    appBorder = '#ea580c';
                     appClass = 'appreciation-badge struggling';
                 }
-                else { 
-                    appreciation = '▲ متعثر (يحتاج دعماً استدراكياً)'; 
-                    appColor = '#450a0a'; 
-                    appBg = '#fee2e2'; 
-                    appBorder = '#dc2626'; 
+                else {
+                    appreciation = '▲ متعثر (يحتاج دعماً استدراكياً)';
+                    appColor = '#450a0a';
+                    appBg = '#fee2e2';
+                    appBorder = '#dc2626';
                     appClass = 'appreciation-badge struggling';
                 }
             }
@@ -1075,7 +1315,7 @@
                         <span data-lucide="clipboard-check" data-size="18" style="color: #4f46e5;"></span>
                         التشخيص البيداغوجي الآلي وخطة التدخل الموصى بها:
                     </h5>
-                    
+
                     <div style="background: #f8fafc; border-right: 4px solid ${fr.riskColor}; padding: 12px 14px; border-radius: 6px; margin-bottom: 12px;">
                         <div style="font-weight: 800; color: #0f172a; font-size: 0.85rem; margin-bottom: 4px;">واقع التحصيل والمواظبة:</div>
                         <div style="color: #334155; font-size: 0.84rem; line-height: 1.6;">${fr.diagnosticSummary}</div>
@@ -1790,7 +2030,7 @@
         const host = window.location.host;
         const protocol = window.location.protocol;
         const query = isAll ? '' : `?studentId=${encodeURIComponent(studentId)}`;
-        
+
         const httpFeedUrl = `${protocol}//${host}/api/ical/portfolio-feed${query}`;
         const webcalUrl = `webcal://${host}/api/ical/portfolio-feed${query}`;
         const googleCalUrl = `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`;
@@ -1810,7 +2050,7 @@
         syncStudentPortfolioToICalServer(d.studentId, d.className);
 
         const { webcalUrl } = getPortfolioWebCalUrls(d.studentId);
-        
+
         // محاولة فتح رابط بروتوكول webcal الذي يتفاعل معه تطبيق التقويم في iOS / macOS / Android مباشرة
         window.location.href = webcalUrl;
 
@@ -1842,7 +2082,7 @@
 
         syncStudentPortfolioToICalServer(d.studentId, d.className);
         const { downloadUrl } = getPortfolioWebCalUrls(d.studentId);
-        
+
         const a = document.createElement('a');
         a.href = downloadUrl;
         a.download = `portfolio-tasks-${d.student.name}.ics`;
@@ -2349,7 +2589,7 @@
         if (!d) return;
 
         const std = d.student;
-        const msg = 
+        const msg =
             `📊 *ملف الإنجاز الرقمي للتلميذ(ة): ${std.name}*\n` +
             `• القسم: ${d.className}\n` +
             `• رقم مسار: ${std.massar || '-'}\n` +

@@ -6,7 +6,7 @@
         // ============================================
         // Digital Resources & Local Import Logic (IndexedDB)
         // ============================================
-        const ResourceDB = {
+        var ResourceDB = {
             dbName: 'SchoolLibraryLocalFiles',
             version: 1,
             dbInstance: null,
@@ -98,11 +98,11 @@
             window.ResourceDB = ResourceDB;
         }
 
-        let currentLibMode = 'drive';
-        let currentSelectedLibFile = null;
-        let verifiedDriveFolderData = null;
-        let isDriveAutoSyncing = false;
-        let lastAutoSyncTimestamp = 0;
+        var currentLibMode = 'drive';
+        var currentSelectedLibFile = null;
+        var verifiedDriveFolderData = null;
+        var isDriveAutoSyncing = false;
+        var lastAutoSyncTimestamp = 0;
 
         function showLibraryToast(message) {
             const existing = document.querySelector('.lib-toast');
@@ -131,7 +131,7 @@
             }
         }
 
-        const GoogleDriveLibrary = {
+        var GoogleDriveLibrary = {
             extractFolderId(input) {
                 if (!input) return null;
                 const str = String(input).trim();
@@ -145,8 +145,8 @@
 
             detectResourceType(mimeType, fileName) {
                 const ext = (fileName && fileName.includes('.')) ? (fileName.split('.').pop() || '').toLowerCase() : '';
-                if (mimeType === 'application/vnd.google-apps.document' || 
-                    mimeType === 'application/pdf' || 
+                if (mimeType === 'application/vnd.google-apps.document' ||
+                    mimeType === 'application/pdf' ||
                     ['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext) ||
                     mimeType === 'application/vnd.google-apps.presentation' ||
                     mimeType === 'application/vnd.google-apps.spreadsheet') {
@@ -187,7 +187,7 @@
                     do {
                         const query = `'${currentId}' in parents and trashed = false`;
                         const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=nextPageToken,files(id,name,mimeType,size,webContentLink,webViewLink,createdTime,modifiedTime,thumbnailLink,iconLink)&pageSize=100&orderBy=modifiedTime desc${pageToken ? `&pageToken=${pageToken}` : ''}`;
-                        
+
                         const res = await fetch(url, {
                             headers: { Authorization: `Bearer ${token}` }
                         });
@@ -1225,7 +1225,7 @@
             }
         }
 
-        
+
         // =========================================================================
         // Built-in File Player & Document Viewer (PDF, Video & Media)
         // =========================================================================
@@ -1261,11 +1261,11 @@
             return `${m}:${sStr}`;
         }
 
-        let currentPreviewBlobUrl = null;
-        let currentPreviewVideoEl = null;
-        let currentPreviewKeyboardHandler = null;
+        var currentPreviewBlobUrl = null;
+        var currentPreviewVideoEl = null;
+        var currentPreviewKeyboardHandler = null;
 
-        let currentPdfState = {
+        var currentPdfState = {
             blob: null,
             blobUrl: null,
             title: '',
@@ -1353,8 +1353,8 @@
             if (prevBtn) prevBtn.disabled = (currentPdfState.currentPage <= 1);
             if (nextBtn) nextBtn.disabled = (currentPdfState.currentPage >= currentPdfState.totalPages);
             if (engineBtn) {
-                engineBtn.innerHTML = currentPdfState.engine === 'native' 
-                    ? '<span>عرض تفاعلي</span>' 
+                engineBtn.innerHTML = currentPdfState.engine === 'native'
+                    ? '<span>عرض تفاعلي</span>'
                     : '<span>عرض أصلي</span>';
             }
         }
@@ -1443,8 +1443,8 @@
 
         function renderPdfNative(container, blobUrl) {
             container.innerHTML = `
-                <iframe id="inAppPdfNativeIframe" src="${blobUrl}#toolbar=1&navpanes=1" 
-                    style="width: 100%; height: 100%; border: none; background: #334155; transition: transform 0.2s;" 
+                <iframe id="inAppPdfNativeIframe" src="${blobUrl}#toolbar=1&navpanes=1"
+                    style="width: 100%; height: 100%; border: none; background: #334155; transition: transform 0.2s;"
                     allowfullscreen>
                 </iframe>
             `;
@@ -1458,12 +1458,12 @@
             try {
                 const page = await currentPdfState.pdfDoc.getPage(pageNum);
                 const viewport = page.getViewport({ scale: currentPdfState.zoomScale * 1.5 });
-                
+
                 container.querySelectorAll('canvas').forEach(c => { c.width = 0; c.height = 0; });
                 container.innerHTML = '';
                 const card = document.createElement('div');
                 card.className = 'inapp-pdf-page-card';
-                
+
                 const canvas = document.createElement('canvas');
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
@@ -1506,7 +1506,7 @@
                     const arrayBuffer = await blob.arrayBuffer();
                     const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
                     const pdfDoc = await loadingTask.promise;
-                    
+
                     currentPdfState.pdfDoc = pdfDoc;
                     currentPdfState.totalPages = pdfDoc.numPages;
                     currentPdfState.currentPage = 1;
@@ -1587,12 +1587,12 @@
                                 <button type="button" id="inAppVideoForwardBtn" class="inapp-vctrl-btn" title="تقديم 10 ثوانٍ">
                                     <span data-lucide="rotate-cw" data-size="16"></span>
                                 </button>
-                                
+
                                 <div style="display: flex; align-items: center; gap: 4px; margin-inline-start: 4px;">
                                     <button type="button" id="inAppVideoVolBtn" class="inapp-vctrl-btn" title="كتم / تشغيل الصوت (M)">
                                         <span data-lucide="volume-2" data-size="18"></span>
                                     </button>
-                                    <input type="range" id="inAppVideoVolSlider" min="0" max="1" step="0.05" value="1" 
+                                    <input type="range" id="inAppVideoVolSlider" min="0" max="1" step="0.05" value="1"
                                         style="width: 70px; height: 4px; accent-color: #3b82f6; cursor: pointer;" title="مستوى الصوت">
                                 </div>
 
@@ -1792,9 +1792,9 @@
                 const ytId = extractYouTubeId(url);
                 embedHtml = `
                     <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000;">
-                        <iframe src="https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&enablejsapi=1&rel=0" 
-                            style="width: 100%; height: 100%; max-width: 1200px; border: none;" 
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        <iframe src="https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&enablejsapi=1&rel=0"
+                            style="width: 100%; height: 100%; max-width: 1200px; border: none;"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                             allowfullscreen>
                         </iframe>
                     </div>
@@ -1803,9 +1803,9 @@
                 const vimeoId = extractVimeoId(url);
                 embedHtml = `
                     <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000;">
-                        <iframe src="https://player.vimeo.com/video/${vimeoId}?autoplay=1" 
-                            style="width: 100%; height: 100%; max-width: 1200px; border: none;" 
-                            allow="autoplay; fullscreen; picture-in-picture" 
+                        <iframe src="https://player.vimeo.com/video/${vimeoId}?autoplay=1"
+                            style="width: 100%; height: 100%; max-width: 1200px; border: none;"
+                            allow="autoplay; fullscreen; picture-in-picture"
                             allowfullscreen>
                         </iframe>
                     </div>
@@ -1814,9 +1814,9 @@
                 const driveId = extractDriveFileId(url) || url;
                 embedHtml = `
                     <div style="width: 100%; height: 100%; display: flex; flex-direction: column; background: #020617;">
-                        <iframe src="https://drive.google.com/file/d/${driveId}/preview" 
-                            style="flex: 1; width: 100%; height: 100%; border: none;" 
-                            allow="autoplay; fullscreen" 
+                        <iframe src="https://drive.google.com/file/d/${driveId}/preview"
+                            style="flex: 1; width: 100%; height: 100%; border: none;"
+                            allow="autoplay; fullscreen"
                             allowfullscreen>
                         </iframe>
                     </div>
@@ -1829,8 +1829,8 @@
         // =========================================================================
         // Main Unified File & Media Viewer Entry Point
         // =========================================================================
-        let currentPreviewResourceUrl = '';
-        let currentPreviewResourceTitle = '';
+        var currentPreviewResourceUrl = '';
+        var currentPreviewResourceTitle = '';
 
         async function openInAppFileViewer(options = {}) {
             const modal = document.getElementById('filePreviewModal');
@@ -2080,7 +2080,7 @@
             }
         }
 
-        let _videoSpeedMenuDocClickHandler = null;
+        var _videoSpeedMenuDocClickHandler = null;
         function closeFilePreviewModal() {
             if (_videoSpeedMenuDocClickHandler) {
                 document.removeEventListener('click', _videoSpeedMenuDocClickHandler);
@@ -2258,7 +2258,7 @@
             return url.replace(/"/g, '&quot;');
         }
 
-        const OFFICIAL_EDUCATIONAL_RESOURCES = [
+        var OFFICIAL_EDUCATIONAL_RESOURCES = [
             {
                 id: 'official_massar',
                 title: 'بوابة مسار للأساتذة (Massar Enseignant)',
@@ -2540,7 +2540,7 @@
             }
         }
 
-        let currentLibCategoryFilter = 'all';
+        var currentLibCategoryFilter = 'all';
 
         function inferResourceCategory(item) {
             if (!item) return 'درس';
@@ -2747,7 +2747,7 @@
 
                 pillsContainer.innerHTML = pillsData.map(p => {
                     const isActive = currentLibCategoryFilter === p.id;
-                    const activeStyle = isActive 
+                    const activeStyle = isActive
                         ? `background: ${p.color}; color: #ffffff; border-color: ${p.color}; box-shadow: 0 3px 8px ${p.color}40; transform: translateY(-1px);`
                         : `background: #ffffff; color: #334155; border-color: #cbd5e1;`;
                     return `
@@ -2784,12 +2784,12 @@
             if (filterTopicSelect) {
                 const currentTopicValue = filterTopicSelect.value;
                 const topics = new Set(db.library.map(item => item.topic).filter(t => t && t.trim() !== ''));
-                
+
                 let topicOptions = '<option value="all">كل الدروس والمحاور</option>';
                 Array.from(topics).sort().forEach(topic => {
                     topicOptions += `<option value="${topic}">${topic}</option>`;
                 });
-                
+
                 filterTopicSelect.innerHTML = topicOptions;
                 if (topics.has(currentTopicValue)) {
                     filterTopicSelect.value = currentTopicValue;
@@ -2824,10 +2824,10 @@
             if (filterTopic !== 'all') {
                 filtered = filtered.filter(item => item.topic === filterTopic);
             }
-            
+
             if (searchTerm) {
-                filtered = filtered.filter(item => 
-                    (item.title && item.title.toLowerCase().includes(searchTerm)) || 
+                filtered = filtered.filter(item =>
+                    (item.title && item.title.toLowerCase().includes(searchTerm)) ||
                     (item.topic && item.topic.toLowerCase().includes(searchTerm)) ||
                     (item.fileName && item.fileName.toLowerCase().includes(searchTerm)) ||
                     (item.driveFolderName && item.driveFolderName.toLowerCase().includes(searchTerm))
@@ -2974,7 +2974,7 @@
                                     ${item.topic ? `<div style="font-size: 0.73rem; color: #64748b; margin-top: 2px;">المحور: <strong style="color: #334155;">${item.topic}</strong></div>` : ''}
                                 </div>
                             </div>
-                            
+
                             <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0;">
                                 <!-- Quick Preview Tooltip Trigger Badge -->
                                 <div class="lib-preview-tooltip-wrapper">
@@ -3136,13 +3136,13 @@
         }
         window.buildLibraryResourceCardsHtml = buildLibraryResourceCardsHtml;
 
-        let libSidebarChartInst = null;
-        let libGrowthChartInst = null;
-        let libLevelsChartInst = null;
-        let currentLibSubTab = 'browse'; // 'browse' or 'analytics'
-        let libGrowthVisualType = 'doughnut'; // 'doughnut' or 'bar'
-        let libGrowthClickBehavior = 'inline'; // 'inline' (عرض مباشر أسفل المخطط) or 'browse' (الانتقال لتبويب التصفح)
-        let currentLibAnalyticsLevelFilter = 'all';
+        var libSidebarChartInst = null;
+        var libGrowthChartInst = null;
+        var libLevelsChartInst = null;
+        var currentLibSubTab = 'browse'; // 'browse' or 'analytics'
+        var libGrowthVisualType = 'doughnut'; // 'doughnut' or 'bar'
+        var libGrowthClickBehavior = 'inline'; // 'inline' (عرض مباشر أسفل المخطط) or 'browse' (الانتقال لتبويب التصفح)
+        var currentLibAnalyticsLevelFilter = 'all';
 
         function toggleLibrarySidebar(forceState) {
             const sidebar = document.getElementById('libSidebarAnalytics');
@@ -4038,7 +4038,7 @@
                     const count = catCounts[cat] || 0;
                     const pct = total > 0 ? Math.round((count / total) * 100) : 0;
                     const isSelected = currentLibCategoryFilter === cat;
-                    
+
                     let statusLabel = '';
                     let statusBadge = '';
                     if (count >= 10) {
@@ -4226,7 +4226,7 @@
         // ============================================
         // AI Smart Library Resource Classification Logic
         // ============================================
-        let _aiSuggestDebounceTimer = null;
+        var _aiSuggestDebounceTimer = null;
         function debounceAiSuggest(mode) {
             clearTimeout(_aiSuggestDebounceTimer);
             _aiSuggestDebounceTimer = setTimeout(() => {
@@ -4478,7 +4478,7 @@
         // ============================================
         // Batch AI Classification Modal Logic
         // ============================================
-        let _batchAiResults = {};
+        var _batchAiResults = {};
 
         function openBatchAiClassificationModal() {
             const modal = document.getElementById('batchAiClassificationModal');
@@ -4752,8 +4752,8 @@
         }
 
         // Calendar Logic
-        let currentMonth = new Date().getMonth();
-        let currentYear = new Date().getFullYear();
+        var currentMonth = new Date().getMonth();
+        var currentYear = new Date().getFullYear();
 
         // ============================================
         // Private Tutoring Logic
@@ -4774,7 +4774,7 @@
         }
 
         // Helper functions for Tutoring View mode and sorting
-        let currentTutoringDisplayMode = 'auto';
+        var currentTutoringDisplayMode = 'auto';
 
         function setTutoringDisplayMode(mode) {
             currentTutoringDisplayMode = mode;
@@ -4785,7 +4785,7 @@
             if (!view) return;
 
             view.classList.remove('tutoring-force-cards', 'tutoring-force-table');
-            
+
             [btnAuto, btnCards, btnTable].forEach(b => {
                 if (b) {
                     b.style.background = 'transparent';
@@ -5211,7 +5211,7 @@
             const tbody = document.getElementById('tutoringTableBody');
             if (!tbody) return;
             tbody.innerHTML = '';
-            
+
             const month = document.getElementById('tutoringMonth').value;
             const filterGroupSelect = document.getElementById('tutoringGroupFilter');
             const groupDatalist = document.getElementById('tutoringGroupDatalist');
@@ -5219,14 +5219,14 @@
             if (db.tutoring.groups) {
                 db.tutoring.groups.forEach(g => { if (g.name) groups.add(g.name); });
             }
-            
+
             if (filterGroupSelect) {
                 const currentGroupValue = filterGroupSelect.value;
                 let groupOptions = '<option value="all">كل المجموعات</option>';
                 Array.from(groups).sort().forEach(grp => {
                     groupOptions += `<option value="${grp}">${grp}</option>`;
                 });
-                
+
                 filterGroupSelect.innerHTML = groupOptions;
                 if (groups.has(currentGroupValue)) {
                     filterGroupSelect.value = currentGroupValue;
@@ -5235,7 +5235,7 @@
             if (groupDatalist) {
                 groupDatalist.innerHTML = Array.from(groups).sort().map(grp => `<option value="${grp}">`).join('');
             }
-            
+
             const searchInput = document.getElementById('tutoringSearchInput');
             const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
@@ -5254,9 +5254,9 @@
             const totalHoursElement = document.getElementById('tutoringTotalHours');
             const collectionRateLabel = document.getElementById('tutoringCollectionRateLabel');
             const progressBarFill = document.getElementById('tutoringProgressBarFill');
-            
+
             let allStudentsInScope = db.tutoring.students || [];
-            
+
             const groupFilter = document.getElementById('tutoringGroupFilter') ? document.getElementById('tutoringGroupFilter').value : 'all';
             if (groupFilter !== 'all') {
                 allStudentsInScope = allStudentsInScope.filter(s => s.group === groupFilter);
@@ -5316,8 +5316,8 @@
             let filteredStudents = allStudentsInScope;
 
             if (searchVal) {
-                filteredStudents = filteredStudents.filter(s => 
-                    (s.name && s.name.toLowerCase().includes(searchVal)) || 
+                filteredStudents = filteredStudents.filter(s =>
+                    (s.name && s.name.toLowerCase().includes(searchVal)) ||
                     (s.group && s.group.toLowerCase().includes(searchVal)) ||
                     (s.phone && s.phone.includes(searchVal))
                 );
@@ -5434,7 +5434,7 @@
             if (studentStats.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:45px 20px; color:#64748b; font-size:1.05rem;"><span class="ui-icon" style="margin-bottom:10px; opacity:0.5;"><span data-lucide="inbox" data-size="36"></span></span><br>لا يوجد أي تلميذ مطابق للمعايير المحددة لهذا الشهر.</td></tr>`;
                 if (cardsContainer) cardsContainer.innerHTML = `<div style="text-align:center; padding:45px 20px; color:#64748b; font-size:1.05rem; background: #fff; border-radius: 12px; border: 1px solid #e2e8f0;"><span class="ui-icon" style="margin-bottom:10px; opacity:0.5;"><span data-lucide="inbox" data-size="36"></span></span><br>لا يوجد أي تلميذ مطابق للمعايير المحددة لهذا الشهر.</div>`;
-                
+
                 if (revenueElement) revenueElement.textContent = '0';
                 if (collectedRevenueElement) collectedRevenueElement.textContent = '0';
                 if (unpaidRevenueElement) unpaidRevenueElement.textContent = '0';
@@ -5450,7 +5450,7 @@
                 setTimeout(() => { if (window.renderLucide) window.renderLucide(); }, 50);
                 return;
             }
-            
+
             studentStats.forEach((item, i) => {
                 const std = item.student;
                 const totalHours = item.hours;
@@ -5476,7 +5476,7 @@
                 tr.style.transition = 'background-color 0.15s ease';
                 tr.onmouseover = () => tr.style.backgroundColor = '#f1f5f9';
                 tr.onmouseout = () => tr.style.backgroundColor = i % 2 === 0 ? '#fff' : '#f8fafc';
-                
+
                 // Payment status & remaining badge with colored icons
                 const statusCfg = window.getTutoringStatusVisualConfig(payInfo.status, payInfo);
                 let paymentBadge = '';
@@ -5527,7 +5527,7 @@
                         </div>
                     </div>
                 `;
-                
+
                 let waActionBtn = '';
                 if (payInfo.remaining > 0) {
                     waActionBtn = `<button type="button" class="btn-action" onclick="openTutoringWhatsAppModal('${std.id}', 'unpaid')" style="padding: 7px 10px; border:none; background:#dcfce7; color:#16a34a; border-radius:6px; font-weight:bold; font-size:0.8rem; display:inline-flex; align-items:center; gap:4px;" title="إرسال تذكير بالأداء أو المتبقي (${payInfo.remaining} د.م) عبر واتساب"><span class="ui-icon" style="margin:0"><span data-lucide="message-circle" data-size="15"></span></span> تذكير</button>`;
@@ -5597,7 +5597,7 @@
                     const cardStatusClass = payInfo.status === 'paid' ? 'paid-card' : (payInfo.status === 'partial' ? 'partial-card' : 'unpaid-card');
                     card.className = `tutoring-student-card ${cardStatusClass}`;
                     card.style.borderRight = `5px solid ${statusCfg.accentColor}`;
-                    
+
                     let cardPhoneDisplay = '';
                     if (std.phone) {
                         let cleanP = std.phone.replace(/[^0-9]/g, '');
@@ -5744,7 +5744,7 @@
                     cardsContainer.appendChild(card);
                 }
             });
-            
+
             const collectionRate = grandTotal > 0 ? Math.round((collectedTotal / grandTotal) * 100) : 0;
 
             if (revenueElement) revenueElement.textContent = grandTotal;
@@ -5783,13 +5783,13 @@
         }
 
         // Global State for Tutoring Payment Modal
-        let currentPayStudentId = null;
-        let currentPayMonth = null;
+        var currentPayStudentId = null;
+        var currentPayMonth = null;
 
         function openTutoringPaymentModal(studentId, month) {
             currentPayStudentId = studentId;
             currentPayMonth = month || (document.getElementById('tutoringMonth') ? document.getElementById('tutoringMonth').value : '');
-            
+
             const std = (db.tutoring.students || []).find(s => s.id === studentId);
             if (!std) return;
 
@@ -5945,7 +5945,7 @@
 
             const amountInput = document.getElementById('payInputAmount');
             const enteredAmount = parseFloat(amountInput ? amountInput.value : 0) || 0;
-            
+
             const editIdInput = document.getElementById('payInputEditId');
             const editId = editIdInput ? editIdInput.value : '';
 
@@ -6107,7 +6107,7 @@
             historyList.innerHTML = html;
         }
 
-        let _isSubmittingTutoringPayment = false;
+        var _isSubmittingTutoringPayment = false;
         function submitTutoringPartialPayment() {
             if (_isSubmittingTutoringPayment) return;
             if (!currentPayStudentId || !currentPayMonth) return;
@@ -6136,7 +6136,7 @@
 
             if (!std.payments) std.payments = {};
             const payInfo = window.getTutoringPaymentInfo(std, currentPayMonth);
-            
+
             let history = [];
             if (typeof std.payments[currentPayMonth] === 'object' && Array.isArray(std.payments[currentPayMonth].history)) {
                 history = [...std.payments[currentPayMonth].history];
@@ -6361,7 +6361,7 @@
 
             const att = attSelect ? attSelect.value : 'present';
             const hours = hoursInput ? (parseFloat(hoursInput.value) || 0) : 0;
-            
+
             let rate = 0;
             if (isNewMode) {
                 const newFeeInput = document.getElementById('sessionNewStudentFee');
@@ -6455,7 +6455,7 @@
             if (!select) return;
             const students = db.tutoring.students || [];
             const sorted = [...students].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
-            
+
             const filtered = (!selectedGroup || selectedGroup === 'all')
                 ? sorted
                 : sorted.filter(s => s.group === selectedGroup);
@@ -6680,7 +6680,7 @@
 
             const sortedSessions = [...std.sessions].sort((a, b) => new Date(b.date) - new Date(a.date));
             const totalAllHours = sortedSessions.reduce((sum, s) => sum + (parseFloat(s.hours) || 0), 0);
-            
+
             let html = `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <h4 style="font-size:0.88rem; color:#334155; margin:0; font-family:'Cairo', sans-serif; display:flex; align-items:center; gap:6px; font-weight: 800;">
@@ -6691,7 +6691,7 @@
                 </div>
                 <div style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto; padding-left:4px;">
             `;
-            
+
             sortedSessions.forEach(s => {
                 let dayName = '';
                 let dateFormatted = s.date;
@@ -6726,7 +6726,7 @@
                 } else if (s.evaluation === 'needs_support') {
                     evalBadge = '<span style="background:#fef2f2; color:#dc2626; font-size:0.7rem; font-weight:bold; padding:1px 6px; border-radius:4px; border:1px solid #fca5a5;">⚠️ يحتاج دعماً وتركيزاً</span>';
                 }
-                
+
                 html += `
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; background:#f8fafc; padding:10px 12px; border-radius:8px; border:1px solid #e2e8f0; font-size:0.83rem; gap:10px;">
                         <div style="display:flex; flex-direction:column; flex:1; gap:3px;">
@@ -6794,7 +6794,7 @@
             }
         }
 
-        let _isSavingTutoringSession = false;
+        var _isSavingTutoringSession = false;
         function saveTutoringSession(keepOpen = false) {
             if (_isSavingTutoringSession) return;
             _isSavingTutoringSession = true;
@@ -6930,7 +6930,7 @@
             }
 
             saveDB();
-            
+
             // Clear inputs for next entry if needed
             if (topicInput) topicInput.value = '';
             if (homeworkInput) homeworkInput.value = '';
@@ -6959,7 +6959,7 @@
             // Toast alert
             const toast = document.createElement('div');
             toast.style.cssText = 'position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:#059669;color:white;padding:12px 24px;border-radius:25px;z-index:99999;font-family:"Cairo",sans-serif;font-weight:bold;box-shadow:0 4px 12px rgba(0,0,0,0.2);display:flex;align-items:center;gap:8px;';
-            toast.innerHTML = editingId 
+            toast.innerHTML = editingId
                 ? '✓ تم تعديل الحصة بنجاح للتلميذ ' + std.name + ' (' + (attendance === 'absent' ? 'مسجل كغائب' : hours + ' س') + ')'
                 : '✓ تم تسجيل الحصة بنجاح للتلميذ ' + std.name + ' (' + (attendance === 'absent' ? 'مسجل كغائب' : '+' + hours + ' س') + ')';
             document.body.appendChild(toast);
@@ -6968,7 +6968,7 @@
         }
 
         // WhatsApp Session Report Sharers
-        let _lastWaSessionShareTime = 0;
+        var _lastWaSessionShareTime = 0;
         function shareTutoringSessionWhatsApp(studentId, sessionId) {
             const now = Date.now();
             if (now - _lastWaSessionShareTime < 800) return;
@@ -7091,15 +7091,15 @@
         window.updateSessionLiveCalc = updateSessionLiveCalc;
         window.filterSessionStudentOptions = filterSessionStudentOptions;
         window.renderTutoringStudents = renderTutoringStudents;
-        
-        
+
+
         function exportTutoringCSV() {
             const month = document.getElementById('tutoringMonth').value;
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
             csvContent += "الاسم,المجموعة,الهاتف,الثمن (درهم),ساعات الشهر,المبلغ المستحق,المبلغ المؤدى,المبلغ المتبقي,الحالة\r\n";
-            
+
             let filteredStudents = db.tutoring.students || [];
-            
+
             filteredStudents.forEach(std => {
                 const sessions = std.sessions || [];
                 let totalHours = 0;
@@ -7109,17 +7109,17 @@
                         totalHours += parseFloat(s.hours) || 0;
                     }
                 });
-                
+
                 const hourlyRate = parseFloat(std.fee) || 0;
                 const payInfo = window.getTutoringPaymentInfo(std, month);
                 const totalDue = payInfo.totalDue;
                 let statusStr = "غير مؤدى";
                 if (payInfo.status === 'paid') statusStr = "تم الأداء بالكامل";
                 else if (payInfo.status === 'partial') statusStr = `أداء جزئي (باقٍ ${payInfo.remaining} د.م)`;
-                
+
                 csvContent += `"${std.name}","${std.group || ''}","${std.phone || ''}",${hourlyRate},${totalHours},${totalDue},${payInfo.paidAmount},${payInfo.remaining},"${statusStr}"\r\n`;
             });
-            
+
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
@@ -7136,7 +7136,7 @@
             tableHtml = tableHtml.replace(/<th[^>]*>إجراءات<\/th>/gi, '');
             tableHtml = tableHtml.replace(/<td[^>]*>.*?<button.*?<\/td>/gi, '');
             tableHtml = tableHtml.replace(/<td[^>]*>.*?<a href="https:\/\/wa.me.*?<\/td>/gi, '');
-            
+
             let html = `
             <${'html'} dir="rtl" lang="ar">
             <${'head'}>
@@ -7175,7 +7175,7 @@
         function printTutoringReceipt(studentId, month, totalDue, totalHours) {
             const std = (db.tutoring.students || []).find(s => s.id === studentId);
             if (!std) return;
-            
+
             const pTeacherName = (db.teacherProfile && db.teacherProfile.name) || 'الأستاذ(ة)';
             const pSchool = (db.teacherProfile && db.teacherProfile.school) || '';
             const receiptNumber = 'REC-' + month.replace('-', '') + '-' + (std.id.replace(/[^0-9]/g, '').slice(-4) || '001');
@@ -7212,7 +7212,7 @@
                     .info-item { background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0; }
                     .info-label { color: #64748b; font-size: 0.78rem; font-weight: bold; margin-bottom: 2px; }
                     .info-val { font-weight: bold; color: #0f172a; }
-                    
+
                     table.sessions-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 0.82rem; }
                     table.sessions-table th, table.sessions-table td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; }
                     table.sessions-table th { background: #f1f5f9; font-weight: bold; }
@@ -7362,17 +7362,17 @@
         // ========================================================
         // Consolidated Group Monthly Performance Report (Bulk PDF)
         // ========================================================
-        let currentBatchReportLayout = 'one_per_page';
+        var currentBatchReportLayout = 'one_per_page';
 
         function openTutoringGroupBatchPerformanceReportModal(defaultGroup) {
             initTutoring();
             const modal = document.getElementById('tutoringGroupBatchReportModal');
             if (!modal) return;
 
-            const curMonth = (document.getElementById('tutoringMonth') && document.getElementById('tutoringMonth').value) 
-                ? document.getElementById('tutoringMonth').value 
+            const curMonth = (document.getElementById('tutoringMonth') && document.getElementById('tutoringMonth').value)
+                ? document.getElementById('tutoringMonth').value
                 : (window.formatLocalMonth ? window.formatLocalMonth() : (window.formatLocalDate ? window.formatLocalDate().slice(0, 7) : new Date().toISOString().slice(0, 7)));
-            
+
             const monthInput = document.getElementById('batchReportMonthSelect');
             if (monthInput) monthInput.value = curMonth;
 
@@ -7620,17 +7620,17 @@
                 stampBadgeHtml = '<span class="stamp-badge unpaid" style="font-size:0.8rem; padding:3px 8px; border-radius:6px; font-weight:bold;">! في انتظار الأداء</span>';
             }
 
-            const customNote = options.customNote 
-                || std.notes 
-                || (attendanceRate >= 90 
-                    ? 'تلميذ(ة) مواظب(ة) ومنضبط(ة)، مشاركة إيجابية واستيعاب ممتاز للمفاهيم والتمارين.' 
+            const customNote = options.customNote
+                || std.notes
+                || (attendanceRate >= 90
+                    ? 'تلميذ(ة) مواظب(ة) ومنضبط(ة)، مشاركة إيجابية واستيعاب ممتاز للمفاهيم والتمارين.'
                     : 'يُرجى مزيد من الحرص على المواظبة وعدم تفويت الحصص لضمان التدرج ومسايرة الدروس.');
 
             const slipId = 'PERF-' + monthVal.replace('-', '') + '-' + (std.id.replace(/[^0-9]/g, '').slice(-4) || '01');
 
             return `
                 <div class="tutoring-slip-container ${isCompact ? 'compact' : ''}" style="box-sizing:border-box; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:${isCompact ? '10px 14px' : '16px 20px'}; font-family:'Cairo','Tajawal',sans-serif; color:#0f172a; direction:rtl; text-align:right;">
-                    
+
                     <!-- Header -->
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #0f172a; padding-bottom:${isCompact ? '6px' : '10px'}; margin-bottom:${isCompact ? '8px' : '12px'};">
                         <div style="flex:1;">
@@ -7984,7 +7984,7 @@
             };
 
             const container = buildGroupPerformanceReportContainer(groupVal, monthVal, options);
-            
+
             let iframe = document.getElementById('batchReportPrintFrame');
             if (!iframe) {
                 iframe = document.createElement('iframe');
@@ -8157,7 +8157,7 @@
             document.getElementById('tutoringModal').style.display = 'none';
         }
 
-        let _isSavingTutoringStudent = false;
+        var _isSavingTutoringStudent = false;
         function saveTutoringStudent() {
             if (_isSavingTutoringStudent) return;
             _isSavingTutoringStudent = true;
@@ -8193,8 +8193,8 @@
                 // منع التكرار في مجموعات الدعم
                 const cleanName = name.trim().toLowerCase();
                 const cleanGroup = (group || '').trim().toLowerCase();
-                const dup = db.tutoring.students.find(s => 
-                    s.name && s.name.trim().toLowerCase() === cleanName && 
+                const dup = db.tutoring.students.find(s =>
+                    s.name && s.name.trim().toLowerCase() === cleanName &&
                     ((s.group || '').trim().toLowerCase() === cleanGroup)
                 );
                 if (dup) {
@@ -8233,23 +8233,23 @@
         async function handleIcsImport(event) {
             const file = event && event.target && event.target.files ? event.target.files[0] : null;
             if (!file) return;
-            
+
             try {
                 const text = await file.text();
                 const lines = String(text || '').split(/\r\n|\n|\r/);
                 const events = [];
                 let inEvent = false;
                 let currentEvent = {};
-                
+
                 for (let i = 0; i < lines.length; i++) {
                     let line = lines[i];
                     while (i + 1 < lines.length && (lines[i+1].startsWith(' ') || lines[i+1].startsWith('\t'))) {
                         i++;
                         line += lines[i].substring(1);
                     }
-                    
+
                     line = line.trim();
-                    
+
                     if (line === 'BEGIN:VEVENT') {
                         inEvent = true;
                         currentEvent = {};
@@ -8288,7 +8288,7 @@
                         }
                     }
                 }
-                
+
                 if (events.length === 0) {
                     if (typeof showAppToast === 'function') {
                         showAppToast('لم يتم العثور على أي أحداث صالحة في ملف ICS المحدد.', 'warning');
@@ -8296,9 +8296,9 @@
                     event.target.value = '';
                     return;
                 }
-                
+
                 if (!window.db.academicMilestones) window.db.academicMilestones = [];
-                
+
                 let added = 0;
                 events.forEach((evt, idx) => {
                     if (evt.title && evt.date) {
@@ -8337,21 +8337,21 @@
                         }
                     }
                 });
-                
+
                 if (typeof window.syncAllCalendarUnits === 'function') {
                     window.syncAllCalendarUnits(false);
                 } else {
                     saveDB();
                     if (typeof window.renderCalendar === 'function') window.renderCalendar();
                 }
-                
+
                 if (events.length > 0 && events[0].date && typeof window.setMonthlyCalendarDate === 'function') {
                     const firstDate = events[0].date.split('-');
                     if (firstDate.length === 3) {
                         window.setMonthlyCalendarDate(parseInt(firstDate[0], 10), parseInt(firstDate[1], 10) - 1);
                     }
                 }
-                
+
                 if (typeof showAppToast === 'function') {
                     showAppToast(`تم استيراد ${added} حدث/محطة ومزامنتها مع التقويم السنوي والشهري والمسار البيداغوجي بنجاح! 📅`, 'success');
                 }
@@ -8362,17 +8362,15 @@
                     showAppToast('حدث خطأ أثناء استيراد الملف. تأكد من أنه ملف بصيغة .ics صالح.', 'error');
                 }
             }
-            
+
             event.target.value = '';
         }
         window.handleIcsImport = handleIcsImport;
 
-
-
         // Countdown Timer Logic
         let countdownInterval;
-        let lastTimerState = '';
-        let timerInitialized = false;
+        var lastTimerState = '';
+        var timerInitialized = false;
 
         function toggleAudioAlerts() {
             const currentDb = window.db || (typeof db !== 'undefined' ? db : {});
@@ -8394,7 +8392,7 @@
                 const isEnabled = !currentDb.settings || currentDb.settings.audioAlertsEnabled !== false;
                 iconWrapper.innerHTML = `<span data-lucide="${isEnabled ? 'volume-2' : 'volume-x'}" data-size="18"></span>`;
                 if (window.renderLucide) window.renderLucide();
-                
+
                 const btn = document.getElementById('audioAlertToggleBtn');
                 if (btn) {
                     btn.style.opacity = isEnabled ? '1' : '0.5';
@@ -8402,7 +8400,7 @@
             }
         }
 
-        let _userHasInteracted = false;
+        var _userHasInteracted = false;
         if (typeof window !== 'undefined') {
             const markInteracted = () => {
                 _userHasInteracted = true;
@@ -8419,7 +8417,7 @@
             if (!_userHasInteracted) return;
             const currentDb = window.db || (typeof db !== 'undefined' ? db : {});
             if (currentDb && currentDb.settings && currentDb.settings.audioAlertsEnabled === false) return;
-            
+
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 if (!AudioContext) return;
@@ -8429,10 +8427,10 @@
                 }
                 const oscillator = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
-                
+
                 oscillator.connect(gainNode);
                 gainNode.connect(audioCtx.destination);
-                
+
                 if (type === 'test') {
                     oscillator.type = 'sine';
                     oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
@@ -8457,7 +8455,7 @@
                     gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
                     oscillator.start(audioCtx.currentTime);
                     oscillator.stop(audioCtx.currentTime + 0.3);
-                    
+
                     setTimeout(() => {
                         const osc2 = audioCtx.createOscillator();
                         const gain2 = audioCtx.createGain();
@@ -8482,15 +8480,15 @@
                 }
             } catch(e) { console.error('Audio play failed', e?.message || String(e)); }
         }
-        
+
         function startCountdownTimer() {
             clearInterval(countdownInterval);
             const timerContainer = document.getElementById('countdownTimerContainer');
             const timerText = document.getElementById('countdownTimerText');
             const iconWrapper = document.getElementById('timerIconWrapper');
-            
+
             updateAudioAlertsIcon();
-            
+
             if (!timerContainer || !timerText) return;
 
             countdownInterval = setInterval(() => {
@@ -8508,7 +8506,7 @@
                 const className = classSelectEl ? classSelectEl.value : '';
                 const selectedDate = datePickerEl ? datePickerEl.value : '';
                 const sessionStr = sessionSelectEl ? sessionSelectEl.value : '';
-                
+
                 if (!className || !selectedDate || !sessionStr) {
                     if (timerContainer.style.display !== 'none') timerContainer.style.display = 'none';
                     return;
@@ -8532,7 +8530,7 @@
                 const now = new Date();
                 const startParts = startTimeStr.split(':');
                 const endParts = endTimeStr.split(':');
-                
+
                 const startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(startParts[0]), parseInt(startParts[1]), 0);
                 const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), parseInt(endParts[0]), parseInt(endParts[1]), 0);
 
@@ -8547,10 +8545,10 @@
                     currentState = 'ended';
                 } else if (now >= startTime && now <= endTime) {
                     timerContainer.style.display = 'flex';
-                    
+
                     const msLeft = endTime - now;
                     const minutesLeft = Math.floor(msLeft / 60000);
-                    
+
                     if (minutesLeft <= 15) {
                         timerContainer.style.background = '#fffbeb';
                         timerContainer.style.color = '#b45309';
@@ -8574,15 +8572,15 @@
                     timerContainer.style.color = '#475569';
                     timerContainer.style.borderColor = '#e2e8f0';
                     currentState = 'upcoming';
-                    
+
                     const msLeft = startTime - now;
                     const h = Math.floor(msLeft / 3600000);
                     const m = Math.floor((msLeft % 3600000) / 60000);
                     const s = Math.floor((msLeft % 60000) / 1000);
-                    
+
                     timerText.textContent = `تبدأ الحصة بعد ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
                 }
-                
+
                 if (currentState !== lastTimerState) {
                     if (timerInitialized && lastTimerState !== '') {
                         playAlertSound(currentState);
@@ -8593,7 +8591,7 @@
                     if (currentState === 'ended') iconName = 'check-circle';
                     else if (currentState === 'warning') iconName = 'alert-triangle';
                     else if (currentState === 'upcoming') iconName = 'hourglass';
-                    
+
                     if (iconWrapper) {
                         iconWrapper.innerHTML = `<span data-lucide="${iconName}" data-size="18"></span>`;
                         if (window.renderLucide) window.renderLucide(iconWrapper);
@@ -8601,9 +8599,9 @@
                 }
             }, 1000);
         }
-        
+
         startCountdownTimer();
-    
+
         function shareDayWhatsApp(dayName) {
             const currentDb = window.db || (typeof db !== 'undefined' ? db : {});
             const data = (currentDb.timetable && currentDb.timetable[dayName]) ? currentDb.timetable[dayName] : null;
@@ -8615,7 +8613,7 @@
             let text = `*جدول حصص يوم ${dayName}* 📅\n\n`;
 
             let hasClasses = false;
-            
+
             const formatSlot = (time, cls, hrs, note, type, prefix) => {
                 if (cls) {
                     hasClasses = true;
@@ -8632,7 +8630,7 @@
             formatSlot(data.m2_time || '10:00', data.m2_class, data.m2_hrs || 2, data.m2_note, data.m2_type, '🔸');
             formatSlot(data.m3_time || '12:00', data.m3_class, data.m3_hrs || 1, data.m3_note, data.m3_type, '🔸');
             if (cBefore === hasClasses) text += `   لا توجد حصص مسجلة\n`;
-            
+
             text += `\n*الفترة المسائية (13:00 إلى 18:00):* 🌙\n`;
             cBefore = hasClasses;
             formatSlot(data.e1_time || '13:00', data.e1_class, data.e1_hrs || 2, data.e1_note, data.e1_type, '🔹');
@@ -8643,7 +8641,7 @@
             }
 
             text += `\n🎓 *منظومة التدبير التربوي*`;
-            
+
             const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
             window.open(url, '_blank');
         }
@@ -8657,12 +8655,12 @@
 
             try {
                 const h2c = await ensureHtml2Canvas();
-                
+
                 // إضافة كلاس للتصدير لإخفاء الأزرار مؤقتاً
                 actionsDiv = cardElement.querySelector('.timetable-day-header > div:nth-child(2)');
                 originalDisplay = actionsDiv ? actionsDiv.style.display : '';
                 if (actionsDiv) actionsDiv.style.display = 'none';
-                
+
                 // التأكد من طي البطاقة أثناء التصدير لكي لا تظهر عناصر الإدخال
                 wasExpanded = cardElement.classList.contains('expanded');
                 if (wasExpanded) {
@@ -8670,7 +8668,7 @@
                     // ننتظر قليلاً حتى تكتمل حركة الطي
                     await new Promise(r => setTimeout(r, 250));
                 }
-                
+
                 // حفظ الحواف الظلالية لاستعادتها
                 originalBoxShadow = cardElement.style.boxShadow;
                 originalTransform = cardElement.style.transform;
@@ -8683,7 +8681,7 @@
                     useCORS: true,
                     logging: false
                 });
-                
+
                 // استعادة الأزرار والتنسيقات
                 if (actionsDiv) actionsDiv.style.display = originalDisplay;
                 cardElement.style.boxShadow = originalBoxShadow;
@@ -8773,8 +8771,8 @@
             }
         };
 
-        let currentActiveStatementStudent = null;
-        let currentActiveStatementMonth = null;
+        var currentActiveStatementStudent = null;
+        var currentActiveStatementMonth = null;
 
         window.openTutoringStatementModal = function(studentId, month) {
             const currentDb = window.db || (typeof db !== 'undefined' ? db : {});
@@ -8807,7 +8805,7 @@
             });
 
             const rate = parseFloat(std.fee) || 0;
-            const payInfo = (typeof window.getTutoringPaymentInfo === 'function') 
+            const payInfo = (typeof window.getTutoringPaymentInfo === 'function')
                 ? window.getTutoringPaymentInfo(std, activeMonth)
                 : { totalDue: hours * rate, status: 'unpaid', paidAmount: 0, remaining: hours * rate, history: [], installments: [] };
             const totalDue = payInfo.totalDue;
@@ -9076,4 +9074,3 @@
                 window.printDocumentDirectly(htmlDoc, 'كشف حساب شهري', 'portrait');
             }
         };
-    

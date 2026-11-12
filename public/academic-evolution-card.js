@@ -12,7 +12,7 @@
     'use strict';
 
     // حالة بطاقة تطور الأداء
-    const _evoState = {
+    var _evoState = {
         semester: 's1', // 's1' | 's2'
         classFilter: 'all', // 'all' | specific className
         examMode: 'f1_to_f2', // 'f1_to_f2' | 'f2_to_f3' | 'f_all'
@@ -47,7 +47,7 @@
      * استخراج بيانات النقط المتاحة لتلميذ بحسب الدورة ونوع المقارنة
      */
     function getStudentExamMarks(className, studentId, semester, examMode) {
-        let grades = {};
+        var grades = {};
         if (typeof window.getStudentGradesBySemester === 'function') {
             grades = window.getStudentGradesBySemester(className, studentId, semester) || {};
         } else if (window.db && window.db.grades && window.db.grades[className] && window.db.grades[className][studentId]) {
@@ -59,7 +59,7 @@
             }
         }
 
-        const parseMark = (v) => {
+        var parseMark = (v) => {
             if (v === undefined || v === null || typeof v === 'boolean') return null;
             const s = String(v).trim().replace(',', '.');
             if (s === '') return null;
@@ -67,15 +67,15 @@
             return (!isNaN(n) && isFinite(n) && n >= 0 && n <= 20) ? n : null;
         };
 
-        const f1 = parseMark(grades.f1);
-        const f2 = parseMark(grades.f2);
-        const f3 = parseMark(grades.f3);
-        const f4 = parseMark(grades.f4);
+        var f1 = parseMark(grades.f1);
+        var f2 = parseMark(grades.f2);
+        var f3 = parseMark(grades.f3);
+        var f4 = parseMark(grades.f4);
 
-        let m1 = null;
-        let m2 = null;
-        let label1 = 'الفرض 1';
-        let label2 = 'الفرض 2';
+        var m1 = null;
+        var m2 = null;
+        var label1 = 'الفرض 1';
+        var label2 = 'الفرض 2';
 
         if (examMode === 'f2_to_f3') {
             m1 = f2;
@@ -120,13 +120,13 @@
      * استخراج كافة بيانات تطور الأداء لجميع التلاميذ والأقسام
      */
     function calculateAcademicEvolution() {
-        const classes = (window.db && window.db.classes) ? Object.keys(window.db.classes) : [];
-        const targetClasses = (_evoState.classFilter === 'all')
+        var classes = (window.db && window.db.classes) ? Object.keys(window.db.classes) : [];
+        var targetClasses = (_evoState.classFilter === 'all')
             ? classes
             : classes.filter(c => c === _evoState.classFilter);
 
-        const evaluatedStudents = [];
-        let totalStudentsCount = 0;
+        var evaluatedStudents = [];
+        var totalStudentsCount = 0;
 
         targetClasses.forEach(className => {
             const studentList = window.db.classes[className] || [];
@@ -198,25 +198,25 @@
             });
         });
 
-        const totalEvaluated = evaluatedStudents.length;
+        var totalEvaluated = evaluatedStudents.length;
 
         // فرز التلاميذ
-        const topImprovers = evaluatedStudents
+        var topImprovers = evaluatedStudents
             .filter(s => s.delta > 0)
             .sort((a, b) => b.delta - a.delta);
 
-        const regressedStudents = evaluatedStudents
+        var regressedStudents = evaluatedStudents
             .filter(s => s.delta < 0)
             .sort((a, b) => a.delta - b.delta);
 
-        const stableStudents = evaluatedStudents.filter(s => s.delta === 0);
+        var stableStudents = evaluatedStudents.filter(s => s.delta === 0);
 
         // حساب المؤشرات المجمعة
-        let sumDelta = 0;
-        let sumM1 = 0;
-        let sumM2 = 0;
-        let passCountM1 = 0;
-        let passCountM2 = 0;
+        var sumDelta = 0;
+        var sumM1 = 0;
+        var sumM2 = 0;
+        var passCountM1 = 0;
+        var passCountM2 = 0;
 
         evaluatedStudents.forEach(s => {
             sumDelta += s.delta;
@@ -226,14 +226,14 @@
             if (s.passedM2) passCountM2++;
         });
 
-        const avgDelta = totalEvaluated > 0 ? Number((sumDelta / totalEvaluated).toFixed(2)) : 0;
-        const avgM1 = totalEvaluated > 0 ? Number((sumM1 / totalEvaluated).toFixed(2)) : 0;
-        const avgM2 = totalEvaluated > 0 ? Number((sumM2 / totalEvaluated).toFixed(2)) : 0;
-        const improversRate = totalEvaluated > 0 ? Number(((topImprovers.length / totalEvaluated) * 100).toFixed(1)) : 0;
-        const regressedRate = totalEvaluated > 0 ? Number(((regressedStudents.length / totalEvaluated) * 100).toFixed(1)) : 0;
-        const passRateM1 = totalEvaluated > 0 ? Number(((passCountM1 / totalEvaluated) * 100).toFixed(1)) : 0;
-        const passRateM2 = totalEvaluated > 0 ? Number(((passCountM2 / totalEvaluated) * 100).toFixed(1)) : 0;
-        const passRateDiff = Number((passRateM2 - passRateM1).toFixed(1));
+        var avgDelta = totalEvaluated > 0 ? Number((sumDelta / totalEvaluated).toFixed(2)) : 0;
+        var avgM1 = totalEvaluated > 0 ? Number((sumM1 / totalEvaluated).toFixed(2)) : 0;
+        var avgM2 = totalEvaluated > 0 ? Number((sumM2 / totalEvaluated).toFixed(2)) : 0;
+        var improversRate = totalEvaluated > 0 ? Number(((topImprovers.length / totalEvaluated) * 100).toFixed(1)) : 0;
+        var regressedRate = totalEvaluated > 0 ? Number(((regressedStudents.length / totalEvaluated) * 100).toFixed(1)) : 0;
+        var passRateM1 = totalEvaluated > 0 ? Number(((passCountM1 / totalEvaluated) * 100).toFixed(1)) : 0;
+        var passRateM2 = totalEvaluated > 0 ? Number(((passCountM2 / totalEvaluated) * 100).toFixed(1)) : 0;
+        var passRateDiff = Number((passRateM2 - passRateM1).toFixed(1));
 
         return {
             totalStudentsCount,
@@ -261,13 +261,13 @@
      * تحديث بطاقة KPI المصغرة في شبكة لوحة القيادة العلوية
      */
     function updateDashboardKpiMiniCard(data) {
-        const kpiCard = document.getElementById('dashKpiAcademicEvolutionCard');
+        var kpiCard = document.getElementById('dashKpiAcademicEvolutionCard');
         if (!kpiCard) return;
 
-        const countEl = document.getElementById('dashKpiEvolutionAvgDelta');
-        const badgeEl = document.getElementById('dashKpiEvolutionBadge');
-        const textEl = document.getElementById('dashKpiEvolutionText');
-        const subEl = document.getElementById('dashKpiEvolutionSub');
+        var countEl = document.getElementById('dashKpiEvolutionAvgDelta');
+        var badgeEl = document.getElementById('dashKpiEvolutionBadge');
+        var textEl = document.getElementById('dashKpiEvolutionText');
+        var subEl = document.getElementById('dashKpiEvolutionSub');
 
         if (countEl) {
             const prefix = data.avgDelta > 0 ? '+' : '';
@@ -340,7 +340,7 @@
 
         if (!window.db.grades) window.db.grades = {};
 
-        const sampleProfiles = [
+        var sampleProfiles = [
             { f1: 8.5, f2: 15.0, f3: 16.5 },  // تقدم هائل +6.5
             { f1: 9.0, f2: 14.5, f3: 15.0 },  // تقدم هائل +5.5
             { f1: 11.0, f2: 15.5, f3: 17.0 }, // تقدم ملحوظ +4.5
@@ -378,11 +378,11 @@
     function printStudentImprovementCertificate(studentData) {
         if (!studentData) return;
 
-        const teacherName = (window.db && window.db.teacherProfile && window.db.teacherProfile.name) || 'أستاذ مادة الرياضيات';
-        const institutionName = (window.db && window.db.teacherProfile && (window.db.teacherProfile.school || window.db.teacherProfile.institution)) || (window.db && window.db.schoolName) || 'الثانوية التأهيلية';
-        const hwFont = typeof window.getSelectedHandwritingFontFamily === 'function' ? window.getSelectedHandwritingFontFamily() : "'Aref Ruqaa', serif";
+        var teacherName = (window.db && window.db.teacherProfile && window.db.teacherProfile.name) || 'أستاذ مادة الرياضيات';
+        var institutionName = (window.db && window.db.teacherProfile && (window.db.teacherProfile.school || window.db.teacherProfile.institution)) || (window.db && window.db.schoolName) || 'الثانوية التأهيلية';
+        var hwFont = typeof window.getSelectedHandwritingFontFamily === 'function' ? window.getSelectedHandwritingFontFamily() : "'Aref Ruqaa', serif";
 
-        const certHtml = `
+        var certHtml = `
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
             <head>
@@ -574,8 +574,8 @@
     function sendWhatsAppImprovementMessage(studentData) {
         if (!studentData) return;
 
-        const teacherName = (window.db && window.db.teacherProfile && window.db.teacherProfile.name) || 'أستاذ مادة الرياضيات';
-        const msg = `السلام عليكم ورحمة الله وبركاته،
+        var teacherName = (window.db && window.db.teacherProfile && window.db.teacherProfile.name) || 'أستاذ مادة الرياضيات';
+        var msg = `السلام عليكم ورحمة الله وبركاته،
 تحية تربوية طيبة،
 
 يسرني بصفتي أستاذ مادة الرياضيات أن أشارككم خبراً مفرحاً يخص التلميذ(ة): *${studentData.name}* (${studentData.className}).
@@ -605,16 +605,16 @@ ${teacherName}`;
      * طباعة التقرير الإحصائي الشامل للتقدم الدراسي لجميع الأقسام
      */
     function printAcademicEvolutionReport() {
-        const data = calculateAcademicEvolution();
+        var data = calculateAcademicEvolution();
         if (data.totalEvaluated === 0) {
             alert('لا توجد معطيات نقط كافية للطباعة حالياً');
             return;
         }
 
-        const teacherName = (window.db && window.db.teacherProfile && window.db.teacherProfile.name) || 'الأستاذ';
-        const institutionName = (window.db && window.db.teacherProfile && (window.db.teacherProfile.school || window.db.teacherProfile.institution)) || (window.db && window.db.schoolName) || 'المؤسسة التعليمية';
+        var teacherName = (window.db && window.db.teacherProfile && window.db.teacherProfile.name) || 'الأستاذ';
+        var institutionName = (window.db && window.db.teacherProfile && (window.db.teacherProfile.school || window.db.teacherProfile.institution)) || (window.db && window.db.schoolName) || 'المؤسسة التعليمية';
 
-        const rowsHtml = data.evaluatedStudents
+        var rowsHtml = data.evaluatedStudents
             .sort((a, b) => b.delta - a.delta)
             .map((s, idx) => `
                 <tr style="border-bottom: 1px solid #cbd5e1; ${idx % 2 === 0 ? 'background: #ffffff;' : 'background: #f8fafc;'}">
@@ -635,7 +635,7 @@ ${teacherName}`;
                 </tr>
             `).join('');
 
-        const docHtml = `
+        var docHtml = `
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
             <head>
@@ -676,8 +676,8 @@ ${teacherName}`;
                     <h2 style="margin: 0; color: #065f46;">المملكة المغربية - كشف مؤشر تطور الأداء الدراسي</h2>
                     <h3 style="margin: 4px 0; color: #1e3a8a;">${escapeHtml(institutionName)} - مادة الرياضيات</h3>
                     <p style="margin: 0; font-size: 12px; color: #64748b;">
-                        الدورة: <strong>${_evoState.semester === 's2' ? 'الدورة الثانية' : 'الدورة الأولى'}</strong> | 
-                        الأقسام: <strong>${_evoState.classFilter === 'all' ? 'جميع الأقسام' : _evoState.classFilter}</strong> | 
+                        الدورة: <strong>${_evoState.semester === 's2' ? 'الدورة الثانية' : 'الدورة الأولى'}</strong> |
+                        الأقسام: <strong>${_evoState.classFilter === 'all' ? 'جميع الأقسام' : _evoState.classFilter}</strong> |
                         الأستاذ: <strong>${escapeHtml(teacherName)}</strong>
                     </p>
                 </div>
@@ -731,11 +731,11 @@ ${teacherName}`;
      * تحديث خيارات الأقسام في القائمة المنسدلة
      */
     function updateClassDropdown() {
-        const select = document.getElementById('dashEvolutionClassFilter');
+        var select = document.getElementById('dashEvolutionClassFilter');
         if (!select) return;
 
-        const currentVal = select.value;
-        const classes = (window.db && window.db.classes) ? Object.keys(window.db.classes) : [];
+        var currentVal = select.value;
+        var classes = (window.db && window.db.classes) ? Object.keys(window.db.classes) : [];
 
         select.innerHTML = '<option value="all">جميع الأقسام معاً</option>';
         classes.forEach(c => {
@@ -756,12 +756,12 @@ ${teacherName}`;
      * رسم وعرض بطاقة تطور الأداء الدراسي في لوحة القيادة
      */
     function renderAcademicEvolutionDashboard() {
-        const container = document.getElementById('dashAcademicEvolutionCard');
+        var container = document.getElementById('dashAcademicEvolutionCard');
         if (!container) return;
 
         updateClassDropdown();
 
-        const data = calculateAcademicEvolution();
+        var data = calculateAcademicEvolution();
         updateDashboardKpiMiniCard(data);
 
         // إذا لم تكن هناك أي معطيات نقط مفحوصة (صفر تلاميذ مفحوصين)
@@ -807,7 +807,7 @@ ${teacherName}`;
         }
 
         // بناء محتوى البطاقة الإحصائية الكاملة
-        let html = `
+        var html = `
             <div style="padding: 18px 20px;">
                 <!-- Header with Title and Control Row -->
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 14px;">
@@ -964,7 +964,7 @@ ${teacherName}`;
                                 <div style="font-size: 1.02rem; font-weight: 900; color: #0f172a; margin-bottom: 6px;">
                                     ${escapeHtml(st.name)}
                                 </div>
-                                
+
                                 <!-- مسار القفزة في النقط -->
                                 <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 9px; padding: 8px 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
                                     <div style="text-align: center;">
@@ -1187,14 +1187,14 @@ ${teacherName}`;
      * النقطة 4: بطاقة ونادي أولمبياد الرياضيات والتميز (Club Olympiades de Mathématiques)
      * =========================================================================
      */
-    const _olympiadState = {
+    var _olympiadState = {
         semester: 's1',
         threshold: 17,
         criterion: 'best', // 'best' | 'avg' | 'f1' | 'f2' | 'f3'
         classFilter: 'all'
     };
 
-    const OLYMPIAD_SPECIALTIES = {
+    var OLYMPIAD_SPECIALTIES = {
         all_round: { label: '🌟 تميز شامل (أولمبياد عامة)', color: '#b45309', bg: '#fef3c7' },
         geometry: { label: '📐 الهندسة المستوية والفضائية', color: '#1d4ed8', bg: '#dbeafe' },
         algebra: { label: '🔢 الجبر والحسابيات ونظرية الأعداد', color: '#047857', bg: '#d1fae5' },
@@ -1228,19 +1228,19 @@ ${teacherName}`;
     }
 
     function extractMathOlympiadCandidates() {
-        const classesList = getAvailableClasses();
-        const targetClasses = _olympiadState.classFilter === 'all'
+        var classesList = getAvailableClasses();
+        var targetClasses = _olympiadState.classFilter === 'all'
             ? classesList
             : classesList.filter(c => c === _olympiadState.classFilter);
 
-        const sem = _olympiadState.semester || 's1';
-        const threshold = parseFloat(_olympiadState.threshold) || 17;
-        const criterion = _olympiadState.criterion || 'best';
-        const clubRegistry = getOrInitOlympiadClubRegistry();
+        var sem = _olympiadState.semester || 's1';
+        var threshold = parseFloat(_olympiadState.threshold) || 17;
+        var criterion = _olympiadState.criterion || 'best';
+        var clubRegistry = getOrInitOlympiadClubRegistry();
 
-        const candidates = [];
-        let totalEvaluatedStudents = 0;
-        const representedClassesSet = new Set();
+        var candidates = [];
+        var totalEvaluatedStudents = 0;
+        var representedClassesSet = new Set();
 
         targetClasses.forEach(className => {
             const rawClass = window.db.classes[className];
@@ -1320,7 +1320,7 @@ ${teacherName}`;
     }
 
     function updateOlympiadMemberSpecialty(memberKey, specialtyCode) {
-        const clubRegistry = getOrInitOlympiadClubRegistry();
+        var clubRegistry = getOrInitOlympiadClubRegistry();
         if (!clubRegistry.members[memberKey]) {
             clubRegistry.members[memberKey] = {};
         }
@@ -1334,20 +1334,20 @@ ${teacherName}`;
     }
 
     function scheduleMathOlympiadWorkshop() {
-        const dateEl = document.getElementById('olympiadWorkshopDateInput');
-        const timeEl = document.getElementById('olympiadWorkshopTimeInput');
-        const roomEl = document.getElementById('olympiadWorkshopRoomInput');
-        const topicEl = document.getElementById('olympiadWorkshopTopicInput');
+        var dateEl = document.getElementById('olympiadWorkshopDateInput');
+        var timeEl = document.getElementById('olympiadWorkshopTimeInput');
+        var roomEl = document.getElementById('olympiadWorkshopRoomInput');
+        var topicEl = document.getElementById('olympiadWorkshopTopicInput');
 
-        const clubRegistry = getOrInitOlympiadClubRegistry();
-        const wDate = (dateEl && dateEl.value) ? dateEl.value : clubRegistry.workshop.date;
-        const wTime = (timeEl && timeEl.value) ? timeEl.value : clubRegistry.workshop.time;
-        const wRoom = (roomEl && roomEl.value) ? roomEl.value : clubRegistry.workshop.room;
-        const wTopic = (topicEl && topicEl.value) ? topicEl.value : clubRegistry.workshop.topic;
+        var clubRegistry = getOrInitOlympiadClubRegistry();
+        var wDate = (dateEl && dateEl.value) ? dateEl.value : clubRegistry.workshop.date;
+        var wTime = (timeEl && timeEl.value) ? timeEl.value : clubRegistry.workshop.time;
+        var wRoom = (roomEl && roomEl.value) ? roomEl.value : clubRegistry.workshop.room;
+        var wTopic = (topicEl && topicEl.value) ? topicEl.value : clubRegistry.workshop.topic;
 
         clubRegistry.workshop = { date: wDate, time: wTime, room: wRoom, topic: wTopic };
 
-        const data = extractMathOlympiadCandidates();
+        var data = extractMathOlympiadCandidates();
 
         if (window.db) {
             if (!Array.isArray(window.db.agenda)) window.db.agenda = [];
@@ -1382,15 +1382,15 @@ ${teacherName}`;
     }
 
     function renderMathOlympiadClubCard() {
-        const container = document.getElementById('dashMathOlympiadCard');
+        var container = document.getElementById('dashMathOlympiadCard');
         if (!container) return;
 
-        const classesList = getAvailableClasses();
-        const data = extractMathOlympiadCandidates();
-        const clubRegistry = getOrInitOlympiadClubRegistry();
-        const workshop = clubRegistry.workshop;
+        var classesList = getAvailableClasses();
+        var data = extractMathOlympiadCandidates();
+        var clubRegistry = getOrInitOlympiadClubRegistry();
+        var workshop = clubRegistry.workshop;
 
-        const criterionLabels = {
+        var criterionLabels = {
             best: 'أعلى نقطة محققة في الفروض',
             avg: 'معدل الفروض المحروسة للدورة',
             f1: 'نقطة الفرض المحروس 1',
@@ -1398,7 +1398,7 @@ ${teacherName}`;
             f3: 'نقطة الفرض المحروس 3'
         };
 
-        let html = `
+        var html = `
             <!-- ترويسة بطاقة نادي أولمبياد الرياضيات والتميز -->
             <div style="background: linear-gradient(135deg, #78350f 0%, #b45309 48%, #1e3a8a 100%); color: #ffffff; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -1587,26 +1587,26 @@ ${teacherName}`;
      * طباعة اللائحة الرسمية للتلاميذ المقترحين لنادي أولمبياد الرياضيات والتميز (A4 للإدارة والمديرية)
      */
     function printMathOlympiadOfficialRoster() {
-        const data = extractMathOlympiadCandidates();
-        const clubRegistry = getOrInitOlympiadClubRegistry();
-        const workshop = clubRegistry.workshop;
+        var data = extractMathOlympiadCandidates();
+        var clubRegistry = getOrInitOlympiadClubRegistry();
+        var workshop = clubRegistry.workshop;
 
-        const tp = (window.db && window.db.teacherProfile) ? window.db.teacherProfile : {};
-        const school = tp.school || tp.institution || 'الثانوية التأهيلية';
-        const academy = tp.academy || 'الأكاديمية الجهوية للتربية والتكوين';
-        const direction = tp.direction || tp.province || 'المديرية الإقليمية';
-        const teacher = tp.name || 'أستاذ(ة) مادة الرياضيات';
-        const year = tp.schoolYear || tp.year || '2024 / 2025';
-        const semLabel = _olympiadState.semester === 's2' ? 'الدورة الثانية' : 'الدورة الأولى';
+        var tp = (window.db && window.db.teacherProfile) ? window.db.teacherProfile : {};
+        var school = tp.school || tp.institution || 'الثانوية التأهيلية';
+        var academy = tp.academy || 'الأكاديمية الجهوية للتربية والتكوين';
+        var direction = tp.direction || tp.province || 'المديرية الإقليمية';
+        var teacher = tp.name || 'أستاذ(ة) مادة الرياضيات';
+        var year = tp.schoolYear || tp.year || '2024 / 2025';
+        var semLabel = _olympiadState.semester === 's2' ? 'الدورة الثانية' : 'الدورة الأولى';
 
-        const fontFamily = typeof window.getSelectedPrintFontFamily === 'function'
+        var fontFamily = typeof window.getSelectedPrintFontFamily === 'function'
             ? window.getSelectedPrintFontFamily()
             : "'Cairo', 'Amiri', sans-serif";
-        const hwFontFamily = typeof window.getSelectedHandwritingFontFamily === 'function'
+        var hwFontFamily = typeof window.getSelectedHandwritingFontFamily === 'function'
             ? window.getSelectedHandwritingFontFamily()
             : "'Aref Ruqaa', 'Marhey', serif";
 
-        const rowsHtml = data.candidates.length > 0
+        var rowsHtml = data.candidates.length > 0
             ? data.candidates.map((c, idx) => {
                 const specObj = OLYMPIAD_SPECIALTIES[c.specialty] || OLYMPIAD_SPECIALTIES.all_round;
                 return `
@@ -1626,7 +1626,7 @@ ${teacherName}`;
             }).join('')
             : `<tr><td colspan="10" style="text-align:center; padding:14px;">لا توجد بيانات مرشحين حالياً</td></tr>`;
 
-        const htmlContent = `
+        var htmlContent = `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -1760,26 +1760,26 @@ ${teacherName}`;
     }
 
     function printStudentOlympiadCertificate(className, studentId) {
-        const data = extractMathOlympiadCandidates();
-        const cand = data.candidates.find(c => c.className === className && String(c.id) === String(studentId)) || data.candidates[0];
+        var data = extractMathOlympiadCandidates();
+        var cand = data.candidates.find(c => c.className === className && String(c.id) === String(studentId)) || data.candidates[0];
         if (!cand) return;
 
-        const tp = (window.db && window.db.teacherProfile) ? window.db.teacherProfile : {};
-        const school = tp.school || tp.institution || 'الثانوية التأهيلية';
-        const academy = tp.academy || 'الأكاديمية الجهوية للتربية والتكوين';
-        const direction = tp.direction || tp.province || 'المديرية الإقليمية';
-        const teacher = tp.name || 'أستاذ(ة) مادة الرياضيات';
-        const year = tp.schoolYear || tp.year || '2024 / 2025';
-        const specObj = OLYMPIAD_SPECIALTIES[cand.specialty] || OLYMPIAD_SPECIALTIES.all_round;
+        var tp = (window.db && window.db.teacherProfile) ? window.db.teacherProfile : {};
+        var school = tp.school || tp.institution || 'الثانوية التأهيلية';
+        var academy = tp.academy || 'الأكاديمية الجهوية للتربية والتكوين';
+        var direction = tp.direction || tp.province || 'المديرية الإقليمية';
+        var teacher = tp.name || 'أستاذ(ة) مادة الرياضيات';
+        var year = tp.schoolYear || tp.year || '2024 / 2025';
+        var specObj = OLYMPIAD_SPECIALTIES[cand.specialty] || OLYMPIAD_SPECIALTIES.all_round;
 
-        const fontFamily = typeof window.getSelectedPrintFontFamily === 'function'
+        var fontFamily = typeof window.getSelectedPrintFontFamily === 'function'
             ? window.getSelectedPrintFontFamily()
             : "'Cairo', 'Amiri', sans-serif";
-        const hwFontFamily = typeof window.getSelectedHandwritingFontFamily === 'function'
+        var hwFontFamily = typeof window.getSelectedHandwritingFontFamily === 'function'
             ? window.getSelectedHandwritingFontFamily()
             : "'Aref Ruqaa', 'Marhey', serif";
 
-        const htmlContent = `
+        var htmlContent = `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -1879,7 +1879,7 @@ ${teacherName}`;
      * تهيئة المكون
      */
     function initAcademicEvolutionDashboard() {
-        const dashView = document.getElementById('dashboardView');
+        var dashView = document.getElementById('dashboardView');
         if (dashView && dashView.style.display !== 'none') {
             renderAcademicEvolutionDashboard();
             renderMathOlympiadClubCard();

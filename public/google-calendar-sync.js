@@ -47,7 +47,7 @@
                 console.warn('Error fetching token via getGoogleCalendarAccessToken:', e);
             }
         }
-        
+
         // محاولة استرجاع التوكن من sessionStorage
         try {
             const stored = sessionStorage.getItem('gdrive_access_token');
@@ -94,8 +94,8 @@
         renderGoogleCalendarSyncBanner();
         if (typeof window.showAppToast === 'function') {
             window.showAppToast(
-                enabled 
-                    ? '⚡ تم تفعيل التزامن التلقائي المباشر مع Google Calendar بنجاح' 
+                enabled
+                    ? '⚡ تم تفعيل التزامن التلقائي المباشر مع Google Calendar بنجاح'
                     : '⏸️ تم إيقاف التزامن التلقائي مع Google Calendar',
                 enabled ? 'success' : 'info'
             );
@@ -121,7 +121,7 @@
     function getGCalEndDate(startDateStr, endDateStr) {
         const start = startDateStr || new Date().toISOString().slice(0, 10);
         const end = endDateStr || start;
-        
+
         try {
             const [y, m, d] = end.split('-').map(Number);
             const nextDay = new Date(y, m - 1, d + 1);
@@ -335,7 +335,7 @@
      */
     async function syncAllToGoogleCalendar(interactive = true) {
         if (_syncState.inProgress) return;
-        
+
         let token = await getAccessToken(interactive);
         if (!token) {
             if (interactive) {
@@ -622,10 +622,10 @@
                 if (typeof window.renderCalendar === 'function') window.renderCalendar();
             }
 
-            const resMsg = importedCount > 0 
-                ? `✅ تم بنجاح استيراد ${importedCount} حدث من Google Calendar إلى التقويم المدرسي!` 
+            const resMsg = importedCount > 0
+                ? `✅ تم بنجاح استيراد ${importedCount} حدث من Google Calendar إلى التقويم المدرسي!`
                 : 'جميع أحداث تقويم جوجل موجودة مسبقاً في المنظومة دون تكرار.';
-            
+
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast(resMsg, 'success');
             } else {

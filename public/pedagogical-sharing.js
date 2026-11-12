@@ -406,7 +406,7 @@
 
         modalDiv.innerHTML = `
             <div class="card" style="width: 100%; max-width: 660px; max-height: 94vh; overflow-y: auto; background: #ffffff; border-radius: 16px; border: 1.5px solid #cbd5e1; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); padding: 0; display: flex; flex-direction: column;">
-                
+
                 <!-- Modal Header -->
                 <div style="padding: 16px 20px; border-bottom: 1.5px solid #e2e8f0; background: linear-gradient(135deg, #0f172a, #1e293b); color: #fff; border-top-left-radius: 14px; border-top-right-radius: 14px; display: flex; justify-content: space-between; align-items: center;">
                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -423,17 +423,17 @@
 
                 <!-- Modal Body -->
                 <div style="padding: 20px; flex: 1;">
-                    
+
                     <!-- 1. Options & Controls Container -->
                     <div id="shareModalConfigContainer" style="margin-bottom: 16px;">
-                        
+
                         <!-- Scope Checkboxes -->
                         <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px; margin-bottom: 16px;">
                             <label style="font-weight: 800; color: #1e293b; font-size: 0.86rem; display: flex; align-items: center; gap: 6px; margin-bottom: 10px;">
                                 <span class="ui-icon" style="color: #2563eb; margin: 0;"><span data-lucide="sliders" data-size="16"></span></span>
                                 <span>البيانات المراد تضمينها في السجل المشترك:</span>
                             </label>
-                            
+
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
                                 <label style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 700; color: #334155; cursor: pointer;">
                                     <input type="checkbox" id="shareOptGrades" checked style="width: 17px; height: 17px; accent-color: #2563eb;">
@@ -492,9 +492,9 @@
 
                     <!-- 2. Result QR & Link Card (Hidden initially, shown after generation) -->
                     <div id="shareModalQrResultContainer" style="display: none; background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border: 2px solid #cbd5e1; border-radius: 14px; padding: 18px; box-shadow: 0 4px 14px rgba(0,0,0,0.05);">
-                        
+
                         <div style="display: flex; flex-direction: column; md:flex-row; gap: 18px; align-items: center; justify-content: center;">
-                            
+
                             <!-- QR Code Display Box -->
                             <div style="background: #ffffff; padding: 12px; border-radius: 12px; border: 1.5px solid #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: flex; flex-direction: column; align-items: center; justify-content: center;">
                                 <img id="shareResultQrImage" src="" alt="رمز QR للمعاينة والمشاركة" style="width: 170px; height: 170px; display: block; border-radius: 6px;">
@@ -505,7 +505,7 @@
 
                             <!-- Link Actions & Badges -->
                             <div style="flex: 1; width: 100%; display: flex; flex-direction: column; gap: 10px;">
-                                
+
                                 <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
                                     <span style="font-size: 0.74rem; background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 9px; border-radius: 6px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">
                                         <span>🔒 تشفير 256-bit آمن</span>
@@ -637,7 +637,7 @@
                 </div>
                 <h3 style="margin: 0 0 6px 0; color: #0f172a; font-size: 1.15rem; font-weight: 800;">السجل البيداغوجي محمي بقن سري</h3>
                 <p style="margin: 0 0 16px 0; color: #64748b; font-size: 0.82rem;">${escapeHtml(title || 'السجل محمي لحفظ سرية معطيات التلميذ')}</p>
-                
+
                 ${errorMsg ? `<div style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 8px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; margin-bottom: 14px;">${escapeHtml(errorMsg)}</div>` : ''}
 
                 <form onsubmit="event.preventDefault(); submitViewerPin('${escapeHtml(shareId)}');">
@@ -761,7 +761,7 @@
 
             container.innerHTML = `
                 <div class="print-sheet-share" style="max-width: 820px; margin: 0 auto; background: #ffffff; border-radius: 14px; border: 1.5px solid #cbd5e1; padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);">
-                    
+
                     <!-- Official Header -->
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 14px; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
                         <div>

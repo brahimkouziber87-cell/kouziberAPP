@@ -425,7 +425,7 @@
             playAudioChime('success');
             updateVoiceModalStatus(`تم العثور على ${students.length} تلميذ مطابق لـ "${transcript}"`, 'success');
             renderVoiceModalResults(students);
-            
+
             // تحديث البحث السريع في لوحة القيادة أيضاً
             const quickInput = document.getElementById('dashQuickStudentSearchInput');
             if (quickInput) {
@@ -649,7 +649,7 @@
         const statusEl = document.getElementById('voiceModalStatusText');
         if (!statusEl) return;
         statusEl.textContent = text;
-        
+
         statusEl.className = 'voice-status-pill';
         if (type === 'listening') {
             statusEl.style.color = '#2563eb';

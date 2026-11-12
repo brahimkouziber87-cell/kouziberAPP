@@ -74,7 +74,7 @@
             const status = rec ? rec.status : 'حاضر';
             const part = rec ? (rec.part || 'all') : 'all';
             const hw = rec ? rec.homework : 'منجز';
-            
+
             // حساب المدة الدقيقة لغياب التلميذ مع مراعاة حصص الساعتين (س1 أو س2 = 1 ساعة)
             let recDuration = 0;
             if (part === 'h1' || part === 'h2') {
@@ -613,7 +613,7 @@ ${absentText}`);
         absentees.forEach(std => {
             const phone = std.phone ? std.phone.trim() : '';
             const hasPhone = phone.length >= 8;
-            const statusBadge = std.attendanceStatus === 'absent' 
+            const statusBadge = std.attendanceStatus === 'absent'
                 ? '<span style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 2px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: bold;">غائب(ة)</span>'
                 : '<span style="background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; padding: 2px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: bold;">متأخر(ة)</span>';
 
@@ -624,7 +624,7 @@ ${sessionInfo.topic ? `• موضوع الحصة المنجز: ${sessionInfo.top
 نرجو حث التلميذ(ة) على الحرص على الانضباط والمواظبة على الحصص لضمان الاستفادة والتحصيل الجيد.
 شكراً جزيلاً لتعاونكم وحسن تواصلكم.`);
 
-            const waLink = hasPhone 
+            const waLink = hasPhone
                 ? `https://api.whatsapp.com/send?phone=${cleanPhoneNumber(phone)}&text=${waMsg}`
                 : `https://api.whatsapp.com/send?text=${waMsg}`;
 

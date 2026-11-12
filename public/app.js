@@ -80,8 +80,8 @@
             return '';
         }
         window.lucideIcon = lucideIcon;
-        const _coreRenderLucide = (typeof window !== 'undefined' && typeof window.renderLucide === 'function') ? window.renderLucide : null;
-        let _lucideScheduled = false;
+        var _coreRenderLucide = (typeof window !== 'undefined' && typeof window.renderLucide === 'function') ? window.renderLucide : null;
+        var _lucideScheduled = false;
         window.renderLucide = function(root) {
             if (root && _coreRenderLucide) {
                 try {
@@ -91,8 +91,8 @@
             }
             if (_lucideScheduled) return;
             _lucideScheduled = true;
-            const _raf = (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') 
-                ? window.requestAnimationFrame 
+            const _raf = (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function')
+                ? window.requestAnimationFrame
                 : (typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (fn) => setTimeout(fn, 16));
             _raf(() => {
                 _lucideScheduled = false;
@@ -384,9 +384,9 @@
                 localStorage.setItem('app_clock_manual_override_v2', 'true');
                 localStorage.setItem('app_clock_offset_minutes', String(offsetMins));
             } catch(e) {}
-            
+
             updateHeaderLiveDate();
-            
+
             if (typeof renderAppTimeSyncModalContent === 'function') {
                 renderAppTimeSyncModalContent();
             }
@@ -480,20 +480,20 @@
         }
         window.parseLocalDate = parseLocalDate;
 
-        const DAYS_AR = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
-        const WORK_DAYS = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+        var DAYS_AR = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+        var WORK_DAYS = ["الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
-        const initialDatePicker = document.getElementById('datePicker');
+        var initialDatePicker = document.getElementById('datePicker');
         if (initialDatePicker && !initialDatePicker.value) {
             initialDatePicker.value = formatLocalDate();
         }
 
 
-        let activeTab = 'home';
-        let currentDuration = 2;
-        let _recordsCache = null;
-        let _recordsCacheDirty = true;
-        
+        var activeTab = 'home';
+        var currentDuration = 2;
+        var _recordsCache = null;
+        var _recordsCacheDirty = true;
+
         // إدارة حالة الاتصال بالإنترنت
         function updateOnlineStatus() {
             const indicator = document.getElementById('networkStatusIndicator');
@@ -707,17 +707,17 @@
         if (!db.teacherProfile) {
             db.teacherProfile = { name: '', username: '', password: '' };
         }
-        
+
         if (!db.absenceThreshold) {
             db.absenceThreshold = 10;
         }
-        
+
         if (!db.library) { db.library = []; }
         if (!db.libraryDriveFolders) { db.libraryDriveFolders = []; }
         if (!db.notes) {
             db.notes = {};
         }
-        
+
         if (!db.coefConfig) {
             db.coefConfig = {};
         }
@@ -790,12 +790,12 @@
             checkExcessiveAbsences();
         }
 
-        let saveDBTimeout = null;
-        let isDBSyncPending = false;
-        let lastSuccessfulSaveTime = null;
-        let lastSaveDestination = 'local'; // 'local' | 'cloud'
-        let currentAutoSaveState = 'synced'; // 'saving' | 'local_synced' | 'cloud_synced' | 'error'
-        let floatingAutoSaveHideTimer = null;
+        var saveDBTimeout = null;
+        var isDBSyncPending = false;
+        var lastSuccessfulSaveTime = null;
+        var lastSaveDestination = 'local'; // 'local' | 'cloud'
+        var currentAutoSaveState = 'synced'; // 'saving' | 'local_synced' | 'cloud_synced' | 'error'
+        var floatingAutoSaveHideTimer = null;
 
         function formatAutoSaveTime(dateObj) {
             if (!dateObj) return '';
@@ -877,7 +877,7 @@
             const titleEl = document.getElementById('floatingAutoSaveText');
             const subEl = document.getElementById('floatingAutoSaveSub');
 
-            floatEl.className = 'floating-autosave-indicator floating-visible ' + 
+            floatEl.className = 'floating-autosave-indicator floating-visible ' +
                 (type === 'saving' ? 'floating-saving' : (type === 'cloud' ? 'floating-cloud' : 'floating-synced'));
 
             if (iconEl) {
@@ -996,7 +996,7 @@
         // =========================================================================
         // منظومة ضغط وإدارة قواعد بيانات IndexedDB والنسخ الاحتياطي المجزأ (Sharded IDB Engine)
         // =========================================================================
-        const MathPedagogicalSystemIDB = {
+        var MathPedagogicalSystemIDB = {
             dbName: 'MathPedagogicalSystemIDB',
             version: 1,
             dbInstance: null,
@@ -1547,7 +1547,7 @@
          * الدالة الرئيسية لضغط وإدارة قواعد بيانات IndexedDB الحالية بشكل دوري وعند الخمول أو الخروج
          * لتقليل استهلاك الذاكرة وحفظ النسخ الاحتياطية في كائنات أصغر (Sharded Objects)
          */
-        let _isIDBCompressionRunning = false;
+        var _isIDBCompressionRunning = false;
         async function compressAndManageIndexedDB(options = {}) {
             if (_isIDBCompressionRunning) return null;
             _isIDBCompressionRunning = true;
@@ -1768,13 +1768,13 @@
                     if (res && res.success) {
                         notifyStudentAutoSave('cloud_synced', { time: res.timestamp || new Date() });
                     } else {
-                        notifyStudentAutoSave('local_synced_cloud_failed', { 
+                        notifyStudentAutoSave('local_synced_cloud_failed', {
                             time: lastSuccessfulSaveTime || new Date(),
                             error: res && res.error
                         });
                     }
                 }).catch((e) => {
-                    notifyStudentAutoSave('local_synced_cloud_failed', { 
+                    notifyStudentAutoSave('local_synced_cloud_failed', {
                         time: lastSuccessfulSaveTime || new Date(),
                         error: e?.message || String(e)
                     });
@@ -1791,7 +1791,7 @@
             compressAndManageIndexedDB({ reason: 'beforeunload', silent: true });
         });
 
-        let _postSaveUIDebounceTimer = null;
+        var _postSaveUIDebounceTimer = null;
         window.saveDB = saveDB;
         function saveDB() {
             window.db = db;
@@ -1841,7 +1841,7 @@
                 updateTeacherNameInHeader();
                 return;
             }
-            
+
             if (!db.teacherProfile.password) {
                 if (loginScreen) loginScreen.style.display = 'flex';
                 if (setupForm) setupForm.style.display = 'block';
@@ -1853,7 +1853,7 @@
             }
             updateTeacherNameInHeader();
         }
-        
+
         function handleSetup() {
             const name = document.getElementById('setupName').value.trim();
             const username = document.getElementById('setupUsername').value.trim();
@@ -1870,13 +1870,13 @@
             document.getElementById('loginScreen').style.display = 'none';
             updateTeacherNameInHeader();
         }
-        
+
         function handleLogin() {
             const username = document.getElementById('loginUsername').value.trim();
             const pwd = document.getElementById('loginPassword').value;
             // Backwards compatibility for users who didn't set a username previously
             const validUsername = db.teacherProfile.username || db.teacherProfile.name;
-            
+
             if (username === validUsername && pwd === db.teacherProfile.password) {
                 localStorage.setItem('userLoggedIn', 'true');
                 document.getElementById('loginScreen').style.display = 'none';
@@ -2019,14 +2019,14 @@
             db.settings.presentationMode = checked;
             saveDB();
             syncPresentationModeUIStateInSettings(checked);
-            
+
             // Re-render UI to apply read-only state if tabs are active
             const currentClass = document.getElementById('classSelect') ? document.getElementById('classSelect').value : null;
             if (currentClass && typeof renderStudents === 'function') {
                 renderStudents();
             }
             if (activeTab === 'tutoring' && typeof renderTutoringStudents === 'function') renderTutoringStudents();
-            
+
             if (typeof showAppToast === 'function') {
                 showAppToast(
                     checked ? 'تم تفعيل وضع العرض (للقراءة فقط)' : 'تم تعطيل وضع العرض',
@@ -2794,7 +2794,7 @@
 
         function updateWhatsappReminderUIState() {
             const isEnabled = isWhatsappAutoReminderEnabled();
-            
+
             // Tutoring header banner
             const banner = document.getElementById('tutoringWaDisabledBanner');
             if (banner) {
@@ -2830,8 +2830,8 @@
             if (window.renderLucide) window.renderLucide();
         }
 
-        
-        let autoSaveSettingsTimer = null;
+
+        var autoSaveSettingsTimer = null;
         function setSettingsSaveStatus(status) {
             const badge = document.getElementById('settingsAutoSaveBadge');
             const text = document.getElementById('settingsAutoSaveText');
@@ -2866,7 +2866,7 @@
             const username = document.getElementById('settingsUsername').value.trim();
             if (name) db.teacherProfile.name = name;
             if (username) db.teacherProfile.username = username;
-            
+
             db.teacherProfile.academy = document.getElementById('settingsAcademy').value.trim();
             db.teacherProfile.directorate = document.getElementById('settingsDirectorate').value.trim();
             db.teacherProfile.school = document.getElementById('settingsSchool').value.trim();
@@ -2878,7 +2878,7 @@
             if (!db.settings) db.settings = {};
             if (syStartInput && syStartInput.value) db.settings.schoolYearStart = syStartInput.value;
             if (syEndInput && syEndInput.value) db.settings.schoolYearEnd = syEndInput.value;
-            
+
             const teacherPhoneInput = document.getElementById('settingsTeacherPhone');
             if (teacherPhoneInput) {
                 db.teacherProfile.phone = teacherPhoneInput.value.trim();
@@ -2886,7 +2886,7 @@
                     db.calendarWhatsappReminder.phone = db.teacherProfile.phone;
                 }
             }
-            
+
             const threshold = parseInt(document.getElementById('settingsAbsenceThreshold').value);
             if (!isNaN(threshold) && threshold > 0) {
                 db.absenceThreshold = threshold;
@@ -2964,7 +2964,7 @@
 
             saveDB();
             if (typeof updateTeacherNameInHeader === 'function') updateTeacherNameInHeader();
-            if (typeof renderTimetableInputs === 'function') renderTimetableInputs(); 
+            if (typeof renderTimetableInputs === 'function') renderTimetableInputs();
             if (typeof renderTimetableMatrix === 'function') renderTimetableMatrix();
             if (typeof checkExcessiveAbsences === 'function') checkExcessiveAbsences();
             if (typeof checkRecentHomeworkMisses === 'function') checkRecentHomeworkMisses();
@@ -2972,14 +2972,14 @@
             if (typeof renderAgendaNotifications === 'function') renderAgendaNotifications();
             if (typeof updateDashboardAlertBadges === 'function') updateDashboardAlertBadges();
             if (typeof renderDashboard === 'function' && (document.getElementById('dashboardView')?.style.display !== 'none' || document.getElementById('viewDashboard')?.style.display !== 'none')) renderDashboard();
-            
+
             setSettingsSaveStatus('saved');
         }
 
         function updateTeacherPassword() {
             const oldPwd = document.getElementById('settingsOldPassword').value;
             const newPwd = document.getElementById('settingsNewPassword').value;
-            
+
             if (!oldPwd || !newPwd) {
                 showAppToast('المرجو إدخال القن السري الحالي والجديد', 'warning');
                 return;
@@ -2999,19 +2999,19 @@
             if (typeof recordRecentAccess === 'function') {
                 recordRecentAccess('settings:' + initialTab);
             }
-            
+
             const modal = document.getElementById('teacherSettingsModal');
             if (modal && !modal.dataset.autosaveBound) {
                 modal.addEventListener('input', (e) => {
                     const tag = e.target.tagName;
-                    if ((tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') && 
+                    if ((tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') &&
                         e.target.type !== 'password' && e.target.type !== 'file') {
                         triggerAutoSaveSettings();
                     }
                 });
                 modal.addEventListener('change', (e) => {
                     const tag = e.target.tagName;
-                    if ((tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') && 
+                    if ((tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') &&
                         e.target.type !== 'password' && e.target.type !== 'file') {
                         triggerAutoSaveSettings();
                     }
@@ -3053,7 +3053,7 @@
             if (typeof syncBrandLogosUI === 'function') {
                 syncBrandLogosUI();
             }
-            
+
             // Initialize Presentation Mode & Print Mode Toggle States
             const isPresentationEnabled = db.settings && db.settings.presentationMode;
             syncPresentationModeUIStateInSettings(isPresentationEnabled);
@@ -3105,7 +3105,7 @@
 
             switchSettingsTab(initialTab, true);
             renderArchiveList();
-            
+
             renderClassColorsSettingsUI();
             renderAttendanceStatusColorsUI();
             if (typeof syncTypographySettingsUI === 'function') {
@@ -3197,7 +3197,7 @@
         // ============================================================
         // نظام تخصيص ألوان الأقسام الدراسية (Class Colors Customization)
         // ============================================================
-        const PRESET_CLASS_COLORS = [
+        var PRESET_CLASS_COLORS = [
             { hex: '#2563eb', name: 'أزرق ملكي' },
             { hex: '#059669', name: 'أخضر زمردي' },
             { hex: '#d97706', name: 'عنبري دافئ' },
@@ -3301,9 +3301,9 @@
                 PRESET_CLASS_COLORS.slice(0, 8).forEach(preset => {
                     const isSelected = (currentTheme.solid.toLowerCase() === preset.hex.toLowerCase());
                     swatchesHtml += `
-                        <button type="button" 
-                                class="class-color-swatch-dot ${isSelected ? 'active' : ''}" 
-                                style="background: ${preset.hex};" 
+                        <button type="button"
+                                class="class-color-swatch-dot ${isSelected ? 'active' : ''}"
+                                style="background: ${preset.hex};"
                                 title="${preset.name} (${preset.hex})"
                                 onclick="onClassColorSwatchClick('${cls}', '${preset.hex}')">
                         </button>
@@ -3317,24 +3317,24 @@
                             <div class="class-color-student-count">${studentCount} تلميذ</div>
                         </div>
                     </div>
-                    
+
                     <div class="class-color-preview-wrapper">
                         <span id="classColorPreview_${cls}" class="class-color-badge" style="background: ${currentTheme.bg}; color: ${currentTheme.text}; border: 1px solid ${currentTheme.border}; border-right: 4px solid ${currentTheme.solid};">
                             <span class="class-color-dot" style="background: ${currentTheme.solid};"></span>
                             ${cls}
                         </span>
                     </div>
-                    
+
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <div class="class-color-swatches-group">
                             ${swatchesHtml}
                         </div>
-                        
+
                         <div class="class-color-picker-input-wrap">
-                            <input type="color" 
-                                   id="color_class_${cls}" 
-                                   value="${currentTheme.solid}" 
-                                   class="class-color-picker-input" 
+                            <input type="color"
+                                   id="color_class_${cls}"
+                                   value="${currentTheme.solid}"
+                                   class="class-color-picker-input"
                                    title="اختيار لون مخصص للقسم"
                                    onchange="onClassColorInputChange('${cls}', this.value)"
                                    oninput="onClassColorInputChange('${cls}', this.value)">
@@ -3448,7 +3448,7 @@
         // نظام تخصيص ألوان بطاقات حالات الغياب (حاضر، غائب، مبرر، متأخر)
         // Attendance Status Colors Customization (Visual Preferences)
         // ============================================================
-        const DEFAULT_ATTENDANCE_STATUS_COLORS = {
+        var DEFAULT_ATTENDANCE_STATUS_COLORS = {
             'حاضر': {
                 key: 'حاضر',
                 cssVarPrefix: '--status-present',
@@ -3491,7 +3491,7 @@
             }
         };
 
-        const ATTENDANCE_STATUS_PRESETS = {
+        var ATTENDANCE_STATUS_PRESETS = {
             'contrast': {
                 label: 'عالي التباين',
                 colors: { 'حاضر': '#047857', 'غائب': '#b91c1c', 'مبرر': '#1d4ed8', 'متأخر': '#b45309' }
@@ -3573,9 +3573,9 @@
                 conf.swatches.forEach(hex => {
                     const isActive = theme.solid.toLowerCase() === hex.toLowerCase();
                     swatchesHtml += `
-                        <button type="button" 
-                                class="class-color-swatch-dot ${isActive ? 'active' : ''}" 
-                                style="background: ${hex}; border-color: ${hex};" 
+                        <button type="button"
+                                class="class-color-swatch-dot ${isActive ? 'active' : ''}"
+                                style="background: ${hex}; border-color: ${hex};"
                                 title="${hex}"
                                 onclick="onAttendanceStatusSwatchClick('${stKey}', '${hex}')">
                         </button>
@@ -3613,10 +3613,10 @@
                         </div>
 
                         <div class="class-color-picker-input-wrap">
-                            <input type="color" 
-                                   id="color_status_${stKey}" 
-                                   value="${theme.solid}" 
-                                   class="class-color-picker-input" 
+                            <input type="color"
+                                   id="color_status_${stKey}"
+                                   value="${theme.solid}"
+                                   class="class-color-picker-input"
                                    title="اختيار لون مخصص لحالة ${stKey}"
                                    onchange="onAttendanceStatusColorChange('${stKey}', this.value)"
                                    oninput="onAttendanceStatusColorChange('${stKey}', this.value)">
@@ -3674,7 +3674,7 @@
             container.innerHTML = sampleStudents.map(std => {
                 const theme = getAttendanceStatusColorTheme(std.status);
                 const iconName = std.status === 'حاضر' ? 'check' : (std.status === 'غائب' ? 'x' : (std.status === 'مبرر' ? 'file-text' : 'clock'));
-                
+
                 return `
                     <div class="attendance-live-card-mini" style="background: ${theme.bg}; border: 1.5px solid ${theme.border}; border-right: 5px solid ${theme.solid}; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
                         <div style="flex: 1; min-width: 0;">
@@ -3818,7 +3818,7 @@
             }
         };
 
-        
+
         function getAcademicYearFromDate(dateStr) {
             if (!dateStr) return null;
             const d = new Date(dateStr);
@@ -3854,7 +3854,7 @@
         function getClassArchiveAnalysis(className) {
             const students = (db.classes && db.classes[className]) ? db.classes[className] : [];
             const studentIds = new Set(students.map(s => s.id));
-            
+
             let latestDate = null;
             let recordsCount = 0;
             if (db.records && Array.isArray(db.records)) {
@@ -3868,7 +3868,7 @@
                     }
                 }
             }
-            
+
             let lessonLogsCount = 0;
             if (db.lessonLogs && db.lessonLogs[className]) {
                 const logs = Array.isArray(db.lessonLogs[className]) ? db.lessonLogs[className] : [];
@@ -3880,35 +3880,35 @@
                     }
                 }
             }
-            
+
             let gradesCount = 0;
             if (db.grades && db.grades[className]) {
                 gradesCount = Object.keys(db.grades[className]).length;
             }
-            
+
             let behaviorsCount = 0;
             if (db.behaviors && db.behaviors[className]) {
                 behaviorsCount = Object.keys(db.behaviors[className]).length;
             }
-            
+
             const meta = (db.archivedClassesMeta && db.archivedClassesMeta[className]) ? db.archivedClassesMeta[className] : null;
             const archivedAt = meta && meta.archivedAt ? meta.archivedAt : null;
-            
+
             let season = null;
             if (latestDate) {
                 season = getAcademicYearFromDate(latestDate);
             } else if (archivedAt) {
                 season = getAcademicYearFromDate(archivedAt);
             }
-            
+
             const currentSeason = getCurrentAcademicYear();
             const prevSeason = getPreviousAcademicYear(currentSeason);
             const currentStartYear = parseInt(currentSeason.split('/')[0].trim(), 10);
             const prevStartYear = currentStartYear - 1;
-            
+
             let isOlderThanOneSeason = false;
             let reason = '';
-            
+
             if (season) {
                 const classStartYear = parseInt(season.split('/')[0].trim(), 10);
                 if (!isNaN(classStartYear)) {
@@ -3938,7 +3938,7 @@
                     reason = 'قسم مؤرشف';
                 }
             }
-            
+
             return {
                 className,
                 studentsCount: students.length,
@@ -3958,19 +3958,19 @@
             const container = document.getElementById('archiveListContainer');
             if (!container) return;
             container.innerHTML = '';
-            
+
             if (!db.archivedClasses) db.archivedClasses = [];
             if (!db.archivedClassesMeta) db.archivedClassesMeta = {};
-            
+
             const classNames = Object.keys(db.classes || {});
             const totalCount = classNames.length;
             const archivedCount = db.archivedClasses.length;
-            
+
             const statsSummary = document.getElementById('archiveStatsSummary');
             if (statsSummary) {
                 statsSummary.textContent = `الأقسام: ${totalCount} مسجلة (${archivedCount} مؤرشفة)`;
             }
-            
+
             let oldArchivedCount = 0;
             db.archivedClasses.forEach(c => {
                 const analysis = getClassArchiveAnalysis(c);
@@ -3978,7 +3978,7 @@
                     oldArchivedCount++;
                 }
             });
-            
+
             const oldBadge = document.getElementById('oldArchiveCountBadge');
             if (oldBadge) {
                 if (oldArchivedCount > 0) {
@@ -4006,7 +4006,7 @@
                 const count = (db.classes[c] || []).length;
                 const analysis = isArchived ? getClassArchiveAnalysis(c) : null;
                 const isOld = analysis && analysis.isOlderThanOneSeason;
-                
+
                 html += `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid ${isArchived ? (isOld ? '#fca5a5' : 'var(--border)') : '#bfdbfe'}; border-radius: 8px; background: ${isArchived ? (isOld ? '#fff5f5' : '#f8fafc') : '#eff6ff'}; transition: all 0.2s;">
                         <div style="display: flex; align-items: center; gap: 10px;">
@@ -4043,7 +4043,7 @@
         function toggleArchiveClass(className) {
             if (!db.archivedClasses) db.archivedClasses = [];
             if (!db.archivedClassesMeta) db.archivedClassesMeta = {};
-            
+
             if (db.archivedClasses.includes(className)) {
                 db.archivedClasses = db.archivedClasses.filter(c => c !== className);
                 delete db.archivedClassesMeta[className];
@@ -4056,7 +4056,7 @@
             }
             saveDB();
             renderArchiveList();
-            
+
             // Refresh dropdowns globally
             refreshClassDropdown();
             refreshNotesClassDropdown();
@@ -4066,16 +4066,16 @@
         function openPurgeOldArchiveModal() {
             const modal = document.getElementById('purgeOldArchiveModal');
             if (!modal) return;
-            
+
             const currentSeason = getCurrentAcademicYear();
             const prevSeason = getPreviousAcademicYear(currentSeason);
-            
+
             const curEl = document.getElementById('purgeCurrentSeasonText');
             if (curEl) curEl.textContent = currentSeason;
-            
+
             const cutEl = document.getElementById('purgeCutoffSeasonText');
             if (cutEl) cutEl.textContent = `مواسم ما قبل ${prevSeason}`;
-            
+
             updatePurgeOldArchiveModalUI();
             modal.style.display = 'flex';
             if (window.renderLucide) window.renderLucide();
@@ -4091,13 +4091,13 @@
             const filterScope = document.getElementById('purgeFilterScope') ? document.getElementById('purgeFilterScope').value : 'olderThanOneSeason';
             if (!container) return;
             container.innerHTML = '';
-            
+
             const currentSeason = getCurrentAcademicYear();
             const prevSeason = getPreviousAcademicYear(currentSeason);
             const currentStartYear = parseInt(currentSeason.split('/')[0].trim(), 10);
-            
+
             if (!db.archivedClasses) db.archivedClasses = [];
-            
+
             const candidates = [];
             db.archivedClasses.forEach(c => {
                 const analysis = getClassArchiveAnalysis(c);
@@ -4110,12 +4110,12 @@
                 } else {
                     matches = true;
                 }
-                
+
                 if (matches) {
                     candidates.push(analysis);
                 }
             });
-            
+
             if (candidates.length === 0) {
                 container.innerHTML = `
                     <div style="text-align: center; padding: 25px 15px; color: #64748b;">
@@ -4128,7 +4128,7 @@
                 if (window.renderLucide) window.renderLucide();
                 return;
             }
-            
+
             let html = '';
             candidates.forEach(cand => {
                 html += `
@@ -4172,7 +4172,7 @@
             let students = 0;
             let records = 0;
             let grades = 0;
-            
+
             selectedClassNames.forEach(c => {
                 const analysis = getClassArchiveAnalysis(c);
                 if (analysis) {
@@ -4181,19 +4181,19 @@
                     grades += analysis.gradesCount;
                 }
             });
-            
+
             const elClasses = document.getElementById('statPurgeClasses');
             if (elClasses) elClasses.textContent = selectedClassNames.length;
-            
+
             const elStudents = document.getElementById('statPurgeStudents');
             if (elStudents) elStudents.textContent = students;
-            
+
             const elRecords = document.getElementById('statPurgeRecords');
             if (elRecords) elRecords.textContent = records;
-            
+
             const elGrades = document.getElementById('statPurgeGrades');
             if (elGrades) elGrades.textContent = grades;
-            
+
             const btnExec = document.getElementById('btnExecutePurge');
             const btnExecText = document.getElementById('btnExecutePurgeText');
             if (btnExec && btnExecText) {
@@ -4218,7 +4218,7 @@
                 showAppToast('يرجى تحديد الأقسام المراد تصديرها', 'warning');
                 return;
             }
-            
+
             const backupData = {
                 exportedAt: new Date().toISOString(),
                 exportType: 'archived_classes_backup',
@@ -4229,7 +4229,7 @@
                 behaviors: {},
                 lessonLogs: {}
             };
-            
+
             const set = new Set(selectedClassNames);
             selectedClassNames.forEach(c => {
                 if (db.classes && db.classes[c]) backupData.classes[c] = db.classes[c];
@@ -4237,11 +4237,11 @@
                 if (db.behaviors && db.behaviors[c]) backupData.behaviors[c] = db.behaviors[c];
                 if (db.lessonLogs && db.lessonLogs[c]) backupData.lessonLogs[c] = db.lessonLogs[c];
             });
-            
+
             if (db.records && Array.isArray(db.records)) {
                 backupData.records = db.records.filter(r => set.has(r.className));
             }
-            
+
             const dateStr = formatLocalDate();
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(safeStringify(backupData, 2));
             const downloadAnchor = document.createElement('a');
@@ -4250,7 +4250,7 @@
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();
             downloadAnchor.remove();
-            
+
             showAppToast('تم تصدير نسخة احتياطية للأقسام المحددة بنجاح 💾', 'success');
         }
 
@@ -4273,22 +4273,22 @@
                 showAppToast('يرجى تحديد قسم واحد على الأقل للحذف', 'warning');
                 return;
             }
-            
+
             const count = classNamesToPurge.length;
             const namesList = classNamesToPurge.join(', ');
-            
+
             const msg = `تحذير هام: هل أنت متأكد من حذف الأقسام المؤرشفة التالية نهائياً لتخفيف قاعدة البيانات؟\n\n[ ${namesList} ]\n\nسيتم حذف لوائح التلاميذ وسجلات الحضور والغياب ونقط الفروض المرتبطة بها نهائياً.`;
             if (!confirm(msg)) return;
-            
+
             if (!confirm(`تأكيد أخير: سيتم مسح بيانات ${count} قسم(اً) نهائياً من الذاكرة المحلية وقاعدة البيانات. هل تريد المتابعة؟`)) {
                 return;
             }
-            
+
             const purgeSet = new Set(classNamesToPurge);
             let deletedStudents = 0;
             let deletedRecords = 0;
             let deletedGrades = 0;
-            
+
             if (db.classes) {
                 classNamesToPurge.forEach(c => {
                     if (db.classes[c]) {
@@ -4297,17 +4297,17 @@
                     }
                 });
             }
-            
+
             if (db.archivedClasses && Array.isArray(db.archivedClasses)) {
                 db.archivedClasses = db.archivedClasses.filter(c => !purgeSet.has(c));
             }
-            
+
             if (db.records && Array.isArray(db.records)) {
                 const initialLen = db.records.length;
                 db.records = db.records.filter(r => !purgeSet.has(r.className));
                 deletedRecords = initialLen - db.records.length;
             }
-            
+
             if (db.grades) {
                 classNamesToPurge.forEach(c => {
                     if (db.grades[c]) {
@@ -4316,15 +4316,15 @@
                     }
                 });
             }
-            
+
             if (db.behaviors) {
                 classNamesToPurge.forEach(c => delete db.behaviors[c]);
             }
-            
+
             if (db.lessonLogs) {
                 classNamesToPurge.forEach(c => delete db.lessonLogs[c]);
             }
-            
+
             if (db.homeworkAgenda) {
                 if (Array.isArray(db.homeworkAgenda)) {
                     db.homeworkAgenda = db.homeworkAgenda.filter(h => !purgeSet.has(h.className));
@@ -4332,25 +4332,25 @@
                     classNamesToPurge.forEach(c => delete db.homeworkAgenda[c]);
                 }
             }
-            
+
             if (db.classColors) classNamesToPurge.forEach(c => delete db.classColors[c]);
             if (db.classConfig) classNamesToPurge.forEach(c => delete db.classConfig[c]);
             if (db.classUsage) classNamesToPurge.forEach(c => delete db.classUsage[c]);
             if (db.archivedClassesMeta) classNamesToPurge.forEach(c => delete db.archivedClassesMeta[c]);
-            
+
             _recordsCacheDirty = true;
             if (typeof buildRecordsCache === 'function') {
                 buildRecordsCache();
             }
-            
+
             saveDB();
             renderArchiveList();
-            
+
             if (typeof refreshClassDropdown === 'function') refreshClassDropdown();
             if (typeof refreshNotesClassDropdown === 'function') refreshNotesClassDropdown();
             if (typeof refreshReportClassDropdown === 'function') refreshReportClassDropdown();
             if (typeof renderStudents === 'function' && activeTab === 'absence') renderStudents();
-            
+
             closePurgeOldArchiveModal();
             showAppToast(`تم بنجاح حذف ${count} قسم(اً) قديماً وتفريغ ${deletedRecords} سجل غياب و${deletedGrades} نقطة فرض. تم تحسين أداء المنظومة!`, 'success');
         }
@@ -4384,7 +4384,7 @@
                     target.setAttribute('aria-hidden', 'false');
                 });
             }
-            
+
             const tabs = document.querySelectorAll('.settings-tab');
             tabs.forEach(btn => {
                 const isTargetTab = (btn.getAttribute('data-tab') === activeTabId);
@@ -4626,7 +4626,7 @@
             }
         }
 
-        let _headerSettingsMenuCloseHandler = null;
+        var _headerSettingsMenuCloseHandler = null;
         function toggleHeaderSettingsMenu(e) {
             if (e) e.stopPropagation();
             const dropdown = document.getElementById('headerSettingsDropdown');
@@ -4755,7 +4755,7 @@
                     const badgeParent = document.getElementById('headerLiveDateBadge');
                     if (badgeParent) {
                         const syncLabel = (offsetMins === getMoroccoAutoOffsetMinutes() || offsetMins === 0)
-                            ? 'متطابق مع هاتفك 100%' 
+                            ? 'متطابق مع هاتفك 100%'
                             : (offsetMins > 0 ? `مقدم +${offsetH}س` : `مؤخر ${offsetH}س`);
                         badgeParent.title = `تاريخ وساعة اليوم الدراسي (${syncLabel}): ${fullDateStr} - ${hours}:${minutes}:${seconds} (انقر للمزامنة والضبط)`;
                     }
@@ -4774,7 +4774,7 @@
         });
         window.addEventListener('focus', updateHeaderLiveDate);
 
-        let _appTimeModalTimer = null;
+        var _appTimeModalTimer = null;
         function openAppTimeSyncModal() {
             const modal = document.getElementById('appTimeSyncModal');
             if (!modal) return;
@@ -4812,7 +4812,7 @@
 
             const pad = (n) => String(n).padStart(2, '0');
             const formatTime = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-            
+
             // ساعة الهاتف بالمغرب (GMT+1)
             const liveMoroccoEl = document.getElementById('modalLiveMoroccoTime');
             if (liveMoroccoEl) liveMoroccoEl.textContent = formatTime(moroccoLive);
@@ -4970,11 +4970,11 @@
                 }
             }
         });
-        
+
         function openDataManagementModal() {
             openTeacherSettings('settingsBackup');
         }
-        
+
         function closeDataManagementModal() {
             closeTeacherSettings();
             const legacy = document.getElementById('dataManagementModal');
@@ -5018,7 +5018,7 @@
             if (!db.settings) db.settings = {};
             if (syStartField && syStartField.value) db.settings.schoolYearStart = syStartField.value;
             if (syEndField && syEndField.value) db.settings.schoolYearEnd = syEndField.value;
-            
+
             const threshold = parseInt(document.getElementById('settingsAbsenceThreshold').value);
             if (!isNaN(threshold) && threshold > 0) {
                 db.absenceThreshold = threshold;
@@ -5424,7 +5424,7 @@
             if (btn2) btn2.classList.toggle('active', count === 2);
             if (btn3) btn3.classList.toggle('active', count === 3);
             if (btn4) btn4.classList.toggle('active', count === 4);
-            
+
             const coefInput = document.getElementById('subjectCoefInput');
             if (coefInput) {
                 coefInput.value = coef;
@@ -5483,17 +5483,17 @@
                 }
             }
         }
-        
+
         function getSubjectCoefForClass(className) {
             if (!className) return 7;
             if (db.coefConfig && db.coefConfig[className] !== undefined) return Number(db.coefConfig[className]) || 7;
             if (db.classConfig && db.classConfig[className] && typeof db.classConfig[className] === 'object' && db.classConfig[className].coef !== undefined) {
                 return Number(db.classConfig[className].coef) || 7;
             }
-            
+
             const upper = className.toUpperCase();
             const subject = (db.teacherProfile && db.teacherProfile.subject) || 'الرياضيات';
-            
+
             if (subject.includes('رياضيات') || subject.includes('Math')) {
                 return recognizeMathCurriculumForClass(className).coef;
             }
@@ -5778,13 +5778,10 @@
             if (typeof syncAllTabsClassDropdowns === 'function') syncAllTabsClassDropdowns(selectedClass);
         }
 
-
-        
-        
         // Long Press and Quick Actions Logic
-        let pressTimer = null;
-        let isLongPress = false;
-        let preventClick = false;
+        var pressTimer = null;
+        var isLongPress = false;
+        var preventClick = false;
 
         function startLongPress(e, className, stdId, stdName) {
             if (e.button === 2) return; // Ignore right click here
@@ -5818,15 +5815,15 @@
         function showQuickActionsMenu(className, stdId, stdName) {
             // Provide haptic feedback if available on mobile
             if (navigator.vibrate) navigator.vibrate(50);
-            
+
             document.getElementById('qaStudentName').innerHTML = '<span class="ui-icon">' + lucideIcon('user', {size: 14}) + '</span> ' + stdName;
-            
+
             const btnReport = document.getElementById('qaBtnReport');
             const btnPortfolio = document.getElementById('qaBtnPortfolio');
             const btnAlert = document.getElementById('qaBtnAlert');
             const btnWa = document.getElementById('qaBtnWhatsApp');
             const btnNotes = document.getElementById('qaBtnNotes');
-            
+
             btnReport.onclick = () => jumpToIndividualReport(className, stdId);
             if (btnPortfolio) {
                 btnPortfolio.onclick = () => {
@@ -5846,7 +5843,7 @@
                 };
             }
             btnNotes.onclick = () => { closeQuickActionsMenu(); jumpToStudentNotes(className, stdId); };
-            
+
             document.getElementById('quickActionsModal').style.display = 'flex';
         }
 
@@ -5858,17 +5855,17 @@
             closeQuickActionsMenu();
             if (typeof closeStudentQuickModal === 'function') closeStudentQuickModal();
             switchTab('reports');
-            
+
             const classSelect = document.getElementById('reportClassSelect');
             if(classSelect) {
                 classSelect.value = className;
                 renderReport(); // This populates reportStudentSelect
-                
+
                 const studentSelect = document.getElementById('reportStudentSelect');
                 if(studentSelect) {
                     studentSelect.value = stdId;
                     updateStudentProgressChart();
-                    
+
                     const card = document.getElementById('studentProgressCard');
                     if (card) {
                         setTimeout(() => {
@@ -5882,19 +5879,19 @@
 
         function quickAlertBehavior(className, stdId) {
             closeQuickActionsMenu();
-            
+
             // Switch to absence tab if not already there
             if(activeTab !== 'absence') {
                 switchTab('absence');
                 document.getElementById('classSelect').value = className;
             }
-            
+
             const reason = prompt('أدخل سبب التنبيه السلوكي (اختياري):');
             if (reason !== null) {
                 setBehaviorStatus(className, stdId, 'تنبيه');
                 updateBehaviorNote(className, stdId, reason);
                 renderStudents(); // Refresh UI to show the alert
-                
+
                 // Show success toast (simulate)
                 const toast = document.createElement('div');
                 toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--success-dark);color:white;padding:10px 20px;border-radius:20px;z-index:99999;font-family:"Cairo",sans-serif;box-shadow:var(--shadow-md);';
@@ -5913,12 +5910,10 @@
             document.getElementById('tabletReportPane').scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        
-        
         /* ==========================================================================
            TIMETABLE ADVANCED MATRIX & SCHEDULE ENHANCEMENTS
            ========================================================================== */
-        let currentTimetableSubTab = 'matrix';
+        var currentTimetableSubTab = 'matrix';
 
         function switchTimetableSubTab(tab) {
             // تحويل التقويم السنوي تلقائياً للتبويب الموحد للتقويم السنوي والمحطات المدرسية
@@ -5961,8 +5956,8 @@
 
         function getHashColor(str) {
             if (!str) return { bg: '#f1f5f9', border: '#cbd5e1', text: '#334155', solid: '#64748b', lightBg: '#e2e8f0' };
-            const theme = (typeof getClassColorTheme === 'function') 
-                ? getClassColorTheme(str) 
+            const theme = (typeof getClassColorTheme === 'function')
+                ? getClassColorTheme(str)
                 : { bg: '#eff6ff', border: '#bfdbfe', text: '#1e40af', solid: '#2563eb', lightBg: '#dbeafe' };
             return {
                 bg: theme.bg,
@@ -6467,7 +6462,7 @@
                 renderTimetableInputs();
                 renderTimetableMatrix();
                 if (typeof renderTodaySchedule === 'function') renderTodaySchedule();
-                
+
                 // Show toast
                 const toast = document.createElement('div');
                 toast.style.cssText = 'position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:#1e293b;color:white;padding:10px 20px;border-radius:20px;z-index:99999;font-family:"Cairo",sans-serif;box-shadow:0 4px 12px rgba(0,0,0,0.2);';
@@ -6515,7 +6510,7 @@
                     .header-title h2 { margin: 0 0 2px 0; font-size: 1.15rem; color: #1e3a8a; font-weight: 900; }
                     .header-title h4 { margin: 0; font-size: 0.85rem; color: #475569; font-weight: bold; }
                     .header-side { font-size: 0.82rem; line-height: 1.45; width: 28%; }
-                    
+
                     table.official-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; text-align: center; }
                     table.official-table th, table.official-table td { border: 1.5px solid #334155; padding: 8px 6px; font-size: 0.85rem; }
                     table.official-table th { background: #e2e8f0; font-weight: 800; color: #0f172a; }
@@ -6527,7 +6522,7 @@
                     .summary-table { width: 55%; border-collapse: collapse; font-size: 0.8rem; }
                     .summary-table th, .summary-table td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: center; }
                     .summary-table th { background: #f8fafc; font-weight: bold; }
-                    
+
                     .signatures-box { display: flex; justify-content: space-between; text-align: center; font-size: 0.85rem; margin-top: 25px; padding: 0 20px; }
                     .sign-col { width: 30%; border-top: 1px dashed #64748b; padding-top: 8px; }
                 </style>
@@ -6560,7 +6555,7 @@
                     <thead>
                         <tr>
                             <th style="width: 14%;">الفترة / الأيام</th>`;
-            
+
             days.forEach(day => {
                 printHtml += `<th>${day}</th>`;
             });
@@ -6585,7 +6580,7 @@
 
             // Morning slots
             printHtml += `<tr><td colspan="${days.length + 1}" class="period-header">الفترة الصباحية (08:00 - 13:00)</td></tr>`;
-            
+
             // Morning 1
             printHtml += `<tr><td style="background:#f8fafc; font-weight:bold;">${getPrintSlotTime('m1', '08:00 - 10:00')}</td>`;
             days.forEach(day => {
@@ -6657,7 +6652,7 @@
                             </tr>
                         </thead>
                         <tbody>`;
-            
+
             Object.keys(classHoursMap).sort().forEach(cls => {
                 printHtml += `<tr>
                     <td style="font-weight:bold;">${cls}</td>
@@ -7090,7 +7085,7 @@
             const grp = select.value;
             const students = (db.tutoring.students || []).filter(s => s.group === grp);
             badge.textContent = 'عدد التلاميذ في هذه المجموعة: ' + students.length + ' تلميذ(ة)';
-            
+
             let listHtml = '';
             students.forEach(s => {
                 listHtml += `
@@ -7109,7 +7104,7 @@
             attendanceList.innerHTML = listHtml;
         }
 
-        let _isSavingTutoringGroupSession = false;
+        var _isSavingTutoringGroupSession = false;
         function saveTutoringGroupSession() {
             if (_isSavingTutoringGroupSession) return;
             const select = document.getElementById('groupSessionSelect');
@@ -7152,7 +7147,7 @@
             students.forEach(std => {
                 const attStatus = attendanceMap[std.id] || 'present';
                 if (!std.sessions) std.sessions = [];
-                
+
                 std.sessions.push({
                     id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
                     date: date,
@@ -7273,8 +7268,8 @@
             }
         }
 
-        let currentWaStudentId = null;
-        let currentWaReminderType = 'unpaid';
+        var currentWaStudentId = null;
+        var currentWaReminderType = 'unpaid';
 
         function openTutoringWhatsAppModal(studentId, initialType) {
             initTutoring();
@@ -7799,13 +7794,13 @@
 
 
         // --- Fast Grading Mode Logic (Sequential Auto-Advance + Physical Keyboard + Voice Dictation) ---
-        let fgCurrentStudentIndex = 0;
-        let fgCurrentValue = '';
-        let fgIsFreshLoadedScore = false;
-        let fgStudentsList = [];
-        let fgAutoAdvanceTimer = null;
-        let fgSpeechRecognition = null;
-        let fgIsVoiceListening = false;
+        var fgCurrentStudentIndex = 0;
+        var fgCurrentValue = '';
+        var fgIsFreshLoadedScore = false;
+        var fgStudentsList = [];
+        var fgAutoAdvanceTimer = null;
+        var fgSpeechRecognition = null;
+        var fgIsVoiceListening = false;
 
         function openFastGrading() {
             const classSelectEl = document.getElementById('classSelect');
@@ -8426,7 +8421,7 @@
         // المنظومة الذكية لاختصارات الصفحة الرئيسية في شاشة واحدة
         // (Single-Screen Grouped Hubs & Search System)
         // ============================================================
-        const HOME_CLUSTERS_DATA = {
+        var HOME_CLUSTERS_DATA = {
             'assessment': {
                 title: 'التقويم والمراقبة المدرسية',
                 subtitle: 'المتابعة اليومية والتحصيل ورصد الإنذار المبكر',
@@ -8864,7 +8859,7 @@
             }
         }
 
-        const TAB_HERO_METADATA = {
+        var TAB_HERO_METADATA = {
             'dashboard': {
                 title: 'لوحة القيادة والمتابعة الفورية',
                 breadcrumb: 'لوحة القيادة',
@@ -9001,7 +8996,7 @@
         }
 
         // ===== إعدادات وسجل الوحدات المستخدمة مؤخراً (Recently Accessed) =====
-        const RECENT_MODULE_META = {
+        var RECENT_MODULE_META = {
             'dashboard': { name: 'لوحة القيادة والإنذار', icon: 'layout-dashboard', bg: 'linear-gradient(135deg, #f43f5e, #be123c)' },
             'absence': { name: 'الغياب والمتابعة اليومية', icon: 'check-square', bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' },
             'grades': { name: 'نقط الفروض والمراقبة', icon: 'award', bg: 'linear-gradient(135deg, #10b981, #047857)' },
@@ -9100,8 +9095,8 @@
         }
         window.clearRecentlyAccessed = clearRecentlyAccessed;
 
-        let _lastTabSwitchTime = 0;
-        let _lastTabSwitchName = '';
+        var _lastTabSwitchTime = 0;
+        var _lastTabSwitchName = '';
         window.currentAnnualAnalysisSubView = 'analysis';
 
         function switchAnnualAnalysisSubView(subView) {
@@ -9313,7 +9308,7 @@
          * ينفذ تنقية شاملة للذاكرة الحية (RAM)، تفريغ مخططات Chart.js الخاملة،
          * إزالة السجلات المكررة واليتيمة، وضغط قواعد بيانات IndexedDB و localStorage.
          */
-        let _isInteractiveMemoryOptRunning = false;
+        var _isInteractiveMemoryOptRunning = false;
         async function runInteractiveMemoryOptimization(btnEl) {
             if (_isInteractiveMemoryOptRunning) return;
             _isInteractiveMemoryOptRunning = true;
@@ -9793,10 +9788,8 @@
             }
         }, { passive: true });
 
-
-        
         // خيارات الفترات الزمنية لحصص الساعتين - الفترة الصباحية (08:00 - 13:00) والمسائية (13:00 - 18:00)
-        const PERIOD_OPTIONS_2H = [
+        var PERIOD_OPTIONS_2H = [
             // الفترة الصباحية (08:00 - 13:00)
             "الصباح: (08:00 - 10:00)",
             "الصباح: (10:00 - 12:00)",
@@ -9810,7 +9803,7 @@
         ];
 
         // خيارات الفترات الزمنية لحصص الساعة الواحدة - الفترة الصباحية (08:00 - 13:00) والمسائية (13:00 - 18:00)
-        const PERIOD_OPTIONS_1H = [
+        var PERIOD_OPTIONS_1H = [
             // فترات ساعة واحدة - الفترة الصباحية (08:00 - 13:00)
             "الصباح: (08:00 - 09:00)",
             "الصباح: (09:00 - 10:00)",
@@ -9826,7 +9819,7 @@
         ];
 
         // خيارات الفترات الزمنية لحصص الدعم والتقوية (1.5 ساعة = ساعة ونصف)
-        const PERIOD_OPTIONS_1_5H = [
+        var PERIOD_OPTIONS_1_5H = [
             "الصباح: (08:00 - 09:30)",
             "الصباح: (09:30 - 11:00)",
             "الصباح: (11:00 - 12:30)",
@@ -9842,7 +9835,7 @@
             const options = (currentDuration === 1)
                 ? PERIOD_OPTIONS_1H
                 : (currentDuration === 1.5 ? PERIOD_OPTIONS_1_5H : PERIOD_OPTIONS_2H);
-            
+
             select.innerHTML = '';
 
             // إذا كانت القيمة المحددة مخصصة أو غير موجودة في القائمة، نحافظ عليها حتى لا تضيع
@@ -9883,7 +9876,7 @@
                 select.value = options[0];
             }
         }
-    
+
 
         function setDuration(hours, preferredPeriod = null) {
             currentDuration = hours;
@@ -9924,7 +9917,7 @@
             refreshNotesStudentDropdown();
         }
 
-        
+
         // --- Homework Agenda Logic ---
         function renderHomeworkAgenda() {
             const className = document.getElementById('notesClassSelect').value;
@@ -9933,15 +9926,15 @@
                 if (card) card.style.display = 'none';
                 return;
             }
-            
+
             if (card) card.style.display = 'block';
             const list = document.getElementById('hwAgendaList');
             if (!list) return;
             list.innerHTML = '';
-            
+
             if (!db.homeworkAgenda) db.homeworkAgenda = {};
             if (!db.homeworkAgenda[className]) db.homeworkAgenda[className] = [];
-            
+
             let agendas = db.homeworkAgenda[className];
             if (agendas.length === 0) {
                 list.innerHTML = '<div style="color: #888; font-size: 0.85rem; text-align: center;">لا توجد مواعيد مجدولة لهذا القسم.</div>';
@@ -9950,13 +9943,13 @@
                     const today = new Date();
                     today.setHours(0,0,0,0);
                     const itemDate = new Date(item.date);
-                    
+
                     const diffTime = itemDate - today;
                     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    
+
                     let statusColor = '#333';
                     let statusLabel = '';
-                    
+
                     if (diffDays < 0) {
                         statusColor = 'var(--danger)';
                         statusLabel = '(فات الموعد)';
@@ -9969,7 +9962,7 @@
                     } else {
                         statusColor = 'var(--success-dark)';
                     }
-                    
+
                     const div = document.createElement('div');
                     div.style.cssText = 'background: white; border: 1px solid #e9d5ff; border-radius: 6px; padding: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);';
                     div.innerHTML = `
@@ -9983,14 +9976,14 @@
                 });
             }
         }
-        
-        let _isAddingHomeworkAgenda = false;
+
+        var _isAddingHomeworkAgenda = false;
         function addHomeworkAgenda() {
             if (_isAddingHomeworkAgenda) return;
             const className = document.getElementById('notesClassSelect').value;
             const title = document.getElementById('hwAgendaTitle').value.trim();
             const date = document.getElementById('hwAgendaDate').value;
-            
+
             if (!className) {
                 alert('الرجاء اختيار القسم أولاً');
                 return;
@@ -10002,16 +9995,16 @@
 
             _isAddingHomeworkAgenda = true;
             const unlock = () => { setTimeout(() => { _isAddingHomeworkAgenda = false; }, 400); };
-            
+
             if (!db.homeworkAgenda) db.homeworkAgenda = {};
             if (!db.homeworkAgenda[className]) db.homeworkAgenda[className] = [];
-            
+
             db.homeworkAgenda[className].push({
                 id: Date.now().toString(),
                 title,
                 date
             });
-            
+
             saveDB();
             document.getElementById('hwAgendaTitle').value = '';
             document.getElementById('hwAgendaDate').value = '';
@@ -10019,7 +10012,7 @@
             checkHomeworkAlerts(); // update home screen alerts
             unlock();
         }
-        
+
         function deleteHomeworkAgenda(className, id) {
             if (confirm('هل أنت متأكد من حذف هذا الموعد؟')) {
                 db.homeworkAgenda[className] = db.homeworkAgenda[className].filter(i => i.id !== id);
@@ -10028,20 +10021,20 @@
                 checkHomeworkAlerts();
             }
         }
-        
+
         function checkHomeworkAlerts() {
             const container = document.getElementById('agendaHwAlertContainer');
             if (!container) return;
-            
+
             let alertsHtml = '';
             const today = new Date();
             today.setHours(0,0,0,0);
-            
+
             if (db.homeworkAgenda) {
                 for (const className in db.homeworkAgenda) {
                     const classItem = db.classes[className] ? className : null;
                     if (!classItem) continue; // skip if class doesn't exist anymore
-                    
+
                     db.homeworkAgenda[className].forEach(item => {
                         const alertId = `${className}_${(item.title || 'hw').replace(/[^a-zA-Z0-9_\u0600-\u06FF]/g, '_')}_${item.date}`;
                         if (db.hiddenAlerts && db.hiddenAlerts['agendaHw_global_' + alertId]) {
@@ -10051,7 +10044,7 @@
                         const itemDate = new Date(item.date);
                         const diffTime = itemDate - today;
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        
+
                         if (diffDays >= 0 && diffDays <= 2) {
                             // Upcoming or today
                             let alertColor = diffDays === 0 ? '#dc2626' : '#d97706';
@@ -10060,7 +10053,7 @@
                             let emojiIcon = diffDays === 0 ? lucideIcon('alertoctagon', {size: 13}) : (diffDays === 1 ? lucideIcon('clock', {size: 13}) : lucideIcon('timer', {size: 13}));
                             let label = diffDays === 0 ? 'اليوم' : (diffDays === 1 ? 'غداً' : 'بعد غد');
                             const escapedTitle = (item.title || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                            
+
                             const clsTheme = getClassColorTheme(classItem);
                             alertsHtml += `
                                 <div id="alert-item-agendaHw-${alertId}" class="alert-item-card" style="background: ${bg}; border: 1px solid ${borderCol}; border-right: 5px solid ${clsTheme.solid}; margin-bottom: 8px;">
@@ -10096,7 +10089,7 @@
                     });
                 }
             }
-            
+
             if (alertsHtml) {
                 container.innerHTML = alertsHtml;
                 container.style.display = 'block';
@@ -10115,9 +10108,9 @@
             onNotesStudentSelectChange();
         }
 
-        let currentNotesStudentFilter = null;
-        let currentSmartRemarkAlternatives = [];
-        let currentSmartRemarkIndex = 0;
+        var currentNotesStudentFilter = null;
+        var currentSmartRemarkAlternatives = [];
+        var currentSmartRemarkIndex = 0;
 
         function refreshNotesStudentFilter() {
             const className = document.getElementById('notesClassSelect').value;
@@ -10125,25 +10118,25 @@
             const card = document.getElementById('notesFilterCard');
             const countLabel = document.getElementById('notesFilteredStudentCount');
             if (!container || !card) return;
-            
+
             if (!className || !db.classes[className] || db.classes[className].length === 0) {
                 card.style.display = 'none';
                 return;
             }
-            
+
             card.style.display = 'block';
             if (countLabel) countLabel.textContent = `(${db.classes[className].length} تلميذ)`;
-            
+
             let html = '<button class="nav-tab ' + (currentNotesStudentFilter === null ? 'active' : '') + '" style="padding: 4px 12px; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 16px; min-width: max-content; background: ' + (currentNotesStudentFilter === null ? 'var(--primary)' : 'var(--bg)') + '; color: ' + (currentNotesStudentFilter === null ? 'white' : 'var(--text-muted)') + ';" onclick="setNotesStudentFilter(null)">الكل</button>';
-            
+
             db.classes[className].forEach(std => {
                 const isActive = currentNotesStudentFilter === std.id;
                 html += '<button class="nav-tab ' + (isActive ? 'active' : '') + '" style="padding: 4px 12px; font-size: 0.85rem;" onclick="setNotesStudentFilter(\'' + std.id + '\')">' + (std.orderNum ? std.orderNum + '. ' : '') + std.name + '</button>';
             });
-            
+
             container.innerHTML = html;
         }
-        
+
         function setNotesStudentFilter(studentId) {
             currentNotesStudentFilter = studentId;
             refreshNotesStudentFilter();
@@ -10205,16 +10198,16 @@
             }
 
             // 2. السلوك والانضباط
-            const behaviorData = (db.behaviors && db.behaviors[className] && db.behaviors[className][studentId]) 
-                ? db.behaviors[className][studentId] 
+            const behaviorData = (db.behaviors && db.behaviors[className] && db.behaviors[className][studentId])
+                ? db.behaviors[className][studentId]
                 : { status: 'منضبط', note: '' };
             const behaviorStatus = behaviorData.status || 'منضبط';
             const behaviorNote = behaviorData.note || '';
 
             // 3. النقط والتحصيل الدراسي + مؤشر تطور الأداء الرياضي (Indice de Progression)
             const activeSem = window.activeSemester || 's1';
-            const gradesObj = (db.grades && db.grades[className] && db.grades[className][studentId]) 
-                ? db.grades[className][studentId] 
+            const gradesObj = (db.grades && db.grades[className] && db.grades[className][studentId])
+                ? db.grades[className][studentId]
                 : {};
             let avg = null;
             if (typeof calculateStudentAvg === 'function') {
@@ -10299,7 +10292,7 @@
             // 1. تحديد نقاط القوة والتوصيات (شاملة لمؤشر التطور الرياضي)
             if (academicLevel === 'excellence' || academicLevel === 'very_good') strengths.push('تحصيل دراسي ممتاز واستيعاب متقدم للمفاهيم الرياضية');
             else if (academicLevel === 'good') strengths.push('نتائج طيبة وقدرات استيعابية مشجعة');
-            
+
             if (isUpward) strengths.push(`تطور إيجابي متصاعد في نتائج الفروض المحروسة${progSeq}`);
             if (attendanceLevel === 'excellent') strengths.push('مواظبة تامة وانعدام كلي للغياب');
             if (disciplineLevel === 'model') strengths.push('سلوك قدوة ومشاركة بناءة داخل الفصل');
@@ -10525,7 +10518,7 @@
             const studentId = document.getElementById('notesStudentSelect').value;
             const profileCard = document.getElementById('studentPedagogicalProfileCard');
             const smartBox = document.getElementById('smartRemarkBox');
-            
+
             if (!className || !studentId) {
                 if (profileCard) profileCard.style.display = 'none';
                 if (smartBox) smartBox.style.display = 'none';
@@ -10681,7 +10674,7 @@
         // =========================================================================
         // نافذة التوليد الجماعي لملاحظات القسم دفعة واحدة (Batch Class Remarks Modal)
         // =========================================================================
-        let currentBatchRemarksData = [];
+        var currentBatchRemarksData = [];
 
         function openBatchClassRemarksModal() {
             const className = document.getElementById('notesClassSelect').value;
@@ -11054,7 +11047,7 @@
                 return;
             }
             if (container) container.style.display = 'block';
-            
+
             const searchQ = (document.getElementById('notesSearchInput') ? document.getElementById('notesSearchInput').value : '').toLowerCase().trim();
             const typeFilter = document.getElementById('notesTypeFilter') ? document.getElementById('notesTypeFilter').value : 'all';
             const categoryFilter = document.getElementById('notesCategoryFilter') ? document.getElementById('notesCategoryFilter').value : 'all';
@@ -11062,7 +11055,7 @@
             const list = document.getElementById('notesList');
             const countBadge = document.getElementById('notesCountBadge');
             list.innerHTML = '';
-            
+
             if (!db.notes[className]) db.notes[className] = [];
 
             if (typeof renderNotesCategoryPills === 'function') {
@@ -11071,7 +11064,7 @@
             if (typeof renderNotesQualitativeStatistics === 'function') {
                 try { renderNotesQualitativeStatistics(className); } catch (e) {}
             }
-            
+
             let filteredNotes = db.notes[className];
             if (currentNotesStudentFilter) {
                 filteredNotes = filteredNotes.filter(n => n.studentId === currentNotesStudentFilter);
@@ -11108,14 +11101,14 @@
                     return matchesText || matchesStudent;
                 });
             }
-            
+
             if (countBadge) countBadge.textContent = `${filteredNotes.length} ملاحظة`;
 
             if (filteredNotes.length === 0) {
                 list.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 0.9rem; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">لا توجد ملاحظات مسجلة مطابقة للبحث أو الفلترة الحالية.</div>';
                 return;
             }
-            
+
             filteredNotes.slice().reverse().forEach(note => {
                 const div = document.createElement('div');
                 const dim = typeof analyzePedagogicalNoteDimensions === 'function'
@@ -11134,7 +11127,7 @@
                 div.style.padding = '14px';
                 div.style.position = 'relative';
                 div.style.boxShadow = '0 1px 3px rgba(0,0,0,0.02)';
-                
+
                 let studentNameTag = '<span style="background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 2px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 800;">ملاحظة عامة للقسم</span>';
                 if (note.studentId) {
                     const std = (db.classes[className] || []).find(s => s.id === note.studentId);
@@ -11145,7 +11138,7 @@
 
                 const catBadge = `<span style="background:${dim.catMeta.bg}; color:${dim.catMeta.color}; border:1px solid ${dim.catMeta.border}; padding:2px 8px; border-radius:6px; font-size:0.71rem; font-weight:800;">${dim.catMeta.icon} ${dim.catMeta.label}</span>`;
                 const sentBadge = `<span style="background:${dim.sentMeta.bg}; color:${dim.sentMeta.color}; border:1px solid ${dim.sentMeta.border}; padding:2px 8px; border-radius:6px; font-size:0.71rem; font-weight:800;">${dim.sentMeta.icon} ${dim.sentMeta.label}</span>`;
-                
+
                 div.innerHTML = `
                     <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; flex-wrap: wrap; gap: 6px;">
                         <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
@@ -11181,7 +11174,7 @@
         }
         window.copyNoteTextToClipboard = copyNoteTextToClipboard;
 
-        let _isAddingNote = false;
+        var _isAddingNote = false;
         function addNote() {
             if (_isAddingNote) return;
             const className = document.getElementById('notesClassSelect').value;
@@ -11199,9 +11192,9 @@
 
             _isAddingNote = true;
             const unlock = () => { setTimeout(() => { _isAddingNote = false; }, 400); };
-            
+
             if (!db.notes[className]) db.notes[className] = [];
-            
+
             const now = new Date();
             const dateStr = now.toLocaleDateString('en-GB') + ' ' + now.toLocaleTimeString('en-GB', { hour: '2-digit', minute:'2-digit' });
 
@@ -11214,7 +11207,7 @@
                     sentiment: rawSent !== 'auto' ? rawSent : undefined
                 })
                 : { category: rawCat !== 'auto' ? rawCat : 'pedagogical', sentiment: rawSent !== 'auto' ? rawSent : 'guidance' };
-            
+
             db.notes[className].push({
                 id: Date.now().toString(),
                 date: dateStr,
@@ -11223,7 +11216,7 @@
                 category: dim.category,
                 sentiment: dim.sentiment
             });
-            
+
             saveDB();
             input.value = '';
             document.getElementById('notesStudentSelect').value = '';
@@ -11244,7 +11237,7 @@
                 renderNotes();
             }
         }
-        
+
         function searchNotes() {
             renderNotes();
         }
@@ -11259,7 +11252,7 @@
         window.deleteNote = deleteNote;
         window.searchNotes = searchNotes;
 
-        
+
         window.getSortedClasses = getSortedClasses;
         function getSortedClasses(includeArchived = false) {
             let classes = Object.keys(db.classes || {});
@@ -11267,7 +11260,7 @@
                 if (!db.archivedClasses) db.archivedClasses = [];
                 classes = classes.filter(c => !db.archivedClasses.includes(c));
             }
-            
+
             const sortPref = db.classSortPref || 'alphabetical';
             if (sortPref === 'frequency') {
                 const usage = db.classUsage || {};
@@ -11309,7 +11302,7 @@
         function renderManualClassSort() {
             const container = document.getElementById('manualClassSortContainer');
             container.innerHTML = '';
-            
+
             let classes = Object.keys(db.classes || {}).filter(c => !(db.archivedClasses || []).includes(c));
             const order = db.classManualOrder || [];
             classes.sort((a, b) => {
@@ -11521,7 +11514,7 @@
         }
 
         // إضافة تلميذ يدوياً
-        let _isAddingStudentManually = false;
+        var _isAddingStudentManually = false;
         function addStudentManually() {
             if (_isAddingStudentManually) return;
             _isAddingStudentManually = true;
@@ -11811,7 +11804,7 @@
             window.scrollTo({ top: document.getElementById('mainWorkView').offsetTop - 60, behavior: 'smooth' });
         }
 
-        
+
         function toggleVisualTimetable() {
             if (!db.settings) db.settings = {};
             db.settings.visualTimetable = document.getElementById('visualTimetableToggle').checked;
@@ -11823,7 +11816,7 @@
             const isVisual = db.settings && db.settings.visualTimetable;
             const toggle = document.getElementById('visualTimetableToggle');
             if (toggle) toggle.checked = !!isVisual;
-            
+
             const selects = document.querySelectorAll('#timetableDaysInputs select[id$="_class"]');
             selects.forEach(sel => {
                 if (!isVisual || !sel.value) {
@@ -11834,7 +11827,7 @@
                 const val = sel.value;
                 const isArts = val.includes('أدب') || val.includes('ادب') || val.includes('آداب') || val.includes('إنسانية');
                 const isScience = val.includes('علم') || val.includes('علوم') || val.includes('رياضي');
-                
+
                 if (isArts) {
                     sel.style.backgroundColor = '#dbeafe'; // Light blue
                     sel.style.color = '#1e3a8a';
@@ -11890,7 +11883,7 @@
                 const e3_t = data.e3_time || "17:00";
                 const e3_n = data.e3_note || "";
                 const e3_type = data.e3_type || "";
-                
+
 
                 function getOpts(selected) {
                     let opts = `<option value="">-- فارغ --</option>`;
@@ -11910,8 +11903,8 @@
                 }
 
                 function getTimeOpts(selected, isMorning=true) {
-                    const times = isMorning 
-                        ? ["08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30"] 
+                    const times = isMorning
+                        ? ["08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30"]
                         : ["13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"];
                     if (selected && !times.includes(selected)) {
                         times.unshift(selected);
@@ -11956,7 +11949,7 @@
                         }
                     }
                 });
-                
+
                 dayCard.innerHTML = `
                     <div class="timetable-day-header">
                         <div class="timetable-day-title" style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:1rem;">
@@ -12122,7 +12115,7 @@
             }
         }
 
-        let _isSavingTimetable = false;
+        var _isSavingTimetable = false;
         function saveTimetable() {
             if (_isSavingTimetable) return;
             _isSavingTimetable = true;
@@ -12179,12 +12172,12 @@
         // منظومة استيراد لوائح مسار المطورة الذكية (Excel) وتوزيع المجموعات
         // =========================================================================
 
-        let massarParsedStudents = [];
-        let massarCurrentStrategy = 'split_half';
-        let massarDetectedClass = '';
-        let massarDetectedExamCount = 3;
-        let massarCurrentWorkbook = null;
-        let activeStudentGroupFilter = 'all'; // 'all', 'G1', 'G2'
+        var massarParsedStudents = [];
+        var massarCurrentStrategy = 'split_half';
+        var massarDetectedClass = '';
+        var massarDetectedExamCount = 3;
+        var massarCurrentWorkbook = null;
+        var activeStudentGroupFilter = 'all'; // 'all', 'G1', 'G2'
 
         // تحليل ذكي لصيغ التواريخ في ملفات مسار (Excel Serial, DD/MM/YYYY, YYYY-MM-DD, Date object)
         function parseMassarDate(rawVal) {
@@ -12395,15 +12388,15 @@
                     const cell = cleanCellForMassarMatch(rawCell);
 
                     // رمز مسار
-                    if (cell.includes('مسار') || 
-                        (cell.includes('رقم') && (cell.includes('تلميذ') || cell.includes('طالب') || cell.includes('وطني'))) || 
+                    if (cell.includes('مسار') ||
+                        (cell.includes('رقم') && (cell.includes('تلميذ') || cell.includes('طالب') || cell.includes('وطني'))) ||
                         cell.includes('code massar') || cell.includes('cne') || cell.includes('code eleve') || cell.includes('code élève') || cell.includes('matricule')) {
                         rMassar = c;
                     }
 
                     // الاسم الكامل في عمود واحد
-                    if (cell.includes('الاسم والنسب') || cell.includes('النسب والاسم') || 
-                        cell.includes('اسم و نسب') || cell.includes('نسب و اسم') || 
+                    if (cell.includes('الاسم والنسب') || cell.includes('النسب والاسم') ||
+                        cell.includes('اسم و نسب') || cell.includes('نسب و اسم') ||
                         cell.includes('الاسم الكامل') || cell.includes('اسم التلميذ') || cell.includes('اسم المتعلم') ||
                         cell.includes('nom et prenom') || cell.includes('nom et prénom') || cell.includes('nom prenom') ||
                         cell.includes('nom complet') || cell.includes('prenom et nom') || cell.includes('prénom et nom')) {
@@ -12412,9 +12405,9 @@
                         } else {
                             rFullName = c;
                         }
-                    } 
+                    }
                     // الاسم العائلي / النسب
-                    else if (cell.includes('الاسم العائلي') || cell.includes('اسم العائله') || cell.includes('اسم العائلة') || 
+                    else if (cell.includes('الاسم العائلي') || cell.includes('اسم العائله') || cell.includes('اسم العائلة') ||
                              cell.includes('النسب بالعربيه') || cell.includes('النسب بالعربية') || cell.includes('النسب') || cell.includes('اللقب')) {
                         rFamily = c;
                     } else if (cell.includes('nom de famille') || cell.includes('nom eleve') || cell.includes('nom ar') || cell === 'nom' || cell === 'le nom') {
@@ -12465,9 +12458,9 @@
                     }
                 }
 
-                const hasNameDefinition = (rFullName !== -1) || 
-                                          (rFamily !== -1 && rFirst !== -1) || 
-                                          (rFrFullName !== -1) || 
+                const hasNameDefinition = (rFullName !== -1) ||
+                                          (rFamily !== -1 && rFirst !== -1) ||
+                                          (rFrFullName !== -1) ||
                                           (rFrFamily !== -1 && rFrFirst !== -1) ||
                                           (rMassar !== -1 && (rFamily !== -1 || rFirst !== -1 || rFullName !== -1));
 
@@ -12623,8 +12616,8 @@
                 if (!rowJoined || rowJoined.length < 3) continue;
 
                 const rowClean = cleanCellForMassarMatch(rowJoined);
-                if (rowClean.includes('المجموع') || rowClean.includes('المعدل العام') || rowClean.includes('عدد الاناث') || 
-                    rowClean.includes('عدد الذكور') || rowClean.includes('توقيع الاستاذ') || rowClean.includes('ملاحظات هامه') || 
+                if (rowClean.includes('المجموع') || rowClean.includes('المعدل العام') || rowClean.includes('عدد الاناث') ||
+                    rowClean.includes('عدد الذكور') || rowClean.includes('توقيع الاستاذ') || rowClean.includes('ملاحظات هامه') ||
                     rowClean.includes('total') || rowClean.includes('moyenne generale')) {
                     continue;
                 }
@@ -13074,12 +13067,12 @@
         // مقارنة ذكية شاملة بين ملف مسار الجديد واللائحة السابقة للقسم
         function computeMassarClassComparison(className, customList = null) {
             const targetStudents = customList || massarParsedStudents;
-            const resolvedClass = (typeof resolveExistingClassMatch === "function") 
-                ? resolveExistingClassMatch(className, targetStudents) 
+            const resolvedClass = (typeof resolveExistingClassMatch === "function")
+                ? resolveExistingClassMatch(className, targetStudents)
                 : className;
             const effectiveClass = resolvedClass || className;
-            const existingList = (db.classes && db.classes[effectiveClass] && Array.isArray(db.classes[effectiveClass])) 
-                ? db.classes[effectiveClass] 
+            const existingList = (db.classes && db.classes[effectiveClass] && Array.isArray(db.classes[effectiveClass]))
+                ? db.classes[effectiveClass]
                 : [];
 
             if (existingList.length === 0) {
@@ -13446,7 +13439,7 @@
         }
 
         // تأكيد وحفظ لائحة التلاميذ في قاعدة البيانات
-        let _isConfirmingMassarImport = false;
+        var _isConfirmingMassarImport = false;
         function confirmMassarImport() {
             if (_isConfirmingMassarImport) return;
             _isConfirmingMassarImport = true;
@@ -13860,9 +13853,9 @@
         // منظومة استيراد لوائح مسار الجماعية دفعة واحدة لكافة الأقسام (Batch Massar Import)
         // =========================================================================
 
-        let batchMassarDetectedClasses = [];
-        let batchGlobalGroupStrategy = 'split_half';
-        let _isConfirmingBatchImport = false;
+        var batchMassarDetectedClasses = [];
+        var batchGlobalGroupStrategy = 'split_half';
+        var _isConfirmingBatchImport = false;
 
         // تطبيق توحيد القسم على قائمة تلاميذ
         function applyBatchGroupStrategy(students, strategy = 'none') {
@@ -14075,8 +14068,8 @@
             }
 
             if (confirmBtnText) {
-                confirmBtnText.textContent = selectedClasses.length > 0 
-                    ? `تأكيد واستيراد (${totalStudents} تلميذ في ${selectedClasses.length} قسم)` 
+                confirmBtnText.textContent = selectedClasses.length > 0
+                    ? `تأكيد واستيراد (${totalStudents} تلميذ في ${selectedClasses.length} قسم)`
                     : 'تأكيد واستيراد جميع الأقسام';
             }
 
@@ -14179,7 +14172,7 @@
                         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
                             <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 260px;">
                                 <input type="checkbox" onchange="toggleBatchClassSelection('${item.id}', this.checked)" ${isChecked} style="width: 18px; height: 18px; cursor: pointer; accent-color: #0284c7;">
-                                
+
                                 <div style="display: flex; flex-direction: column; gap: 2px;">
                                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                         <label style="font-size: 0.75rem; color: #64748b; font-weight: 700;">اسم القسم:</label>
@@ -14736,19 +14729,17 @@
         window.quickAssignStudentGroup = quickAssignStudentGroup;
         window.openMassarRedistributeModal = openMassarRedistributeModal;
 
-
-        
         function isRecordProtectedHolidayOrLeave(r) {
             if (!r) return false;
             return !!(r.status === 'عطلة رسمية' || r.migratedHoliday || (typeof isAbsenceDisabledOnDate === 'function' && isAbsenceDisabledOnDate(r.date, r.session)));
         }
         window.isRecordProtectedHolidayOrLeave = isRecordProtectedHolidayOrLeave;
 
-        let _recordsLookupMap = new Map();
-        let _recordsByStudentClassMap = new Map();
-        let _recordsByClassDateMap = new Map();
-        let _recordsByClassMap = new Map();
-        let _prevSessionContextMemo = new Map();
+        var _recordsLookupMap = new Map();
+        var _recordsByStudentClassMap = new Map();
+        var _recordsByClassDateMap = new Map();
+        var _recordsByClassMap = new Map();
+        var _prevSessionContextMemo = new Map();
 
         function buildRecordsCache() {
             _recordsCache = { absent: {}, hw: {} };
@@ -15355,7 +15346,7 @@
         }
 
 
-        let _isBatchMarking = false;
+        var _isBatchMarking = false;
         function markAllPresent() {
             if (_isBatchMarking) return;
             _isBatchMarking = true;
@@ -15721,7 +15712,7 @@
             const examCount = getExamsCountForClass(className);
             const s1Grades = getStudentGradesBySemester(className, studentId, 's1');
             const s2Grades = getStudentGradesBySemester(className, studentId, 's2');
-            
+
             const s1Avg = calculateSemesterAvg(s1Grades, examCount);
             const s2Avg = calculateSemesterAvg(s2Grades, examCount);
 
@@ -15830,12 +15821,12 @@
             if (!db.grades) db.grades = {};
             if (!db.grades[className]) db.grades[className] = {};
             if (!db.grades[className][studentId]) db.grades[className][studentId] = {};
-            
+
             let parsedVal = (value === '' || value === undefined || value === null || isNaN(value)) ? '' : parseFloat(value);
             if (parsedVal !== '') {
                 parsedVal = Math.max(0, Math.min(20, parsedVal));
             }
-            
+
             const studentRecord = db.grades[className][studentId];
             if (!studentRecord[sem]) {
                 studentRecord[sem] = {};
@@ -15848,12 +15839,12 @@
                 }
             }
             studentRecord[sem][examKey] = parsedVal;
-            
+
             if (sem === 's1') {
                 studentRecord[examKey] = parsedVal;
             }
             saveDB();
-            
+
             const examCount = getExamsCountForClass(className);
             const avgElement = document.getElementById(`avg_${studentId}`);
             const wavgElement = document.getElementById(`wavg_${studentId}`);
@@ -15865,7 +15856,7 @@
                 avgElement.className = `grade-avg ${cond.cls}`;
                 avgElement.style.cssText = cond.cssText;
                 avgElement.title = cond.title;
-                
+
                 if (wavgElement) {
                     const coef = getSubjectCoefForClass(className);
                     const wavgVal = avg !== null ? (avg * coef) : null;
@@ -15895,10 +15886,10 @@
         function getStudentAISummary(stdId, className) {
             const totalHours = getTotalAbsentHours(stdId, className);
             const totalMissedHw = getTotalMissedHomework(stdId, className);
-            
+
             const grades = (db.grades && db.grades[className]) ? db.grades[className][stdId] : null;
             const avg = calculateStudentAvg(grades, className);
-            
+
             const behaviorData = (db.behaviors && db.behaviors[className] && db.behaviors[className][stdId]) || { status: 'منضبط' };
             const behavior = behaviorData.status;
 
@@ -16066,7 +16057,7 @@
         }
         window.handleStudentSearchKeydown = handleStudentSearchKeydown;
 
-        let renderStudentsTimeout = null;
+        var renderStudentsTimeout = null;
         function debouncedRenderStudents() {
             if (renderStudentsTimeout) clearTimeout(renderStudentsTimeout);
             renderStudentsTimeout = setTimeout(renderStudents, 80);
@@ -16164,7 +16155,7 @@
             }
 
             if (isPresentationMode()) {
-                const bannerText = activeTab === 'grades' 
+                const bannerText = activeTab === 'grades'
                     ? 'وضع العرض مفعل: لا يمكن التعديل على النقط. لتفعيل التعديل، قم بإيقاف وضع العرض من الإعدادات.'
                     : 'وضع العرض مفعل: لا يمكن التعديل على بيانات الغياب. لتفعيل التعديل، قم بإيقاف وضع العرض من الإعدادات.';
                 const bannerDiv = document.createElement('div');
@@ -16388,7 +16379,7 @@
                     else if (currentStatus === 'متأخر') statusClass = 'status-late';
                     else if (currentStatus === 'حاضر' || currentStatus === 'حصة إضافية / دعم') statusClass = 'status-present';
                     item.className = `student-item ${statusClass}${recentAct ? ' no-entrance-anim' : ''}${isThisCardToggled ? ' just-toggled-card' : ''}`;
-                    
+
                     const isAbsLocked = isPresentationMode() || (activeTab === 'absence' && (typeof isAbsenceLockedForCurrentSession === 'function' && isAbsenceLockedForCurrentSession()));
                     const lockBtnAttr = isAbsLocked ? 'disabled' : '';
                     const lockBtnCls = isAbsLocked ? 'status-btn-locked' : '';
@@ -16460,16 +16451,16 @@
                         <div class="details-row">
                             <span class="row-label">تقييم السلوك:</span>
                             <div class="behavior-btn-group">
-                                <button class="btn-behavior behavior-good ${behaviorData.status === 'منضبط' ? 'active' + (isBehaviorToggled ? ' just-toggled-btn' : '') : ''}" 
+                                <button class="btn-behavior behavior-good ${behaviorData.status === 'منضبط' ? 'active' + (isBehaviorToggled ? ' just-toggled-btn' : '') : ''}"
                                     ${isPresentationMode() ? 'disabled' : ''} onclick="setBehaviorStatus('${className}', '${std.id}', 'منضبط')"><span class="behavior-ico">${lucideIcon('smile', {size: 11})}</span> منضبط</button>
-                                <button class="btn-behavior behavior-warn ${behaviorData.status === 'تنبيه' ? 'active' + (isBehaviorToggled ? ' just-toggled-btn' : '') : ''}" 
+                                <button class="btn-behavior behavior-warn ${behaviorData.status === 'تنبيه' ? 'active' + (isBehaviorToggled ? ' just-toggled-btn' : '') : ''}"
                                     ${isPresentationMode() ? 'disabled' : ''} onclick="setBehaviorStatus('${className}', '${std.id}', 'تنبيه')"><span class="behavior-ico">${lucideIcon('meh', {size: 11})}</span> تنبيه</button>
-                                <button class="btn-behavior behavior-bad ${behaviorData.status === 'مشوش' ? 'active' + (isBehaviorToggled ? ' just-toggled-btn' : '') : ''}" 
+                                <button class="btn-behavior behavior-bad ${behaviorData.status === 'مشوش' ? 'active' + (isBehaviorToggled ? ' just-toggled-btn' : '') : ''}"
                                     ${isPresentationMode() ? 'disabled' : ''} onclick="setBehaviorStatus('${className}', '${std.id}', 'مشوش')"><span class="behavior-ico">${lucideIcon('frown', {size: 11})}</span> مشوش</button>
                             </div>
                         </div>
-                        <input type="text" class="behavior-note-input" ${isPresentationMode() ? 'disabled' : ''} placeholder="ملاحظة حول السلوك (اختياري)..." 
-                            value="${behaviorData.note || ''}" 
+                        <input type="text" class="behavior-note-input" ${isPresentationMode() ? 'disabled' : ''} placeholder="ملاحظة حول السلوك (اختياري)..."
+                            value="${behaviorData.note || ''}"
                             onchange="updateBehaviorNote('${className}', '${std.id}', this.value)">
                     `;
                 } else {
@@ -16494,18 +16485,18 @@
                     let examInputsHtml = `
                         <div class="grade-box">
                             <label>فرض 1 (${activeSem === 's2' ? 'د2' : 'د1'})</label>
-                            <input type="number" step="0.25" ${isPresentationMode() ? 'disabled' : ''} min="0" max="20" placeholder="-" 
+                            <input type="number" step="0.25" ${isPresentationMode() ? 'disabled' : ''} min="0" max="20" placeholder="-"
                                 data-exam-col="main_${activeSem}_f1"
-                                value="${grades.f1 !== undefined ? grades.f1 : ''}" 
+                                value="${grades.f1 !== undefined ? grades.f1 : ''}"
                                 ${f1Style}
                                 onkeydown="window.handleGradeTableKeydown && window.handleGradeTableKeydown(event, this)"
                                 onchange="updateGrade('${className}', '${std.id}', 'f1', this.value, '${activeSem}')">
                         </div>
                         <div class="grade-box">
                             <label>فرض 2 (${activeSem === 's2' ? 'د2' : 'د1'})</label>
-                            <input type="number" step="0.25" ${isPresentationMode() ? 'disabled' : ''} min="0" max="20" placeholder="-" 
+                            <input type="number" step="0.25" ${isPresentationMode() ? 'disabled' : ''} min="0" max="20" placeholder="-"
                                 data-exam-col="main_${activeSem}_f2"
-                                value="${grades.f2 !== undefined ? grades.f2 : ''}" 
+                                value="${grades.f2 !== undefined ? grades.f2 : ''}"
                                 ${f2Style}
                                 onkeydown="window.handleGradeTableKeydown && window.handleGradeTableKeydown(event, this)"
                                 onchange="updateGrade('${className}', '${std.id}', 'f2', this.value, '${activeSem}')">
@@ -16516,9 +16507,9 @@
                         examInputsHtml += `
                             <div class="grade-box">
                                 <label>فرض 3 (${activeSem === 's2' ? 'د2' : 'د1'})</label>
-                                <input type="number" step="0.25" ${isPresentationMode() ? 'disabled' : ''} min="0" max="20" placeholder="-" 
+                                <input type="number" step="0.25" ${isPresentationMode() ? 'disabled' : ''} min="0" max="20" placeholder="-"
                                     data-exam-col="main_${activeSem}_f3"
-                                    value="${grades.f3 !== undefined ? grades.f3 : ''}" 
+                                    value="${grades.f3 !== undefined ? grades.f3 : ''}"
                                     ${f3Style}
                                     onkeydown="window.handleGradeTableKeydown && window.handleGradeTableKeydown(event, this)"
                                     onchange="updateGrade('${className}', '${std.id}', 'f3', this.value, '${activeSem}')">
@@ -16532,9 +16523,9 @@
                         examInputsHtml += `
                             <div class="grade-box">
                                 <label>فرض 4 (${activeSem === 's2' ? 'د2' : 'د1'})</label>
-                                <input type="number" step="0.25" ${isPresentationMode() ? 'disabled' : ''} min="0" max="20" placeholder="-" 
+                                <input type="number" step="0.25" ${isPresentationMode() ? 'disabled' : ''} min="0" max="20" placeholder="-"
                                     data-exam-col="main_${activeSem}_f4"
-                                    value="${grades.f4 !== undefined ? grades.f4 : ''}" 
+                                    value="${grades.f4 !== undefined ? grades.f4 : ''}"
                                     ${f4Style}
                                     onkeydown="window.handleGradeTableKeydown && window.handleGradeTableKeydown(event, this)"
                                     onchange="updateGrade('${className}', '${std.id}', 'f4', this.value, '${activeSem}')">
@@ -16543,7 +16534,7 @@
                     }
 
                     /* تم حذف الأنشطة الصفية بالمطلق اعتماداً على الفروض المحروسة فقط */
-                    
+
                     const coef = getSubjectCoefForClass(className);
                     const weightedAvg = avg !== null ? (avg * coef).toFixed(2) : '-';
                     const progData = (typeof calculateStudentProgressionIndex === 'function')
@@ -16552,7 +16543,7 @@
                     const progTooltip = progData.hasEnoughData
                         ? `مؤشر تطور الأداء الرياضي: ${progData.label} (${progData.sequenceText})`
                         : 'مؤشر تطور الأداء (يظهر تلقائياً فور رصد فرضين على الأقل)';
-                    
+
                     examInputsHtml += `
                         <div class="grade-box" title="${cond.title}">
                             <label>معدل ${activeSem === 's2' ? 'الدورة 2' : 'الدورة 1'}</label>
@@ -16682,7 +16673,7 @@
         function hideSessionNoteBanner() {
             const banner = document.getElementById('sessionNoteBanner');
             if (banner) banner.style.display = 'none';
-            
+
             const className = document.getElementById('classSelect').value;
             const dateStr = document.getElementById('datePicker').value;
             if (className && dateStr) {
@@ -16750,7 +16741,7 @@
             const currentClass = className || document.getElementById('classSelect')?.value || '';
             const prefix = `${type}_${currentClass}_`;
             let restored = 0;
-            
+
             for (const key in db.hiddenAlerts) {
                 if (key.startsWith(prefix) || (currentClass && key.startsWith(`${type}_global_`)) || (!currentClass && key.startsWith(`${type}_`))) {
                     delete db.hiddenAlerts[key];
@@ -16761,16 +16752,16 @@
             refreshAlertsByType(type);
             showAppToast(`تمت استعادة ${restored} تنبيهات بنجاح`, 'success');
         }
-        
+
         function snoozeAlert(containerId, alertType) {
             if (!db.snoozedAlerts) db.snoozedAlerts = {};
             const className = document.getElementById('classSelect').value;
             if (!className) return;
-            
+
             // Set snooze time to 24 hours from now
             db.snoozedAlerts[alertType + '_' + className] = Date.now() + (24 * 60 * 60 * 1000);
             saveDB();
-            
+
             document.getElementById(containerId).style.display = 'none';
             showAppToast('تم تأجيل التنبيه لمدة 24 ساعة', 'warning');
         }
@@ -16779,7 +16770,7 @@
             if (!db.snoozedAlerts) return false;
             const snoozeUntil = db.snoozedAlerts[alertType + '_' + className];
             if (!snoozeUntil) return false;
-            
+
             if (Date.now() < snoozeUntil) {
                 return true;
             } else {
@@ -16795,7 +16786,7 @@
             const thresholdInput = document.getElementById('absenceThresholdInput');
             const restoreBtn = document.getElementById('btnRestoreAbsenceAlerts');
             const restoreText = document.getElementById('btnRestoreAbsenceText');
-            
+
             if (thresholdInput && db.absenceThreshold) {
                 thresholdInput.value = db.absenceThreshold;
             }
@@ -16811,7 +16802,7 @@
 
             db.classes[className].forEach(std => {
                 const absentHours = getTotalAbsentHours(std.id, className);
-                
+
                 if (absentHours > threshold) {
                     const isHidden = db.hiddenAlerts && db.hiddenAlerts['absence_' + className + '_' + std.id];
                     if (isHidden) {
@@ -16837,7 +16828,7 @@
                 excessiveStudents.sort((a, b) => b.hours - a.hours).forEach(item => {
                     const isCritical = item.hours >= (threshold + 5);
                     const isHigh = item.hours >= (threshold + 2);
-                    
+
                     const emojiIcon = isCritical ? lucideIcon('alertoctagon', {size: 13}) : (isHigh ? lucideIcon('alerttriangle', {size: 13}) : lucideIcon('info', {size: 13}));
                     const badgeBg = isCritical ? '#fee2e2' : (isHigh ? '#ffedd5' : '#fef9c3');
                     const badgeColor = isCritical ? '#dc2626' : (isHigh ? '#ea580c' : '#ca8a04');
@@ -16909,7 +16900,7 @@
             // Find all unique dates for this class on or before currentDate
             const classRecords = getClassRecordsFast(className).filter(r => r.date <= currentDate);
             const uniqueDates = [...new Set(classRecords.map(r => r.date))].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-            
+
             const last3Dates = uniqueDates.slice(0, 3);
 
             if (last3Dates.length === 0) {
@@ -16954,7 +16945,7 @@
                     alertStudents.forEach(s => {
                         const isSevere = s.count >= 3;
                         const isModerate = s.count === 2;
-                        
+
                         const emojiIcon = isSevere ? lucideIcon('alertoctagon', {size: 13}) : (isModerate ? lucideIcon('alerttriangle', {size: 13}) : lucideIcon('filetext', {size: 13}));
                         const badgeBg = isSevere ? '#fee2e2' : (isModerate ? '#fef3c7' : '#f0fdf4');
                         const badgeColor = isSevere ? '#dc2626' : (isModerate ? '#d97706' : '#15803d');
@@ -17194,7 +17185,7 @@
             document.getElementById('absentHoursSum').textContent = absentHoursSum;
             document.getElementById('countLate').textContent = late;
             document.getElementById('countHwMissed').textContent = hwMissed;
-            
+
             updateStudentsViewSummaryCard();
             updateMonthlyChart();
         }
@@ -17210,14 +17201,14 @@
 
             const dateVal = document.getElementById('datePicker').value || formatLocalDate();
             const selectedMonth = dateVal.slice(0, 7); // YYYY-MM
-            
+
             const students = db.classes[className];
             const labels = [];
             const absentData = [];
             const lateData = [];
 
             let chartData = students.map(std => {
-                const stdRecords = getStudentClassRecordsFast(std.id, className).filter(r => 
+                const stdRecords = getStudentClassRecordsFast(std.id, className).filter(r =>
                     r.date && r.date.startsWith(selectedMonth) && !isRecordProtectedHolidayOrLeave(r)
                 );
                 const absentHours = stdRecords.filter(r => r.status === 'غائب' || r.status === 'مبرر').reduce((sum, r) => sum + (r.duration || 1), 0);
@@ -17231,7 +17222,7 @@
 
             // Adjust chart container height dynamically based on number of students so labels don't get squished
             const chartContainer = document.getElementById('monthlyStatsChart').parentElement;
-            const requiredHeight = Math.max(200, chartData.length * 40 + 60); 
+            const requiredHeight = Math.max(200, chartData.length * 40 + 60);
             chartContainer.style.height = requiredHeight + 'px';
 
             if (chartData.length === 0) {
@@ -17247,7 +17238,7 @@
             }
 
             const ctx = document.getElementById('monthlyStatsChart').getContext('2d');
-            
+
             if (window.monthlyChartInstance) {
                 window.monthlyChartInstance.data.labels = labels;
                 window.monthlyChartInstance.data.datasets[0].data = absentData;
@@ -17279,16 +17270,16 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        indexAxis: 'y', 
+                        indexAxis: 'y',
                         scales: {
-                            x: { 
-                                stacked: true, 
-                                beginAtZero: true, 
-                                ticks: { stepSize: 1, precision: 0 } 
-                            },
-                            y: { 
+                            x: {
                                 stacked: true,
-                                position: 'right', 
+                                beginAtZero: true,
+                                ticks: { stepSize: 1, precision: 0 }
+                            },
+                            y: {
+                                stacked: true,
+                                position: 'right',
                                 ticks: { autoSkip: false }
                             }
                         },
@@ -17345,7 +17336,7 @@
                 if (examCount >= 4) {
                     row['الفرض الرابع'] = grades.f4 !== undefined ? grades.f4 : '';
                 }
-                
+
                 const coef = getSubjectCoefForClass(className);
                 row['المعدل الفصلي'] = avg !== null ? parseFloat(avg.toFixed(2)) : '';
                 row['معامل المادة'] = coef;
@@ -17360,7 +17351,7 @@
             const pDirectorate = db.teacherProfile.directorate || '';
             const pSchool = db.teacherProfile.school || '';
             const pName = db.teacherProfile.name || '';
-            
+
             XLSX.utils.sheet_add_aoa(ws, [
                 ['الأكاديمية الجهوية:', pAcademy],
                 ['المديرية الإقليمية:', pDirectorate],
@@ -17369,7 +17360,7 @@
                 ['القسم:', className],
                 []
             ], { origin: "A1" });
-            
+
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, className);
             XLSX.writeFile(wb, `ملف_تتبع_${className}.xlsx`);
@@ -17418,7 +17409,7 @@
                 const g = (typeof getStudentGradesBySemester === 'function')
                     ? getStudentGradesBySemester(className, std.id, activeSem)
                     : ((db.grades && db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {});
-                
+
                 const row = [
                     std.orderNum || (idx + 1),
                     std.massar || '',
@@ -17453,7 +17444,7 @@
                     ? getStudentClassRecordsFast(std.id, className)
                     : [];
                 const absentH = stdRecords.filter(r => (r.status === 'غائب' || r.status === 'مبرر') && (typeof isRecordProtectedHolidayOrLeave !== 'function' || !isRecordProtectedHolidayOrLeave(r))).reduce((sum, r) => sum + (r.duration || 1), 0);
-                
+
                 let remark = 'مستوى حسن ومواظبة طيبة.';
                 if (typeof avgCalc === 'number') {
                     if (avgCalc >= 16) remark = 'نتائج ممتازة واجتهاد مثالي.';
@@ -17513,7 +17504,7 @@
             const pDirectorate = db.teacherProfile.directorate || '';
             const pSchool = db.teacherProfile.school || '';
             const pName = db.teacherProfile.name || '';
-            
+
             const officialHeader = document.createElement('div');
             officialHeader.style.display = 'flex';
             officialHeader.style.justifyContent = 'space-between';
@@ -17536,7 +17527,7 @@
             header.style.textAlign = 'center';
             header.style.color = '#1976d2';
             header.style.marginBottom = '5px';
-            
+
             const subheader = document.createElement('h4');
             subheader.style.textAlign = 'center';
             subheader.style.color = '#555';
@@ -17561,7 +17552,7 @@
             table.style.width = '100%';
             table.style.borderCollapse = 'collapse';
             table.style.marginBottom = '20px';
-            
+
             const thead = document.createElement('thead');
             const trHead = document.createElement('tr');
             trHead.style.backgroundColor = '#1976d2';
@@ -17590,13 +17581,13 @@
 
             const tbody = document.createElement('tbody');
             const students = db.classes[className] || [];
-            
+
             students.forEach((std, i) => {
                 const tr = document.createElement('tr');
                 tr.style.backgroundColor = i % 2 === 0 ? '#fff' : '#f9f9f9';
 
                 let rowData = [];
-                
+
                 if (activeTab === 'absence') {
                     const date = document.getElementById('datePicker').value;
                     const sessionStr = document.getElementById('sessionSelect').value;
@@ -17618,7 +17609,7 @@
                         hwStatus = 'لم ينجز';
                         hwColor = '#f44336';
                     }
-                    
+
                     let behStatus = behaviorData.status || 'منضبط';
                     let behColor = '#4caf50';
                     if (behStatus === 'مشوش') behColor = '#f44336';
@@ -17640,21 +17631,21 @@
                     const avg = calculateStudentAvg(grades, className);
                     const coef = getSubjectCoefForClass(className);
                     const weightedAvg = avg !== null ? parseFloat((avg * coef).toFixed(2)) : '-';
-                    
+
                     rowData = [
                         { text: std.orderNum },
                         { text: std.name },
                         { text: grades.f1 !== undefined && grades.f1 !== '' ? grades.f1 : '-' },
                         { text: grades.f2 !== undefined && grades.f2 !== '' ? grades.f2 : '-' }
                     ];
-                    
+
                     if (examCount >= 3) {
                         rowData.push({ text: grades.f3 !== undefined && grades.f3 !== '' ? grades.f3 : '-' });
                     }
                     if (examCount >= 4) {
                         rowData.push({ text: grades.f4 !== undefined && grades.f4 !== '' ? grades.f4 : '-' });
                     }
-                    
+
                     rowData.push(
                         { text: avg !== null ? parseFloat(avg.toFixed(2)) : '-', color: (avg !== null && avg >= 10) ? '#2e7d32' : (avg !== null ? '#d32f2f' : 'inherit') },
                         { text: weightedAvg, color: '#3730a3' }
@@ -17671,10 +17662,10 @@
                     if (item.color) td.style.color = item.color;
                     tr.appendChild(td);
                 });
-                
+
                 tbody.appendChild(tr);
             });
-            
+
             table.appendChild(tbody);
             container.appendChild(table);
 
@@ -17725,7 +17716,7 @@
             const studentId = resolved ? resolved.studentId : (document.getElementById('reportStudentSelect') ? document.getElementById('reportStudentSelect').value : '');
             const dateFrom = document.getElementById('reportDateFrom').value;
             const dateTo = document.getElementById('reportDateTo').value;
-            
+
             if (!className || !studentId || !db.classes[className]) return;
 
             const classList = Array.isArray(db.classes[className]) ? db.classes[className] : (db.classes[className]?.students || []);
@@ -17851,74 +17842,111 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
         }
 
-        let reportDataCache = []; // Cache to export
+        var reportDataCache = []; // Cache to export
 
-        
+
         function renderAtRiskStudents(className) {
             const card = document.getElementById('atRiskStudentsCard');
             const tbody = document.getElementById('atRiskTableBody');
             const emptyMsg = document.getElementById('atRiskEmptyMsg');
-            
+
             if (!className || !db.classes[className]) {
                 if (card) card.style.display = 'none';
                 return;
             }
-            
+
             card.style.display = 'block';
             tbody.innerHTML = '';
-            
+
             const students = db.classes[className];
             const threshold = db.absenceThreshold || 10;
             let atRiskCount = 0;
-            
+
             students.forEach(std => {
                 const absentHours = getTotalAbsentHours(std.id, className);
-                
+
                 const grades = (typeof getStudentGradesBySemester === 'function')
                     ? getStudentGradesBySemester(className, std.id, typeof getActiveSemester === 'function' ? getActiveSemester() : 's1')
                     : ((db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {});
                 const avg = calculateStudentAvg(grades, className);
-                
+
+                // فحص مسار نقط الفروض لرصد التراجع الحاد (Early Warning Trajectory)
+                const examScores = ['f1', 'f2', 'f3', 'f4']
+                    .map(k => (grades && grades[k] !== undefined && grades[k] !== '' && !isNaN(parseFloat(grades[k]))) ? parseFloat(grades[k]) : null)
+                    .filter(v => v !== null);
+                let gradeDropDelta = 0;
+                if (examScores.length >= 2) {
+                    gradeDropDelta = examScores[examScores.length - 1] - examScores[0];
+                }
+
                 let riskReasons = [];
+                let riskScore = 0;
+
                 if (avg !== null && avg < 10) {
-                    riskReasons.push(`<span style="color: #b91c1c; background: #fee2e2; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; white-space: nowrap; font-weight: 600;">تعثر دراسي (${avg.toFixed(2)})</span>`);
+                    riskScore += (avg < 7 ? 45 : 30);
+                    riskReasons.push(`<span style="color: #b91c1c; background: #fee2e2; padding: 3px 8px; border-radius: 6px; font-size: 0.74rem; white-space: nowrap; font-weight: 700;">تعثر دراسي (${avg.toFixed(2)})</span>`);
                 }
-                
+
+                if (gradeDropDelta <= -3) {
+                    riskScore += 25;
+                    riskReasons.push(`<span style="color: #be123c; background: #ffe4e6; padding: 3px 8px; border-radius: 6px; font-size: 0.74rem; white-space: nowrap; font-weight: 700;">تراجع الفروض (${gradeDropDelta.toFixed(1)} ن)</span>`);
+                }
+
                 if (absentHours >= threshold) {
-                    riskReasons.push(`<span style="color: #9a3412; background: #ffedd5; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; white-space: nowrap; font-weight: 600;">غياب متكرر (${absentHours} س)</span>`);
+                    riskScore += 35;
+                    riskReasons.push(`<span style="color: #9a3412; background: #ffedd5; padding: 3px 8px; border-radius: 6px; font-size: 0.74rem; white-space: nowrap; font-weight: 700;">غياب متكرر (${absentHours} س)</span>`);
+                } else if (absentHours >= Math.max(4, Math.floor(threshold * 0.6)) && avg !== null && avg < 11) {
+                    riskScore += 20;
+                    riskReasons.push(`<span style="color: #b45309; background: #fef3c7; padding: 3px 8px; border-radius: 6px; font-size: 0.74rem; white-space: nowrap; font-weight: 700;">إنذار مبكر مركب (${absentHours} س + معدل هَش)</span>`);
                 }
-                
+
                 const behaviorData = (db.behaviors[className] && db.behaviors[className][std.id]) ? db.behaviors[className][std.id] : null;
                 if (behaviorData && behaviorData.status === 'مشاغب') {
-                    riskReasons.push(`<span style="color: #7e22ce; background: #f3e8ff; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; white-space: nowrap; font-weight: 600;">سلوك غير منضبط</span>`);
+                    riskScore += 20;
+                    riskReasons.push(`<span style="color: #7e22ce; background: #f3e8ff; padding: 3px 8px; border-radius: 6px; font-size: 0.74rem; white-space: nowrap; font-weight: 700;">سلوك غير منضبط</span>`);
                 }
-                
+
                 if (riskReasons.length > 0) {
                     atRiskCount++;
+                    const cappedScore = Math.min(100, Math.max(25, riskScore));
+                    const levelBadge = cappedScore >= 65
+                        ? `<span style="background:#dc2626; color:#fff; padding:2px 7px; border-radius:999px; font-size:0.68rem; font-weight:800;">خطر مرتفع (${cappedScore}%)</span>`
+                        : `<span style="background:#f59e0b; color:#fff; padding:2px 7px; border-radius:999px; font-size:0.68rem; font-weight:800;">يقظة متوسطة (${cappedScore}%)</span>`;
+                    const safeCls = String(className).replace(/'/g, "\\'");
+                    const safeStdId = String(std.id).replace(/'/g, "\\'");
                     const rowHtml = `
                         <tr>
                             <td>${std.orderNum}</td>
-                            <td style="text-align: right; padding-right: 10px; font-weight: bold;">${std.name}</td>
+                            <td style="text-align: right; padding-right: 10px; font-weight: bold;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
+                                    <span>${std.name}</span>
+                                    ${levelBadge}
+                                </div>
+                            </td>
                             <td>
                                 <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;">
                                     ${riskReasons.join('')}
                                 </div>
                             </td>
                             <td>
-                                <button type="button" onclick="jumpToStudentNotes('${className}', '${std.id}')" style="background: #0ea5e9; color: white; border: none; font-size: 0.75rem; padding: 5px 10px; margin: 0; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: opacity 0.2s;">${lucideIcon('file-edit', {size: 11})} متابعة</button>
+                                <div style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap;">
+                                    <button type="button" onclick="jumpToStudentNotes('${safeCls}', '${safeStdId}')" style="background: #0ea5e9; color: white; border: none; font-size: 0.72rem; padding: 4px 8px; margin: 0; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight:700;" title="متابعة وملاحظات التلميذ">${lucideIcon('file-edit', {size: 11})} متابعة</button>
+                                    <button type="button" onclick="if(typeof openStudentDigitalPortfolio==='function'){openStudentDigitalPortfolio('${safeCls}', '${safeStdId}'); setTimeout(function(){if(typeof switchPortfolioModalTab==='function') switchPortfolioModalTab('qrpass');}, 120);}" style="background: #1e3a8a; color: #fde68a; border: 1px solid #f59e0b; font-size: 0.72rem; padding: 4px 8px; margin: 0; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight:700;" title="بطاقة التتبع الفردي الذكية (QR Pass)">🪪 بطاقة QR</button>
+                                </div>
                             </td>
                         </tr>
                     `;
                     tbody.insertAdjacentHTML('beforeend', rowHtml);
                 }
             });
-            
+
+            const tblWrap = tbody ? tbody.closest('.table-responsive') : null;
             if (atRiskCount === 0) {
-                tbody.closest('.table-responsive').style.display = 'none';
-                emptyMsg.style.display = 'block';
+                if (tblWrap) tblWrap.style.display = 'none';
+                if (emptyMsg) emptyMsg.style.display = 'block';
             } else {
-                tbody.closest('.table-responsive').style.display = 'block';
-                emptyMsg.style.display = 'none';
+                if (tblWrap) tblWrap.style.display = 'block';
+                if (emptyMsg) emptyMsg.style.display = 'none';
             }
             if (window.lucide) lucide.createIcons();
         }
@@ -18086,7 +18114,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const className = document.getElementById('reportClassSelect').value;
             const tbody = document.getElementById('reportTableBody');
             const isAllClasses = (className === '__ALL__');
-            
+
             try {
                 window.dispatchEvent(new CustomEvent('reportsEvolutionTabOpened', {
                     detail: {
@@ -18191,7 +18219,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 const curClass = isAllClasses ? (std.className || '') : className;
                 const rawStdRecords = getStudentClassRecordsFast(std.id, curClass);
                 const stdRecords = rawStdRecords.filter(r => r.date >= dateFrom && r.date <= dateTo);
-                
+
                 sessionCounts.present += stdRecords.filter(r => r.status === 'حاضر' || r.status === 'حصة إضافية / دعم').length;
                 sessionCounts.absent += stdRecords.filter(r => r.status === 'غائب').length;
                 sessionCounts.justified += stdRecords.filter(r => r.status === 'مبرر').length;
@@ -18220,7 +18248,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     : ((db.grades[curClass] && db.grades[curClass][std.id]) ? db.grades[curClass][std.id] : {});
                 const avg = calculateStudentAvg(grades, curClass);
                 const avgText = avg !== null ? avg.toFixed(2) : '-';
-                
+
                 const behaviorData = (db.behaviors[curClass] && db.behaviors[curClass][std.id]) ? db.behaviors[curClass][std.id] : { status: 'منضبط', note: '' };
                 let cond = { cls: 'avg-empty', category: 'empty', label: '-', title: 'لم تُسجل نقط بعد', bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0', cssText: 'background: #f8fafc !important; color: #94a3b8 !important;' };
                 try {
@@ -18343,7 +18371,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     sessionCounts.present = realisticPresent;
                 }
             }
-            
+
             try { updateAttendancePieChart(className, sessionCounts); } catch (e) { console.warn(e); }
             try { updateAbsenceByDayChart(className, dateFrom, dateTo); } catch (e) { console.warn(e); }
             try { updateMonthlyAbsenceEvolutionChart(className); } catch (e) { console.warn(e); }
@@ -18367,7 +18395,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 aiPlanCard.style.display = 'block';
             }
         }
-        
+
         function populateReportStudentSelect(className) {
             const select = document.getElementById('reportStudentSelect');
             const card = document.getElementById('studentProgressCard');
@@ -18376,7 +18404,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const btnPrint = document.getElementById('btnPrintBehavior');
             const btnShare = document.getElementById('btnShareBehavior');
             const btnExportPDF = document.getElementById('btnExportStudentPDF');
-            
+
             select.innerHTML = '<option value="">-- اختر التلميذ لمعاينة تقريره --</option>';
             if (container) container.style.display = 'none';
             if (details) details.style.display = 'none';
@@ -18393,13 +18421,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             if (btnShareTop) btnShareTop.style.display = 'none';
             const btnExportPDFTop = document.getElementById('btnExportStudentPDFTop');
             if (btnExportPDFTop) btnExportPDFTop.style.display = 'none';
-            
+
             const isAllClasses = (className === '__ALL__');
             if (!className || (!isAllClasses && !db.classes[className])) {
                 if (card) card.style.display = 'none';
                 return;
             }
-            
+
             if (card) card.style.display = 'block';
             if (isAllClasses) {
                 const sorted = (typeof getSortedClasses === 'function') ? getSortedClasses(true) : Object.keys(db.classes || {});
@@ -18421,13 +18449,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 });
             }
         }
-        
+
         // ============================================================
         // محرك الخريطة الحرارية الفردية للغياب والمواظبة الخاصة بالتلميذ(ة)
         // Student Personal Absence Heatmap & Unified Attendance Analytics Engine
         // ============================================================
-        let _studentPersonalHeatmapScope = 'all'; // 'all' (كامل الموسم الدراسي) | 'period' (الفترة المرجعية)
-        let _lastStudentPersonalHeatmapData = null;
+        var _studentPersonalHeatmapScope = 'all'; // 'all' (كامل الموسم الدراسي) | 'period' (الفترة المرجعية)
+        var _lastStudentPersonalHeatmapData = null;
 
         function _getFallbackAcademicWeeks() {
             if (typeof window.getSharedAcademicWeeks === 'function') {
@@ -18488,7 +18516,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             return { academicYear, weeks };
         }
 
-        let _studentHeatmapRenderEngine = 'chartjs'; // 'chartjs' | 'd3'
+        var _studentHeatmapRenderEngine = 'chartjs'; // 'chartjs' | 'd3'
 
         function computeStudentPersonalHeatmap(studentId, className, dateFrom, dateTo) {
             const rawFastRecords = getStudentClassRecordsFast(studentId, className);
@@ -18929,8 +18957,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const safeStdId = studentId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
             const classStudents = (window.db && window.db.classes && window.db.classes[className]) || [];
-            const stdObj = Array.isArray(classStudents) 
-                ? classStudents.find(s => String(s.id) === String(studentId)) 
+            const stdObj = Array.isArray(classStudents)
+                ? classStudents.find(s => String(s.id) === String(studentId))
                 : (classStudents.students ? classStudents.students.find(s => String(s.id) === String(studentId)) : null);
             const stdName = stdObj ? stdObj.name : 'التلميذ(ة)';
             const stdMassar = stdObj && stdObj.massar ? stdObj.massar : '—';
@@ -19047,7 +19075,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     const unjust = cell.unjustified || 0;
                     const hw = cell.missedHw || 0;
                     const style = getHeatColor(hrs, late, unjust, hw);
-                    const tooltipText = hrs > 0 
+                    const tooltipText = hrs > 0
                         ? (wd.name + ' ' + m.name + ': ' + hrs + 'س غياب' + (unjust ? ' (' + unjust + 'س غير مبرر)' : '') + (late ? ' + ' + late + ' تأخر' : '') + (hw ? ' + ' + hw + ' واجب غير منجز' : ''))
                         : (late > 0 ? (wd.name + ' ' + m.name + ': ' + late + ' تأخر عن الحصة') : (hw > 0 ? (wd.name + ' ' + m.name + ': ' + hw + ' إخلال بالواجب') : (wd.name + ' ' + m.name + ': حضور تام ومواظبة')));
 
@@ -19661,16 +19689,16 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             if (!dateStr || !studentId) return;
 
             const classStudents = (window.db && window.db.classes && window.db.classes[className]) || [];
-            const std = Array.isArray(classStudents) 
-                ? classStudents.find(s => String(s.id) === String(studentId)) 
+            const std = Array.isArray(classStudents)
+                ? classStudents.find(s => String(s.id) === String(studentId))
                 : null;
             const stdName = std ? std.name : 'التلميذ(ة)';
             const stdMassar = std && std.massar ? std.massar : '—';
             const stdPhone = std?.phone || std?.guardianPhone || std?.parentPhone || '';
 
             const allRecords = (window.db && Array.isArray(window.db.records)) ? window.db.records : [];
-            const dayRecords = allRecords.filter(r => 
-                r.date === dateStr && 
+            const dayRecords = allRecords.filter(r =>
+                r.date === dateStr &&
                 String(r.studentId) === String(studentId) &&
                 (!className || r.className === className)
             );
@@ -20024,7 +20052,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const btnExportPDF = document.getElementById('btnExportStudentPDF');
             const dateFrom = document.getElementById('reportDateFrom').value;
             const dateTo = document.getElementById('reportDateTo').value;
-            
+
             if (!className || !studentId) {
                 if (container) container.style.display = 'none';
                 if (details) details.style.display = 'none';
@@ -20261,39 +20289,39 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             let appreciationBorder = '#cbd5e1';
             let appBadgeClass = 'appreciation-badge neutral';
             if (avg !== null) {
-                if (avg >= 16) { 
-                    appreciation = '★ ممتاز (Très Bien)'; 
-                    appreciationColor = '#022c22'; 
-                    appreciationBg = '#dcfce7'; 
-                    appreciationBorder = '#059669'; 
+                if (avg >= 16) {
+                    appreciation = '★ ممتاز (Très Bien)';
+                    appreciationColor = '#022c22';
+                    appreciationBg = '#dcfce7';
+                    appreciationBorder = '#059669';
                     appBadgeClass = 'appreciation-badge excellent';
                 }
-                else if (avg >= 14) { 
-                    appreciation = '✓ جيد (Bien)'; 
-                    appreciationColor = '#082f49'; 
-                    appreciationBg = '#e0f2fe'; 
-                    appreciationBorder = '#0284c7'; 
+                else if (avg >= 14) {
+                    appreciation = '✓ جيد (Bien)';
+                    appreciationColor = '#082f49';
+                    appreciationBg = '#e0f2fe';
+                    appreciationBorder = '#0284c7';
                     appBadgeClass = 'appreciation-badge very-good';
                 }
-                else if (avg >= 12) { 
-                    appreciation = '✓ مستحسن (Assez Bien)'; 
-                    appreciationColor = '#1e3a8a'; 
-                    appreciationBg = '#eff6ff'; 
-                    appreciationBorder = '#3b82f6'; 
+                else if (avg >= 12) {
+                    appreciation = '✓ مستحسن (Assez Bien)';
+                    appreciationColor = '#1e3a8a';
+                    appreciationBg = '#eff6ff';
+                    appreciationBorder = '#3b82f6';
                     appBadgeClass = 'appreciation-badge good';
                 }
-                else if (avg >= 10) { 
-                    appreciation = '◆ متوسط / مقبول (Passable)'; 
-                    appreciationColor = '#451a03'; 
-                    appreciationBg = '#fef3c7'; 
-                    appreciationBorder = '#d97706'; 
+                else if (avg >= 10) {
+                    appreciation = '◆ متوسط / مقبول (Passable)';
+                    appreciationColor = '#451a03';
+                    appreciationBg = '#fef3c7';
+                    appreciationBorder = '#d97706';
                     appBadgeClass = 'appreciation-badge average';
                 }
-                else { 
-                    appreciation = '▲ متعثر / يحتاج للدعم (Insuffisant)'; 
-                    appreciationColor = '#450a0a'; 
-                    appreciationBg = '#fee2e2'; 
-                    appreciationBorder = '#dc2626'; 
+                else {
+                    appreciation = '▲ متعثر / يحتاج للدعم (Insuffisant)';
+                    appreciationColor = '#450a0a';
+                    appreciationBg = '#fee2e2';
+                    appreciationBorder = '#dc2626';
                     appBadgeClass = 'appreciation-badge struggling';
                 }
             }
@@ -20673,7 +20701,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 dataPoints.push(grades.f4 !== undefined && grades.f4 !== '' ? parseFloat(grades.f4) : null);
             }
             const classBenchPoints = classExamAvgs.slice(0, labels.length);
-            
+
             if (isPrintMode) {
                 if (container) container.style.display = 'none';
                 if (window.studentProgressChartInst) {
@@ -20686,7 +20714,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 }
                 return;
             }
-            
+
             if (container) container.style.display = 'block';
 
             // 1. Update Monthly Attendance Chart (#studentAttendanceChart) & Badge (#studentAttendanceChartBadge)
@@ -20779,7 +20807,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const canvas = document.getElementById('studentProgressChart');
             if (!canvas || typeof Chart === 'undefined') return;
             const ctx = canvas.getContext('2d');
-            
+
             if (window.studentProgressChartInst) {
                 try {
                     window.studentProgressChartInst.data.labels = labels;
@@ -20953,7 +20981,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const absentHoursTotal = absentRecords.reduce((sum, r) => sum + (parseFloat(r.duration || r.hours) || 1), 0);
             const lateCount = allClassRecords.filter(r => r.status === 'متأخر').length;
             const actualPresentCount = Math.max(0, totalScheduledAttendances - absentCount);
-            
+
             const attendanceRate = totalScheduledAttendances > 0 ? (actualPresentCount / totalScheduledAttendances) * 100 : 100;
             const absenceRate = Math.max(0, 100 - attendanceRate);
 
@@ -21062,12 +21090,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 if (card) card.style.display = 'none';
                 return;
             }
-            
+
             if (card) card.style.display = 'block';
 
             const ctx = document.getElementById('attendancePieChart').getContext('2d');
             const total = counts.present + counts.absent + counts.late + counts.justified;
-            
+
             if (window.attendancePieChartInst) {
                 if (total === 0) {
                     window.attendancePieChartInst.data.datasets[0].data = [];
@@ -21104,15 +21132,15 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         function updateAbsenceByDayChart(className, dateFrom, dateTo) {
             const card = document.getElementById('absenceByDayChartCard');
-            
+
             if (!className || !db.classes[className]) {
                 if (card) card.style.display = 'none';
                 return;
             }
-            
-            const absenceRecords = getClassRecordsFast(className).filter(r => 
-                (!dateFrom || r.date >= dateFrom) && 
-                (!dateTo || r.date <= dateTo) && 
+
+            const absenceRecords = getClassRecordsFast(className).filter(r =>
+                (!dateFrom || r.date >= dateFrom) &&
+                (!dateTo || r.date <= dateTo) &&
                 (r.status === 'غائب' || r.status === 'مبرر')
             );
 
@@ -21120,11 +21148,11 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 if (card) card.style.display = 'none';
                 return;
             }
-            
+
             if (card) card.style.display = 'block';
 
             const dayCounts = [0, 0, 0, 0, 0, 0, 0];
-            
+
             absenceRecords.forEach(r => {
                 const d = new Date(r.date);
                 if (!isNaN(d.getTime())) {
@@ -21134,7 +21162,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
             const labels = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
             const ctx = document.getElementById('absenceByDayChart').getContext('2d');
-            
+
             if (window.absenceByDayChartInst) {
                 window.absenceByDayChartInst.data.labels = labels;
                 window.absenceByDayChartInst.data.datasets[0].data = dayCounts;
@@ -21166,7 +21194,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
         }
 
-        let _currentMonthlyAbsenceMetric = 'hours'; // 'hours' or 'count'
+        var _currentMonthlyAbsenceMetric = 'hours'; // 'hours' or 'count'
         function setMonthlyAbsenceMetric(metric) {
             _currentMonthlyAbsenceMetric = metric;
             const btnH = document.getElementById('btnMonthlyAbsenceMetricHours');
@@ -21207,7 +21235,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
 
             // تجميع كافة تسجيلات الغياب لهذا القسم (غائب أو مبرر) عبر الفهرس السريع O(1)
-            const records = getClassRecordsFast(className).filter(r => 
+            const records = getClassRecordsFast(className).filter(r =>
                 r.status === 'غائب' || r.status === 'مبرر'
             );
 
@@ -21288,7 +21316,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 }
             });
 
-            const avgMonthly = activeMonths.length > 0 
+            const avgMonthly = activeMonths.length > 0
                 ? ((isHours ? totalHours : totalCounts) / activeMonths.length).toFixed(1)
                 : '0';
 
@@ -21439,17 +21467,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         function updateReportGradesComparisonChart(className) {
             const card = document.getElementById('reportGradesComparisonCard');
-            
+
             if (!className || !db.classes[className]) {
                 if (card) card.style.display = 'none';
                 return;
             }
-            
+
             if (card) card.style.display = 'block';
 
             const students = db.classes[className];
             const examCount = getExamsCountForClass(className) || 2;
-            
+
             let sums = { f1: 0, f2: 0, f3: 0, f4: 0 };
             let counts = { f1: 0, f2: 0, f3: 0, f4: 0 };
 
@@ -21481,7 +21509,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const canvas = document.getElementById('reportGradesComparisonChart');
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
-            
+
             if (window.reportGradesComparisonChartInst) {
                 try {
                     window.reportGradesComparisonChartInst.data.labels = labels;
@@ -21494,7 +21522,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     window.reportGradesComparisonChartInst = null;
                 }
             }
-            
+
             if (typeof Chart !== 'undefined' && Chart.getChart && Chart.getChart(canvas)) {
                 try { Chart.getChart(canvas).destroy(); } catch(e){}
             }
@@ -21522,7 +21550,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 });
         }
 
-        
+
         function focusAndGenerateAiPlan() {
             const className = document.getElementById('reportClassSelect').value;
             if (!className) {
@@ -21545,21 +21573,21 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 alert('الرجاء اختيار القسم أولاً');
                 return;
             }
-            
+
             const students = db.classes[className] || [];
             if (students.length === 0) {
                 alert('لا يوجد تلاميذ مسجلين في هذا القسم.');
                 return;
             }
-            
+
             const dateFrom = document.getElementById('reportDateFrom').value;
             const dateTo = document.getElementById('reportDateTo').value;
-            
+
             let allStudentStats = [];
             let totalGradeSum = 0;
             let gradedCount = 0;
             let totalAbsenceHours = 0;
-            
+
             students.forEach(std => {
                 const grades = (db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {};
                 const avg = calculateStudentAvg(grades, className);
@@ -21567,18 +21595,18 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     totalGradeSum += avg;
                     gradedCount++;
                 }
-                
-                const stdRecords = getStudentClassRecordsFast(std.id, className).filter(r => 
-                    (!dateFrom || r.date >= dateFrom) && 
+
+                const stdRecords = getStudentClassRecordsFast(std.id, className).filter(r =>
+                    (!dateFrom || r.date >= dateFrom) &&
                     (!dateTo || r.date <= dateTo)
                 );
-                
+
                 const absentHours = stdRecords.filter(r => r.status === 'غائب' || r.status === 'مبرر').reduce((sum, r) => sum + getRecordAbsenceDuration(r), 0);
                 totalAbsenceHours += absentHours;
                 const lateCount = stdRecords.filter(r => r.status === 'متأخر').length;
                 const missedHw = stdRecords.filter(r => r.homework === 'لم ينجز').length;
                 const behaviorData = (db.behaviors[className] && db.behaviors[className][std.id]) ? db.behaviors[className][std.id] : { status: 'منضبط' };
-                
+
                 allStudentStats.push({
                     id: std.id,
                     name: std.name,
@@ -21590,20 +21618,20 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     behavior: behaviorData.status
                 });
             });
-            
+
             const classAverage = gradedCount > 0 ? (totalGradeSum / gradedCount).toFixed(2) : null;
             const disciplineElem = document.getElementById('classDisciplineRate');
             const attendanceRate = disciplineElem ? disciplineElem.textContent : null;
-            
+
             // Struggling criteria
-            let strugglingStudents = allStudentStats.filter(s => 
-                (s.avgNum !== null && s.avgNum < 10) || 
-                s.absentHours > 3 || 
-                s.missedHomeworks >= 2 || 
-                s.behavior === 'مشوش' || 
+            let strugglingStudents = allStudentStats.filter(s =>
+                (s.avgNum !== null && s.avgNum < 10) ||
+                s.absentHours > 3 ||
+                s.missedHomeworks >= 2 ||
+                s.behavior === 'مشوش' ||
                 s.behavior === 'تنبيه'
             );
-            
+
             // If none strictly struggling, include lowest scoring students so AI can suggest support and enrichment
             if (strugglingStudents.length === 0 && allStudentStats.length > 0) {
                 const sortedByAvg = [...allStudentStats].sort((a, b) => {
@@ -21613,23 +21641,23 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 });
                 strugglingStudents = sortedByAvg.slice(0, Math.min(3, sortedByAvg.length));
             }
-            
+
             // Top students for peer-learning recommendations
             const topStudents = allStudentStats
                 .filter(s => s.avgNum !== null && s.avgNum >= 13)
                 .sort((a, b) => (b.avgNum || 0) - (a.avgNum || 0))
                 .slice(0, 4)
                 .map(s => ({ name: s.name, average: s.average }));
-            
+
             const btn = document.getElementById('btnGenerateAiPlan');
             const loading = document.getElementById('aiPlanLoading');
             const resultDiv = document.getElementById('aiPlanResult');
             const containerDiv = document.getElementById('aiPlanResultContainer');
-            
+
             if (btn) btn.style.display = 'none';
             if (loading) loading.style.display = 'block';
             if (containerDiv) containerDiv.style.display = 'none';
-            
+
             try {
                 const response = await fetch('/api/analyze-class', {
                     method: 'POST',
@@ -21653,16 +21681,16 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         }
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (!response.ok) {
                     throw new Error(data.error || 'حدث خطأ في الاتصال بالخادم');
                 }
-                
+
                 if (resultDiv) resultDiv.innerHTML = data.result;
                 if (containerDiv) containerDiv.style.display = 'block';
-                
+
             } catch (error) {
                 console.error(error?.message || String(error));
                 if (resultDiv) {
@@ -21690,7 +21718,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const resultDiv = document.getElementById('aiPlanResult');
             const className = document.getElementById('reportClassSelect').value || '';
             if (!resultDiv) return;
-            
+
             const planHtml = `
                 <!DOCTYPE html>
                 <html lang="ar" dir="rtl">
@@ -21744,18 +21772,18 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             let countE = 0, countS = 0, countA = 0;
 
             db.classes[className].forEach(std => {
-                const stdRecords = getStudentClassRecordsFast(std.id, className).filter(r => 
-                    (!dateFrom || r.date >= dateFrom) && 
+                const stdRecords = getStudentClassRecordsFast(std.id, className).filter(r =>
+                    (!dateFrom || r.date >= dateFrom) &&
                     (!dateTo || r.date <= dateTo)
                 );
-                
+
                 const absentHours = stdRecords.filter(r => r.status === 'غائب' || r.status === 'مبرر').reduce((sum, r) => sum + getRecordAbsenceDuration(r), 0);
                 const lateCount = stdRecords.filter(r => r.status === 'متأخر').length;
                 const missedHw = stdRecords.filter(r => r.homework === 'لم ينجز').length;
-                
+
                 const grades = (db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {};
                 const avg = calculateStudentAvg(grades, className);
-                
+
                 const behaviorData = (db.behaviors[className] && db.behaviors[className][std.id]) ? db.behaviors[className][std.id] : { status: 'منضبط' };
                 const behavior = behaviorData.status || 'منضبط';
 
@@ -21766,7 +21794,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 if (avg !== null && avg >= 14 && behavior !== 'مشوش') {
                     isExcellent = true;
                 }
-                
+
                 if ((avg !== null && avg < 10) || behavior === 'مشوش' || absentHours >= threshold) {
                     isStruggling = true;
                 }
@@ -21798,18 +21826,18 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         function updateGradesComparisonChart() {
             const className = document.getElementById('classSelect').value;
             const card = document.getElementById('gradesComparisonCard');
-            
+
             if (!className || !db.classes[className] || activeTab !== 'grades') {
                 if (card) card.style.display = 'none';
                 return;
             }
-            
+
             if (card) card.style.display = 'block';
 
             const students = db.classes[className];
             const examCount = getExamsCountForClass(className);
             const sem = window.activeSemester || 's1';
-            
+
             let sum1 = 0, count1 = 0;
             let sum2 = 0, count2 = 0;
             let sum3 = 0, count3 = 0;
@@ -21829,7 +21857,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const semLabel = sem === 's2' ? ' (د2)' : ' (د1)';
             if (count1 > 0) { labels.push('الفرض 1' + semLabel); dataPoints.push((sum1 / count1).toFixed(2)); } else { labels.push('الفرض 1' + semLabel); dataPoints.push(null); }
             if (count2 > 0) { labels.push('الفرض 2' + semLabel); dataPoints.push((sum2 / count2).toFixed(2)); } else { labels.push('الفرض 2' + semLabel); dataPoints.push(null); }
-            
+
             if (examCount >= 3) {
                 if (count3 > 0) { labels.push('الفرض 3' + semLabel); dataPoints.push((sum3 / count3).toFixed(2)); } else { labels.push('الفرض 3' + semLabel); dataPoints.push(null); }
             }
@@ -21837,14 +21865,18 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 if (count4 > 0) { labels.push('الفرض 4' + semLabel); dataPoints.push((sum4 / count4).toFixed(2)); } else { labels.push('الفرض 4' + semLabel); dataPoints.push(null); }
             }
 
-            const ctx = document.getElementById('gradesComparisonChart').getContext('2d');
-            
+            const canvasEl = document.getElementById('gradesComparisonChart');
+            if (!canvasEl || typeof Chart === 'undefined') return;
+            const ctx = canvasEl.getContext('2d');
+
             if (window.gradesComparisonChartInst) {
                 window.gradesComparisonChartInst.data.labels = labels;
                 window.gradesComparisonChartInst.data.datasets[0].data = dataPoints;
                 window.gradesComparisonChartInst.update();
             } else {
-                Chart.defaults.font.family = 'system-ui, -apple-system, sans-serif';
+                if (Chart.defaults && Chart.defaults.font) {
+                    Chart.defaults.font.family = 'system-ui, -apple-system, sans-serif';
+                }
                 window.gradesComparisonChartInst = new Chart(ctx, {
                     type: 'bar',
                     data: {
@@ -21871,9 +21903,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         // ==========================================
         // لوحة تحكم الأداء السنوي (Annual Performance Dashboard)
         // ==========================================
-        let annualChartMode = 'timeline';
-        let annualSelectedStudentId = null;
-        let annualChartInst = null;
+        var annualChartMode = 'timeline';
+        var annualSelectedStudentId = null;
+        var annualChartInst = null;
 
         function setAnnualChartMode(mode) {
             annualChartMode = mode;
@@ -21908,7 +21940,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 }
             }
             if (window.renderLucide) window.renderLucide();
-            
+
             updateAnnualPerformanceChart();
 
             const classSelect = document.getElementById('annualClassSelect');
@@ -21926,7 +21958,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             if (badge) badge.style.display = 'none';
             const note = document.getElementById('annualStudentTrajectoryNote');
             if (note) note.style.display = 'none';
-            
+
             renderAnnualKPIs();
             updateAnnualPerformanceChart();
             renderAnnualPerformanceTable();
@@ -21991,7 +22023,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const classes = getSortedClasses();
             const currentVal = classSelect.value;
             classSelect.innerHTML = '';
-            
+
             if (classes.length === 0) {
                 const kpis = document.getElementById('annualKPIsContainer');
                 if (kpis) {
@@ -22200,7 +22232,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
             const labels = [];
             const classMeans = [];
-            
+
             function getExamMean(sem, key) {
                 let sum = 0, count = 0;
                 students.forEach(std => {
@@ -22300,9 +22332,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         note.innerHTML = `
                             <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                                 <div>
-                                    <strong style="color: #6d28d9;">مسار التلميذ: ${std.name}</strong> 
-                                    &nbsp;|&nbsp; معدل د1: <strong>${s1a !== null ? s1a.toFixed(2) : '-'}</strong> 
-                                    &nbsp;←&nbsp; معدل د2: <strong>${s2a !== null ? s2a.toFixed(2) : '-'}</strong> 
+                                    <strong style="color: #6d28d9;">مسار التلميذ: ${std.name}</strong>
+                                    &nbsp;|&nbsp; معدل د1: <strong>${s1a !== null ? s1a.toFixed(2) : '-'}</strong>
+                                    &nbsp;←&nbsp; معدل د2: <strong>${s2a !== null ? s2a.toFixed(2) : '-'}</strong>
                                     &nbsp;|&nbsp; المعدل السنوي: <strong>${ann.annualAvg !== null ? ann.annualAvg.toFixed(2) : '-'}</strong>
                                 </div>
                                 <div>
@@ -22490,10 +22522,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 });
             } else if (annualChartMode === 'perexam') {
                 // منحنى تطور متوسط نقط التلاميذ لكل مادة وفرض ودرس على حدة
-                const examItems = (typeof getExamsAndLessonAnalyticsData === 'function') 
-                    ? getExamsAndLessonAnalyticsData(className) 
+                const examItems = (typeof getExamsAndLessonAnalyticsData === 'function')
+                    ? getExamsAndLessonAnalyticsData(className)
                     : [];
-                
+
                 const labels = examItems.map(item => item.shortLabel);
                 const classMeans = examItems.map(item => item.classAvg);
                 const topMeans = examItems.map(item => item.topAvg);
@@ -22746,14 +22778,11 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         }
 
         // ====================================================================
-        // الرسم البياني الإضافي المخصص: مقارنة معدل القسم مع أفضل معدل لكل تلميذ
-        // ====================================================================
-        // ====================================================================
         // الرسوم البيانية الإضافية المخصصة: مقارنة معدل القسم مع أفضل معدل لكل تلميذ
         // ====================================================================
-        let annualBestVsClassChartInst = null;
-        let annualBestVsClassDivergenceChartInst = null;
-        let annualBestVsClassDistChartInst = null;
+        var annualBestVsClassChartInst = null;
+        var annualBestVsClassDivergenceChartInst = null;
+        var annualBestVsClassDistChartInst = null;
         window.annualBestSubChartMode = 'bars';
 
         function setAnnualBestSubChartMode(mode) {
@@ -22847,7 +22876,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 const d = calculateStudentAnnualData(className, std.id);
                 const s1g = getStudentGradesBySemester(className, std.id, 's1');
                 const s2g = getStudentGradesBySemester(className, std.id, 's2');
-                
+
                 const allMarks = [];
                 const keys = examCount === 2 ? ['f1', 'f2'] : (examCount === 4 ? ['f1', 'f2', 'f3', 'f4'] : ['f1', 'f2', 'f3']);
                 keys.forEach(k => {
@@ -22900,7 +22929,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             // الإحصائيات والمؤشرات التلخيصية
             const aboveClassCount = studentData.filter(s => classAnnualAvg !== null && s.bestMark >= classAnnualAvg).length;
             const aboveClassPercent = studentData.length > 0 ? Math.round((aboveClassCount / studentData.length) * 100) : 0;
-            
+
             let maxBestMark = 0, topPeakStudent = null;
             let sumBestMarks = 0;
             studentData.forEach(s => {
@@ -23568,7 +23597,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         /**
          * استخراج وتحليل بيانات نقط الفروض والدروس المنجزة في دفتر النصوص
          */
-        let _annualPerExamFilterKey = 'all';
+        var _annualPerExamFilterKey = 'all';
 
         function getExamsAndLessonAnalyticsData(className) {
             if (!className || !db || !db.classes || !db.classes[className]) return [];
@@ -23667,8 +23696,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
                     // Struggling (< 10)
                     const strugglingSlice = sorted.filter(n => n < 10);
-                    strugglingAvg = strugglingSlice.length > 0 
-                        ? parseFloat((strugglingSlice.reduce((a, b) => a + b, 0) / strugglingSlice.length).toFixed(2)) 
+                    strugglingAvg = strugglingSlice.length > 0
+                        ? parseFloat((strugglingSlice.reduce((a, b) => a + b, 0) / strugglingSlice.length).toFixed(2))
                         : null;
                 }
 
@@ -23733,8 +23762,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 return;
             }
 
-            const displayItems = (_annualPerExamFilterKey === 'all') 
-                ? allExamItems 
+            const displayItems = (_annualPerExamFilterKey === 'all')
+                ? allExamItems
                 : allExamItems.filter(it => it.id === _annualPerExamFilterKey);
 
             // شريط أزرار التصفية السريعة بين الفروض والدروس
@@ -23937,7 +23966,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         window.getExamsAndLessonAnalyticsData = getExamsAndLessonAnalyticsData;
         window.renderAnnualPerExamLessonAnalysis = renderAnnualPerExamLessonAnalysis;
 
-        let currentAnnualRemediationExamFilter = 'all';
+        var currentAnnualRemediationExamFilter = 'all';
 
         function getStudentAnnualTrajectoryData(student, className) {
             if (!student || !className) {
@@ -24560,10 +24589,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             });
 
             summaryText.innerHTML = `
-                <span>القسم: <strong>${escapeHtml(className)}</strong></span> | 
-                <span>عدد التلاميذ: <strong>${students.length}</strong></span> | 
-                <span>نقط د1 مسجلة: <strong>${s1Count}</strong></span> | 
-                <span>نقط د2 مسجلة: <strong>${s2Count}</strong></span> | 
+                <span>القسم: <strong>${escapeHtml(className)}</strong></span> |
+                <span>عدد التلاميذ: <strong>${students.length}</strong></span> |
+                <span>نقط د1 مسجلة: <strong>${s1Count}</strong></span> |
+                <span>نقط د2 مسجلة: <strong>${s2Count}</strong></span> |
                 <span>إجمالي ساعات الغياب: <strong>${totalAbsentHours} س</strong></span>
             `;
         }
@@ -24765,7 +24794,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         }
 
         function generateSvgExamProgressionChart(examAverages, examCount) {
-            const keys = examCount === 2 
+            const keys = examCount === 2
                 ? [
                     { k: 'f1_s1', label: 'ف1 (د1)' },
                     { k: 'f2_s1', label: 'ف2 (د1)' },
@@ -25002,7 +25031,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                                     <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 8px 10px; text-align: center;">
                                         <div style="font-size: 10.5px; color: #6b21a8; font-weight: 700;">دينامية تطور التلاميذ</div>
                                         <div style="font-size: 11px; font-weight: 800; color: #581c87; margin: 3px 0;">
-                                            <span style="color: #15803d;">↗ ${data.improvedCount} تحسن</span> | 
+                                            <span style="color: #15803d;">↗ ${data.improvedCount} تحسن</span> |
                                             <span style="color: #0369a1;">→ ${data.stableCount} استقرار</span>
                                         </div>
                                         <div style="font-size: 10px; font-weight: 800; color: #dc2626;">
@@ -25093,10 +25122,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         ${options.includeAttendance ? `
                             <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 11px; line-height: 1.5;">
                                 <strong style="color: #1e3a8a;">ملخص المواظبة والانضباط المدرسي بالقسم:</strong>
-                                بلغ مجموع ساعات الغياب المسجلة بالقسم خلال السنة <strong>${data.studentDetails.reduce((a,b)=>a+b.absentHours,0)} ساعة</strong>، 
-                                منها <strong>${data.studentDetails.reduce((a,b)=>a+b.justifiedHours,0)} س مبررة</strong> 
-                                و<strong>${data.studentDetails.reduce((a,b)=>a+b.unjustifiedHours,0)} س غير مبررة</strong>. 
-                                ويُلاحظ وجود ارتباط وثيق بين ارتفاع وتيرة الغياب غير المبرر وتراجع نتائج الفروض المحروسة لدى المتعثرين، 
+                                بلغ مجموع ساعات الغياب المسجلة بالقسم خلال السنة <strong>${data.studentDetails.reduce((a,b)=>a+b.absentHours,0)} ساعة</strong>،
+                                منها <strong>${data.studentDetails.reduce((a,b)=>a+b.justifiedHours,0)} س مبررة</strong>
+                                و<strong>${data.studentDetails.reduce((a,b)=>a+b.unjustifiedHours,0)} س غير مبررة</strong>.
+                                ويُلاحظ وجود ارتباط وثيق بين ارتفاع وتيرة الغياب غير المبرر وتراجع نتائج الفروض المحروسة لدى المتعثرين،
                                 مما يؤكد أهمية تعزيز التواصل المنتظم مع أولياء الأمور لتأمين الاستقرار الدراسي.
                             </div>
                         ` : ''}
@@ -25525,7 +25554,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 if (card) card.style.display = 'none';
                 return;
             }
-            
+
             const students = db.classes[className];
             let bins = [0, 0, 0, 0, 0];
             let labels = ['أقل من 5', '5 إلى 9.99', '10 إلى 11.99', '12 إلى 14.99', '15 إلى 20'];
@@ -25554,7 +25583,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const canvas = document.getElementById('gradesDistributionChart');
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
-            
+
             if (window.gradesChartInstance) {
                 try {
                     window.gradesChartInstance.data.datasets[0].data = bins;
@@ -25565,7 +25594,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     window.gradesChartInstance = null;
                 }
             }
-            
+
             if (typeof Chart !== 'undefined' && Chart.getChart && Chart.getChart(canvas)) {
                 try { Chart.getChart(canvas).destroy(); } catch (e) {}
             }
@@ -25626,7 +25655,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const pDirectorate = db.teacherProfile.directorate || '';
             const pSchool = db.teacherProfile.school || '';
             const pName = db.teacherProfile.name || '';
-            
+
             XLSX.utils.sheet_add_aoa(ws, [
                 ['الأكاديمية الجهوية:', pAcademy],
                 ['المديرية الإقليمية:', pDirectorate],
@@ -25636,7 +25665,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 ['الفترة:', `من ${dateFrom} إلى ${dateTo}`],
                 []
             ], { origin: "A1" });
-            
+
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, className);
             XLSX.writeFile(wb, `تقرير_${className}_من_${dateFrom}_إلى_${dateTo}.xlsx`);
@@ -25667,7 +25696,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             try {
                 for (let i = 0; i < classes.length; i++) {
                     const className = classes[i];
-                    
+
                     document.getElementById('reportClassSelect').value = className;
                     renderReport(); // Populates reportTable, stats, charts
 
@@ -25683,7 +25712,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     const pDirectorate = db.teacherProfile.directorate || '';
                     const pSchool = db.teacherProfile.school || '';
                     const pName = db.teacherProfile.name || '';
-                    
+
                     const officialHeader = document.createElement('div');
                     officialHeader.style.display = 'flex';
                     officialHeader.style.justifyContent = 'space-between';
@@ -25736,7 +25765,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     tableClone.style.width = '100%';
                     tableClone.style.borderCollapse = 'collapse';
                     tableClone.style.marginBottom = '30px';
-                    
+
                     const ths = tableClone.querySelectorAll('th');
                     ths.forEach(th => {
                         th.style.border = '1px solid #ddd';
@@ -25843,7 +25872,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const pDirectorate = db.teacherProfile.directorate || '';
             const pSchool = db.teacherProfile.school || '';
             const pName = db.teacherProfile.name || '';
-            
+
             const officialHeader = document.createElement('div');
             officialHeader.style.display = 'flex';
             officialHeader.style.justifyContent = 'space-between';
@@ -25896,7 +25925,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             tableClone.style.width = '100%';
             tableClone.style.borderCollapse = 'collapse';
             tableClone.style.marginBottom = '30px';
-            
+
             const ths = tableClone.querySelectorAll('th');
             ths.forEach(th => {
                 th.style.border = '1px solid #ddd';
@@ -25936,7 +25965,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 addChartToContainer('attendancePieChart', 'attendancePieChartCard', 'نسبة الحضور والغياب', '#0288d1');
                 addChartToContainer('absenceByDayChart', 'absenceByDayChartCard', 'تحليل أنماط الغياب (حسب أيام الأسبوع)', '#e11d48');
                 addChartToContainer('monthlyAbsenceEvolutionChart', 'monthlyAbsenceEvolutionCard', 'تطور غياب التلاميذ على مدار أشهر السنة الدراسية', '#4f46e5');
-                
+
                 // تضمين الخريطة الحرارية في التقرير الشامل المطبوع
                 const heatmapCardEl = document.getElementById('absenceHeatmapCard');
                 if (heatmapCardEl && heatmapCardEl.style.display !== 'none') {
@@ -26076,11 +26105,11 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             let maxAvg = null;
 
             const studentCalculatedData = students.map((std, originalIdx) => {
-                const stdRecords = getStudentClassRecordsFast(std.id, className).filter(r => 
-                    (!dateFrom || r.date >= dateFrom) && 
+                const stdRecords = getStudentClassRecordsFast(std.id, className).filter(r =>
+                    (!dateFrom || r.date >= dateFrom) &&
                     (!dateTo || r.date <= dateTo)
                 );
-                
+
                 const unjustifiedHours = stdRecords.filter(r => r.status === 'غائب').reduce((sum, r) => sum + getRecordAbsenceDuration(r), 0);
                 const justifiedHours = stdRecords.filter(r => r.status === 'مبرر').reduce((sum, r) => sum + getRecordAbsenceDuration(r), 0);
                 const absentHours = unjustifiedHours + justifiedHours;
@@ -26221,7 +26250,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: bold; color: #475569; font-size: 0.72rem;">${item.std.orderNum || (idx + 1)}</td>
                         <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: right; font-weight: 700; color: #0f172a; font-size: 0.76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.std.name}</td>
                         <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-family: monospace; font-size: 0.71rem; color: #334155;">${item.std.massar || '-'}</td>
-                        
+
                         <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: ${item.unjustifiedHours > 0 ? '700' : 'normal'}; color: ${item.unjustifiedHours > 0 ? '#dc2626' : '#64748b'}; font-size: 0.72rem; background: ${item.unjustifiedHours > 0 ? '#fff1f2' : 'transparent'};">
                             ${item.unjustifiedHours > 0 ? item.unjustifiedHours : '-'}
                         </td>
@@ -26234,9 +26263,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; color: ${item.missedHw > 0 ? '#9333ea' : '#94a3b8'}; font-size: 0.72rem;">
                             ${item.missedHw > 0 ? item.missedHw : '-'}
                         </td>
-                        
+
                         ${examTds}
-                        
+
                         <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 900; font-size: 0.82rem; color: ${avgColor}; background-color: ${avgBg};">
                             ${avgDisplay}
                         </td>
@@ -26292,13 +26321,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             // 5. Build Complete A4 Printable Sheet HTML
             const sheetHtml = `
                 <div id="fullReportPrintSheet" class="full-report-a4-sheet" style="direction: rtl; font-family: 'Cairo', system-ui, -apple-system, sans-serif;">
-                    
+
                     <!-- Decorative Top Ribbon -->
                     <div style="height: 4px; background: linear-gradient(90deg, #1e3a8a 0%, #d4af37 50%, #15803d 100%); border-radius: 2px; margin-bottom: 10px;"></div>
 
                     <!-- 1. Official Moroccan Administrative Header -->
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 10px;">
-                        
+
                         <!-- Right: Ministry & Administrative Details -->
                         <div style="text-align: right; width: 28%; line-height: 1.4; font-size: 0.78rem; color: #334155;">
                             <div style="font-weight: 900; color: #0f172a; font-size: 0.92rem;">المملكة المغربية</div>
@@ -26410,7 +26439,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
                     <!-- 5. Official Tri-Partite Institutional Validation & Signatures Footer -->
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 14px; padding-top: 8px; border-top: 1px dashed #94a3b8; font-size: 0.76rem; color: #1e293b; page-break-inside: avoid; break-inside: avoid;">
-                        
+
                         <!-- Teacher Signature -->
                         <div style="text-align: center; width: 28%; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; background: #f8fafc;">
                             <div style="font-weight: 800; color: #0f172a;">توقيع واستشارة أستاذ(ة) المادة</div>
@@ -26906,8 +26935,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                                 else if (inc.status === 'متأخر') statusBadge = '<span style="color: #b45309; font-weight: bold; background: #fef3c7; padding: 1px 5px; border-radius: 4px;">تأخر</span>';
                                 else statusBadge = '<span style="color: #166534;">حاضر</span>';
 
-                                let hwBadge = inc.homework === 'لم ينجز' 
-                                    ? '<span style="color: #7e22ce; font-weight: bold; background: #f3e8ff; padding: 1px 5px; border-radius: 4px;">لم ينجز</span>' 
+                                let hwBadge = inc.homework === 'لم ينجز'
+                                    ? '<span style="color: #7e22ce; font-weight: bold; background: #f3e8ff; padding: 1px 5px; border-radius: 4px;">لم ينجز</span>'
                                     : '<span style="color: #16a34a;">منجز</span>';
 
                                 const dn = typeof getArabicDayName === 'function' ? getArabicDayName(inc.date) : '';
@@ -28170,7 +28199,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
             const today = new Date();
             today.setHours(0,0,0,0);
-            
+
             const nextWeek = new Date(today);
             nextWeek.setDate(today.getDate() + 7);
 
@@ -28202,7 +28231,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
             container.style.display = 'flex';
             container.innerHTML = '';
-            
+
             if (hiddenCount > 0 && visibleUpcoming.length > 0) {
                 const restoreHeader = document.createElement('div');
                 restoreHeader.style.cssText = 'display: flex; justify-content: flex-end; margin-bottom: 2px;';
@@ -28230,7 +28259,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             visibleUpcoming.sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(item => {
                 const itemDate = new Date(item.date);
                 const isToday = itemDate.getTime() === today.getTime();
-                
+
                 let bgColor = '#f0f9ff';
                 let borderColor = '#bae6fd';
                 let accentColor = '#0284c7';
@@ -28239,7 +28268,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 let typeBadgeBg = '#e0f2fe';
                 let typeBadgeColor = '#0284c7';
                 let typeBadgeBorder = '#7dd3fc';
-                
+
                 if (item.type === 'امتحان') {
                     bgColor = '#fef2f2';
                     borderColor = '#fca5a5';
@@ -28267,7 +28296,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 alertDiv.id = `alert-item-agenda-${item.id}`;
                 alertDiv.className = 'alert-item-card';
                 alertDiv.style.cssText = `background: ${bgColor}; border: 1px solid ${borderColor}; border-right: 5px solid ${accentColor}; margin-bottom: 4px;`;
-                
+
                 alertDiv.innerHTML = `
                     <div class="alert-item-content">
                         <div class="alert-item-emoji" style="background: white; border: 1px solid ${typeBadgeBorder}; color: ${accentColor};">
@@ -28308,7 +28337,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
         }
 
-        
+
         // Class Reminder logic
         var classReminderInterval = null;
         var notifiedClasses = {}; // keep track of classes we already notified for today
@@ -28319,7 +28348,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             if (select) {
                 select.value = db.settings.classReminderMinutes || "0";
             }
-            
+
             if (classReminderInterval) clearInterval(classReminderInterval);
             classReminderInterval = setInterval(checkClassReminders, 60000); // check every minute
         }
@@ -28336,17 +28365,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         function checkClassReminders() {
             if (!("Notification" in window) || Notification.permission !== "granted") return;
             if (!db.settings || !db.settings.classReminderMinutes || db.settings.classReminderMinutes === 0) return;
-            
+
             const now = new Date();
             const currentDayIndex = now.getDay();
             const WORK_DAYS = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
             const currentDayStr = WORK_DAYS[currentDayIndex];
-            
+
             if (!db.timetable || !db.timetable[currentDayStr]) return;
             const data = db.timetable[currentDayStr];
-            
+
             const reminderMins = db.settings.classReminderMinutes;
-            
+
             const timeSlots = [
                 { id: 'm1', class: data.m1_class || data.morningClass1 || data.morningClass, time: data.m1_time || '08:00', note: data.m1_note },
                 { id: 'm2', class: data.m2_class || data.morningClass2, time: data.m2_time || '10:00', note: data.m2_note },
@@ -28355,28 +28384,28 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 { id: 'e2', class: data.e2_class || data.eveningClass2, time: data.e2_time || '15:00', note: data.e2_note },
                 { id: 'e3', class: data.e3_class, time: data.e3_time || '17:00', note: data.e3_note }
             ];
-            
+
             const todayStr = formatLocalDate(now);
-            
+
             timeSlots.forEach(slot => {
                 if (!slot.class) return;
-                
+
                 const [hours, mins] = slot.time.split(':').map(Number);
                 const classTime = new Date();
                 classTime.setHours(hours, mins, 0, 0);
-                
+
                 const diffMs = classTime - now;
                 const diffMins = Math.floor(diffMs / 60000);
-                
+
                 // If the class starts within the reminder window and we haven't notified yet
                 if (diffMins >= 0 && diffMins <= reminderMins) {
                     const notifyKey = todayStr + '_' + slot.id;
                     if (!notifiedClasses[notifyKey]) {
                         notifiedClasses[notifyKey] = true;
-                        
+
                         let bodyMsg = `حان وقت التحضير لحصة ${slot.class} التي ستبدأ بعد ${diffMins} دقيقة (على الساعة ${slot.time}).`;
                         if (slot.note) bodyMsg += `\nملاحظة للحصة: ${slot.note}`;
-                        
+
                         new Notification("تذكير باقتراب موعد الحصة", {
                             body: bodyMsg,
                             icon: '/pwa-192x192.png'
@@ -28423,7 +28452,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     saveDB();
                     const toggle = document.getElementById('settingsPushNotificationsToggle');
                     if (toggle) toggle.checked = true;
-                    
+
                     checkUpcomingEventsNotifications(); // run immediately
                 } else {
                     alert("تم رفض الصلاحية. لن يتم إرسال إشعارات التنبيه المسبق.");
@@ -28437,7 +28466,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             if (!db.settings) db.settings = {};
             db.settings.eventPushEnabled = enabled;
             saveDB();
-            
+
             if (enabled && "Notification" in window && Notification.permission !== "granted") {
                 requestEventNotificationPermission();
             } else if (enabled) {
@@ -28458,7 +28487,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             if (!db.events || db.events.length === 0) return;
 
             const daysToRemind = parseInt(db.settings.eventReminderDays || "2", 10);
-            
+
             const today = new Date();
             today.setHours(0,0,0,0);
 
@@ -28469,7 +28498,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             db.events.forEach(evt => {
                 const evtDate = new Date(evt.date);
                 evtDate.setHours(0,0,0,0);
-                
+
                 // Diff in days
                 const diffTime = evtDate.getTime() - today.getTime();
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -28478,7 +28507,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 if (diffDays >= 0 && diffDays <= daysToRemind) {
                     const notifyKey = evt.id + "_" + diffDays; // To avoid spamming the same notification day
                     if (!db.notifiedEventsHistory[notifyKey]) {
-                        
+
                         let typeText = "حدث";
                         if (evt.type === 'exam') typeText = "فرض/امتحان";
                         if (evt.type === 'meeting') typeText = "اجتماع/لقاء";
@@ -28505,8 +28534,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         }
 
 
-        let pendingImportDb = null;
-        let _isExportingBackup = false;
+        var pendingImportDb = null;
+        var _isExportingBackup = false;
 
         function exportBackup(mode = 'full') {
             if (_isExportingBackup) return;
@@ -28515,7 +28544,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
             let dataToExport = db;
             let filename = `massar_backup_${formatLocalDate()}.json`;
-            
+
             if (mode === 'classes_only') {
                 dataToExport = {
                     classes: db.classes || {},
@@ -28662,7 +28691,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             pendingImportDb = null;
         }
 
-        let _isImportExecuting = false;
+        var _isImportExecuting = false;
         function executePendingImport() {
             if (_isImportExecuting) return;
             if (!pendingImportDb) {
@@ -28746,7 +28775,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
 
             let recordsCount = (db && Array.isArray(db.records)) ? db.records.length : 0;
-            
+
             let lessonLogsCount = 0;
             if (db && db.lessonLogs && typeof db.lessonLogs === 'object') {
                 Object.values(db.lessonLogs).forEach(logs => {
@@ -28927,7 +28956,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             db.behaviors = {};
             db.agenda = [];
             db.lessonLogs = {};
-            
+
             saveDB();
             alert("تم بنجاح تصفير كافة السجلات التجريبية ومسح النسخ الاحتياطية القديمة!\n\nالتطبيق جاهز الآن بكل نظافة لبدء تسجيل الحضور والدروس ابتداءً من الغد.");
             location.reload();
@@ -28944,7 +28973,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 }
             };
         }
-    
+
         async function exportClassQuarterlyReportsPDF() {
             const className = document.getElementById('reportClassSelect').value;
             if (!className) {
@@ -29012,13 +29041,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
                 for (let i = 0; i < sortedStudents.length; i++) {
                     const std = sortedStudents[i];
-                    
+
                     const grades = (typeof getStudentGradesBySemester === 'function')
                         ? getStudentGradesBySemester(className, std.id, activeSemBulk)
                         : ((db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {});
                     const avg = calculateStudentAvg(grades, className);
                     const weightedAvg = avg !== null ? (avg * coef).toFixed(2) : '-';
-                    
+
                     let rankText = '-';
                     if (avg !== null) {
                         const rIdx = classAvgs.findIndex(s => s.id === std.id);
@@ -29047,11 +29076,11 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     let chartDataUrl = '';
                     tempChartContainer.innerHTML = '<canvas id="tempExportChart" width="400" height="250"></canvas>';
                     const ctx = document.getElementById('tempExportChart').getContext('2d');
-                    
+
                     const labels = ['الفرض 1', 'الفرض 2'];
                     if (examCount >= 3) labels.push('الفرض 3');
                     if (examCount === 4) labels.push('الفرض 4');
-                    
+
                     const gradeData = [
                         grades.f1 !== undefined && grades.f1 !== '' ? parseFloat(grades.f1) : null,
                         grades.f2 !== undefined && grades.f2 !== '' ? parseFloat(grades.f2) : null
@@ -29062,14 +29091,14 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     if (examCount === 4) {
                         gradeData.push(grades.f4 !== undefined && grades.f4 !== '' ? parseFloat(grades.f4) : null);
                     }
-                    
+
                     // We also show absence in a mixed chart! (Grades as Line, Absence as Bar, but absence is not per exam. We will just add a single bar at the end for "الغياب")
                     // Actually, let's make two charts side by side, or one chart with Grades, and we show absence as a large number.
                     // The prompt asked for: "رسوماً بيانية لتطور النقط وعدد ساعات الغياب"
-                    // Let's create a mixed chart: 
+                    // Let's create a mixed chart:
                     // Left Y-Axis: Grades 0-20
                     // Right Y-Axis: Absent Hours 0-Max
-                    
+
                     const chart = new Chart(ctx, {
                         type: 'line',
                         data: {
@@ -29095,12 +29124,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                             }
                         }
                     });
-                    
+
                     const c1El = document.getElementById('tempExportChart');
                     chartDataUrl = c1El.toDataURL('image/png', 1.0);
                     chart.destroy();
                     if (c1El) { c1El.width = 0; c1El.height = 0; }
-                    
+
                     // Second chart for absence (Pie chart)
                     tempChartContainer.innerHTML = '<canvas id="tempExportChart2" width="300" height="250"></canvas>';
                     const c2El = document.getElementById('tempExportChart2');
@@ -29124,7 +29153,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     const page = document.createElement('div');
                     if (i > 0) page.style.pageBreakBefore = 'always';
                     page.style.padding = '30px';
-                    
+
                     page.innerHTML = `
                         <div style="height: 3.5px; background: linear-gradient(90deg, #1e3a8a 0%, #d4af37 50%, #15803d 100%); border-radius: 2px; margin-bottom: 8px;"></div>
                         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2.5px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 18px;">
@@ -29251,14 +29280,14 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div style="margin-top: 40px; display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; color: #334155;">
                             <div style="text-align: center;">توقيع الأستاذ(ة)</div>
                             <div style="text-align: center;">توقيع الإدارة التربوية</div>
                             <div style="text-align: center;">توقيع ولي الأمر</div>
                         </div>
                     `;
-                    
+
                     mainContainer.appendChild(page);
                 }
 
@@ -29306,11 +29335,11 @@ window.printFullUnifiedReport = printFullUnifiedReport;
 
 
         // --- Calendar Logic ---
-        let currentCalendarDate = (window.currentCalendarDate instanceof Date && !isNaN(window.currentCalendarDate.getTime()))
+        var currentCalendarDate = (window.currentCalendarDate instanceof Date && !isNaN(window.currentCalendarDate.getTime()))
             ? new Date(window.currentCalendarDate.getTime())
             : new Date();
         window.currentCalendarDate = currentCalendarDate;
-        let monthlyScheduleTableFilterMode = 'all'; // 'all' | 'events_only'
+        var monthlyScheduleTableFilterMode = 'all'; // 'all' | 'events_only'
 
         function ensureValidCalendarDate() {
             if (!(currentCalendarDate instanceof Date) || isNaN(currentCalendarDate.getTime())) {
@@ -29372,7 +29401,7 @@ window.printFullUnifiedReport = printFullUnifiedReport;
 
             const year = currentCalendarDate.getFullYear();
             const month = currentCalendarDate.getMonth();
-            
+
             const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "ماي", "يونيو", "يوليوز", "غشت", "شتنبر", "أكتوبر", "نونبر", "دجنبر"];
             const daysArShort = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
             const headerTitle = document.getElementById('calendarMonthYear');
@@ -29401,7 +29430,7 @@ window.printFullUnifiedReport = printFullUnifiedReport;
 
             const firstDay = new Date(year, month, 1);
             const lastDay = new Date(year, month + 1, 0);
-            
+
             const startingDay = isNaN(firstDay.getDay()) ? 0 : firstDay.getDay(); // 0 = Sunday
             const totalDays = isNaN(lastDay.getDate()) ? 30 : lastDay.getDate();
 
@@ -29447,20 +29476,20 @@ window.printFullUnifiedReport = printFullUnifiedReport;
                     `;
                 }
             }
-            
+
             const grid = document.getElementById('calendarGrid');
             if (!grid) return;
-            
+
             grid.style.display = 'grid';
             grid.innerHTML = '';
-            
+
             // Empty cells before start of month
             for (let i = 0; i < startingDay; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'calendar-day empty';
                 grid.appendChild(cell);
             }
-            
+
             // Days of the month
             const today = new Date();
             const allCalendarEvents = (db && Array.isArray(db.calendarEvents)) ? db.calendarEvents : [];
@@ -29468,24 +29497,24 @@ window.printFullUnifiedReport = printFullUnifiedReport;
             for (let i = 1; i <= totalDays; i++) {
                 const cell = document.createElement('div');
                 cell.className = 'calendar-day';
-                
+
                 const currentDateStr = `${year}-${String(month+1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
                 const cellDateObj = new Date(year, month, i);
                 const dayOfWeekIdx = cellDateObj.getDay();
                 if (dayOfWeekIdx === 0) {
                     cell.classList.add('sunday-cell');
                 }
-                
+
                 if (year === today.getFullYear() && month === today.getMonth() && i === today.getDate()) {
                     cell.classList.add('today');
                 }
-                
+
                 const dayHeader = document.createElement('div');
                 dayHeader.style.display = 'flex';
                 dayHeader.style.justifyContent = 'space-between';
                 dayHeader.style.alignItems = 'center';
                 dayHeader.style.marginBottom = '8px';
-                
+
                 const dayNumberWrap = document.createElement('div');
                 dayNumberWrap.style.cssText = 'display:flex; align-items:center; gap:5px;';
 
@@ -29498,7 +29527,7 @@ window.printFullUnifiedReport = printFullUnifiedReport;
                 dayNameBadge.className = 'calendar-day-weekday-badge';
                 dayNameBadge.textContent = daysArShort[dayOfWeekIdx] || '';
                 dayNumberWrap.appendChild(dayNameBadge);
-                
+
                 const addBtn = document.createElement('button');
                 addBtn.type = 'button';
                 addBtn.style.cssText = 'background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; color:#64748b; cursor:pointer; padding:2px 5px; font-size:0.75rem; font-weight:800; transition:all 0.2s; line-height:1;';
@@ -29508,16 +29537,16 @@ window.printFullUnifiedReport = printFullUnifiedReport;
                     e.stopPropagation();
                     openAddEventPrompt(currentDateStr);
                 };
-                
+
                 dayHeader.appendChild(dayNumberWrap);
                 dayHeader.appendChild(addBtn);
                 cell.appendChild(dayHeader);
-                
+
                 const eventsContainer = document.createElement('div');
                 eventsContainer.className = 'calendar-events';
-                
+
                 const dayEvents = allCalendarEvents.filter(ev => ev && ev.date === currentDateStr);
-                
+
                 // Add distinctive light background colors and category dot indicators
                 const hasExam = dayEvents.some(ev => ev.type === 'exam');
                 const hasMeeting = dayEvents.some(ev => ev.type === 'meeting');
@@ -29583,7 +29612,7 @@ window.printFullUnifiedReport = printFullUnifiedReport;
                     const eventType = ev.type || 'other';
                     evEl.className = `calendar-event event-${eventType}`;
                     evEl.title = (ev.title || '') + (ev.time ? ` (${ev.time})` : '') + (ev.isOfficial ? ' (عطلة رسمية)' : '');
-                    
+
                     // Small category accent dot
                     const dot = document.createElement('span');
                     dot.className = 'event-type-dot';
@@ -29644,7 +29673,7 @@ window.printFullUnifiedReport = printFullUnifiedReport;
                         };
                         evEl.appendChild(delBtn);
                     }
-                    
+
                     eventsContainer.appendChild(evEl);
                 });
 
@@ -29662,7 +29691,7 @@ window.printFullUnifiedReport = printFullUnifiedReport;
                                     const sessEl = document.createElement('div');
                                     sessEl.className = 'calendar-event event-timetable-session' + (sess.hasHomework ? ' has-homework' : '');
                                     sessEl.title = `حصة: ${sess.className} (${sess.startTime} - ${sess.endTime})` + (sess.room ? ` - القاعة: ${sess.room}` : '') + (sess.hasHomework ? ` [📚 واجب: ${sess.homeworkItems.map(h => h.title).join(', ')}]` : '');
-                                    
+
                                     const dot = document.createElement('span');
                                     dot.className = 'event-type-dot';
                                     dot.style.background = sess.hasHomework ? '#7c3aed' : '#0284c7';
@@ -29698,7 +29727,7 @@ window.printFullUnifiedReport = printFullUnifiedReport;
                         console.warn('Timetable calendar cell render warning:', ttErr);
                     }
                 }
-                
+
                 cell.appendChild(eventsContainer);
                 grid.appendChild(cell);
             }
@@ -30016,7 +30045,7 @@ window.printFullUnifiedReport = printFullUnifiedReport;
             const dateInput = document.getElementById('eventDate');
             const titleInput = document.getElementById('eventTitle');
             const typeSelect = document.getElementById('eventType');
-            
+
             if (dateInput) dateInput.value = dateStr || '';
             if (titleInput) {
                 titleInput.value = '';
@@ -30036,7 +30065,7 @@ window.printFullUnifiedReport = printFullUnifiedReport;
             if (modal) modal.style.display = 'none';
         }
 
-        let _isSavingCalendarEvent = false;
+        var _isSavingCalendarEvent = false;
         function saveEvent() {
             if (_isSavingCalendarEvent) return;
             const dateInput = document.getElementById('eventDate');
@@ -30101,7 +30130,7 @@ window.printFullUnifiedReport = printFullUnifiedReport;
             if (!modal || !listEl) return;
 
             if (hiddenDate) hiddenDate.value = dateStr;
-            
+
             // Format date text
             try {
                 const parts = dateStr.split('-');
@@ -30122,7 +30151,7 @@ window.printFullUnifiedReport = printFullUnifiedReport;
                 if (ttInfo && ttInfo.sessions && ttInfo.sessions.length > 0) {
                     const ttContainer = document.createElement('div');
                     ttContainer.style.cssText = 'margin-bottom: 16px; background: #f0f9ff; border: 1.5px solid #bae6fd; border-right: 5px solid #0284c7; border-radius: 12px; padding: 14px 16px;';
-                    
+
                     let ttHtml = `
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
                             <div style="font-weight: 800; color: #0369a1; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
@@ -30232,7 +30261,7 @@ window.printFullUnifiedReport = printFullUnifiedReport;
                     }
 
                     card.style.cssText = `display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: 10px; background: ${bgCol}; border: 1px solid ${borderCol}; border-right: 4px solid ${borderCol}; gap: 10px;`;
-                    
+
                     const leftSide = document.createElement('div');
                     leftSide.style.cssText = 'display: flex; align-items: center; gap: 10px; min-width: 0;';
 
@@ -30376,10 +30405,10 @@ function isPresentationMode() {
 window.isPresentationMode = isPresentationMode;
 
 
-        let tokenClient;
-        let gapiInited = false;
-        let gisInited = false;
-        let calendarSyncInProgress = false;
+        var tokenClient;
+        var gapiInited = false;
+        var gisInited = false;
+        var calendarSyncInProgress = false;
 
         function initGoogleApi() {
             if (window.google && window.google.accounts && !gisInited) {
@@ -30405,7 +30434,7 @@ window.isPresentationMode = isPresentationMode;
                 return;
             }
             if (calendarSyncInProgress) return;
-            
+
             if (!db.events || db.events.length === 0) {
                 alert("لا توجد أحداث في التقويم لتصديرها.");
                 return;
@@ -30417,18 +30446,18 @@ window.isPresentationMode = isPresentationMode;
         async function performCalendarSync(accessToken) {
             calendarSyncInProgress = true;
             showLoading("جاري تصدير الأحداث إلى Google Calendar...");
-            
+
             try {
                 let successCount = 0;
                 // export future events or events from today
                 const today = new Date();
                 today.setHours(0,0,0,0);
-                
+
                 const eventsToExport = db.events.filter(e => {
                     const evtDate = new Date(e.date);
                     return evtDate.getTime() >= today.getTime();
                 });
-                
+
                 if (eventsToExport.length === 0) {
                     hideLoading();
                     alert("لا توجد أحداث قادمة لتصديرها.");
@@ -30438,14 +30467,14 @@ window.isPresentationMode = isPresentationMode;
 
                 for (const evt of eventsToExport) {
                     if (evt.googleEventId) continue; // Skip already exported
-                    
+
                     const evtDate = new Date(evt.date);
                     // Create an all-day event
                     const startStr = formatLocalDate(evtDate);
                     const endDate = new Date(evtDate);
                     endDate.setDate(endDate.getDate() + 1);
                     const endStr = formatLocalDate(endDate);
-                    
+
                     const eventBody = {
                         summary: evt.title,
                         description: "تم التصدير من منصة تتبع الغياب (AI Studio). نوع الحدث: " + (evt.type || "عام"),
@@ -30458,7 +30487,7 @@ window.isPresentationMode = isPresentationMode;
                             timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
                         }
                     };
-                    
+
                     const response = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
                         method: "POST",
                         headers: {
@@ -30467,29 +30496,29 @@ window.isPresentationMode = isPresentationMode;
                         },
                         body: JSON.stringify(eventBody)
                     });
-                    
+
                     if (response.ok) {
                         const data = await response.json();
                         evt.googleEventId = data.id; // Mark as exported
                         successCount++;
                     }
                 }
-                
+
                 saveDB();
                 hideLoading();
-                
+
                 if (successCount > 0) {
                     alert(`تم تصدير ${successCount} أحداث جديدة إلى Google Calendar بنجاح.`);
                 } else {
                     alert("جميع الأحداث القادمة مصدرة مسبقاً.");
                 }
-                
+
             } catch (error) {
                 console.error("Error syncing with Google Calendar:", error);
                 hideLoading();
                 alert("حدث خطأ أثناء مزامنة التقويم. يرجى المحاولة لاحقاً.");
             }
-            
+
             calendarSyncInProgress = false;
         }
 
@@ -30551,7 +30580,7 @@ window.isPresentationMode = isPresentationMode;
 
             const DAY_NAMES = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
             const MONTH_NAMES = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'];
-            
+
             const dayName = DAY_NAMES[targetDateObj.getDay()];
             const monthName = MONTH_NAMES[targetDateObj.getMonth()];
             const formattedDateArabic = `${dayName} ${d} ${monthName} ${y}`;
@@ -30568,7 +30597,7 @@ window.isPresentationMode = isPresentationMode;
             dayEvents.forEach(ev => {
                 const title = (ev.title || '').trim();
                 const type = (ev.type || '').toLowerCase();
-                
+
                 if (type === 'exam' || /فرض|امتحان|مراقبة|اختبار|évaluation|contrôle|examen/i.test(title)) {
                     exams.push(title);
                 } else if (type === 'meeting' || /اجتماع|لقاء|مجلس|ندوة|تنسيق|réunion|conseil/i.test(title)) {
@@ -30710,21 +30739,21 @@ window.isPresentationMode = isPresentationMode;
                 if (!AudioContextClass) return;
                 const ctx = new AudioContextClass();
                 const now = ctx.currentTime;
-                
+
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
                 osc.type = 'sine';
-                
+
                 // Two-tone bell melody (D5 -> A5)
                 osc.frequency.setValueAtTime(587.33, now);
                 osc.frequency.setValueAtTime(880, now + 0.12);
-                
+
                 gain.gain.setValueAtTime(0.2, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-                
+
                 osc.connect(gain);
                 gain.connect(ctx.destination);
-                
+
                 osc.start(now);
                 osc.stop(now + 0.65);
             } catch (e) {
@@ -30788,7 +30817,7 @@ window.isPresentationMode = isPresentationMode;
 
         function openCalendarWhatsappModal() {
             const cfg = getCalendarWhatsappConfig();
-            
+
             const toggle = document.getElementById('calendarWaEnabledToggle');
             if (toggle) toggle.checked = cfg.enabled !== false;
 
@@ -30877,7 +30906,7 @@ window.isPresentationMode = isPresentationMode;
 
         function saveCalendarWhatsappSettings() {
             const cfg = getCalendarWhatsappConfig();
-            
+
             const toggle = document.getElementById('calendarWaEnabledToggle');
             if (toggle) cfg.enabled = toggle.checked;
 
@@ -30939,7 +30968,7 @@ window.isPresentationMode = isPresentationMode;
             const phoneInput = document.getElementById('calendarWaPhoneInput');
             const rawPhone = (phoneInput && phoneInput.value.trim()) || cfg.phone || (db.teacherProfile && db.teacherProfile.phone) || '';
             const countryCode = (document.getElementById('calendarWaCountryCode') && document.getElementById('calendarWaCountryCode').value) || cfg.countryCode || '+212';
-            
+
             const cleanPhone = cleanWhatsappPhoneNumber(rawPhone, countryCode);
             const generated = generateCalendarWhatsappMessage();
             const encodedText = encodeURIComponent(generated.text);
@@ -31099,12 +31128,12 @@ window.isPresentationMode = isPresentationMode;
 
             // Enable tablet split mode
             document.body.classList.add('tablet-split-mode');
-            
+
             const std = (db.classes[className] || []).find(s => s.id === studentId);
             if (!std) return;
 
             const content = document.getElementById('tabletReportContent');
-            
+
             const today = new Date();
             const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
             const dateFrom = formatLocalDate(firstDay);
@@ -31147,7 +31176,7 @@ window.isPresentationMode = isPresentationMode;
                         <span style="font-weight: bold; color: ${statusColor};">${behaviorData.status}</span>
                     </div>
                     ${behaviorData.note ? `<div style="font-size: 0.8rem; color: #64748b; background: #fff; padding: 6px; border-radius: 4px; border: 1px dashed #cbd5e1; margin-bottom: 8px;">"${behaviorData.note}"</div>` : ''}
-                    
+
                     <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.85rem;">
                         <span style="color: var(--text-muted);">إجمالي الغياب:</span>
                         <span style="font-weight: bold; color: ${absentHours > 0 ? 'var(--danger)' : 'var(--text-dark)'};">${absentHours} س</span>
@@ -31188,8 +31217,8 @@ window.isPresentationMode = isPresentationMode;
             `;
 
             if (window.renderLucide) window.renderLucide();
-            
-            // smooth scroll top 
+
+            // smooth scroll top
             document.getElementById('tabletReportPane').scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -31199,7 +31228,7 @@ window.isPresentationMode = isPresentationMode;
 
 
         // --- Lesson Log (دفتر النصوص البيداغوجي المطور - مخصص لمادة الرياضيات) ---
-        const LESSON_LOG_TYPES = {
+        var LESSON_LOG_TYPES = {
             cours: { label: 'درس: بناء المفاهيم والخاصيات (Cours & Propriétés)', short: 'درس ومفاهيم', bg: '#eff6ff', text: '#1d4ed8', border: '#bfdbfe', icon: 'book-open', mathBadge: '📐 بناء المفاهيم والخاصيات' },
             exercices: { label: 'تمارين تطبيقية وتثبيت (Exercices d\'application)', short: 'تمارين وتطبيقات', bg: '#ecfdf5', text: '#047857', border: '#a7f3d0', icon: 'edit-3', mathBadge: '✏️ تمارين تطبيقية وتثبيت' },
             problemes: { label: 'مسائل ووضعيات توليفية (Problèmes & Synthèse)', short: 'مسائل توليفية', bg: '#fefce8', text: '#a16207', border: '#fde047', icon: 'target', mathBadge: '🎯 مسائل ووضعيات توليفية' },
@@ -31219,7 +31248,7 @@ window.isPresentationMode = isPresentationMode;
             autre: { label: 'أنشطة أخرى (سابق)', short: 'أنشطة أخرى', bg: '#f8fafc', text: '#475569', border: '#cbd5e1', icon: 'bookmark', mathBadge: '📚 أخرى' }
         };
 
-        const MATH_LESSON_TEMPLATES = {
+        var MATH_LESSON_TEMPLATES = {
             cours: `• المفاهيم والتعاريف: بناء المفهوم الرياضي وصياغة التعريف بدقة ووضوح.
 • الخاصيات والمبرهنات: تقديم المبرهنة الأساسية والنتائج المترتبة عنها.
 • الاستدلال والبرهان: إنجاز البرهان على السبورة ومناقشة خطوات الاستنتاج المنطقي.
@@ -31261,7 +31290,7 @@ window.isPresentationMode = isPresentationMode;
 • الأنشطة المنجزة: تذكير بالمكتسبات السابقة، إنجاز التمارين التطبيقية، وتقويم تكويني سريع.`
         };
 
-        const MATH_SUMMARY_PLACEHOLDERS = {
+        var MATH_SUMMARY_PLACEHOLDERS = {
             cours: 'اكتب موضوع الدرس، المفاهيم الرياضية التي تم إرساؤها، المبرهنات والبراهين المنجزة، والأمثلة التطبيقية...',
             exercices: 'حدد أرقام وصفحات التمارين التطبيقية، مهارات الحساب أو الإنشاء الهندسي المستهدفة، ومراحل التصحيح...',
             problemes: 'اكتب موضوع المسألة التوليفية، الكفايات المستهدفة، نموذج الحل، واستنتاجات المتعلمين...',
@@ -31522,7 +31551,7 @@ window.isPresentationMode = isPresentationMode;
                     let html = '';
                     examEvents.forEach(ev => {
                         const isLinked = window._currentLinkedCalendarEvent && (
-                            window._currentLinkedCalendarEvent.id === ev.id || 
+                            window._currentLinkedCalendarEvent.id === ev.id ||
                             (window._currentLinkedCalendarEvent.title === ev.title && window._currentLinkedCalendarEvent.date === ev.date)
                         );
                         const isDateMatch = dateVal && ev.date === dateVal;
@@ -31530,9 +31559,9 @@ window.isPresentationMode = isPresentationMode;
                         const evJson = encodeURIComponent(JSON.stringify(ev));
 
                         html += `
-                            <button type="button" onclick="linkCalendarExamToLessonLog('${evJson}')" 
+                            <button type="button" onclick="linkCalendarExamToLessonLog('${evJson}')"
                                 style="background: ${isLinked ? '#ffe4e6' : '#ffffff'}; color: #9f1239; border: ${isLinked ? '2px solid #e11d48' : '1.5px solid #fecdd3'}; border-radius: 8px; padding: 6px 12px; font-size: 0.82rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: all 0.2s; box-shadow: ${isLinked ? '0 2px 4px rgba(225,29,72,0.18)' : '0 1px 2px rgba(0,0,0,0.03)'};"
-                                onmouseover="this.style.borderColor='#e11d48'; this.style.transform='translateY(-1px)'" 
+                                onmouseover="this.style.borderColor='#e11d48'; this.style.transform='translateY(-1px)'"
                                 onmouseout="this.style.borderColor='${isLinked ? '#e11d48' : '#fecdd3'}'; this.style.transform='none'"
                                 title="انقر لربط الحصة تلقائياً بهذا الموعد المبرمج">
                                 <span class="ui-icon" style="margin: 0; color: ${isLinked ? '#e11d48' : '#be123c'};">
@@ -31555,7 +31584,7 @@ window.isPresentationMode = isPresentationMode;
                     });
 
                     html += `
-                        <button type="button" onclick="openAddEventModal(document.getElementById('lessonLogDate')?.value || '')" 
+                        <button type="button" onclick="openAddEventModal(document.getElementById('lessonLogDate')?.value || '')"
                             style="background: #ffffff; color: #be123c; border: 1.5px dashed #fda4af; border-radius: 8px; padding: 6px 12px; font-size: 0.78rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;"
                             onmouseover="this.style.background='#fff1f2'" onmouseout="this.style.background='#ffffff'"
                             title="إضافة موعد فرض آخر في التقويم">
@@ -31979,7 +32008,7 @@ window.isPresentationMode = isPresentationMode;
                             ${matchingSlots.map(s => {
                                 const isCurrent = s.key === activeSlot.key;
                                 return `
-                                    <button type="button" onclick="autoAlignLessonLogWithTimetable('${s.key}', { force: true, showToast: true })" 
+                                    <button type="button" onclick="autoAlignLessonLogWithTimetable('${s.key}', { force: true, showToast: true })"
                                         style="background: ${isCurrent ? '#15803d' : '#ffffff'}; color: ${isCurrent ? '#ffffff' : '#166534'}; border: 1.5px solid ${isCurrent ? '#15803d' : '#86efac'}; padding: 3px 10px; border-radius: 6px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: ${isCurrent ? '0 1px 3px rgba(21,128,61,0.2)' : 'none'};">
                                         <span>${isCurrent ? '✓' : '⏱️'} ${s.label}: ${s.slotRange} (${s.hrs}س)</span>
                                     </button>
@@ -32049,7 +32078,7 @@ window.isPresentationMode = isPresentationMode;
                     banner.style.background = '#fffbeb';
                     banner.style.border = '1.5px solid #fde68a';
                     banner.style.borderRight = '4px solid #d97706';
-                    
+
                     const otherClassesText = (otherClassSlots.length > 0)
                         ? `<div style="margin-top: 5px; font-size: 0.75rem; color: #92400e;">
                             <b>الأقسام المبرمجة اليوم في جدولك:</b> ${otherClassSlots.map(o => `${escapeHtml(o.c)} (${o.slotRange})`).join(' ، ')}
@@ -32204,7 +32233,7 @@ window.isPresentationMode = isPresentationMode;
         }
 
         // --- Enhanced Multiple Axes & Paragraphs Management (كل محور به فقرات ومحتوى خاص ولون مخصص) ---
-        const LESSON_PARAGRAPH_TYPES = {
+        var LESSON_PARAGRAPH_TYPES = {
             'construct': { label: '🏗️ نشاط بناء (مفهوم / خاصية)', badge: 'نشاط بناء', color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
             'application': { label: '📐 تطبيق (أمثلة وتطبيق مباشر)', badge: 'تطبيق', color: '#166534', bg: '#f0fdf4', border: '#bbf7d0' },
             'synthesis': { label: '🧩 تمرين توليفي (مسألة توليفية)', badge: 'تمرين توليفي', color: '#7c3aed', bg: '#faf5ff', border: '#ddd6fe' },
@@ -32218,7 +32247,7 @@ window.isPresentationMode = isPresentationMode;
             'problem': { label: '🧩 تمرين توليفي (مسألة توليفية)', badge: 'تمرين توليفي', color: '#7c3aed', bg: '#faf5ff', border: '#ddd6fe' }
         };
 
-        const AXIS_COLOR_PALETTES = [
+        var AXIS_COLOR_PALETTES = [
             { id: 'white', label: 'كلاسيكي (أبيض)', bg: '#ffffff', border: '#cbd5e1' },
             { id: 'blue', label: 'أزرق سماوي', bg: '#eff6ff', border: '#bfdbfe' },
             { id: 'green', label: 'أخضر نعناعي', bg: '#f0fdf4', border: '#bbf7d0' },
@@ -32279,7 +32308,7 @@ window.isPresentationMode = isPresentationMode;
                 const axisTitle = titleInput ? titleInput.value.trim() : '';
                 const axisColor = axisCard.dataset.color || '#ffffff';
                 const techNotes = axisCard.querySelector('.axis-tech-general-notes')?.value?.trim() || '';
-                
+
                 // Multi-session in same axis attributes
                 const continuationMode = axisCard.querySelector('.axis-continuation-mode-select')?.value;
                 const isContinuation = (continuationMode === 'continuation') || (axisCard.dataset.isContinuation === 'true');
@@ -32394,7 +32423,7 @@ window.isPresentationMode = isPresentationMode;
             return fallback ? [fallback] : [];
         }
 
-        const LESSON_AXIS_STAGES = {
+        var LESSON_AXIS_STAGES = {
             'construct': { label: 'بناء المفهوم والبرهان', badge: '🏗️ بناء المفهوم' },
             'applications': { label: 'تطبيقات وأمثلة موجهة', badge: '📐 تطبيقات' },
             'exercises': { label: 'تمارين وتثبيت المكتسبات', badge: '✏️ تمارين وتثبيت' },
@@ -32643,7 +32672,7 @@ window.isPresentationMode = isPresentationMode;
         }
 
         // --- Annual Curriculum Distribution & Axes Progress Calculation Engine (مؤشر تقدم إنجاز محاور التوزيع السنوي) ---
-        const OFFICIAL_ANNUAL_CURRICULUM_AXES = {
+        var OFFICIAL_ANNUAL_CURRICULUM_AXES = {
             // مقرر الرياضيات بالسلك الثانوي التأهيلي
             'النهايات والاتصال': ['الاتصال في نقطة وعلى مجال ومبرهنة القيم الوسيطية', 'حساب النهايات ورفع الأشكال غير المحددة والتقنيات المقاربة', 'الدالة العكسية ودالة الجذر من الرتبة n والاتصال المنتظم'],
             'الاشتقاق ودراسة الدوال': ['قابلية الاشتقاق ومشتقة الدالة العكسية ومركب دالتين', 'مبرهنة رول ومبرهنة التزايدات المنتهية TAF والتقعر ونقط الانعطاف', 'الفروع اللانهائية والمقاربات والتمثيل المبياني الشامل'],
@@ -32766,7 +32795,7 @@ window.isPresentationMode = isPresentationMode;
             };
         }
 
-        let _curriculumProgressExpanded = false;
+        var _curriculumProgressExpanded = false;
         function toggleCurriculumProgressCard() {
             _curriculumProgressExpanded = !_curriculumProgressExpanded;
             const className = document.getElementById('lessonLogClassSelect')?.value;
@@ -33230,12 +33259,12 @@ window.isPresentationMode = isPresentationMode;
             let newAxisCounter = 0;
 
             axisCards.forEach((axisCard, aIdx) => {
-                const isContinuation = (axisCard.dataset.isContinuation === 'true') || 
+                const isContinuation = (axisCard.dataset.isContinuation === 'true') ||
                     (axisCard.querySelector('.axis-continuation-mode-select')?.value === 'continuation');
-                
+
                 let axisNum;
                 let sessionIndex = parseInt(axisCard.dataset.sessionIndexInAxis || 2);
-                
+
                 if (isContinuation && axisCard.dataset.parentAxisNum) {
                     axisNum = parseInt(axisCard.dataset.parentAxisNum);
                 } else if (isContinuation && lessonTitle) {
@@ -34239,7 +34268,7 @@ window.isPresentationMode = isPresentationMode;
                         🔄 الحصة ${sessionIndexInAxis} في نفس المحور
                     </span>
                     <input type="text" class="lesson-log-axis-title-input" list="lessonLogAxesSmartDatalist" value="${safeTitle}" placeholder="أدخل أو اختر عنوان المحور الوزاري (إكمال تلقائي ذكي للمحور وفقراته)..." oninput="if(window.onAxisTitleSmartInput) window.onAxisTitleSmartInput(this); updateLessonLogTitleHidden();">
-                    
+
                     <!-- Color Picker Bar -->
                     <div class="axis-color-picker-bar" title="تحديد لون خلفية مخصص لهذا المحور للتمييز البصري">
                         <span style="font-size: 0.68rem; font-weight: 700; color: #475569;">🎨 الخلفية:</span>
@@ -34535,7 +34564,7 @@ window.isPresentationMode = isPresentationMode;
             const btnAll = document.getElementById('filterResAll');
             const btnVideo = document.getElementById('filterResVideo');
             const btnDocs = document.getElementById('filterResDocs');
-            
+
             if (btnAll) {
                 btnAll.style.background = type === 'all' ? '#eff6ff' : '#f8fafc';
                 btnAll.style.color = type === 'all' ? '#1d4ed8' : '#475569';
@@ -34808,7 +34837,7 @@ window.isPresentationMode = isPresentationMode;
             if (modal) modal.style.display = 'none';
         }
 
-        let _isSavingQuickAddResource = false;
+        var _isSavingQuickAddResource = false;
         function saveQuickAddResource() {
             if (_isSavingQuickAddResource) return;
             const titleInp = document.getElementById('quickAddResTitle');
@@ -35998,7 +36027,7 @@ window.isPresentationMode = isPresentationMode;
                                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                         <span class="axis-num-badge">المحور ${globalAxisNum}</span>
                                         <span style="font-weight: 800; font-size: 0.92rem; color: #0f172a;">${cleanPedagogicalLogText(axTitle)}</span>
-                                        
+
                                         ${isCont ? `
                                             <span style="background: #ffffff; color: #4338ca; border: 1px dashed #c4b5fd; padding: 2px 7px; border-radius: 5px; font-size: 0.72rem; font-weight: 700;">
                                                 ${stageInfo.badge}
@@ -36527,7 +36556,7 @@ window.isPresentationMode = isPresentationMode;
                                 <span data-lucide="calendar" data-size="12"></span>
                                 <span>${dayName ? dayName + ' ' : ''}${log.date}</span>
                             </span>
-                            
+
                             <!-- Preview Content Button -->
                             <button class="btn-action hide-in-presentation" onclick="previewLessonLogContent('${className}', '${log.id}')" style="background: #eff6ff; border: 1.5px solid #93c5fd; color: #1d4ed8; cursor: pointer; padding: 4px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;" title="معاينة محتوى الحصة والبطاقة البيداغوجية">
                                 <span data-lucide="eye" data-size="13"></span>
@@ -36895,7 +36924,7 @@ window.isPresentationMode = isPresentationMode;
                 // e.g. "الصباح: (08:00 - 10:00)" or "المساء: (13:00 - 15:00)"
                 const timeMatch = latest.session.match(/(\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2})/);
                 const slotStr = timeMatch ? timeMatch[1].replace(/\s+/g, ' ').trim() : latest.session.trim();
-                
+
                 // Determine duration
                 let durationVal = '2';
                 if (slotStr.includes('-')) {
@@ -36914,16 +36943,16 @@ window.isPresentationMode = isPresentationMode;
 
                 const durationSelect = document.getElementById('lessonLogDuration');
                 if (durationSelect) durationSelect.value = durationVal;
-                
+
                 updateLessonLogTimeSlotOptions(durationVal, slotStr);
-                
+
                 showAppToast(`تم استيراد تاريخ وتوقيت الحصة من قسم الغياب بنجاح: ${latest.date} | ${slotStr} (${durationVal} س)`, 'success');
             } else {
                 showAppToast(`تم استيراد تاريخ آخر حصة بنجاح: ${latest.date}`, 'info');
             }
         }
 
-        let _isSavingLessonLog = false;
+        var _isSavingLessonLog = false;
         function saveLessonLog() {
             if (_isSavingLessonLog) return;
             if (isPresentationMode()) {
@@ -36969,8 +36998,8 @@ window.isPresentationMode = isPresentationMode;
             // منع تكرار العمليات والحصص المتطابقة عند الإضافة الجديدة
             if (!window._editingLessonLog) {
                 const cleanSlot = timeSlot.replace(/\s+/g, '');
-                const isDuplicate = db.lessonLogs[className].some(l => 
-                    l && l.date === date && 
+                const isDuplicate = db.lessonLogs[className].some(l =>
+                    l && l.date === date &&
                     (l.timeSlot || '').replace(/\s+/g, '') === cleanSlot &&
                     ((l.number && l.number.trim().toLowerCase() === (number || '').trim().toLowerCase()) ||
                      (l.summary && summary && l.summary.trim().toLowerCase() === summary.trim().toLowerCase()))
@@ -37340,7 +37369,7 @@ window.isPresentationMode = isPresentationMode;
         window.printSingleSessionSlip = printSingleSessionSlip;
 
         // أدوات التحكم التفاعلي في معاينة دفتر النصوص (تكبير، توفير الحبر، تعديل مباشر)
-        let _cahierPreviewZoom = 100;
+        var _cahierPreviewZoom = 100;
         function setCahierPreviewZoom(delta) {
             _cahierPreviewZoom = Math.min(135, Math.max(70, _cahierPreviewZoom + (Number(delta) || 0)));
             const container = document.getElementById('cahierPdfPrintableContainer');
@@ -38141,7 +38170,7 @@ window.isPresentationMode = isPresentationMode;
         // Modal & Engine: Reorder Lesson Axes Across Sessions
         // (ترتيب وتنظيم محاور الدرس في دفتر النصوص)
         // ==========================================
-        let currentReorderState = {
+        var currentReorderState = {
             className: '',
             lessonTitle: '',
             axesList: [],
@@ -38276,7 +38305,7 @@ window.isPresentationMode = isPresentationMode;
             renderReorderModalAxesList();
         }
 
-        let draggedAxisIndex = null;
+        var draggedAxisIndex = null;
 
         function renderReorderModalAxesList() {
             const container = document.getElementById('reorderAxesListContainer');
@@ -38315,7 +38344,7 @@ window.isPresentationMode = isPresentationMode;
                 const isLast = (idx === axes.length - 1);
 
                 html += `
-                <div class="reorder-axis-card" 
+                <div class="reorder-axis-card"
                      data-axis-index="${idx}"
                      draggable="true"
                      ondragstart="onAxisDragStart(event, ${idx})"
@@ -38323,7 +38352,7 @@ window.isPresentationMode = isPresentationMode;
                      ondrop="onAxisDrop(event, ${idx})"
                      ondragend="onAxisDragEnd(event)"
                      style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 10px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 8px; cursor: grab; transition: border-color 0.2s, box-shadow 0.2s;">
-                    
+
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
                         <!-- Drag Handle & Global Axis Badge -->
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -38356,8 +38385,8 @@ window.isPresentationMode = isPresentationMode;
 
                     <!-- Editable Axis Title Input -->
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="text" 
-                               value="${escapeHtml(axis.title)}" 
+                        <input type="text"
+                               value="${escapeHtml(axis.title)}"
                                placeholder="عنوان المحور البيداغوجي..."
                                onchange="onReorderAxisTitleChanged(${idx}, this.value)"
                                style="flex: 1; padding: 6px 10px; border-radius: 6px; border: 1.5px solid #e2e8f0; font-size: 0.85rem; font-weight: 800; color: #0f172a; background: #ffffff;" />
@@ -38629,7 +38658,7 @@ window.isPresentationMode = isPresentationMode;
             const lTitle = decodeURIComponent(rawLessonTitle || '');
             const normKey = normalizeLessonTitle(lTitle);
             const normAx = normalizeLessonTitle(axTitle);
-            
+
             const targetClass = className || document.getElementById('lessonLogClassSelect')?.value || '';
             if (normAx && targetClass) {
                 const seqInfo = getLessonAxesSequenceInfo(targetClass);
@@ -39310,13 +39339,13 @@ window.isPresentationMode = isPresentationMode;
                     const sessionKey = r.session || 'الحصة';
                     const key = `${r.className}|||${r.date}|||${sessionKey}`;
                     if (!sessionMap.has(key)) {
-                        sessionMap.set(key, { 
-                            className: r.className, 
-                            date: r.date, 
+                        sessionMap.set(key, {
+                            className: r.className,
+                            date: r.date,
                             session: sessionKey,
-                            explicitPresent: 0, 
-                            absentCount: 0, 
-                            lateCount: 0 
+                            explicitPresent: 0,
+                            absentCount: 0,
+                            lateCount: 0
                         });
                     }
                     const s = sessionMap.get(key);
@@ -39343,14 +39372,14 @@ window.isPresentationMode = isPresentationMode;
                     const finalPresent = totalStudents > 0 ? Math.max(0, totalStudents - absentCount) : explicitPresent;
                     const attRate = totalStudents > 0 ? ((finalPresent / totalStudents) * 100).toFixed(1) : '100';
                     const absRate = totalStudents > 0 ? ((absentCount / totalStudents) * 100).toFixed(1) : '0';
-                    missingLogs.push({ 
-                        className, 
-                        date, 
+                    missingLogs.push({
+                        className,
+                        date,
                         session,
-                        totalStudents, 
-                        presentCount: finalPresent, 
-                        absentCount, 
-                        lateCount, 
+                        totalStudents,
+                        presentCount: finalPresent,
+                        absentCount,
+                        lateCount,
                         attendanceRate: attRate,
                         absenceRate: absRate
                     });
@@ -39490,8 +39519,8 @@ window.isPresentationMode = isPresentationMode;
             else if (clean.includes('1BAC') || clean.includes('1-BAC') || clean.includes('1 BAC') || clean.includes('أولى باك')) level = '1BAC';
             else if (clean.includes('TCS') || clean.includes('TC') || clean.includes('جذع')) level = 'TCS';
             else if (clean.includes('TCL') || clean.includes('LSH') || clean.includes('آداب') || clean.includes('إنسانية')) level = 'TCL';
-            
-            
+
+
             else {
                 const m = clean.match(/^([A-Z0-9\u0621-\u064A]+)/i);
                 level = m ? m[1] : clean;
@@ -39748,7 +39777,7 @@ window.isPresentationMode = isPresentationMode;
                 document.getElementById('multiCopySummaryInput').value = document.getElementById('lessonLogSummary')?.value.trim() || '';
                 if (hwElem) hwElem.value = document.getElementById('lessonLogHomework')?.value?.trim() || '';
                 if (notesElem) notesElem.value = document.getElementById('lessonLogNotes')?.value?.trim() || '';
-                
+
                 window._currentSelectedSourceLessonLog = {
                     date: document.getElementById('lessonLogDate')?.value || formatLocalDate(),
                     number: document.getElementById('lessonLogNumber')?.value?.trim() || '',
@@ -40594,7 +40623,7 @@ ${log.notes || 'سير الحصة عادي'}
         window.printSlipForObject = printSlipForObject;
 
         // أدوات التحكم التفاعلي في نافذة المعاينة والطباعة الشاملة (Universal PDF Studio)
-        let _universalPreviewZoom = 100;
+        var _universalPreviewZoom = 100;
         function setUniversalPreviewZoom(deltaOrVal, isExact = false) {
             if (isExact) {
                 _universalPreviewZoom = Number(deltaOrVal) || 100;
@@ -40850,7 +40879,7 @@ ${log.notes || 'سير الحصة عادي'}
         // =========================================================================
         // محرك الخطوط المغربية الأصيلة وخط اليد التربوي (Moroccan & Handwritten Fonts)
         // =========================================================================
-        const MOROCCAN_GOOGLE_FONTS_LINK = 'https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700;800;900&family=Harmattan:wght@400;700&family=Lemonada:wght@400;600;700&family=Marhey:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Readex+Pro:wght@400;600;700&family=Reem+Kufi:wght@400;600;700&family=Scheherazade+New:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap';
+        var MOROCCAN_GOOGLE_FONTS_LINK = 'https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700;800;900&family=Harmattan:wght@400;700&family=Lemonada:wght@400;600;700&family=Marhey:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Readex+Pro:wght@400;600;700&family=Reem+Kufi:wght@400;600;700&family=Scheherazade+New:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap';
 
         function getSelectedUiFontFamily() {
             return (window.db && window.db.settings && window.db.settings.uiFontFamily) || "'Tajawal', 'Cairo', sans-serif";
@@ -41417,9 +41446,9 @@ ${log.notes || 'سير الحصة عادي'}
         // =========================================================================
         // Custom Lesson & Exercise SVG Icons Control Panel & Print Header Resolver
         // =========================================================================
-        const CUSTOM_SVG_HEADER_STORAGE_KEY = 'math_custom_svg_header_icons_v1';
+        var CUSTOM_SVG_HEADER_STORAGE_KEY = 'math_custom_svg_header_icons_v1';
 
-        const BUILTIN_MATH_SVG_PRESETS = [
+        var BUILTIN_MATH_SVG_PRESETS = [
             {
                 id: 'calculus_integral',
                 label: 'التحليل والتكامل',
@@ -42641,7 +42670,7 @@ ${log.notes || 'سير الحصة عادي'}
 
         function buildMonthlyAdministrativeAbsencePdfHTML(className, options) {
             const sortedClasses = (typeof getSortedClasses === 'function') ? getSortedClasses() : Object.keys(db.classes || {});
-            
+
             // في حال تم اختيار تصدير جميع الأقسام، يتم توليد كل قسم في صفحة واحدة مستقلة متتابعة
             if (className === 'all_classes' || className === 'all' || !className) {
                 if (sortedClasses.length === 0) {
@@ -42732,7 +42761,7 @@ ${log.notes || 'سير الحصة عادي'}
 
                 let status = rec ? rec.status : 'حاضر';
                 let homework = (rec && rec.homework === 'لم ينجز') ? 'لم ينجز' : 'مُنجز';
-                
+
                 const behData = (db.behaviors && db.behaviors[className] && db.behaviors[className][std.id]) ? db.behaviors[className][std.id] : {};
                 let behavior = behData.status || 'منضبط';
 
@@ -42847,7 +42876,7 @@ ${log.notes || 'سير الحصة عادي'}
                     <td style="padding: 5px 6px; text-align: center; font-weight: 700; border: 1px solid #cbd5e1;">${grades.f2 !== undefined && grades.f2 !== '' ? grades.f2 : '-'}</td>
                     ${examCount >= 3 ? `<td style="padding: 5px 6px; text-align: center; font-weight: 700; border: 1px solid #cbd5e1;">${grades.f3 !== undefined && grades.f3 !== '' ? grades.f3 : '-'}</td>` : ''}
                     ${examCount >= 4 ? `<td style="padding: 5px 6px; text-align: center; font-weight: 700; border: 1px solid #cbd5e1;">${grades.f4 !== undefined && grades.f4 !== '' ? grades.f4 : '-'}</td>` : ''}
-                    
+
                     <td style="padding: 5px 6px; text-align: center; font-weight: 800; color: ${avgColor}; background: #f1f5f9; border: 1px solid #cbd5e1;">${avgStr}</td>
                     <td style="padding: 5px 6px; text-align: center; font-weight: 700; color: #1e3a8a; border: 1px solid #cbd5e1;">${weightedStr}</td>
                     <td class="teacher-handwritten-note" style="padding: 5px 8px; text-align: center; font-size: 0.88rem; font-weight: 700; color: ${avgColor}; font-family: ${hwFont}; border: 1px solid #cbd5e1;">${note}</td>
@@ -42881,7 +42910,7 @@ ${log.notes || 'سير الحصة عادي'}
                             <th style="padding: 6px; text-align: center; border: 1px solid #1e3a8a; width: 65px;">الفرض 2</th>
                             ${examCount >= 3 ? `<th style="padding: 6px; text-align: center; border: 1px solid #1e3a8a; width: 65px;">الفرض 3</th>` : ''}
                             ${examCount >= 4 ? `<th style="padding: 6px; text-align: center; border: 1px solid #1e3a8a; width: 65px;">الفرض 4</th>` : ''}
-                            
+
                             <th style="padding: 6px; text-align: center; border: 1px solid #1e3a8a; width: 85px; background: #172554;">معدل المراقبة</th>
                             <th style="padding: 6px; text-align: center; border: 1px solid #1e3a8a; width: 80px;">المعدل المرجح</th>
                             <th style="padding: 6px; text-align: center; border: 1px solid #1e3a8a; width: 130px;">التقدير والملاحظات</th>
@@ -42917,10 +42946,10 @@ ${log.notes || 'سير الحصة عادي'}
             // حساب الإحصائيات العامة للقسم
             let sumAnnual = 0, countAnnual = 0, passCount = 0, improvedCount = 0;
             const studentsData = students.map((std, idx) => {
-                const data = (typeof calculateStudentAnnualData === 'function') 
-                    ? calculateStudentAnnualData(className, std.id) 
+                const data = (typeof calculateStudentAnnualData === 'function')
+                    ? calculateStudentAnnualData(className, std.id)
                     : { s1Avg: null, s2Avg: null, annualAvg: null, trendText: '-', delta: 0 };
-                
+
                 if (data.annualAvg !== null) {
                     sumAnnual += data.annualAvg;
                     countAnnual++;
@@ -42953,10 +42982,10 @@ ${log.notes || 'سير الحصة عادي'}
             </div>` : '';
 
             // 2. جدول ملخص تطور نقط الفروض والدروس المنجزة
-            const examAnalytics = (typeof getExamsAndLessonAnalyticsData === 'function') 
-                ? getExamsAndLessonAnalyticsData(className) 
+            const examAnalytics = (typeof getExamsAndLessonAnalyticsData === 'function')
+                ? getExamsAndLessonAnalyticsData(className)
                 : [];
-            
+
             let examSummaryTable = '';
             if (examAnalytics && examAnalytics.length > 0) {
                 const examRows = examAnalytics.map(item => {
@@ -43836,7 +43865,7 @@ ${log.notes || 'سير الحصة عادي'}
          */
         function buildHeatmapPdfHTML(className, options) {
             const header = buildOfficialMoroccanHeader('الخريطة الحرارية لرصد وتتبع الغياب المدرسي للسنة الدراسية كاملة', className, null, options);
-            const allClassRecords = getClassRecordsFast(className).filter(r => 
+            const allClassRecords = getClassRecordsFast(className).filter(r =>
                 r.status === 'غائب' || r.status === 'مبرر' || r.status === 'متأخر'
             );
             const now = new Date();
@@ -44786,7 +44815,7 @@ ${log.notes || 'سير الحصة عادي'}
         // =========================================================================
         // وحدة لوحة الرموز والصيغ الرياضية الرسمية (Math Symbols Palette)
         // =========================================================================
-        const MATH_SYMBOLS_DATABASE = [
+        var MATH_SYMBOLS_DATABASE = [
             // المجموعات والمنطق
             { symbol: 'ℝ', name: 'مجموعة الأعداد الحقيقية', category: 'sets', latex: '\\mathbb{R}' },
             { symbol: 'ℚ', name: 'مجموعة الأعداد الجذرية', category: 'sets', latex: '\\mathbb{Q}' },
@@ -44858,7 +44887,7 @@ ${log.notes || 'سير الحصة عادي'}
             { symbol: ']a ; b[', name: 'مجال مفتوح', category: 'funcs', latex: ']a;b[' }
         ];
 
-        let _mathSymbolActiveCategory = 'all';
+        var _mathSymbolActiveCategory = 'all';
 
         function openMathSymbolsPaletteModal() {
             const modal = document.getElementById('mathSymbolsPaletteModal');
@@ -45267,7 +45296,7 @@ ${log.notes || 'سير الحصة عادي'}
                     const grades = getStudentGradesBySemester(className, std.id, semester);
                     const rawVal = grades ? grades[component] : '';
                     const noteVal = (rawVal !== undefined && rawVal !== '' && !isNaN(rawVal)) ? parseFloat(parseFloat(rawVal).toFixed(2)) : '';
-                    
+
                     const absRecords = getStudentClassRecordsFast(std.id, className).filter(r => r.status === 'غائب' || r.status === 'مبرر');
                     const isJustified = absRecords.some(r => r.status === 'مبرر') ? 'نعم' : '';
 
@@ -45312,7 +45341,7 @@ ${log.notes || 'سير الحصة عادي'}
                     const grades = getStudentGradesBySemester(className, std.id, semester);
                     const rawVal = grades ? grades[component] : '';
                     const noteVal = (rawVal !== undefined && rawVal !== '' && !isNaN(rawVal)) ? parseFloat(parseFloat(rawVal).toFixed(2)) : '';
-                    
+
                     const absRecords = getStudentClassRecordsFast(std.id, className).filter(r => r.status === 'غائب' || r.status === 'مبرر');
                     const isJustified = absRecords.some(r => r.status === 'مبرر') ? 'نعم' : '';
 
@@ -45529,7 +45558,7 @@ ${log.notes || 'سير الحصة عادي'}
             const previewStudents = students.slice(0, 5);
 
             let tableHtml = '<table style="width: 100%; border-collapse: collapse; font-size: 0.76rem;">';
-            
+
             if (exportType === 'component' || exportType === 'direct') {
                 const compLabels = { 'f1': 'الفرض 1', 'f2': 'الفرض 2', 'f3': 'الفرض 3', 'f4': 'الفرض 4' };
                 tableHtml += `
@@ -45905,11 +45934,11 @@ ${log.notes || 'سير الحصة عادي'}
             viewMode: 'cards' // 'cards' | 'table'
         };
 
-        let _dashboardSelectedStudent = null;
-        let _dashboardModalCurrentTab = 'wa';
+        var _dashboardSelectedStudent = null;
+        var _dashboardModalCurrentTab = 'wa';
 
         // حالة وضع التركيز البيداغوجي (Focus Mode)
-        let _isDashboardFocusMode = false;
+        var _isDashboardFocusMode = false;
         try {
             if (localStorage.getItem('dash_focus_mode') === 'true') {
                 _isDashboardFocusMode = true;
@@ -45985,12 +46014,12 @@ ${log.notes || 'سير الحصة عادي'}
         }
         window.switchFocusModeClass = switchFocusModeClass;
 
-        let _dashboardFocusStudentId = null;
+        var _dashboardFocusStudentId = null;
         try {
             _dashboardFocusStudentId = localStorage.getItem('dash_focus_student_id') || null;
         } catch(e) {}
 
-        let _dashboardFocusCategoryFilter = 'all'; // 'all', 'at_risk', 'absence', 'excellent'
+        var _dashboardFocusCategoryFilter = 'all'; // 'all', 'at_risk', 'absence', 'excellent'
 
         function setDashboardFocusCategoryFilter(cat) {
             _dashboardFocusCategoryFilter = cat;
@@ -46066,7 +46095,7 @@ ${log.notes || 'سير الحصة عادي'}
             if (!window.db.behaviors) window.db.behaviors = {};
             if (!window.db.behaviors[className]) window.db.behaviors[className] = {};
             if (!window.db.behaviors[className][studentId]) window.db.behaviors[className][studentId] = { status: 'منضبط', note: '' };
-            
+
             window.db.behaviors[className][studentId].status = status;
             if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
             if (typeof saveDB === 'function') saveDB();
@@ -46342,8 +46371,8 @@ ${log.notes || 'سير الحصة عادي'}
             }
 
             // إحصائيات وتلاميذ القسم المختار
-            const classRawStudents = (db.classes && db.classes[focusClass]) 
-                ? (Array.isArray(db.classes[focusClass]) ? db.classes[focusClass] : (db.classes[focusClass].students || [])) 
+            const classRawStudents = (db.classes && db.classes[focusClass])
+                ? (Array.isArray(db.classes[focusClass]) ? db.classes[focusClass] : (db.classes[focusClass].students || []))
                 : [];
             const totalStudentsInClass = classRawStudents.length;
 
@@ -46484,13 +46513,13 @@ ${log.notes || 'سير الحصة عادي'}
             // شريط بطاقات التلاميذ المصغرة القابلة للنقر
             const studentPillsHtml = filteredForSelector.slice(0, 30).map(s => {
                 const isSel = (focusedStudent && focusedStudent.id === s.id);
-                const avgBadge = s.annualAvg !== null 
-                    ? `<span style="font-size: 0.68rem; font-weight: 900; color: ${s.annualAvg >= 14 ? '#10b981' : s.annualAvg >= 10 ? '#f59e0b' : '#ef4444'};">${s.annualAvg.toFixed(1)}</span>` 
+                const avgBadge = s.annualAvg !== null
+                    ? `<span style="font-size: 0.68rem; font-weight: 900; color: ${s.annualAvg >= 14 ? '#10b981' : s.annualAvg >= 10 ? '#f59e0b' : '#ef4444'};">${s.annualAvg.toFixed(1)}</span>`
                     : '';
                 const absDot = s.totalAbs >= 5 ? '<span style="width: 7px; height: 7px; border-radius: 50%; background: #ef4444; display: inline-block;" title="' + s.totalAbs + 'س غياب"></span>' : '';
                 return `
-                    <button type="button" 
-                        onclick="selectFocusModeStudent('${escapeQuotes(s.id)}')" 
+                    <button type="button"
+                        onclick="selectFocusModeStudent('${escapeQuotes(s.id)}')"
                         class="focus-student-pill ${isSel ? 'active' : ''}"
                         style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer; border: 1.5px solid ${isSel ? '#38bdf8' : 'rgba(255,255,255,0.18)'}; background: ${isSel ? 'rgba(56, 189, 248, 0.22)' : 'rgba(255,255,255,0.06)'}; color: #ffffff; transition: all 0.15s ease; white-space: nowrap;">
                         <span style="width: 18px; height: 18px; border-radius: 50%; background: ${isSel ? '#38bdf8' : 'rgba(255,255,255,0.2)'}; color: ${isSel ? '#0f172a' : '#fff'}; display: inline-flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 900;">
@@ -46545,7 +46574,7 @@ ${log.notes || 'سير الحصة عادي'}
 
                 singleStudentCardHtml = `
                     <div id="focusStudentDetailedCard" style="margin-top: 18px; background: rgba(15, 23, 42, 0.75); border: 2px solid #38bdf8; border-radius: 14px; padding: 18px 20px; box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.5); backdrop-filter: blur(8px);">
-                        
+
                         <!-- Student Header Strip -->
                         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid rgba(255,255,255,0.12); padding-bottom: 14px; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
                             <div style="display: flex; align-items: center; gap: 12px;">
@@ -46594,7 +46623,7 @@ ${log.notes || 'سير الحصة عادي'}
 
                         <!-- 4 Pillars Grid (غياب، نقط، ملاحظات، سلوك) -->
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px;">
-                            
+
                             <!-- الركن 1: سجل الغياب والمواظبة -->
                             <div style="background: rgba(30, 41, 59, 0.7); border: 1.5px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px; display: flex; flex-direction: column;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px;">
@@ -46908,17 +46937,17 @@ ${log.notes || 'سير الحصة عادي'}
         }
         window.renderDashboardFocusModeCockpit = renderDashboardFocusModeCockpit;
 
-        let _cachedAtRiskSignature = '';
-        let _cachedAtRiskRawList = null;
-        let _cachedAtRiskStats = null;
+        var _cachedAtRiskSignature = '';
+        var _cachedAtRiskRawList = null;
+        var _cachedAtRiskStats = null;
 
         function getDashboardAtRiskStudents(opts = {}) {
             const filter = { ..._dashboardFilter, ...opts };
             const classes = Object.keys(db.classes || {});
-            const thresholdVal = filter.threshold === 'threshold' 
-                ? (parseFloat(db.absenceThreshold) || 10) 
+            const thresholdVal = filter.threshold === 'threshold'
+                ? (parseFloat(db.absenceThreshold) || 10)
                 : (parseFloat(filter.threshold) || 3);
-            
+
             const records = db.records || [];
             if (_recordsCacheDirty) {
                 buildRecordsCache();
@@ -47076,8 +47105,8 @@ ${log.notes || 'سير الحصة عادي'}
                         } else if (isHwLate) {
                             severity = 1;
                             severityKey = 'hw_late';
-                            severityLabel = (lateCount >= 3 && missedHw >= 3) 
-                                ? 'إهمال واجبات وتأخر متكرر' 
+                            severityLabel = (lateCount >= 3 && missedHw >= 3)
+                                ? 'إهمال واجبات وتأخر متكرر'
                                 : (missedHw >= 3 ? `إهمال واجبات (${missedHw} مرات)` : `تأخرات متكررة (${lateCount} مرات)`);
                             severityBadgeClass = 'dash-badge-info';
                         }
@@ -47161,7 +47190,7 @@ ${log.notes || 'سير الحصة عادي'}
 
             if (filter.search && filter.search.trim()) {
                 const q = filter.search.trim().toLowerCase();
-                filtered = filtered.filter(s => 
+                filtered = filtered.filter(s =>
                     (s.name && s.name.toLowerCase().includes(q)) ||
                     (s.id && String(s.id).toLowerCase().includes(q)) ||
                     (s.className && s.className.toLowerCase().includes(q)) ||
@@ -47285,8 +47314,8 @@ ${log.notes || 'سير الحصة عادي'}
             const startStr = (db.settings && db.settings.schoolYearStart) ? db.settings.schoolYearStart : defaultStartStr;
             const endStr = (db.settings && db.settings.schoolYearEnd) ? db.settings.schoolYearEnd : defaultEndStr;
 
-            const label = (db.teacherProfile && db.teacherProfile.academicYear) 
-                ? db.teacherProfile.academicYear 
+            const label = (db.teacherProfile && db.teacherProfile.academicYear)
+                ? db.teacherProfile.academicYear
                 : `${defaultStartYear}/${defaultEndYear}`;
 
             return {
@@ -47306,7 +47335,7 @@ ${log.notes || 'سير الحصة عادي'}
             try {
                 const dates = getSchoolYearDates();
                 const now = (typeof getAppNow === 'function') ? getAppNow() : new Date();
-                
+
                 const startDate = new Date(dates.startStr + 'T00:00:00');
                 const endDate = new Date(dates.endStr + 'T23:59:59');
 
@@ -47455,7 +47484,7 @@ ${log.notes || 'سير الحصة عادي'}
         window.saveSchoolYearDatesFromModal = saveSchoolYearDatesFromModal;
 
         // 2. أداة حالة الطقس والتنقل والأجواء الصفية
-        const MOROCCAN_CITIES_COORDS = {
+        var MOROCCAN_CITIES_COORDS = {
             'الدار البيضاء': { lat: 33.5731, lon: -7.5898 },
             'الرباط': { lat: 34.0209, lon: -6.8416 },
             'مراكش': { lat: 31.6295, lon: -7.9811 },
@@ -47490,7 +47519,7 @@ ${log.notes || 'سير الحصة عادي'}
         function getTeacherWeatherCity() {
             if (db.settings && db.settings.weatherCity) return db.settings.weatherCity.trim();
             if (db.teacherProfile && db.teacherProfile.city) return db.teacherProfile.city.trim();
-            
+
             const dir = (db.teacherProfile && db.teacherProfile.directorate) ? db.teacherProfile.directorate : '';
             for (let cityName of Object.keys(MOROCCAN_CITIES_COORDS)) {
                 if (dir.includes(cityName)) return cityName;
@@ -47500,7 +47529,7 @@ ${log.notes || 'سير الحصة عادي'}
         }
         window.getTeacherWeatherCity = getTeacherWeatherCity;
 
-        let _cachedWeatherData = null;
+        var _cachedWeatherData = null;
 
         function initDashboardWeather() {
             const card = document.getElementById('dashWeatherWidgetCard');
@@ -47813,7 +47842,7 @@ ${log.notes || 'سير الحصة عادي'}
         // ============================================================
         // Drag-and-Drop Reordering for Dashboard KPI Metric Cards
         // ============================================================
-        const DEFAULT_DASHBOARD_KPI_ORDER = [
+        var DEFAULT_DASHBOARD_KPI_ORDER = [
             'total-absence-hours',
             'upcoming-exams',
             'academic-evolution',
@@ -47824,9 +47853,9 @@ ${log.notes || 'سير الحصة عادي'}
             'behavior-alerts',
             'homework-late'
         ];
-        const DASHBOARD_KPI_ORDER_STORAGE_KEY = 'dashboardKpiOrder_v1';
-        let _draggedDashKpiCard = null;
-        let _isDashKpiDraggingNow = false;
+        var DASHBOARD_KPI_ORDER_STORAGE_KEY = 'dashboardKpiOrder_v1';
+        var _draggedDashKpiCard = null;
+        var _isDashKpiDraggingNow = false;
 
         function getSavedDashboardKpiOrder() {
             try {
@@ -48304,7 +48333,7 @@ ${log.notes || 'سير الحصة عادي'}
                             const sClsTheme = (typeof getClassColorTheme === 'function') ? getClassColorTheme(s.className) : null;
                             const severityClass = `severity-${s.severityKey || 'ok'}`;
                             const focusCardClass = _isDashboardFocusMode ? 'focus-mode-card' : '';
-                            
+
                             cardsHtml += `
                                 <div class="dash-student-card ${severityClass} ${focusCardClass}">
                                     <div class="dash-card-header">
@@ -48622,7 +48651,7 @@ ${log.notes || 'سير الحصة عادي'}
         /* ==========================================================================
            الخط الزمني التتابعي للإجراءات والتنبيهات (Chronological Timeline View)
            ========================================================================== */
-        let _dashTimelineFilter = 'all'; // 'all' | 'actions' | 'alerts'
+        var _dashTimelineFilter = 'all'; // 'all' | 'actions' | 'alerts'
 
         function setDashboardTimelineFilter(filter) {
             _dashTimelineFilter = filter;
@@ -48856,9 +48885,9 @@ ${log.notes || 'سير الحصة عادي'}
         /* ==========================================================================
            تتبع الواجبات المنزلية المقررة لهذا الأسبوع وتنبيهات المواعيد النهائية (Weekly Homework Tracker)
            ========================================================================== */
-        let _dashHwFilterCategory = 'all'; // 'all' | 'urgent' | 'upcoming' | 'overdue' | 'completed'
-        let _dashHwFilterClass = 'all';
-        let _dashHwWeekScope = 'current'; // 'current' | 'next' | 'all_pending'
+        var _dashHwFilterCategory = 'all'; // 'all' | 'urgent' | 'upcoming' | 'overdue' | 'completed'
+        var _dashHwFilterClass = 'all';
+        var _dashHwWeekScope = 'current'; // 'current' | 'next' | 'all_pending'
 
         function parseHwDateSafe(dateStr) {
             if (!dateStr) return null;
@@ -48897,7 +48926,7 @@ ${log.notes || 'سير الحصة عادي'}
             const ref = refDateInput ? parseHwDateSafe(refDateInput) : new Date();
             const curr = new Date(ref.getTime());
             curr.setHours(0, 0, 0, 0);
-            
+
             // Adjust day to Monday (Morocco school week starts Monday)
             const day = curr.getDay(); // 0 is Sunday, 1 is Monday
             const diffToMonday = (day === 0 ? -6 : 1) - day;
@@ -49078,7 +49107,7 @@ ${log.notes || 'سير الحصة عادي'}
                     const logs = Array.isArray(db.lessonLogs[className]) ? db.lessonLogs[className] : [];
                     logs.forEach((log, idx) => {
                         if (!log || !log.homework || !log.homework.trim()) return;
-                        
+
                         let dueDate = log.homeworkDueDate;
                         if (!dueDate) {
                             // Find next session for this class
@@ -49626,7 +49655,7 @@ ${log.notes || 'سير الحصة عادي'}
         function copyAllWeeklyHomeworkWhatsApp() {
             const allItems = getUnifiedWeeklyHomeworkItems();
             const weekRange = getHwWeekDatesRange(formatLocalDate(), _dashHwWeekScope === 'next' ? 1 : 0);
-            
+
             let scoped = allItems;
             if (_dashHwWeekScope === 'current') {
                 scoped = allItems.filter(i => (i.dueDate >= weekRange.mondayStr && i.dueDate <= weekRange.sundayStr) || (!i.completed && i.dueDate < weekRange.mondayStr));
@@ -50006,8 +50035,8 @@ ${log.notes || 'سير الحصة عادي'}
         /* ==========================================================================
            البحث السريع عن تلميذ بلوحة القيادة (Dashboard Quick Student Search Hub)
            ========================================================================== */
-        let _dashQuickSearchQuery = '';
-        let _dashQuickClassFilter = 'all';
+        var _dashQuickSearchQuery = '';
+        var _dashQuickClassFilter = 'all';
 
         function getDashboardAllStudentsList() {
             if (!db || !db.classes) return [];
@@ -50047,7 +50076,7 @@ ${log.notes || 'سير الحصة عادي'}
                     const totalAbsent = unjustifiedHours + justifiedHours;
                     const beh = classBehaviors[studentId] || { status: 'منضبط', note: '' };
                     const missedHw = typeof getTotalMissedHomework === 'function' ? getTotalMissedHomework(studentId, className) : 0;
-                    
+
                     const activeSemDash = typeof activeSemester !== 'undefined' ? activeSemester : 's1';
                     const stdGrades = (typeof getStudentGradesBySemester === 'function')
                         ? getStudentGradesBySemester(className, studentId, activeSemDash)
@@ -50270,7 +50299,7 @@ ${log.notes || 'سير الحصة عادي'}
                 const behaviorBadge = `<span style="font-size: 0.72rem; background: ${behBg}; color: ${behCol}; border: 1px solid ${behBdr}; padding: 2px 7px; border-radius: 999px; font-weight: 700;">${escapeHtml(s.behaviorStatus)}</span>`;
 
                 // Grades badge
-                const gradeBadge = s.gradeAvg !== null 
+                const gradeBadge = s.gradeAvg !== null
                     ? `<span style="font-size: 0.72rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 999px; font-weight: 700;">معدل: ${s.gradeAvg.toFixed(2)}/20</span>`
                     : (s.gradesCount > 0 ? `<span style="font-size: 0.72rem; background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; padding: 2px 7px; border-radius: 999px; font-weight: 700;">${s.gradesCount} فروض</span>` : '');
 
@@ -50706,44 +50735,44 @@ ${log.notes || 'سير الحصة عادي'}
                 let barColor = '#b91c1c';
                 let badgeClass = 'appreciation-badge struggling';
 
-                if (num >= 16) { 
-                    app = '★ ممتاز'; 
-                    color = '#022c22'; 
-                    bg = '#dcfce7'; 
-                    border = '#059669'; 
-                    barColor = '#15803d'; 
+                if (num >= 16) {
+                    app = '★ ممتاز';
+                    color = '#022c22';
+                    bg = '#dcfce7';
+                    border = '#059669';
+                    barColor = '#15803d';
                     badgeClass = 'appreciation-badge excellent';
                 }
-                else if (num >= 14) { 
-                    app = '✓ جيد جداً'; 
-                    color = '#082f49'; 
-                    bg = '#e0f2fe'; 
-                    border = '#0284c7'; 
-                    barColor = '#0369a1'; 
+                else if (num >= 14) {
+                    app = '✓ جيد جداً';
+                    color = '#082f49';
+                    bg = '#e0f2fe';
+                    border = '#0284c7';
+                    barColor = '#0369a1';
                     badgeClass = 'appreciation-badge very-good';
                 }
-                else if (num >= 12) { 
-                    app = '✓ جيد'; 
-                    color = '#0f172a'; 
-                    bg = '#f0f9ff'; 
-                    border = '#38bdf8'; 
-                    barColor = '#0284c7'; 
+                else if (num >= 12) {
+                    app = '✓ جيد';
+                    color = '#0f172a';
+                    bg = '#f0f9ff';
+                    border = '#38bdf8';
+                    barColor = '#0284c7';
                     badgeClass = 'appreciation-badge good';
                 }
-                else if (num >= 10) { 
-                    app = '◆ متوسط'; 
-                    color = '#451a03'; 
-                    bg = '#fef3c7'; 
-                    border = '#d97706'; 
-                    barColor = '#b45309'; 
+                else if (num >= 10) {
+                    app = '◆ متوسط';
+                    color = '#451a03';
+                    bg = '#fef3c7';
+                    border = '#d97706';
+                    barColor = '#b45309';
                     badgeClass = 'appreciation-badge average';
                 }
-                else if (num >= 8) { 
-                    app = '▲ دون المعدل'; 
-                    color = '#7c2d12'; 
-                    bg = '#ffedd5'; 
-                    border = '#ea580c'; 
-                    barColor = '#c2410c'; 
+                else if (num >= 8) {
+                    app = '▲ دون المعدل';
+                    color = '#7c2d12';
+                    bg = '#ffedd5';
+                    border = '#ea580c';
+                    barColor = '#c2410c';
                     badgeClass = 'appreciation-badge struggling';
                 }
                 const pct = Math.min(100, Math.max(0, (num / 20) * 100));
@@ -50878,7 +50907,7 @@ ${log.notes || 'سير الحصة عادي'}
                                     ${s2ExamsHtml}
                                 </div>
                             </div>
-                            
+
                             <!-- Annual Synthesis -->
                             <div style="margin-top: 8px; padding: 8px 12px; background: #ffffff; border: 1.5px dashed #cbd5e1; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                                 <div style="font-size: 0.76rem; font-weight: 800; color: #334155;">
@@ -51429,7 +51458,7 @@ ${log.notes || 'سير الحصة عادي'}
                 cleanPhone = '212' + cleanPhone;
             }
 
-            const url = cleanPhone 
+            const url = cleanPhone
                 ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`
                 : `https://wa.me/?text=${encodeURIComponent(msg)}`;
 
@@ -52009,7 +52038,7 @@ ${log.notes || 'سير الحصة عادي'}
 
             let text = 'كشف المتابعة والإنذار المبكر الموجه للإدارة التربوية\n';
             text += '────────────────────────────────────────────────────\n';
-            
+
             const rows = container.querySelectorAll('table tbody tr');
             rows.forEach((tr, idx) => {
                 const cells = Array.from(tr.querySelectorAll('td')).map(td => td.innerText.trim().replace(/\s+/g, ' '));
@@ -52101,7 +52130,7 @@ ${log.notes || 'سير الحصة عادي'}
             const today = new Date().toLocaleDateString('ar-MA');
             const tp = (db && (db.teacherProfile || db.profile)) || {};
             const teacherName = tp.name || 'الأستاذ';
-            
+
             let text = `📊 ملخص لوحة القيادة والمتابعة التربوية (${today})\n`;
             text += `المؤسسة: ${tp.school || 'المؤسسة التعليمية'} | إعداد: ${teacherName}\n`;
             text += `إجمالي الحالات قيد المتابعة: ${stats.totalCount} (منها ${stats.dualCount} حالات حرجة تجمع الغياب والسلوك)\n`;
@@ -52162,10 +52191,10 @@ ${log.notes || 'سير الحصة عادي'}
         function getTimetableSlotsForClass(className) {
             if (!db || !db.timetable || !className) return [];
             const result = [];
-            const days = (typeof WORK_DAYS !== 'undefined' && Array.isArray(WORK_DAYS)) 
-                ? WORK_DAYS 
+            const days = (typeof WORK_DAYS !== 'undefined' && Array.isArray(WORK_DAYS))
+                ? WORK_DAYS
                 : ['الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-            
+
             days.forEach(day => {
                 const row = db.timetable[day];
                 if (!row) return;
@@ -52319,7 +52348,7 @@ ${log.notes || 'سير الحصة عادي'}
             } else {
                 if (newClassRow) newClassRow.style.display = 'none';
             }
-            
+
             // Recompute next order number
             const orderInput = document.getElementById('quickAddStudentOrder');
             if (orderInput && className && className !== '__NEW__' && db.classes && db.classes[className]) {
@@ -52456,7 +52485,7 @@ ${log.notes || 'سير الحصة عادي'}
             }
         }
 
-        let _isSubmittingQuickAddStudent = false;
+        var _isSubmittingQuickAddStudent = false;
         function submitQuickAddStudent(andKeepOpen = false) {
             if (_isSubmittingQuickAddStudent) return;
             _isSubmittingQuickAddStudent = true;
@@ -52937,7 +52966,7 @@ ${log.notes || 'سير الحصة عادي'}
            نظام تذكير سريع وأداة الملخص البيداغوجي الذكي للغياب عبر WhatsApp لولي الأمر
            (تحليل تاريخ غياب التلميذ وتكراره ونمطه الزمني بالذكاء الاصطناعي)
            ========================================================================== */
-        let _activeStudentWaState = null;
+        var _activeStudentWaState = null;
 
         function analyzeStudentAbsenceHistoryAndPatterns(className, studentId) {
             const daysAr = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
@@ -53326,9 +53355,9 @@ ${log.notes || 'سير الحصة عادي'}
                     banner.style.borderRightColor = '#059669';
                     banner.style.color = '#166534';
                     banner.innerHTML = `
-                        <strong>📌 ملخص الغياب والمواظبة:</strong> 
-                        حالة اليوم (${s.date}): <strong>${s.currentStatus}</strong> • 
-                        مجموع الغياب التراكمي: <strong>${s.totalAbsentHours} ساعة</strong> • 
+                        <strong>📌 ملخص الغياب والمواظبة:</strong>
+                        حالة اليوم (${s.date}): <strong>${s.currentStatus}</strong> •
+                        مجموع الغياب التراكمي: <strong>${s.totalAbsentHours} ساعة</strong> •
                         السلوك: <strong>${s.behaviorData.status}</strong>
                     `;
                 } else if (type === 'homework') {
@@ -53336,9 +53365,9 @@ ${log.notes || 'سير الحصة عادي'}
                     banner.style.borderRightColor = '#f59e0b';
                     banner.style.color = '#92400e';
                     banner.innerHTML = `
-                        <strong>📌 ملخص الواجبات والانضباط:</strong> 
-                        واجب اليوم: <strong>${s.hwStatus === 'لم ينجز' ? 'لم يُنجَز ❌' : 'مُنجَز ✓'}</strong> • 
-                        إخلال بالواجب المسجل: <strong>${s.totalMissedHw} مرة</strong> • 
+                        <strong>📌 ملخص الواجبات والانضباط:</strong>
+                        واجب اليوم: <strong>${s.hwStatus === 'لم ينجز' ? 'لم يُنجَز ❌' : 'مُنجَز ✓'}</strong> •
+                        إخلال بالواجب المسجل: <strong>${s.totalMissedHw} مرة</strong> •
                         التقييم السلوكي: <strong>${s.behaviorData.status}</strong>
                     `;
                 } else if (type === 'grades') {
@@ -53346,11 +53375,11 @@ ${log.notes || 'سير الحصة عادي'}
                     banner.style.borderRightColor = '#3b82f6';
                     banner.style.color = '#1e40af';
                     banner.innerHTML = `
-                        <strong>📌 ملخص نقط المراقبة المستمرة (${semLabel}):</strong> 
-                        فرض 1: <strong>${s.grades.f1 !== undefined ? s.grades.f1 : '-'}</strong> • 
-                        فرض 2: <strong>${s.grades.f2 !== undefined ? s.grades.f2 : '-'}</strong> 
-                        ${s.examCount >= 3 ? `• فرض 3: <strong>${s.grades.f3 !== undefined ? s.grades.f3 : '-'}</strong>` : ''} 
-                        ${s.examCount >= 4 ? `• فرض 4: <strong>${s.grades.f4 !== undefined ? s.grades.f4 : '-'}</strong>` : ''} • 
+                        <strong>📌 ملخص نقط المراقبة المستمرة (${semLabel}):</strong>
+                        فرض 1: <strong>${s.grades.f1 !== undefined ? s.grades.f1 : '-'}</strong> •
+                        فرض 2: <strong>${s.grades.f2 !== undefined ? s.grades.f2 : '-'}</strong>
+                        ${s.examCount >= 3 ? `• فرض 3: <strong>${s.grades.f3 !== undefined ? s.grades.f3 : '-'}</strong>` : ''}
+                        ${s.examCount >= 4 ? `• فرض 4: <strong>${s.grades.f4 !== undefined ? s.grades.f4 : '-'}</strong>` : ''} •
                         معدل الدورة: <strong>${avgText} / 20</strong>
                     `;
                 } else {
@@ -53358,10 +53387,10 @@ ${log.notes || 'سير الحصة عادي'}
                     banner.style.borderRightColor = '#a855f7';
                     banner.style.color = '#6b21a8';
                     banner.innerHTML = `
-                        <strong>📌 تقرير تتبع شامل ومتكامل:</strong> 
-                        غياب: <strong>${s.totalAbsentHours} س</strong> • 
-                        إخلال بالواجب: <strong>${s.totalMissedHw}</strong> • 
-                        السلوك: <strong>${s.behaviorData.status}</strong> • 
+                        <strong>📌 تقرير تتبع شامل ومتكامل:</strong>
+                        غياب: <strong>${s.totalAbsentHours} س</strong> •
+                        إخلال بالواجب: <strong>${s.totalMissedHw}</strong> •
+                        السلوك: <strong>${s.behaviorData.status}</strong> •
                         معدل ${semLabel}: <strong>${avgText}</strong>
                     `;
                 }
@@ -53874,7 +53903,7 @@ ${log.notes || 'سير الحصة عادي'}
                     let zeroAbsenceCount = 0;
 
                     const studentAbsenceRows = students.map((std, sIdx) => {
-                        const stdRecords = getStudentClassRecordsFast(std.id, className).filter(r => 
+                        const stdRecords = getStudentClassRecordsFast(std.id, className).filter(r =>
                             (!dateFrom || r.date >= dateFrom) &&
                             (!dateTo || r.date <= dateTo)
                         );
@@ -53893,7 +53922,7 @@ ${log.notes || 'سير الحصة عادي'}
                         if (unjustHours > 0) unjustifiedCount++;
                         if (absentHours === 0) zeroAbsenceCount++;
 
-                        const behavior = (db.behaviors && db.behaviors[className] && db.behaviors[className][std.id]) 
+                        const behavior = (db.behaviors && db.behaviors[className] && db.behaviors[className][std.id])
                             ? db.behaviors[className][std.id] : { status: 'منضبط', note: '' };
 
                         return {
@@ -54195,7 +54224,7 @@ ${log.notes || 'سير الحصة عادي'}
             }
         }
         window.exportAllClassesAttendancePDFWithCovers = exportAllClassesAttendancePDFWithCovers;
-    
+
 
         // =========================================================================
         // تنزيل فوري وآمن لنسخة احتياطية مشفرة وشاملة لقاعدة البيانات (المحور الأول)
@@ -54604,14 +54633,14 @@ ${log.notes || 'سير الحصة عادي'}
         // =========================================================================
         // 3. نظام التصنيف النوعي والإحصائيات النوعية للملاحظات التربوية (بيداغوجية / سلوكية / إدارية)
         // =========================================================================
-        const PEDAGOGICAL_NOTE_CATEGORIES = {
+        var PEDAGOGICAL_NOTE_CATEGORIES = {
             pedagogical: { key: 'pedagogical', label: 'بيداغوجية', icon: '🎓', bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
             behavioral: { key: 'behavioral', label: 'سلوكية', icon: '⚖️', bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe' },
             administrative: { key: 'administrative', label: 'إدارية', icon: '🏛️', bg: '#fffbeb', color: '#b45309', border: '#fde68a' }
         };
         window.PEDAGOGICAL_NOTE_CATEGORIES = PEDAGOGICAL_NOTE_CATEGORIES;
 
-        const PEDAGOGICAL_NOTE_SENTIMENTS = {
+        var PEDAGOGICAL_NOTE_SENTIMENTS = {
             positive: { key: 'positive', label: 'إيجابية / تنويه', icon: '🌟', bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
             guidance: { key: 'guidance', label: 'توجيه ومواكبة', icon: '💡', bg: '#fefce8', color: '#854d0e', border: '#fef08a' },
             alert: { key: 'alert', label: 'تنبيه ومتابعة', icon: '⚠️', bg: '#fef2f2', color: '#b91c1c', border: '#fecaca' }
@@ -55531,7 +55560,7 @@ ${log.notes || 'سير الحصة عادي'}
             const docTitle = `بطاقة_حضور_مجمعة_لجميع_الأقسام_${cleanYear}`;
 
             if (actionMode === 'download') {
-                const btn = document.getElementById('btnCombinedAttendanceCardPdfDownload') || document.getElementById('btnCombinedAttendanceCardPdf');
+                const btn = document.getElementById('btnCombinedAttendanceCardPdfDownload') || document.getElementById('btnCombinedAttendanceCardTopPdf') || document.getElementById('btnCombinedAttendanceCardPdf');
                 const origHtml = btn ? btn.innerHTML : '';
                 if (btn) {
                     btn.disabled = true;
@@ -56305,7 +56334,7 @@ ${log.notes || 'سير الحصة عادي'}
             const docTitle = `تقرير_الغياب_والتأخرات_الشامل_لقسم_${cleanCls}`;
 
             if (actionMode === 'download') {
-                const btn = document.getElementById('btnUnifiedClassAbsenceLatePdfDownload') || document.getElementById('btnUnifiedClassAbsenceLatePdf');
+                const btn = document.getElementById('btnUnifiedClassAbsenceLatePdfDownload') || document.getElementById('btnUnifiedClassAbsenceLateTopPdf') || document.getElementById('btnUnifiedClassAbsenceLatePdf');
                 const origHtml = btn ? btn.innerHTML : '';
                 if (btn) {
                     btn.disabled = true;

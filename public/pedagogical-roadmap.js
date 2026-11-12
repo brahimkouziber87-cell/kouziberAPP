@@ -123,9 +123,9 @@
         const target = (ms.targetLevels || '').trim();
         if (!target) return true;
 
-        if (target.includes('جميع الأقسام') || 
-            target.includes('جميع المستويات') || 
-            target.includes('كافة المستويات') || 
+        if (target.includes('جميع الأقسام') ||
+            target.includes('جميع المستويات') ||
+            target.includes('كافة المستويات') ||
             target.includes('الثانوي التأهيلي') ||
             target.includes('هيئة التدريس')) {
             return true;

@@ -82,7 +82,7 @@
 
         const weeks = [];
         const start = new Date(academicYear.startYear, 8, 1); // 1 شتنبر
-        
+
         // محاذاة إلى أول يوم إثنين في الموسم
         const dayOfWeek = start.getDay(); // 0 is Sunday, 1 is Monday...
         const diffToMonday = (dayOfWeek === 0) ? 1 : (dayOfWeek === 1 ? 0 : 8 - dayOfWeek);
@@ -97,17 +97,17 @@
         while (currentMonday <= endDate && weekIndex <= 42) {
             const weekDays = [];
             const weekStartDate = new Date(currentMonday);
-            
+
             // إضافة أيام الإثنين إلى السبت (6 أيام دراسة)
             for (let d = 0; d < 6; d++) {
                 const dayDate = new Date(weekStartDate);
                 dayDate.setDate(weekStartDate.getDate() + d);
-                
+
                 const yyyy = dayDate.getFullYear();
                 const mm = String(dayDate.getMonth() + 1).padStart(2, '0');
                 const dd = String(dayDate.getDate()).padStart(2, '0');
                 const dateStr = `${yyyy}-${mm}-${dd}`;
-                
+
                 const dayIdx = dayDate.getDay(); // 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
 
                 weekDays.push({
@@ -122,7 +122,7 @@
 
             const monthOfMonday = currentMonday.getMonth() + 1;
             const monthNames = ['', 'يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'];
-            
+
             weeks.push({
                 weekNum: weekIndex,
                 monthName: monthNames[monthOfMonday],
@@ -152,7 +152,7 @@
      */
     function getHeatLevel(val, maxVal) {
         if (!val || val <= 0) return { level: 0, bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0' };
-        
+
         // تدرج ديناميكي نسبي ومطلق
         if (val >= 10 || (maxVal > 0 && val >= maxVal * 0.75)) {
             return { level: 4, bg: '#dc2626', color: '#ffffff', border: '#b91c1c', badge: 'ذروة حرجة' };
@@ -240,7 +240,7 @@
 
         // بناء خريطة البيانات التاريخية باليوم
         const dateMap = {}; // { 'YYYY-MM-DD': { hours, count, justified, unjustified, late, studentsSet, records: [] } }
-        
+
         allRecords.forEach(r => {
             if (!r.date) return;
             if (!dateMap[r.date]) {
@@ -583,26 +583,26 @@
                                 const activeBorder = isSelected ? '2px solid #000000; transform: scale(1.1); z-index: 5;' : `1px solid ${heat.border}`;
 
                                 const studentCount = dayData ? dayData.studentsSet.size : 0;
-                                const tooltipText = dayData 
-                                    ? `${wd.name} ${dayObj.dayNumber}/${dayObj.monthNumber} (${dateStr}): ${val} ${unit} غياب (${studentCount} تلاميذ) — انقر لعرض قائمة الغائبين وفتحها في مكتبة الموارد` 
+                                const tooltipText = dayData
+                                    ? `${wd.name} ${dayObj.dayNumber}/${dayObj.monthNumber} (${dateStr}): ${val} ${unit} غياب (${studentCount} تلاميذ) — انقر لعرض قائمة الغائبين وفتحها في مكتبة الموارد`
                                     : `${wd.name} ${dayObj.dayNumber}/${dayObj.monthNumber}: 0 غياب`;
 
                                 return `
-                                    <div 
+                                    <div
                                         onclick="window.showHeatmapCellDetails('${dateStr}', '${wd.name}', ${w.weekNum})"
                                         title="${escapeHtml(tooltipText)}"
                                         style="
-                                            height: 28px; 
-                                            background: ${heat.bg}; 
-                                            color: ${heat.color}; 
-                                            border: ${activeBorder}; 
-                                            border-radius: 4px; 
-                                            display: flex; 
+                                            height: 28px;
+                                            background: ${heat.bg};
+                                            color: ${heat.color};
+                                            border: ${activeBorder};
+                                            border-radius: 4px;
+                                            display: flex;
                                             flex-direction: column;
-                                            align-items: center; 
-                                            justify-content: center; 
-                                            cursor: pointer; 
-                                            font-size: 0.65rem; 
+                                            align-items: center;
+                                            justify-content: center;
+                                            cursor: pointer;
+                                            font-size: 0.65rem;
                                             font-weight: 800;
                                             position: relative;
                                             transition: all 0.15s ease;
@@ -715,7 +715,7 @@
                                 const heat = getHeatLevel(val, maxPeriodVal);
 
                                 return `
-                                    <div 
+                                    <div
                                         onclick="window.showHeatmapPeriodDetails(${wd.idx}, '${p.id}', '${escapeHtml(wd.name)}', '${escapeHtml(p.name)}', '${escapeHtml(p.label)}')"
                                         style="
                                             height: 38px;
@@ -1132,7 +1132,7 @@
                         يمكنك نسخ هذه الرسالة التوجيهية الجاهزة ومشاركتها في مجموعة أولياء الأمور على WhatsApp لتشجيع المواظبة في أيام الذروة:
                     </p>
                     <textarea id="heatmapPreventiveTextarea" style="width: 100%; height: 190px; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px; font-family: inherit; font-size: 0.82rem; line-height: 1.5; box-sizing: border-box; resize: vertical;">${escapeHtml(sampleMessage)}</textarea>
-                    
+
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; gap: 8px; flex-wrap: wrap;">
                         <button type="button" class="btn-primary" onclick="window.copyHeatmapPreventiveText()" style="background: #2563eb; font-size: 0.8rem; padding: 8px 16px; display: inline-flex; align-items: center; gap: 6px;">
                             📋 نسخ نص الرسالة

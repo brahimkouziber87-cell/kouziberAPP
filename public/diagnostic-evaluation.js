@@ -378,25 +378,25 @@
                             <div style="font-size: 0.68rem; color: #94a3b8; font-weight: normal;">${escapeHtml(std.massar || '')}</div>
                         </td>
                         <td style="padding: 4px;">
-                            <input type="number" min="0" max="5" step="0.25" value="${d1}" 
+                            <input type="number" min="0" max="5" step="0.25" value="${d1}"
                                 onchange="window.updateStudentDiagnosticMark('${escapeHtml(className)}', '${escapeHtml(std.id)}', 'd1', this.value)"
                                 style="width: 60px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; text-align: center; font-weight: 700; font-size: 0.8rem; background: #fff;"
                                 title="الحسابيات والأنشطة العددية (من 5)">
                         </td>
                         <td style="padding: 4px;">
-                            <input type="number" min="0" max="5" step="0.25" value="${d2}" 
+                            <input type="number" min="0" max="5" step="0.25" value="${d2}"
                                 onchange="window.updateStudentDiagnosticMark('${escapeHtml(className)}', '${escapeHtml(std.id)}', 'd2', this.value)"
                                 style="width: 60px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; text-align: center; font-weight: 700; font-size: 0.8rem; background: #fff;"
                                 title="الهندسة والحساب المثلثي (من 5)">
                         </td>
                         <td style="padding: 4px;">
-                            <input type="number" min="0" max="5" step="0.25" value="${d3}" 
+                            <input type="number" min="0" max="5" step="0.25" value="${d3}"
                                 onchange="window.updateStudentDiagnosticMark('${escapeHtml(className)}', '${escapeHtml(std.id)}', 'd3', this.value)"
                                 style="width: 60px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; text-align: center; font-weight: 700; font-size: 0.8rem; background: #fff;"
                                 title="الجبر والتحليل (من 5)">
                         </td>
                         <td style="padding: 4px;">
-                            <input type="number" min="0" max="5" step="0.25" value="${d4}" 
+                            <input type="number" min="0" max="5" step="0.25" value="${d4}"
                                 onchange="window.updateStudentDiagnosticMark('${escapeHtml(className)}', '${escapeHtml(std.id)}', 'd4', this.value)"
                                 style="width: 60px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; text-align: center; font-weight: 700; font-size: 0.8rem; background: #fff;"
                                 title="تنظيم المعطيات وحل المسائل (من 5)">

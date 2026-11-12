@@ -106,7 +106,7 @@
     window.toggleTutoringMasterSelect = function (masterCheckbox) {
         const isChecked = masterCheckbox ? masterCheckbox.checked : false;
         const rowCheckboxes = document.querySelectorAll('.tutoring-row-checkbox');
-        
+
         rowCheckboxes.forEach(cb => {
             cb.checked = isChecked;
             const stdId = cb.value;
@@ -158,7 +158,7 @@
         window.selectedTutoringStudentIds.clear();
         const masterCheckbox = document.getElementById('tutoringMasterCheckbox');
         if (masterCheckbox) masterCheckbox.checked = false;
-        
+
         document.querySelectorAll('.tutoring-row-checkbox').forEach(cb => {
             cb.checked = false;
         });
@@ -221,7 +221,7 @@
         });
 
         if (typeof saveDB === 'function') saveDB();
-        
+
         if (typeof showToast === 'function') {
             showToast(`تم تسجيل الأداء بنجاح لـ ${updatedCount} تلميذ لشهر ${month}`, 'success');
         }
@@ -792,7 +792,7 @@
             const attendedSessions = allSessions.filter(s => s.attendance === 'present' || s.attendance === 'late');
             const absentSessions = allSessions.filter(s => s.attendance === 'absent');
             const excusedSessions = allSessions.filter(s => s.attendance === 'excused');
-            
+
             const totalHours = attendedSessions.reduce((sum, s) => sum + (parseFloat(s.hours) || 0), 0);
             const rate = parseFloat(std.fee) || 0;
             const totalDue = typeof window.computeTutoringStudentMonthDue === 'function'
@@ -800,15 +800,15 @@
                 : (totalHours * rate);
             const pInfo = window.getTutoringPaymentInfo(std, targetMonth, totalDue);
 
-            const attendancePercent = allSessions.length > 0 
-                ? Math.round((attendedSessions.length / allSessions.length) * 100) 
+            const attendancePercent = allSessions.length > 0
+                ? Math.round((attendedSessions.length / allSessions.length) * 100)
                 : 100;
 
             const hasRoi = (std.gradeBefore !== undefined && std.gradeBefore !== '' && std.gradeAfter !== undefined && std.gradeAfter !== '');
             const roiDiff = hasRoi ? ((parseFloat(std.gradeAfter) || 0) - (parseFloat(std.gradeBefore) || 0)).toFixed(2) : null;
 
-            const isPageBreakNeeded = isTwoPerPage 
-                ? ((index % 2 === 1) && (index < students.length - 1)) 
+            const isPageBreakNeeded = isTwoPerPage
+                ? ((index % 2 === 1) && (index < students.length - 1))
                 : (index < students.length - 1);
 
             html += `
@@ -1299,7 +1299,7 @@
             (db.tutoring.groups || []).forEach(g => { if (g.name) groupSet.add(g.name); });
 
             let optsHtml = '<option value="all">كل المجموعات والتلاميذ (' + allSlots.length + ' حصة)</option>';
-            
+
             if (groupSet.size > 0) {
                 optsHtml += '<optgroup label="👥 مجموعات الدعم">';
                 Array.from(groupSet).sort().forEach(gName => {
@@ -1948,7 +1948,7 @@
                                     <span class="tutoring-slot-badge-individual">⭐ دعم خصوصي فردي</span>
                                 </div>
                                 ${slot.level ? `<div style="font-size: 0.82rem; color: #475569; font-weight: 700; margin-bottom: 8px;">🎓 المستوى: ${slot.level}</div>` : ''}
-                                
+
                                 <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 10px; margin: 10px 0; font-size: 0.82rem; color: #334155; display: flex; flex-direction: column; gap: 4px;">
                                     ${slot.pedagogicalFocus ? `<div style="color: #92400e; font-weight: 800;">🎯 <b>الهدف:</b> ${slot.pedagogicalFocus}</div>` : ''}
                                     <div>📍 <b>المقر / المكان:</b> ${slot.room || 'المقر الرئيسي'} ${slot.deliveryMode ? '(' + slot.deliveryMode + ')' : ''}</div>
@@ -1984,7 +1984,7 @@
                             </div>
                             <h4 style="margin: 0 0 4px 0; font-size: 1.15rem; font-weight: 900; color: #0f172a;">${slot.group}</h4>
                             ${slot.level ? `<div style="font-size: 0.82rem; color: #475569; font-weight: 700; margin-bottom: 8px;">🎓 المستوى: ${slot.level}</div>` : ''}
-                            
+
                             <div style="background: #f8fafc; border-radius: 8px; padding: 10px; margin: 10px 0; font-size: 0.82rem; color: #334155; display: flex; flex-direction: column; gap: 4px;">
                                 <div>📍 <b>القاعة / المكان:</b> ${slot.room || 'المقر الرئيسي المعتاد'}</div>
                                 <div>⏱️ <b>المدة:</b> ${window.calculateDurationText(slot.startTime, slot.endTime)}</div>
@@ -3250,8 +3250,8 @@
         if (typeof renderTutoringStudents === 'function') renderTutoringStudents();
 
         if (typeof showToast === 'function') {
-            const msg = addedStudentsCount > 0 
-                ? `تم حفظ المجموعة بنجاح وإضافة ${addedStudentsCount} تلميذ إليها!` 
+            const msg = addedStudentsCount > 0
+                ? `تم حفظ المجموعة بنجاح وإضافة ${addedStudentsCount} تلميذ إليها!`
                 : 'تم حفظ بيانات المجموعة المستقلة بنجاح!';
             showToast(msg, 'success');
         }
@@ -3334,7 +3334,7 @@
                 const hours = sessionsByMonth[mKey] || 0;
                 const pay = window.getTutoringPaymentInfo(s, mKey);
                 const due = pay.totalDue;
-                
+
                 allTimeDue += due;
                 allTimeCollected += pay.paidAmount;
 
@@ -3739,8 +3739,8 @@
                 `}
             </div>
         `;
-        setTimeout(() => { 
-            if (window.renderLucide) window.renderLucide(); 
+        setTimeout(() => {
+            if (window.renderLucide) window.renderLucide();
             if (typeof initTutoringAnalyticsCharts === 'function') {
                 initTutoringAnalyticsCharts(sortedMonths, allMonthsMap, month);
             }
@@ -4793,8 +4793,8 @@
                 window._tutoringRevenueChart.destroy();
             }
 
-            const chartMonths = (sortedMonths && sortedMonths.length > 0) 
-                ? [...sortedMonths].slice(-7).reverse() 
+            const chartMonths = (sortedMonths && sortedMonths.length > 0)
+                ? [...sortedMonths].slice(-7).reverse()
                 : [activeMonth || (window.formatLocalMonth ? window.formatLocalMonth() : '2026-09')];
 
             const dueData = chartMonths.map(m => (allMonthsMap[m] ? allMonthsMap[m].due : 0));
