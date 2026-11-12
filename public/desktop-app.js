@@ -1117,7 +1117,7 @@
         input.click();
     }
 
-    const BASE_APP_VERSION = '3.6';
+    const BASE_APP_VERSION = '3.7';
 
     function isAndroidHapticEnabled() {
         try {

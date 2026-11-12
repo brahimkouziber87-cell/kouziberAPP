@@ -104,13 +104,13 @@
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <!-- مكتبة أيقونات Lucide المتناسقة -->
-    <script src="/lucide-icons.js?v=3.6"></script>
+    <script src="/lucide-icons.js?v=3.7"></script>
 
     <!-- الخطوط المغربية الأصيلة وخطوط الرقعة واليد العربية للتقارير والواجهة -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700;800;900&family=Harmattan:wght@400;700&family=Lemonada:wght@400;600;700&family=Marhey:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Readex+Pro:wght@400;600;700&family=Reem+Kufi:wght@400;700&family=Scheherazade+New:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css?v=3.6">
+    <link rel="stylesheet" href="/style.css?v=3.7">
 
     <script type="module" src="/firebase-setup.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -133,8 +133,8 @@
           } catch (err) {}
         });
 
-        var BASE_VERSION_NUM = 3.6;
-        var BASE_BUILD_VERSION = '2026.11.12.v3.6';
+        var BASE_VERSION_NUM = 3.7;
+        var BASE_BUILD_VERSION = '2026.11.12.v3.7';
         var savedBuildVersion = null;
         var savedAppVersion = null;
         try {
@@ -145,7 +145,7 @@
         var savedVerNum = parseFloat(savedAppVersion);
         var isOlderThanBase = isNaN(savedVerNum) || savedVerNum < BASE_VERSION_NUM;
 
-        // Upgrade only if older than base version (preserve user-bumped versions >= 3.6)
+        // Upgrade only if older than base version (preserve user-bumped versions >= 3.7)
         if (isOlderThanBase) {
           try {
             localStorage.setItem('prof_digital_app_version', BASE_VERSION_NUM.toFixed(1));
@@ -157,7 +157,7 @@
           if ('caches' in window) {
             caches.keys().then(function(keys) {
               return Promise.all(keys.map(function(key) {
-                if (key !== 'prof-digital-v3.6') {
+                if (key !== 'prof-digital-v3.7') {
                   return caches.delete(key);
                 }
               }));
@@ -485,7 +485,7 @@
                     <button type="button" id="headerDesktopAppHubBtn" class="header-chip header-chip-desktop" onclick="if (typeof window.openDesktopAppModal === 'function') window.openDesktopAppModal();" title="مركز تطبيق سطح المكتب والأندرويد (Desktop & Android Hub) وتحديث المنظومة والنسخ الاحتياطي">
                         <span class="ui-icon" style="color: #38bdf8; margin: 0;"><span data-lucide="monitor" data-size="12"></span></span>
                         <span>تطبيق المكتب والأندرويد</span>
-                        <span id="headerDesktopVersionBadge" style="background: rgba(16, 185, 129, 0.22); border: 1px solid rgba(52, 211, 153, 0.5); color: #6ee7b7; padding: 1px 5px; border-radius: 4px; font-size: 0.56rem; font-weight: 800; direction: ltr; line-height: 1.15;">v3.6</span>
+                        <span id="headerDesktopVersionBadge" style="background: rgba(16, 185, 129, 0.22); border: 1px solid rgba(52, 211, 153, 0.5); color: #6ee7b7; padding: 1px 5px; border-radius: 4px; font-size: 0.56rem; font-weight: 800; direction: ltr; line-height: 1.15;">v3.7</span>
                     </button>
                 </div>
             </div>
@@ -3337,7 +3337,7 @@
                         <button type="button" class="home-cluster-pill" onclick="window.openDesktopAppModal()" title="تطبيق سطح المكتب والأندرويد المستقل (Desktop & Android App)">
                             <span class="pill-icon" style="color: #059669;"><span data-lucide="monitor" data-size="13"></span></span>
                             <span>تطبيق المكتب والأندرويد</span>
-                            <span id="homeDesktopClusterVerBadge" style="background: #d1fae5; color: #065f46; font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 999px; direction: ltr;">v3.6</span>
+                            <span id="homeDesktopClusterVerBadge" style="background: #d1fae5; color: #065f46; font-size: 0.65rem; font-weight: 800; padding: 1px 6px; border-radius: 999px; direction: ltr;">v3.7</span>
                         </button>
                         <button type="button" class="home-cluster-pill" onclick="runInteractiveMemoryOptimization(this)" title="تحسين الذاكرة الحية وتفريغ الكاش المؤقت (Memory Optimization)">
                             <span class="pill-icon" style="color: #0d9488;"><span data-lucide="zap" data-size="13"></span></span>
@@ -3599,7 +3599,7 @@
                     <div class="home-icon-symbol" style="background: linear-gradient(135deg, #059669, #047857); color: #ffffff; box-shadow: 0 8px 18px -4px rgba(5, 150, 105, 0.45);">
                         <span data-lucide="monitor" data-size="42"></span>
                     </div>
-                    <span class="home-icon-tab-tag" id="homeDesktopCardVerBadge" style="color: #047857; background: #ecfdf5; border-color: #a7f3d0;">تطبيق المكتب والأندرويد (v3.6)</span>
+                    <span class="home-icon-tab-tag" id="homeDesktopCardVerBadge" style="color: #047857; background: #ecfdf5; border-color: #a7f3d0;">تطبيق المكتب والأندرويد (v3.7)</span>
                     <span class="home-icon-title">تطبيق المكتب والأندرويد</span>
                     <span class="home-icon-desc">التثبيت على الهواتف واللوحات (Android) والحواسيب (Windows / PWA / Electron) والعمل بدون إنترنت</span>
                     <span class="home-icon-arrow"><span data-lucide="arrow-left" data-size="14"></span></span>
@@ -5069,9 +5069,9 @@
                             <button type="button" id="btnPeriodChip_current_month" onclick="setReportQuickPeriod('current_month')" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer;">🗓️ الشهر الحالي</button>
                             <button type="button" id="btnPeriodChip_term1" onclick="setReportQuickPeriod('term1')" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer;">🍂 الدورة الأولى</button>
                             <button type="button" id="btnPeriodChip_term2" onclick="setReportQuickPeriod('term2')" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer;">🌱 الدورة الثانية</button>
-                            <button type="button" class="btn-primary" onclick="renderReport()" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; border: 1px solid #0284c7; font-size: 0.74rem; padding: 5px 10px; font-weight: 800; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;" title="تحديث بيانات وإحصائيات التقارير">
-                                <span>🔄</span>
-                                <span>تحديث التقرير</span>
+                            <button type="button" class="btn-primary" onclick="renderReport()" style="width: 50px; height: 50px; min-width: 50px; min-height: 50px; padding: 4px; border-radius: 50%; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 55%, #1e3a8a 100%); color: #ffffff; border: 2px solid #bae6fd; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.4); display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; transition: transform 0.25s ease, box-shadow 0.25s ease; flex-shrink: 0;" onmouseover="this.style.transform='scale(1.07)'; this.style.boxShadow='0 6px 16px rgba(2, 132, 199, 0.5)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(2, 132, 199, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.4)';" title="تحديث بيانات وإحصائيات التقارير">
+                                <span style="font-size: 0.95rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center;">🔄</span>
+                                <span style="font-size: 0.56rem; font-weight: 800; line-height: 1.05; text-align: center; white-space: normal; max-width: 42px; color: #f0f9ff;">تحديث التقرير</span>
                             </button>
                         </div>
                     </div>
@@ -6152,7 +6152,7 @@
                     <h4 style="color: #b91c1c; font-size: 1rem; margin: 0; display: flex; align-items: center; gap: 8px;">
                         <span class="ui-icon"><span data-lucide="alert-triangle" data-size="16"></span></span> التلاميذ المعرضون للخطر ومؤشر الإنذار المبكر التنبؤي (تعثر دراسي / غياب متكرر / تراجع الفروض)
                     </h4>
-                    <span style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 800;">⚡ محرك اليقظة التربوية التنبؤي v3.6</span>
+                    <span style="background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 800;">⚡ محرك اليقظة التربوية التنبؤي v3.7</span>
                 </div>
                 <div class="table-responsive">
                     <table class="report-table">
@@ -14095,7 +14095,7 @@
                             <button type="button" onclick="window.insertMathSymbol('π')" class="btn-math-sym" style="background:#fff; border:1px solid #cbd5e1; border-radius:4px; padding:2px 0; font-size:0.72rem; font-weight:bold; cursor:pointer;">π</button>
                             <button type="button" onclick="window.insertMathSymbol('Δ')" class="btn-math-sym" style="background:#fff; border:1px solid #cbd5e1; border-radius:4px; padding:2px 0; font-size:0.72rem; font-weight:bold; cursor:pointer;">Δ</button>
                             <button type="button" onclick="window.insertMathSymbol('ℝ')" class="btn-math-sym" style="background:#fff; border:1px solid #cbd5e1; border-radius:4px; padding:2px 0; font-size:0.72rem; font-weight:bold; cursor:pointer;">ℝ</button>
-                            <button type="button" onclick="window.insertMathSymbol('f&#39;(x)')" class="btn-math-sym" style="background:#fff; border:1px solid #cbd5e1; border-radius:4px; padding:2px 0; font-size:0.65rem; font-weight:bold; cursor:pointer;">f'(x)</button>
+                            <button type="button" onclick="window.insertMathSymbol('f\'(x)')" class="btn-math-sym" style="background:#fff; border:1px solid #cbd5e1; border-radius:4px; padding:2px 0; font-size:0.65rem; font-weight:bold; cursor:pointer;">f'(x)</button>
                         </div>
                     </aside>
 
@@ -17889,43 +17889,43 @@
         </div>
     </div>
 
-    <script src="/secondary-math-curriculum.js?v=3.6"></script>
-    <script src="/latex-math-engine.js?v=3.6"></script>
-    <script src="/app.js?v=3.6"></script>
+    <script src="/secondary-math-curriculum.js?v=3.7"></script>
+    <script src="/latex-math-engine.js?v=3.7"></script>
+    <script src="/app.js?v=3.7"></script>
     <div id="root-pwa-install"></div>
-    <script src="/resources.js?v=3.6"></script>
-    <script src="/tutoring-advanced.js?v=3.6"></script>
-    <script src="/attendance-slip.js?v=3.6"></script>
-    <script src="/timetable-sync.js?v=3.6"></script>
-    <script src="/annual-calendar.js?v=3.6"></script>
-    <script src="/pedagogical-roadmap.js?v=3.6"></script>
-    <script src="/google-calendar-sync.js?v=3.6"></script>
-    <script src="/math-remediation-ai.js?v=3.6"></script>
-    <script src="/ai-prompt-templates.js?v=3.6"></script>
-    <script src="/smart-exam-alerts.js?v=3.6"></script>
-    <script src="/student-portfolio.js?v=3.6"></script>
-    <script src="/admin-followup-alerts.js?v=3.6"></script>
-    <script src="/weekday-absence-plan.js?v=3.6"></script>
-    <script src="/weekly-absence-summary.js?v=3.6"></script>
-    <script src="/onboarding-guide.js?v=3.6"></script>
-    <script src="/absence-heatmap.js?v=3.6"></script>
-    <script src="/absence-periodic-analytics.js?v=3.6"></script>
-    <script src="/collective-absence-evolution.js?v=3.6"></script>
-    <script src="/diagnostic-evaluation.js?v=3.6"></script>
-    <script src="/interactive-teaching.js?v=3.6"></script>
-    <script src="/distance-teaching.js?v=3.6"></script>
-    <script src="/pedagogical-sharing.js?v=3.6"></script>
-    <script src="/voice-search.js?v=3.6"></script>
-    <script src="/upcoming-exams-timeline.js?v=3.6"></script>
-    <script src="/exam-report.js?v=3.6"></script>
-    <script src="/academic-evolution-card.js?v=3.6"></script>
-    <script src="/grades-absence-impact-chart.js?v=3.6"></script>
-    <script src="/teacher-profile.js?v=3.6"></script>
-    <script src="/desktop-app.js?v=3.6"></script>
-    <script src="/chunked-pdf-engine.js?v=3.6"></script>
-    <script src="/pedagogical-council-pv.js?v=3.6"></script>
-    <script src="/value-added-analytics.js?v=3.6"></script>
-    <script src="/ministerial-decrees-library.js?v=3.6"></script>
+    <script src="/resources.js?v=3.7"></script>
+    <script src="/tutoring-advanced.js?v=3.7"></script>
+    <script src="/attendance-slip.js?v=3.7"></script>
+    <script src="/timetable-sync.js?v=3.7"></script>
+    <script src="/annual-calendar.js?v=3.7"></script>
+    <script src="/pedagogical-roadmap.js?v=3.7"></script>
+    <script src="/google-calendar-sync.js?v=3.7"></script>
+    <script src="/math-remediation-ai.js?v=3.7"></script>
+    <script src="/ai-prompt-templates.js?v=3.7"></script>
+    <script src="/smart-exam-alerts.js?v=3.7"></script>
+    <script src="/student-portfolio.js?v=3.7"></script>
+    <script src="/admin-followup-alerts.js?v=3.7"></script>
+    <script src="/weekday-absence-plan.js?v=3.7"></script>
+    <script src="/weekly-absence-summary.js?v=3.7"></script>
+    <script src="/onboarding-guide.js?v=3.7"></script>
+    <script src="/absence-heatmap.js?v=3.7"></script>
+    <script src="/absence-periodic-analytics.js?v=3.7"></script>
+    <script src="/collective-absence-evolution.js?v=3.7"></script>
+    <script src="/diagnostic-evaluation.js?v=3.7"></script>
+    <script src="/interactive-teaching.js?v=3.7"></script>
+    <script src="/distance-teaching.js?v=3.7"></script>
+    <script src="/pedagogical-sharing.js?v=3.7"></script>
+    <script src="/voice-search.js?v=3.7"></script>
+    <script src="/upcoming-exams-timeline.js?v=3.7"></script>
+    <script src="/exam-report.js?v=3.7"></script>
+    <script src="/academic-evolution-card.js?v=3.7"></script>
+    <script src="/grades-absence-impact-chart.js?v=3.7"></script>
+    <script src="/teacher-profile.js?v=3.7"></script>
+    <script src="/desktop-app.js?v=3.7"></script>
+    <script src="/chunked-pdf-engine.js?v=3.7"></script>
+    <script src="/pedagogical-council-pv.js?v=3.7"></script>
+    <script src="/value-added-analytics.js?v=3.7"></script>
+    <script src="/ministerial-decrees-library.js?v=3.7"></script>
 
     <!-- زر الرجوع إلى أعلى الصفحة بتمرير ناعم -->
     <button type="button" id="btnScrollToTop" class="scroll-to-top-btn" onclick="scrollToTop()" title="الرجوع إلى أعلى الصفحة" aria-label="الرجوع للأعلى">
