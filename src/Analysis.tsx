@@ -16,6 +16,7 @@ import {
   ReferenceLine,
   Cell
 } from 'recharts';
+import AnnualRechartsComparison from './AnnualRechartsComparison.tsx';
 import {
   LayoutDashboard,
   Users,
@@ -56,7 +57,6 @@ import {
   Eye,
   Compass
 } from 'lucide-react';
-import html2canvas from 'html2canvas';
 import AiRemediationView from './AiRemediationView';
 import PedagogicalCouncilOrientationView from './PedagogicalCouncilOrientationView';
 import ComprehensiveAnalysisPdfExport, { ComprehensivePdfExportHandle } from './ComprehensiveAnalysisPdfExport';
@@ -1459,6 +1459,7 @@ export default function Analysis() {
     if (!containerRef.current) return;
     try {
       setIsExporting(true);
+      const { default: html2canvas } = await import('html2canvas');
       const canvas = await html2canvas(containerRef.current, {
         scale: 2,
         useCORS: true,
@@ -2432,6 +2433,9 @@ export default function Analysis() {
                   </button>
                 </div>
               </div>
+
+              {/* Direct Recharts Comparison: Semester 1 vs Semester 2 & Positive Progression Students */}
+              <AnnualRechartsComparison forcedClass={selectedClass} compactMode />
 
               {/* Unified 6-Card KPI Matrix (Annual + Active Semester + Mastery Cohorts + Attendance) */}
               <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">

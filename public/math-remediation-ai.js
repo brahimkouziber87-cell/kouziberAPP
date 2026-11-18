@@ -319,13 +319,13 @@
         const sem = window.activeSemester || 's1';
 
         if (!className || !window.db.classes || !window.db.classes[className]) {
-            alert('يرجى تحديد قسم دراسي أولاً لتحليل نتائج فروضه.');
+            window.notifySafeToast('يرجى تحديد قسم دراسي أولاً لتحليل نتائج فروضه.');
             return;
         }
 
         const stats = computeClassExamStats(className, sem);
         if (!stats) {
-            alert('تعذر استخراج بيانات القسم المحدد.');
+            window.notifySafeToast('تعذر استخراج بيانات القسم المحدد.');
             return;
         }
 
@@ -572,7 +572,7 @@
      */
     function printMathRemediationReport() {
         if (!_lastGeneratedPlanHtml) {
-            alert('لا توجد خطة دعم مولدة حالياً للطباعة.');
+            window.notifySafeToast('لا توجد خطة دعم مولدة حالياً للطباعة.');
             return;
         }
 
@@ -698,7 +698,7 @@
      */
     function copyMathRemediationText() {
         if (!_lastGeneratedPlanHtml) {
-            alert('لا توجد خطة دعم مولدة حالياً للنسخ.');
+            window.notifySafeToast('لا توجد خطة دعم مولدة حالياً للنسخ.');
             return;
         }
 
@@ -710,10 +710,10 @@
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('تم نسخ محتوى خطة الدعم البيداغوجي بنجاح 📋', 'success');
             } else {
-                alert('تم نسخ محتوى خطة الدعم بنجاح إلى الحافظة.');
+                window.notifySafeToast('تم نسخ محتوى خطة الدعم بنجاح إلى الحافظة.');
             }
         }).catch(() => {
-            alert('تعذر النسخ التلقائي، يمكنك تحديد النص ونسخه يدوياً.');
+            window.notifySafeToast('تعذر النسخ التلقائي، يمكنك تحديد النص ونسخه يدوياً.');
         });
     }
 
@@ -798,7 +798,7 @@
         const addToLessonLog = document.getElementById('remediationSchedAddToLessonLog')?.checked !== false;
 
         if (!date1 && !date2) {
-            alert('يرجى تحديد تاريخ حصة واحدة على الأقل لجدولتها.');
+            window.notifySafeToast('يرجى تحديد تاريخ حصة واحدة على الأقل لجدولتها.');
             return;
         }
 
@@ -939,7 +939,7 @@
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast(msg, 'success');
             } else {
-                alert(msg);
+                window.notifySafeToast(msg);
             }
         }, 350);
     }
@@ -1112,7 +1112,7 @@
     function openAutoRemediationWithTimetableSync(targetClass = null, targetStudentId = null) {
         let classes = Object.keys(window.db?.classes || {});
         if (classes.length === 0) {
-            alert('يرجى إضافة قسم واحد على الأقل أولاً لتشغيل نظام اقتراح أنشطة الدعم.');
+            window.notifySafeToast('يرجى إضافة قسم واحد على الأقل أولاً لتشغيل نظام اقتراح أنشطة الدعم.');
             return;
         }
 
@@ -1474,7 +1474,7 @@
         const roomVal = roomInput ? roomInput.value : 'قاعة الرياضيات';
 
         if (!dateVal) {
-            alert('يرجى تحديد تاريخ انعقاد حصة الدعم.');
+            window.notifySafeToast('يرجى تحديد تاريخ انعقاد حصة الدعم.');
             return;
         }
 
@@ -1529,7 +1529,7 @@
         } else if (typeof window.showToast === 'function') {
             window.showToast(successMsg, 'success');
         } else {
-            alert(successMsg);
+            window.notifySafeToast(successMsg);
         }
 
         // إغلاق الدرج أو النافذة

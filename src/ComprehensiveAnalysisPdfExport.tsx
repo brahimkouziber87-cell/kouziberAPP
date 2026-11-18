@@ -1,7 +1,5 @@
 import React, { useState, useRef, useImperativeHandle, forwardRef } from 'react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-import { FileText, Download, Activity, CheckCircle2, Award, AlertTriangle, Printer, Layers } from 'lucide-react';
+import { FileText, Activity } from 'lucide-react';
 import { StudentMetric } from './Analysis';
 
 export interface ComprehensivePdfExportHandle {
@@ -347,6 +345,11 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
 
         await new Promise(r => setTimeout(r, 200));
 
+        const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+          import('jspdf'),
+          import('html2canvas')
+        ]);
+
         const pdf = new jsPDF({
           orientation: 'portrait',
           unit: 'mm',
@@ -380,7 +383,10 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
         pdf.save(fileName);
       } catch (err) {
         console.error('Failed to export comprehensive PDF:', err);
-        alert('حدث خطأ أثناء تصدير ملف PDF. يرجى إعادة المحاولة.');
+        const toastFn = (window as any).showAppToast;
+        if (typeof toastFn === 'function') {
+          toastFn('حدث خطأ أثناء تصدير ملف PDF. يرجى إعادة المحاولة.', 'error');
+        }
       } finally {
         setIsGenerating(false);
         setStatusMessage('');

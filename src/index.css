@@ -42,3 +42,28 @@
     transition: none !important;
   }
 }
+
+/* CNDP Law 09-08 Classroom Projection Privacy Mode */
+body.cndp-privacy-mode-active .student-name-cell,
+body.cndp-privacy-mode-active .massar-code-cell,
+body.cndp-privacy-mode-active .td-name,
+body.cndp-privacy-mode-active .student-name-link,
+body.cndp-privacy-mode-active .massar-cell,
+body.cndp-privacy-mode-active #studentCallName,
+body.cndp-privacy-mode-active [data-privacy-mask="true"] {
+  filter: blur(5px);
+  transition: filter 0.2s ease;
+  user-select: none;
+}
+
+body.cndp-privacy-mode-active .student-name-cell:hover,
+body.cndp-privacy-mode-active .massar-code-cell:hover,
+body.cndp-privacy-mode-active .td-name:hover,
+body.cndp-privacy-mode-active .student-name-link:hover,
+body.cndp-privacy-mode-active .massar-cell:hover,
+body.cndp-privacy-mode-active #studentCallName:hover,
+body.cndp-privacy-mode-active [data-privacy-mask="true"]:hover {
+  filter: blur(0);
+}
+
+

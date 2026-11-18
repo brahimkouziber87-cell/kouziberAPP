@@ -39,6 +39,49 @@
         return Array.from(window.selectedTutoringStudentIds || []);
     };
 
+    function escHtml(str) {
+        if (typeof window.escapeTutoringHtml === 'function') {
+            return window.escapeTutoringHtml(str);
+        }
+        return String(str === undefined || str === null ? '' : str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function getDynamicAcademicYearStartYear() {
+        const now = new Date();
+        const m = now.getMonth() + 1;
+        return m >= 9 ? now.getFullYear() : now.getFullYear() - 1;
+    }
+
+    function getDynamicAcademicYearLabel() {
+        const startYear = getDynamicAcademicYearStartYear();
+        return `${startYear} / ${startYear + 1}`;
+    }
+
+    function getDynamicAcademicYearMonths() {
+        const startYear = getDynamicAcademicYearStartYear();
+        const endYear = startYear + 1;
+        return [
+            `${startYear}-09`, `${startYear}-10`, `${startYear}-11`, `${startYear}-12`,
+            `${endYear}-01`, `${endYear}-02`, `${endYear}-03`, `${endYear}-04`, `${endYear}-05`, `${endYear}-06`
+        ];
+    }
+
+    function getAuthoritativeTeacherProfile() {
+        const tp = (db && db.teacherProfile && typeof db.teacherProfile === 'object') ? db.teacherProfile : {};
+        const st = (db && db.settings && typeof db.settings === 'object') ? db.settings : {};
+        return {
+            name: (tp.name || st.teacherName || 'الأستاذ(ة)').trim(),
+            subject: (tp.subject || st.subject || 'المادة الدراسية').trim(),
+            school: (tp.school || st.school || 'المؤسسة التعليمية').trim(),
+            academy: (tp.academy || 'وزارة التربية الوطنية والتعليم الأولي والرياضة').trim()
+        };
+    }
+
     // =========================================================================
     // 1. SUB-TAB NAVIGATION
     // =========================================================================
@@ -127,37 +170,36 @@
             window.selectedTutoringStudentIds.delete(id);
         }
 
-        const masterCheckbox = document.getElementById('tutoringMasterCheckbox');
         const rowCheckboxes = document.querySelectorAll('.tutoring-row-checkbox');
-        if (masterCheckbox && rowCheckboxes.length > 0) {
-            masterCheckbox.checked = (window.selectedTutoringStudentIds.size === rowCheckboxes.length);
-        }
+        const allChecked = rowCheckboxes.length > 0 && Array.from(rowCheckboxes).every(cb => cb.checked);
+        ['tutoringMasterCheckbox', 'tutoringMasterSelectCb'].forEach(mcId => {
+            const mc = document.getElementById(mcId);
+            if (mc) mc.checked = allChecked;
+        });
 
         window.updateTutoringBatchBar();
     };
 
     window.updateTutoringBatchBar = function () {
         const bar = document.getElementById('tutoringBatchActionBar');
-        const countSpan = document.getElementById('tutoringBatchSelectedCount');
         const count = window.selectedTutoringStudentIds.size;
 
-        if (countSpan) {
-            countSpan.textContent = count;
-        }
+        ['tutoringBatchSelectedCount', 'tutoringSelectedCount'].forEach(cId => {
+            const countSpan = document.getElementById(cId);
+            if (countSpan) countSpan.textContent = count;
+        });
 
         if (bar) {
-            if (count > 0) {
-                bar.style.display = 'flex';
-            } else {
-                bar.style.display = 'none';
-            }
+            bar.style.display = count > 0 ? 'flex' : 'none';
         }
     };
 
     window.clearTutoringBatchSelection = function () {
         window.selectedTutoringStudentIds.clear();
-        const masterCheckbox = document.getElementById('tutoringMasterCheckbox');
-        if (masterCheckbox) masterCheckbox.checked = false;
+        ['tutoringMasterCheckbox', 'tutoringMasterSelectCb'].forEach(mcId => {
+            const mc = document.getElementById(mcId);
+            if (mc) mc.checked = false;
+        });
 
         document.querySelectorAll('.tutoring-row-checkbox').forEach(cb => {
             cb.checked = false;
@@ -241,7 +283,10 @@
         const datalist = document.getElementById('tutoringGroupDatalist');
         if (datalist) {
             const groups = new Set((db.tutoring.students || []).map(s => s.group).filter(Boolean));
-            datalist.innerHTML = Array.from(groups).map(g => `<option value="${g}">`).join('');
+            if (Array.isArray(db.tutoring.groups)) {
+                db.tutoring.groups.forEach(g => { if (g && g.name) groups.add(g.name); });
+            }
+            datalist.innerHTML = Array.from(groups).map(g => `<option value="${escHtml(g)}">`).join('');
         }
 
         const modal = document.getElementById('tutoringBatchGroupModal');
@@ -264,7 +309,7 @@
         const input = document.getElementById('batchMoveTargetGroup');
         const newGroup = input ? input.value.trim() : '';
         if (!newGroup) {
-            alert('يرجى تحديد أو كتابة اسم المجموعة المستهدفة.');
+            window.notifySafeToast('يرجى تحديد أو كتابة اسم المجموعة المستهدفة.');
             return;
         }
 
@@ -339,7 +384,7 @@
             <body>
         `;
 
-        const tp = (db && db.teacherProfile) ? db.teacherProfile : {};
+        const tp = getAuthoritativeTeacherProfile();
         const teacherName = tp.name || 'الأستاذ(ة) المشرف(ة)';
 
         studentsToPrint.forEach((std, idx) => {
@@ -350,9 +395,10 @@
                 ? window.computeTutoringStudentMonthDue(std, month)
                 : (totalHours * rate);
             const discount = parseFloat(std.discount) || 0;
-            const billingTypeLabel = std.billingType === 'monthly_fixed'
+            const bMode = std.billingMode || std.billingType || 'hourly';
+            const billingTypeLabel = bMode === 'monthly_fixed'
                 ? 'باقة شهرية قارة'
-                : (std.billingType === 'session_pack' ? 'باقة حصص' : `${rate} درهم/ساعة`);
+                : (bMode === 'session_pack' ? 'باقة حصص' : `${rate} درهم/ساعة`);
             const pInfo = window.getTutoringPaymentInfo(std, month, totalDue);
             const receiptNo = `${month.replace('-', '')}-${String(idx + 1).padStart(3, '0')}`;
 
@@ -361,18 +407,18 @@
                     <div class="receipt-header">
                         <div>
                             <div style="font-size: 0.8rem; color: #64748b; font-weight:700;">المملكة المغربية • منظومة الأستاذ للدعم التربوي والتقوية</div>
-                            <h2 class="receipt-title">وصل استخلاص واجبات الدعم المدرسي رقم #${receiptNo}</h2>
+                            <h2 class="receipt-title">وصل استخلاص واجبات الدعم المدرسي رقم #${escHtml(receiptNo)}</h2>
                         </div>
                         <div style="text-align: left; font-size: 0.82rem; color: #475569;">
-                            <div><b>الشهر المرجعي:</b> ${month}</div>
+                            <div><b>الشهر المرجعي:</b> ${escHtml(month)}</div>
                             <div><b>تاريخ التحرير:</b> ${new Date().toLocaleDateString('ar-MA')}</div>
                         </div>
                     </div>
                     <div class="receipt-grid">
-                        <div><b>اسم التلميذ(ة):</b> ${std.name}</div>
-                        <div><b>المجموعة / المستوى:</b> ${std.group || 'دعم فردي'} ${std.level ? `(${std.level})` : ''}</div>
+                        <div><b>اسم التلميذ(ة):</b> ${escHtml(std.name)}</div>
+                        <div><b>المجموعة / المستوى:</b> ${escHtml(std.group || 'دعم فردي')} ${std.level ? `(${escHtml(std.level)})` : ''}</div>
                         <div><b>الحصص المنجزة:</b> ${sessions.length} حصص (${totalHours} س)</div>
-                        <div><b>نظام الفوترة:</b> ${billingTypeLabel}${discount > 0 ? ` (تخفيض: ${discount} د.م)` : ''}</div>
+                        <div><b>نظام الفوترة:</b> ${escHtml(billingTypeLabel)}${discount > 0 ? ` (تخفيض: ${discount} د.م)` : ''}</div>
                         <div><b>المبلغ الصافي المستحق:</b> ${totalDue} درهم</div>
                         <div><b>المبلغ المؤدى:</b> <span style="color:#16a34a; font-weight:800;">${pInfo.paidAmount} درهم</span></div>
                     </div>
@@ -380,10 +426,10 @@
                         ${pInfo.status === 'paid' ? '✓ تم الأداء بالكامل والذمة المالية بريئة' : (pInfo.status === 'partial' ? `أداء جزئي — المتبقي في الذمة: ${pInfo.remaining} درهم` : `واجب قيد الاستخلاص: ${pInfo.remaining} درهم`)}
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-top: 14px; font-size: 0.84rem; padding-top: 10px; border-top: 1px dashed #cbd5e1; font-weight:700;">
-                        <div>إمضاء الأستاذ(ة) (${teacherName}): ..........................</div>
+                        <div>إمضاء الأستاذ(ة) (${escHtml(teacherName)}): ..........................</div>
                         <div>توقيع واطلاع ولي الأمر: ..........................</div>
                     </div>
-                    <div class="footer-note">وثيقة رسمية تثبت حضور حصص الدعم التربوي وتسوية وضعيتها المالية عن شهر ${month}.</div>
+                    <div class="footer-note">وثيقة رسمية تثبت حضور حصص الدعم التربوي وتسوية وضعيتها المالية عن شهر ${escHtml(month)}.</div>
                 </div>
             `;
         });
@@ -407,9 +453,9 @@
     // Batch Action: WhatsApp reminders
     window.batchSendWhatsAppTutoring = function () {
         if (typeof window.openTutoringWhatsAppBulkModal === 'function') {
-            window.openTutoringWhatsAppBulkModal();
+            window.openTutoringWhatsAppBulkModal(window.getSelectedTutoringStudentIds());
         } else {
-            alert('يرجى فتح قائمة تذكيرات الواتساب.');
+            window.notifySafeToast('يرجى فتح قائمة تذكيرات الواتساب.');
         }
     };
 
@@ -479,6 +525,8 @@
         const monthSelect = document.getElementById('batchReportMonthSelect');
         const globalMonth = document.getElementById('tutoringMonth');
 
+        const selectedIds = window.getSelectedTutoringStudentIds();
+
         // Populate groups dropdown
         const groups = new Set((db.tutoring.students || []).map(s => s.group).filter(Boolean));
         if (db.tutoring.groups) {
@@ -486,14 +534,22 @@
         }
 
         if (groupSelect) {
-            let optionsHtml = '<option value="all">🌟 جميع المجموعات (كشف شامل)</option>';
+            let optionsHtml = '';
+            if (selectedIds.length > 0) {
+                optionsHtml += `<option value="__SELECTED__">✅ التلاميذ المحددون حالياً (${selectedIds.length})</option>`;
+            }
+            optionsHtml += '<option value="all">🌟 جميع المجموعات (كشف شامل)</option>';
             Array.from(groups).sort().forEach(grp => {
-                optionsHtml += `<option value="${grp}">${grp}</option>`;
+                optionsHtml += `<option value="${escHtml(grp)}">${escHtml(grp)}</option>`;
             });
             groupSelect.innerHTML = optionsHtml;
 
-            if (defaultGroup && groups.has(defaultGroup)) {
+            if (defaultGroup === '__SELECTED__' && selectedIds.length > 0) {
+                groupSelect.value = '__SELECTED__';
+            } else if (defaultGroup && groups.has(defaultGroup)) {
                 groupSelect.value = defaultGroup;
+            } else if (!defaultGroup && selectedIds.length > 0) {
+                groupSelect.value = '__SELECTED__';
             } else {
                 const currentFilter = document.getElementById('tutoringGroupFilter');
                 if (currentFilter && currentFilter.value !== 'all' && groups.has(currentFilter.value)) {
@@ -522,6 +578,15 @@
         if (modal) modal.style.display = 'none';
     };
 
+    function getBatchReportTargetStudents(targetGroup) {
+        const all = (db.tutoring && Array.isArray(db.tutoring.students)) ? db.tutoring.students : [];
+        if (targetGroup === '__SELECTED__') {
+            const set = window.selectedTutoringStudentIds || new Set();
+            return all.filter(s => set.has(s.id));
+        }
+        return all.filter(s => targetGroup === 'all' || !targetGroup ? true : s.group === targetGroup);
+    }
+
     window.updateBatchReportPreviewSummary = function () {
         const groupSelect = document.getElementById('batchReportGroupSelect');
         const monthSelect = document.getElementById('batchReportMonthSelect');
@@ -532,26 +597,26 @@
         const targetGroup = groupSelect ? groupSelect.value : 'all';
         const targetMonth = monthSelect ? monthSelect.value : '';
 
-        const students = (db.tutoring.students || []).filter(s => targetGroup === 'all' || !targetGroup ? true : s.group === targetGroup);
+        const students = getBatchReportTargetStudents(targetGroup);
         const studentCount = students.length;
 
-        let totalSessionsCount = 0;
         let totalHoursAll = 0;
         let totalFeesAll = 0;
 
         students.forEach(std => {
             const sessions = (std.sessions || []).filter(s => s.date && s.date.startsWith(targetMonth));
-            totalSessionsCount += sessions.length;
-            const validSessions = sessions.filter(s => s.attendance !== 'absent');
+            const validSessions = sessions.filter(s => s.attendance !== 'absent' && s.attendance !== 'excused');
             const stdHours = validSessions.reduce((sum, s) => sum + (parseFloat(s.hours) || 0), 0);
             totalHoursAll += stdHours;
             const pInfo = window.getTutoringPaymentInfo(std, targetMonth);
-            totalFeesAll += pInfo.totalDue;
+            totalFeesAll += (pInfo.totalDue || 0);
         });
 
         const isTwoPerPage = (window.currentBatchReportLayout === 'two_per_page');
         const estimatedPages = isTwoPerPage ? Math.ceil(studentCount / 2) : studentCount;
-        const groupDisplayLabel = (targetGroup === 'all' || !targetGroup) ? 'جميع المجموعات' : targetGroup;
+        const groupDisplayLabel = targetGroup === '__SELECTED__'
+            ? 'التلاميذ المحددون'
+            : ((targetGroup === 'all' || !targetGroup) ? 'جميع المجموعات' : targetGroup);
 
         summaryCard.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
@@ -561,10 +626,10 @@
                     </div>
                     <div>
                         <div style="font-weight: 800; font-size: 0.95rem; color: #065f46;">
-                            مجموعة: ${groupDisplayLabel} (${studentCount} تلميذ)
+                            النطاق: ${escHtml(groupDisplayLabel)} (${studentCount} تلميذ)
                         </div>
                         <div style="font-size: 0.78rem; color: #047857;">
-                            شهر: ${targetMonth} • إجمالي الساعات: ${totalHoursAll} س • مجموع المستحقات: ${totalFeesAll} د.م
+                            شهر: ${escHtml(targetMonth)} • إجمالي الساعات: ${totalHoursAll} س • مجموع المستحقات: ${totalFeesAll} د.م
                         </div>
                     </div>
                 </div>
@@ -581,25 +646,28 @@
     // Helper: Build the complete printable HTML Document for the Batch Report
     window.generateBatchPerformanceReportHtml = function (targetGroup, targetMonth, layout, options) {
         if (!db.tutoring) db.tutoring = { students: [], groups: [], schedule: [], log: [] };
-        const students = (db.tutoring.students || []).filter(s => targetGroup === 'all' || !targetGroup ? true : s.group === targetGroup);
+        const students = getBatchReportTargetStudents(targetGroup);
         if (students.length === 0) {
-            return `<html><body style="font-family:sans-serif; text-align:center; padding:50px;">لا يوجد أي تلميذ مسجل في هذه المجموعة.</body></html>`;
+            return `<html><body style="font-family:sans-serif; text-align:center; padding:50px;">لا يوجد أي تلميذ مطابق للنطاق المحدد.</body></html>`;
         }
 
+        options = options || {};
         const isTwoPerPage = (layout === 'two_per_page');
         const includeSessions = options.sessionsTable !== false;
         const includeStats = options.attendanceStats !== false;
         const includeFinance = options.finance !== false;
         const includeNotesAndSign = options.notesAndSign !== false;
         const customNote = options.customNote || '';
-        const groupTitleLabel = (targetGroup === 'all' || !targetGroup) ? 'جميع المجموعات' : targetGroup;
+        const groupTitleLabel = targetGroup === '__SELECTED__'
+            ? 'التلاميذ المحددون'
+            : ((targetGroup === 'all' || !targetGroup) ? 'جميع المجموعات' : targetGroup);
 
         let html = `
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
             <head>
                 <meta charset="UTF-8">
-                <title>كشف أداء شهري مجمع - مجموعة ${groupTitleLabel} - ${targetMonth}</title>
+                <title>كشف أداء شهري مجمع - ${escHtml(groupTitleLabel)} - ${escHtml(targetMonth)}</title>
                 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
                 <style>
                     * { box-sizing: border-box; }
@@ -819,21 +887,21 @@
                             <h1 class="report-main-title">كشف الأداء والمواظبة الشهري والتتبع البيداغوجي</h1>
                         </div>
                         <div style="text-align: left;">
-                            <div class="meta-badge">شهر: <b>${targetMonth}</b></div>
-                            <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">مجموعة: <b>${targetGroup}</b></div>
+                            <div class="meta-badge">شهر: <b>${escHtml(targetMonth)}</b></div>
+                            <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">النطاق: <b>${escHtml(groupTitleLabel)}</b></div>
                         </div>
                     </div>
 
                     <div class="student-info-strip">
                         <div>
                             <span style="font-size: 0.75rem; color: #64748b;">اسم التلميذ(ة):</span>
-                            <span class="student-name-big">${std.name}</span>
+                            <span class="student-name-big">${escHtml(std.name)}</span>
                         </div>
                         <div style="display: flex; gap: 10px; font-size: 0.78rem; align-items:center; flex-wrap:wrap;">
-                            <span>المستوى: <b>${std.level || 'ثانوي تأهيلي / إعدادي'}</b></span>
-                            ${hasRoi ? `<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:6px; font-weight:800;">الأثر البيداغوجي: ${std.gradeBefore} ⬅ ${std.gradeAfter} (${roiDiff >= 0 ? '+' + roiDiff : roiDiff})</span>` : ''}
-                            ${std.nextExamDate ? `<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:6px; font-weight:800;">الفرض القادم: ${std.nextExamDate}</span>` : ''}
-                            ${std.phone ? `<span dir="ltr">هاتف: <b>${std.phone}</b></span>` : ''}
+                            <span>المستوى: <b>${escHtml(std.level || 'سلك التعليم الثانوي التأهيلي')}</b></span>
+                            ${hasRoi ? `<span style="background:#dcfce7; color:#166534; padding:2px 8px; border-radius:6px; font-weight:800;">الأثر البيداغوجي: ${escHtml(std.gradeBefore)} ⬅ ${escHtml(std.gradeAfter)} (${roiDiff >= 0 ? '+' + roiDiff : roiDiff})</span>` : ''}
+                            ${std.nextExamDate ? `<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:6px; font-weight:800;">الفرض القادم: ${escHtml(std.nextExamDate)}</span>` : ''}
+                            ${std.phone ? `<span dir="ltr">هاتف: <b>${escHtml(std.phone)}</b></span>` : ''}
                         </div>
                     </div>
 
@@ -874,16 +942,16 @@
                                 ${allSessions.length > 0 ? allSessions.map((s, idx) => `
                                     <tr>
                                         <td>${idx + 1}</td>
-                                        <td style="font-weight:bold;">${s.date}</td>
-                                        <td>${s.hours || 2} س (${s.time || 'مسائي'})</td>
-                                        <td style="text-align:right; font-weight:600;">${s.topic || s.title || 'مراجعة وتمارين تطبيقية'}</td>
+                                        <td style="font-weight:bold;">${escHtml(s.date)}</td>
+                                        <td>${escHtml(s.hours || 2)} س (${escHtml(s.time || 'مسائي')})</td>
+                                        <td style="text-align:right; font-weight:600;">${escHtml(s.topic || s.title || 'مراجعة وتمارين تطبيقية')}</td>
                                         <td>
                                             ${s.attendance === 'present' ? '<span style="color:#16a34a; font-weight:800;">حاضر</span>' :
                                               s.attendance === 'absent' ? '<span style="color:#dc2626; font-weight:800;">غائب</span>' :
                                               s.attendance === 'late' ? '<span style="color:#d97706; font-weight:800;">متأخر</span>' :
                                               '<span style="color:#2563eb; font-weight:800;">مبرر</span>'}
                                         </td>
-                                        <td>${s.homework || 'أُنجز بعناية'}</td>
+                                        <td>${escHtml(s.homework || 'أُنجز بعناية')}</td>
                                     </tr>
                                 `).join('') : `
                                     <tr><td colspan="6" style="padding:10px; color:#64748b;">لا توجد حصص مسجلة خلال هذا الشهر.</td></tr>
@@ -909,7 +977,7 @@
                         <div class="pedagogical-notes-box">
                             <b>ملاحظات الأستاذ وتوجيهات التقويم والدعم:</b>
                             <div style="margin-top: 4px;">
-                                ${customNote || std.pedagogicalNote || 'مواظبة جيدة، استيعاب سليم للمفاهيم الأساسية، يُرجى مواصلة التركيز وحل المسائل التوليفية في المنزل.'}
+                                ${escHtml(customNote || std.pedagogicalNote || 'مواظبة جيدة، استيعاب سليم للمفاهيم الأساسية، يُرجى مواصلة التركيز وحل المسائل التوليفية في المنزل.')}
                             </div>
                         </div>
 
@@ -1003,14 +1071,15 @@
 
         const htmlContent = window.generateBatchPerformanceReportHtml(groupName, month, window.currentBatchReportLayout, options);
 
+        const groupLabel = groupName === '__SELECTED__' ? 'التلاميذ المحددون' : (groupName === 'all' ? 'جميع المجموعات' : groupName);
         if (typeof window.openCustomPrintPreviewModal === 'function') {
             window.openCustomPrintPreviewModal(htmlContent, {
-                title: `كشف_أداء_شهري_مجمع_${groupName.replace(/\s+/g, '_')}_${month}`,
+                title: `كشف_أداء_شهري_مجمع_${groupLabel.replace(/\s+/g, '_')}_${month}`,
                 orientation: 'portrait',
-                subtitle: `بطاقات التتبع البيداغوجي والمواظبة الشهرية — المجموعة: ${groupName} | الشهر: ${month}`
+                subtitle: `بطاقات التتبع البيداغوجي والمواظبة الشهرية — ${groupLabel} | الشهر: ${month}`
             });
         } else if (typeof window.printDocumentDirectly === 'function') {
-            window.printDocumentDirectly(htmlContent, `كشف_أداء_شهري_مجمع_${groupName}_${month}`, 'portrait');
+            window.printDocumentDirectly(htmlContent, `كشف_أداء_شهري_مجمع_${groupLabel}_${month}`, 'portrait');
         }
     };
 
@@ -1047,10 +1116,11 @@
             document.body.appendChild(previewOverlay);
         }
 
+        const previewLabel = groupName === '__SELECTED__' ? 'التلاميذ المحددون' : (groupName === 'all' ? 'جميع المجموعات' : `مجموعة ${groupName}`);
         previewOverlay.innerHTML = `
             <div style="background: #1e293b; color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-weight: 800; font-size: 1.1rem;">معاينة كشف الأداء المجمع: مجموعة ${groupName} (${month})</span>
+                    <span style="font-weight: 800; font-size: 1.1rem;">معاينة كشف الأداء المجمع: ${escHtml(previewLabel)} (${escHtml(month)})</span>
                     <span style="font-size: 0.8rem; background: #3b82f6; padding: 2px 8px; border-radius: 4px;">جاهز للتصدير كـ PDF</span>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
@@ -1186,14 +1256,14 @@
         _lastWaScheduleSendTime = now;
 
         if (!phone) {
-            alert('لم يتم تسجيل رقم هاتف لهذا التلميذ.');
+            window.notifySafeToast('لم يتم تسجيل رقم هاتف لهذا التلميذ.');
             return;
         }
         let cleanPhone = phone.replace(/[^0-9]/g, '');
         if (cleanPhone.startsWith('0')) cleanPhone = '212' + cleanPhone.substring(1);
         const targetDay = dayName ? `يوم ${dayName}` : 'الموعد المحدد';
         const msg = `السلام عليكم ورحمة الله،\nتحية طيبة، نذكر التلميذ(ة) *${name || ''}* بموعد حصة الدعم الخصوصي الفردية المقررة ${targetDay} من الساعة *${startTime}* إلى *${endTime}*.\n🎯 المحور والهدف: ${topic || 'معالجة تربوية ومواكبة فردية'}.\nيرجى الحضور في الموعد المحدد. بالتوفيق! ✨`;
-        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+        window.openSafeExternalUrl(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
     };
 
     window.detectTutoringScheduleConflicts = function (slots) {
@@ -2481,7 +2551,7 @@
                 studentName = (directName && directName.value.trim()) || (studentNameInput && studentNameInput.value.trim()) || '';
                 studentPhone = (directPhone && directPhone.value.trim()) || (studentPhoneInput && studentPhoneInput.value.trim()) || '';
                 if (!studentName) {
-                    alert('يرجى كتابة اسم التلميذ(ة) المستهدف بالدعم الخصوصي الفردي.');
+                    window.notifySafeToast('يرجى كتابة اسم التلميذ(ة) المستهدف بالدعم الخصوصي الفردي.');
                     unlock();
                     return;
                 }
@@ -2522,7 +2592,7 @@
         } else {
             group = groupInput ? groupInput.value.trim() : '';
             if (!group) {
-                alert('يرجى كتابة أو اختيار مجموعة الدعم.');
+                window.notifySafeToast('يرجى كتابة أو اختيار مجموعة الدعم.');
                 unlock();
                 return;
             }
@@ -2780,7 +2850,7 @@
                             استعمال الزمن وجدول الحصص الأسبوعي
                         </h2>
                         <div style="font-size: 0.85rem; color: #475569; margin-top: 4px;">
-                            الموسم الدراسي: 2026 / 2027 • مادة الرياضيات
+                            الموسم الدراسي: ${getDynamicAcademicYearLabel()} • ${escHtml(getAuthoritativeTeacherProfile().subject)}
                         </div>
                     </div>
                     <div style="text-align: left; font-size: 0.82rem; line-height: 1.4;" dir="ltr">
@@ -2873,7 +2943,7 @@
 
         const slots = db.tutoring.scheduleSlots || [];
         if (slots.length === 0) {
-            alert('لا توجد حصص مبرمجة في الجدول لنسخها.');
+            window.notifySafeToast('لا توجد حصص مبرمجة في الجدول لنسخها.');
             return;
         }
 
@@ -2900,18 +2970,20 @@
 
         message += `📍 *ملاحظة هامة:* يرجى الحضور قبل الموعد بـ 5 دقائق. بالتوفيق للجميع! ✨`;
 
-        if (navigator.clipboard && navigator.clipboard.writeText) {
+        if (typeof window.safeCopyTextToClipboard === 'function') {
+            window.safeCopyTextToClipboard(message, 'تم نسخ جدول الحصص الأسبوعي بنجاح بصيغة واتساب!');
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(message).then(() => {
                 if (typeof showToast === 'function') {
                     showToast('تم نسخ جدول الحصص الأسبوعي بنجاح بصيغة واتساب!', 'success');
                 } else {
-                    alert('تم نسخ جدول الحصص بنجاح! يمكنك لصقه الآن في مجموعات واتساب.');
+                    window.notifySafeToast('تم نسخ جدول الحصص بنجاح! يمكنك لصقه الآن في مجموعات واتساب.');
                 }
             }).catch(() => {
-                prompt('انسخ نص الجدول لمشاركته في واتساب:', message);
+                window.notifySafeToast(message);
             });
         } else {
-            prompt('انسخ نص الجدول لمشاركته في واتساب:', message);
+            window.notifySafeToast(message);
         }
     };
 
@@ -2934,7 +3006,12 @@
                     id: g.id || 'grp_' + g.name,
                     name: g.name,
                     level: g.level || '',
-                    defaultFee: g.defaultFee || 100,
+                    billingMode: g.billingMode || 'hourly',
+                    defaultFee: g.defaultFee !== undefined ? g.defaultFee : 100,
+                    monthlyFixedFee: g.monthlyFixedFee !== undefined ? g.monthlyFixedFee : 300,
+                    packSessions: g.packSessions !== undefined ? g.packSessions : 4,
+                    packPrice: g.packPrice !== undefined ? g.packPrice : 400,
+                    room: g.room || '',
                     notes: g.notes || ''
                 });
             }
@@ -2947,7 +3024,12 @@
                     id: 'grp_discovered_' + s.group,
                     name: s.group,
                     level: s.level || '',
+                    billingMode: s.billingMode || 'hourly',
                     defaultFee: s.fee || 100,
+                    monthlyFixedFee: s.monthlyFixedFee || 300,
+                    packSessions: s.packSessions || 4,
+                    packPrice: s.packPrice || 400,
+                    room: '',
                     notes: 'مجموعة مستكشفة من سجل التلاميذ'
                 });
             }
@@ -2971,36 +3053,47 @@
             return;
         }
 
+        const allExpenses = Array.isArray(db.tutoring.expenses) ? db.tutoring.expenses : [];
         let html = '';
         groupsList.forEach(grp => {
             const stds = (db.tutoring.students || []).filter(s => s.group === grp.name);
             let totalMonthHours = 0;
             let totalMonthDue = 0;
             let totalMonthPaid = 0;
-            let totalSessionsCount = 0;
-            let attendedCount = 0;
 
             stds.forEach(s => {
                 const sessions = (s.sessions || []).filter(ss => ss.date && ss.date.startsWith(month));
-                totalSessionsCount += sessions.length;
                 let sHours = 0;
                 sessions.forEach(ss => {
-                    if (ss.attendance !== 'absent') {
+                    if (ss.attendance !== 'absent' && ss.attendance !== 'excused') {
                         const h = parseFloat(ss.hours) || 0;
                         sHours += h;
                         totalMonthHours += h;
-                        attendedCount++;
                     }
                 });
                 const rate = parseFloat(s.fee) || grp.defaultFee || 0;
-                const fallbackDue = sHours * rate;
+                const fallbackDue = typeof window.computeTutoringStudentMonthDue === 'function'
+                    ? window.computeTutoringStudentMonthDue(s, month)
+                    : (sHours * rate);
                 const pay = window.getTutoringPaymentInfo(s, month, fallbackDue);
-                totalMonthDue += pay.totalDue;
-                totalMonthPaid += pay.paidAmount;
+                totalMonthDue += (pay.totalDue || 0);
+                totalMonthPaid += (pay.paidAmount || 0);
             });
 
-            const collectionPercent = totalMonthDue > 0 ? Math.round((totalMonthPaid / totalMonthDue) * 100) : 100;
-            const attendanceRate = totalSessionsCount > 0 ? Math.round((attendedCount / totalSessionsCount) * 100) : 100;
+            const grpExpenses = Math.round(
+                allExpenses
+                    .filter(e => e.month === month && e.group === grp.name)
+                    .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) * 100
+            ) / 100;
+            const grpNetProfit = Math.round((totalMonthPaid - grpExpenses) * 100) / 100;
+
+            const collectionPercent = totalMonthDue > 0 ? Math.min(100, Math.round((totalMonthPaid / totalMonthDue) * 100)) : 100;
+            const billingSummary = grp.billingMode === 'monthly_fixed'
+                ? `واجب شهري: <b>${grp.monthlyFixedFee || 300} د.م</b>`
+                : (grp.billingMode === 'session_pack'
+                    ? `باقة: <b>${grp.packSessions || 4} ح / ${grp.packPrice || 400} د.م</b>`
+                    : `واجب الساعة: <b>${grp.defaultFee} د.م</b>`);
+            const safeGrpNameAttr = grp.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
             html += `
                 <div style="background: #fff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.04); display: flex; flex-direction: column; justify-content: space-between;">
@@ -3008,34 +3101,40 @@
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <div style="width: 44px; height: 44px; border-radius: 10px; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 900;">
-                                    ${grp.name.charAt(0)}
+                                    ${escHtml(grp.name.charAt(0))}
                                 </div>
                                 <div>
-                                    <h4 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a;">${grp.name}</h4>
+                                    <h4 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a;">${escHtml(grp.name)}</h4>
                                     <div style="font-size: 0.78rem; color: #64748b; margin-top: 2px;">
-                                        ${grp.level || 'مجموعة مستقلة'} • واجب الساعة: <b>${grp.defaultFee} د.م</b>${grp.room ? ` • 📍 ${grp.room}` : ''}
+                                        ${escHtml(grp.level || 'مجموعة مستقلة')} • ${billingSummary}${grp.room ? ` • 📍 ${escHtml(grp.room)}` : ''}
                                     </div>
                                 </div>
                             </div>
-                            <button type="button" onclick="openTutoringGroupManageModal('${grp.name}')" style="background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px;" title="إدارة المجموعة">
+                            <button type="button" onclick="openTutoringGroupManageModal('${safeGrpNameAttr}')" style="background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px;" title="إدارة المجموعة">
                                 ⚙️
                             </button>
                         </div>
 
                         <!-- Stats Row -->
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; text-align: center;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; text-align: center;">
                             <div style="background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid #f1f5f9;">
                                 <div style="font-size: 0.7rem; color: #64748b;">التلاميذ</div>
                                 <div style="font-size: 1.1rem; font-weight: 900; color: #2563eb;">${stds.length}</div>
                             </div>
                             <div style="background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid #f1f5f9;">
-                                <div style="font-size: 0.7rem; color: #64748b;">ساعات ${month}</div>
+                                <div style="font-size: 0.7rem; color: #64748b;">ساعات ${escHtml(month)}</div>
                                 <div style="font-size: 1.1rem; font-weight: 900; color: #059669;">${totalMonthHours} س</div>
                             </div>
                             <div style="background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid #f1f5f9;">
                                 <div style="font-size: 0.7rem; color: #64748b;">نسبة الاستخلاص</div>
                                 <div style="font-size: 1.1rem; font-weight: 900; color: ${collectionPercent >= 80 ? '#16a34a' : '#d97706'};">${collectionPercent}%</div>
                             </div>
+                        </div>
+
+                        <!-- Per-group expenses & net profit pill -->
+                        <div style="background: ${grpExpenses > 0 ? '#f0fdfa' : '#f8fafc'}; border: 1px solid ${grpExpenses > 0 ? '#99f6e4' : '#e2e8f0'}; border-radius: 8px; padding: 6px 10px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
+                            <span style="color: #0f766e; font-weight: 800;">💎 صافي المجموعة (${escHtml(month)}): <b style="color:${grpNetProfit >= 0 ? '#047857' : '#dc2626'};">${grpNetProfit} د.م</b></span>
+                            <span style="color: #64748b; font-weight: 700;">مصاريف: ${grpExpenses} د.م</span>
                         </div>
 
                         <!-- Progress Bar -->
@@ -3053,18 +3152,18 @@
                     <!-- Action buttons -->
                     <div style="display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px dashed #e2e8f0;">
                         <div style="display: grid; grid-template-columns: 1.15fr 1fr; gap: 6px;">
-                            <button type="button" onclick="openTutoringGroupBatchPerformanceReportModal('${grp.name.replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #4f46e5, #4338ca); color: #fff; border: none; padding: 8px 10px; border-radius: 8px; font-weight: bold; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;" title="تصدير كشف أداء شهري مجمع لجميع تلاميذ هذه المجموعة في ملف PDF واحد">
+                            <button type="button" onclick="openTutoringGroupBatchPerformanceReportModal('${safeGrpNameAttr}')" style="background: linear-gradient(135deg, #4f46e5, #4338ca); color: #fff; border: none; padding: 8px 10px; border-radius: 8px; font-weight: bold; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;" title="تصدير كشف أداء شهري مجمع لجميع تلاميذ هذه المجموعة في ملف PDF واحد">
                                 📄 كشف الأداء (PDF)
                             </button>
-                            <button type="button" onclick="openGroupSeriesTrackerModal('${grp.name.replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; border: none; padding: 8px 10px; border-radius: 8px; font-weight: bold; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;" title="تتبع السلاسل والتمارين والفروض التجريبية المنجزة مع هذه المجموعة">
+                            <button type="button" onclick="openGroupSeriesTrackerModal('${safeGrpNameAttr}')" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; border: none; padding: 8px 10px; border-radius: 8px; font-weight: bold; font-size: 0.78rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;" title="تتبع السلاسل والتمارين والفروض التجريبية المنجزة مع هذه المجموعة">
                                 📚 السلاسل (${((db.tutoring.groupSeries && db.tutoring.groupSeries[grp.name]) || []).length})
                             </button>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-                            <button type="button" onclick="if(typeof openTutoringGroupSessionModal==='function') openTutoringGroupSessionModal('${grp.name.replace(/'/g, "\\'")}');" style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 7px; border-radius: 6px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">
+                            <button type="button" onclick="if(typeof openTutoringGroupSessionModal==='function') openTutoringGroupSessionModal('${safeGrpNameAttr}');" style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 7px; border-radius: 6px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">
                                 ⚡ تسجيل حصة
                             </button>
-                            <button type="button" onclick="window.filterStudentsByGroup('${grp.name.replace(/'/g, "\\'")}')" style="background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; padding: 7px; border-radius: 6px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">
+                            <button type="button" onclick="window.filterStudentsByGroup('${safeGrpNameAttr}')" style="background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; padding: 7px; border-radius: 6px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">
                                 👥 عرض التلاميذ
                             </button>
                         </div>
@@ -3088,6 +3187,15 @@
         }
     };
 
+    window.toggleGroupManageBillingFields = function (mode) {
+        const hourlyBox = document.getElementById('groupManageHourlyBox');
+        const monthlyBox = document.getElementById('groupManageMonthlyBox');
+        const packBox = document.getElementById('groupManagePackBox');
+        if (hourlyBox) hourlyBox.style.display = (!mode || mode === 'hourly') ? 'block' : 'none';
+        if (monthlyBox) monthlyBox.style.display = (mode === 'monthly_fixed') ? 'block' : 'none';
+        if (packBox) packBox.style.display = (mode === 'session_pack') ? 'grid' : 'none';
+    };
+
     window.openTutoringGroupManageModal = function (groupName) {
         const modal = document.getElementById('tutoringGroupManageModal');
         if (!modal) return;
@@ -3095,32 +3203,53 @@
         const origNameInput = document.getElementById('groupManageOriginalName');
         const nameInput = document.getElementById('groupManageName');
         const levelSelect = document.getElementById('groupManageLevel');
+        const billingModeEl = document.getElementById('groupManageBillingMode');
         const feeInput = document.getElementById('groupManageDefaultFee');
+        const monthlyFeeInput = document.getElementById('groupManageMonthlyFixedFee');
+        const packSessionsInput = document.getElementById('groupManagePackSessions');
+        const packPriceInput = document.getElementById('groupManagePackPrice');
+        const applyCb = document.getElementById('groupManageApplyDefaultsCheckbox');
         const roomInput = document.getElementById('groupManageRoom');
         const notesInput = document.getElementById('groupManageNotes');
         const rosterInput = document.getElementById('groupManageRosterText');
         const titleEl = document.getElementById('groupManageModalTitle');
 
         if (!db.tutoring.groups) db.tutoring.groups = [];
+        if (applyCb) applyCb.checked = false;
 
         if (groupName) {
-            const grp = db.tutoring.groups.find(g => g.name === groupName) || { name: groupName, level: '', defaultFee: 100, notes: '', room: '' };
+            const grp = db.tutoring.groups.find(g => g.name === groupName) || {
+                name: groupName, level: '', billingMode: 'hourly',
+                defaultFee: 100, monthlyFixedFee: 300, packSessions: 4, packPrice: 400,
+                notes: '', room: ''
+            };
+            const bMode = grp.billingMode || 'hourly';
             if (origNameInput) origNameInput.value = grp.name;
             if (nameInput) nameInput.value = grp.name;
             if (levelSelect) levelSelect.value = grp.level || '';
-            if (feeInput) feeInput.value = grp.defaultFee || 100;
+            if (billingModeEl) billingModeEl.value = bMode;
+            if (feeInput) feeInput.value = grp.defaultFee !== undefined ? grp.defaultFee : 100;
+            if (monthlyFeeInput) monthlyFeeInput.value = grp.monthlyFixedFee !== undefined ? grp.monthlyFixedFee : 300;
+            if (packSessionsInput) packSessionsInput.value = grp.packSessions !== undefined ? grp.packSessions : 4;
+            if (packPriceInput) packPriceInput.value = grp.packPrice !== undefined ? grp.packPrice : 400;
             if (roomInput) roomInput.value = grp.room || '';
             if (notesInput) notesInput.value = grp.notes || '';
             if (rosterInput) rosterInput.value = '';
-            if (titleEl) titleEl.innerHTML = `<span class="ui-icon" style="color: #0284c7;"><span data-lucide="edit-3" data-size="20"></span></span> تعديل مجموعة دعم مستقلة: ${grp.name}`;
+            window.toggleGroupManageBillingFields(bMode);
+            if (titleEl) titleEl.innerHTML = `<span class="ui-icon" style="color: #0284c7;"><span data-lucide="edit-3" data-size="20"></span></span> تعديل مجموعة دعم مستقلة: ${escHtml(grp.name)}`;
         } else {
             if (origNameInput) origNameInput.value = '';
             if (nameInput) nameInput.value = '';
             if (levelSelect) levelSelect.value = '';
+            if (billingModeEl) billingModeEl.value = 'hourly';
             if (feeInput) feeInput.value = 100;
+            if (monthlyFeeInput) monthlyFeeInput.value = 300;
+            if (packSessionsInput) packSessionsInput.value = 4;
+            if (packPriceInput) packPriceInput.value = 400;
             if (roomInput) roomInput.value = '';
             if (notesInput) notesInput.value = '';
             if (rosterInput) rosterInput.value = '';
+            window.toggleGroupManageBillingFields('hourly');
             if (titleEl) titleEl.innerHTML = `<span class="ui-icon" style="color: #0284c7;"><span data-lucide="school" data-size="20"></span></span> إنشاء مجموعة دعم جديدة (مستقلة)`;
         }
 
@@ -3142,7 +3271,12 @@
         const origNameInput = document.getElementById('groupManageOriginalName');
         const nameInput = document.getElementById('groupManageName');
         const levelSelect = document.getElementById('groupManageLevel');
+        const billingModeEl = document.getElementById('groupManageBillingMode');
         const feeInput = document.getElementById('groupManageDefaultFee');
+        const monthlyFeeInput = document.getElementById('groupManageMonthlyFixedFee');
+        const packSessionsInput = document.getElementById('groupManagePackSessions');
+        const packPriceInput = document.getElementById('groupManagePackPrice');
+        const applyCb = document.getElementById('groupManageApplyDefaultsCheckbox');
         const roomInput = document.getElementById('groupManageRoom');
         const notesInput = document.getElementById('groupManageNotes');
         const rosterInput = document.getElementById('groupManageRosterText');
@@ -3150,24 +3284,33 @@
         const newName = nameInput ? nameInput.value.trim() : '';
         const origName = origNameInput ? origNameInput.value.trim() : '';
         if (!newName) {
-            alert('يرجى كتابة اسم المجموعة.');
+            window.notifySafeToast('يرجى كتابة اسم المجموعة.');
             unlock();
             return;
         }
 
         if (!db.tutoring.groups) db.tutoring.groups = [];
 
+        const bMode = billingModeEl ? (billingModeEl.value || 'hourly') : 'hourly';
+        const defaultFee = feeInput ? (parseFloat(feeInput.value) || 100) : 100;
+        const monthlyFixedFee = monthlyFeeInput ? (parseFloat(monthlyFeeInput.value) || 300) : 300;
+        const packSessions = packSessionsInput ? (parseInt(packSessionsInput.value, 10) || 4) : 4;
+        const packPrice = packPriceInput ? (parseFloat(packPriceInput.value) || 400) : 400;
+
         const groupData = {
             id: 'grp_' + Date.now(),
             name: newName,
             level: levelSelect ? levelSelect.value : '',
-            defaultFee: feeInput ? parseFloat(feeInput.value) || 100 : 100,
+            billingMode: bMode,
+            defaultFee: defaultFee,
+            monthlyFixedFee: monthlyFixedFee,
+            packSessions: packSessions,
+            packPrice: packPrice,
             room: roomInput ? roomInput.value.trim() : '',
             notes: notesInput ? notesInput.value.trim() : ''
         };
 
         if (origName) {
-            // Update existing
             const idx = db.tutoring.groups.findIndex(g => g.name === origName);
             if (idx >= 0) {
                 db.tutoring.groups[idx] = Object.assign(db.tutoring.groups[idx], groupData);
@@ -3175,24 +3318,41 @@
                 db.tutoring.groups.push(groupData);
             }
 
-            // Rename in students if changed
             if (origName !== newName) {
                 (db.tutoring.students || []).forEach(std => {
-                    if (std.group === origName) {
-                        std.group = newName;
-                    }
+                    if (std.group === origName) std.group = newName;
                 });
-                // Rename in slots
                 (db.tutoring.scheduleSlots || []).forEach(slot => {
-                    if (slot.group === origName) {
-                        slot.group = newName;
-                    }
+                    if (slot.group === origName) slot.group = newName;
                 });
+                if (db.tutoring.groupSeries && db.tutoring.groupSeries[origName]) {
+                    db.tutoring.groupSeries[newName] = db.tutoring.groupSeries[origName];
+                    delete db.tutoring.groupSeries[origName];
+                }
+                if (Array.isArray(db.tutoring.expenses)) {
+                    db.tutoring.expenses.forEach(exp => {
+                        if (exp.group === origName) exp.group = newName;
+                    });
+                }
             }
         } else {
             db.tutoring.groups.push(groupData);
         }
 
+        // Bulk apply billing defaults to existing students in this group if requested
+        if (applyCb && applyCb.checked) {
+            (db.tutoring.students || []).forEach(std => {
+                if (std.group === newName) {
+                    std.billingMode = bMode;
+                    std.fee = defaultFee;
+                    std.monthlyFixedFee = monthlyFixedFee;
+                    std.packSessions = packSessions;
+                    std.packPrice = packPrice;
+                }
+            });
+        }
+
+        const todayIso = new Date().toISOString().slice(0, 10);
         // Process fast independent roster import if text provided
         const rosterText = rosterInput ? rosterInput.value.trim() : '';
         let addedStudentsCount = 0;
@@ -3221,12 +3381,11 @@
                 }
 
                 if (sName) {
-                    // Check if already in tutoring
                     let existing = db.tutoring.students.find(s => (s.name || '').trim().toLowerCase() === sName.toLowerCase());
                     if (existing) {
                         existing.group = newName;
                         if (sPhone && !existing.phone) existing.phone = sPhone;
-                        if (!existing.fee) existing.fee = groupData.defaultFee;
+                        if (!existing.fee) existing.fee = defaultFee;
                     } else {
                         db.tutoring.students.push({
                             id: 'tstd_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
@@ -3234,7 +3393,12 @@
                             phone: sPhone,
                             group: newName,
                             level: groupData.level,
-                            fee: groupData.defaultFee,
+                            billingMode: bMode,
+                            fee: defaultFee,
+                            monthlyFixedFee: monthlyFixedFee,
+                            packSessions: packSessions,
+                            packPrice: packPrice,
+                            packStartDate: bMode === 'session_pack' ? todayIso : '',
                             sessions: [],
                             payments: {}
                         });
@@ -3882,9 +4046,10 @@
                     const ga = parseFloat(std.gradeAfter);
                     const hasGrades = !isNaN(gb) || !isNaN(ga);
                     const delta = (!isNaN(gb) && !isNaN(ga)) ? +(ga - gb).toFixed(2) : null;
-                    const monthAttendedCount = allSessions.filter(s => s.date && s.date.startsWith(activeMonth) && s.attendance !== 'absent').length;
-                    const packSize = parseInt(std.packSessions, 10) || 4;
-                    const packRem = std.billingMode === 'session_pack' ? Math.max(0, packSize - monthAttendedCount) : null;
+                    const packStatus = (typeof window.getStudentPackStatus === 'function')
+                        ? window.getStudentPackStatus(std, activeMonth)
+                        : null;
+                    const safeStdIdAttr = String(std.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                     return `
                     <div style="background: linear-gradient(135deg, #f8fafc 0%, #f0fdf4 100%); border: 1px solid #bbf7d0; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
                         <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
@@ -3897,12 +4062,15 @@
                             ${std.nextExamDate ? `
                             <div style="border-right: 2px solid #cbd5e1; padding-right: 14px;">
                                 <div style="font-size: 0.74rem; color: #b45309; font-weight: 800;">🎯 الفرض المحروس القادم بمؤسسته</div>
-                                <div style="font-size: 0.84rem; font-weight: 800; color: #78350f; margin-top: 2px;">📅 ${std.nextExamDate} ${std.nextExamTopic ? `• (${std.nextExamTopic})` : ''}</div>
+                                <div style="font-size: 0.84rem; font-weight: 800; color: #78350f; margin-top: 2px;">📅 ${escHtml(std.nextExamDate)} ${std.nextExamTopic ? `• (${escHtml(std.nextExamTopic)})` : ''}</div>
                             </div>` : ''}
-                            ${packRem !== null ? `
-                            <div style="border-right: 2px solid #cbd5e1; padding-right: 14px;">
-                                <div style="font-size: 0.74rem; color: #1d4ed8; font-weight: 800;">📦 رصيد باقة الحصص (${activeMonth})</div>
-                                <div style="font-size: 0.84rem; font-weight: 900; color: ${packRem === 0 ? '#dc2626' : '#1e40af'}; margin-top: 2px;">أنجز ${monthAttendedCount} من ${packSize} حصص (المتبقي: ${packRem})</div>
+                            ${packStatus ? `
+                            <div style="border-right: 2px solid #cbd5e1; padding-right: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <div>
+                                    <div style="font-size: 0.74rem; color: #1d4ed8; font-weight: 800;">📦 رصيد باقة الحصص (دورة #${packStatus.currentCycle}${packStatus.startDate ? ` من ${escHtml(packStatus.startDate)}` : ''})</div>
+                                    <div style="font-size: 0.84rem; font-weight: 900; color: ${packStatus.isLow ? '#dc2626' : '#1e40af'}; margin-top: 2px;">أنجز ${packStatus.usedInCurrentPack} من ${packStatus.packSize} حصص (المتبقي: ${packStatus.remaining})</div>
+                                </div>
+                                <button type="button" onclick="if(window.renewStudentSessionPack) window.renewStudentSessionPack('${safeStdIdAttr}', true);" style="background:#eff6ff; color:#1d4ed8; border:1px solid #93c5fd; padding:4px 10px; border-radius:8px; font-size:0.74rem; font-weight:800; cursor:pointer;" title="تجديد الباقة وبدء دورة جديدة من اليوم">🔄 تجديد الباقة</button>
                             </div>` : ''}
                         </div>
                     </div>`;
@@ -3915,11 +4083,11 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; flex-wrap: wrap; gap: 6px;">
                             <h4 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: #1e293b;">سجل المواظبة والحصص المنفذة (${allSessions.length})</h4>
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <button type="button" onclick="openTutoringAttendancePeriodPrintModal('${std.id}')" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="طباعة التقرير الشامل لمواظبة وغياب هذا التلميذ حسب الفترة المحددة">
+                                <button type="button" onclick="openTutoringAttendancePeriodPrintModal('${escHtml(std.id)}')" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="طباعة التقرير الشامل لمواظبة وغياب هذا التلميذ حسب الفترة المحددة">
                                     <span>🖨️</span>
                                     <span>طبع تقرير المواظبة الشامل</span>
                                 </button>
-                                <button type="button" onclick="openTutoringSessionModal('${std.id}')" style="background: #fef08a; color: #854d0e; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">
+                                <button type="button" onclick="openTutoringSessionModal('${escHtml(std.id)}')" style="background: #fef08a; color: #854d0e; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">
                                     + حصة جديدة
                                 </button>
                             </div>
@@ -3936,30 +4104,39 @@
                                 const statusLabel = isAbsent ? 'غائب(ة)' : (isExcused ? 'غياب مبرر' : (isLate ? 'متأخر(ة)' : 'حاضر(ة)'));
                                 const statusColor = isAbsent ? '#dc2626' : (isExcused ? '#b45309' : (isLate ? '#c2410c' : '#16a34a'));
                                 const statusBg = isAbsent ? '#fee2e2' : (isExcused ? '#fef3c7' : (isLate ? '#fff7ed' : '#ecfdf5'));
+                                const attachedRes = Array.isArray(sess.attachedResources) ? sess.attachedResources : [];
                                 return `
                                     <div style="background: #f8fafc; border: 1.5px solid ${isAbsent ? '#fecaca' : '#e2e8f0'}; border-radius: 8px; padding: 10px 12px; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
                                         <div style="flex: 1;">
                                             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                                 <span style="background: #e0e7ff; color: #3730a3; font-weight: 800; font-size: 0.72rem; padding: 2px 7px; border-radius: 4px;">
-                                                    📅 ${dayName || 'يوم'}
+                                                    📅 ${escHtml(dayName || 'يوم')}
                                                 </span>
-                                                <strong style="color: #0f172a; font-size: 0.82rem;">${sess.date}</strong>
+                                                <strong style="color: #0f172a; font-size: 0.82rem;">${escHtml(sess.date)}</strong>
                                                 <span style="color: #0284c7; font-weight: 800; font-size: 0.76rem; background: #f0f9ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #bae6fd;">
-                                                    ⏰ ${timeSpan}
+                                                    ⏰ ${escHtml(timeSpan)}
                                                 </span>
                                                 <span style="font-weight: 800; font-size: 0.74rem; color: #475569;">(${sess.hours || 2} س)</span>
                                             </div>
                                             <div style="margin-top: 4px; font-weight: 700; color: #1e3a8a; font-size: 0.82rem;">
-                                                ${sess.topic || sess.title || 'حصة دعم وتقوية'}
+                                                ${escHtml(sess.topic || sess.title || 'حصة دعم وتقوية')}
                                             </div>
                                             ${sess.homework ? `
                                                 <div style="font-size: 0.74rem; color: #854d0e; margin-top: 3px; background: #fefce8; padding: 2px 6px; border-radius: 4px; border: 1px solid #fef08a; display: inline-block;">
-                                                    📝 الواجب: ${escapeTutoringHtml(sess.homework)}
+                                                    📝 الواجب: ${escHtml(sess.homework)}
+                                                </div>
+                                            ` : ''}
+                                            ${attachedRes.length > 0 ? `
+                                                <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">
+                                                    ${attachedRes.map(r => r.url
+                                                        ? `<a href="${escHtml(r.url)}" target="_blank" rel="noopener" style="background:#eef2ff; color:#4338ca; border:1px solid #c7d2fe; border-radius:4px; padding:1px 6px; font-size:0.71rem; font-weight:bold; text-decoration:none;">📎 ${escHtml(r.title)}</a>`
+                                                        : `<span style="background:#eef2ff; color:#4338ca; border:1px solid #c7d2fe; border-radius:4px; padding:1px 6px; font-size:0.71rem; font-weight:bold;">📎 ${escHtml(r.title)}</span>`
+                                                    ).join('')}
                                                 </div>
                                             ` : ''}
                                             ${sess.evaluationNotes ? `
                                                 <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px; font-style: italic;">
-                                                    💬 ${escapeTutoringHtml(sess.evaluationNotes)}
+                                                    💬 ${escHtml(sess.evaluationNotes)}
                                                 </div>
                                             ` : ''}
                                         </div>
@@ -3968,8 +4145,8 @@
                                                 ${statusLabel}
                                             </span>
                                             <div style="display: flex; gap: 4px;">
-                                                <button type="button" onclick="openTutoringSessionModal('${std.id}', {id:'${sess.id}', date:'${sess.date}', time:'${sess.time || '18:00'}', hours:${sess.hours || 2}, topic:'${(sess.topic || sess.title || '').replace(/'/g, "\\'")}'})" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; border-radius: 4px; padding: 2px 6px; font-size: 0.72rem; font-weight: bold; cursor: pointer;" title="تعديل الحصة">تعديل</button>
-                                                <button type="button" onclick="shareTutoringSessionWhatsApp('${std.id}', '${sess.id}')" style="background: #25D366; color: #fff; border: none; border-radius: 4px; padding: 2px 6px; font-size: 0.72rem; font-weight: bold; cursor: pointer;" title="إرسال تقرير الحصة لولي الأمر">واتساب</button>
+                                                <button type="button" onclick="openTutoringSessionModal('${escHtml(std.id)}', {id:'${escHtml(sess.id)}', date:'${escHtml(sess.date)}', time:'${escHtml(sess.time || '18:00')}', hours:${parseFloat(sess.hours) || 2}, topic:'${(sess.topic || sess.title || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'})" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; border-radius: 4px; padding: 2px 6px; font-size: 0.72rem; font-weight: bold; cursor: pointer;" title="تعديل الحصة">تعديل</button>
+                                                <button type="button" onclick="shareTutoringSessionWhatsApp('${escHtml(std.id)}', '${escHtml(sess.id)}')" style="background: #25D366; color: #fff; border: none; border-radius: 4px; padding: 2px 6px; font-size: 0.72rem; font-weight: bold; cursor: pointer;" title="إرسال تقرير الحصة لولي الأمر">واتساب</button>
                                             </div>
                                         </div>
                                     </div>
@@ -4505,14 +4682,21 @@
         }
     };
 
+    let _tutoringChartLoading = false;
     function initTutoringAnalyticsCharts(sortedMonths, allMonthsMap, activeMonth) {
-        if (typeof Chart === 'undefined') return;
+        if (typeof Chart === 'undefined') {
+            if (typeof window.ensureChartJsLoaded === 'function' && !_tutoringChartLoading) {
+                _tutoringChartLoading = true;
+                window.ensureChartJsLoaded().then(c => {
+                    _tutoringChartLoading = false;
+                    if (c) initTutoringAnalyticsCharts(sortedMonths, allMonthsMap, activeMonth);
+                });
+            }
+            return;
+        }
 
         // Prepare chronological school year months sequence
-        const standardSchoolMonths = [
-            '2026-09', '2026-10', '2026-11', '2026-12',
-            '2027-01', '2027-02', '2027-03', '2027-04', '2027-05', '2027-06'
-        ];
+        const standardSchoolMonths = getDynamicAcademicYearMonths();
         let monthsAsc = Object.keys(allMonthsMap || {}).sort();
         if (monthsAsc.length < 3) {
             const set = new Set([...standardSchoolMonths, ...monthsAsc]);
@@ -4795,7 +4979,7 @@
 
             const chartMonths = (sortedMonths && sortedMonths.length > 0)
                 ? [...sortedMonths].slice(-7).reverse()
-                : [activeMonth || (window.formatLocalMonth ? window.formatLocalMonth() : '2026-09')];
+                : [activeMonth || (window.formatLocalMonth ? window.formatLocalMonth() : new Date().toISOString().slice(0, 7))];
 
             const dueData = chartMonths.map(m => (allMonthsMap[m] ? allMonthsMap[m].due : 0));
             const collectedData = chartMonths.map(m => (allMonthsMap[m] ? allMonthsMap[m].collected : 0));
@@ -5883,16 +6067,17 @@
         const scope = options.scope || 'individual';
         const studentId = options.studentId || '';
         const groupName = options.groupName || 'all';
-        const dateFrom = options.dateFrom || '2026-09-01';
-        const dateTo = options.dateTo || '2026-06-30';
+        const dynStartYear = getDynamicAcademicYearStartYear();
+        const dateFrom = options.dateFrom || `${dynStartYear}-09-01`;
+        const dateTo = options.dateTo || `${dynStartYear + 1}-06-30`;
         const includeKpis = options.includeKpis !== false;
         const includeEval = options.includeEval !== false;
         const includeHw = options.includeHw !== false;
         const includeSignatures = options.includeSignatures !== false;
 
-        const tp = (db && db.teacherProfile) ? db.teacherProfile : {};
-        const teacherName = tp.name || 'أستاذ(ة) مادة الرياضيات';
-        const subjectName = tp.subject || 'مادة الرياضيات (السلك الثانوي التأهيلي)';
+        const tp = getAuthoritativeTeacherProfile();
+        const teacherName = tp.name || 'الأستاذ(ة)';
+        const subjectName = tp.subject || 'المادة الدراسية';
         const schoolName = tp.school || 'المؤسسة التعليمية';
         const academy = tp.academy || 'وزارة التربية الوطنية والتعليم الأولي والرياضة';
 
@@ -6251,11 +6436,11 @@
                     </div>
                     <div style="font-size: 8.5pt; color: #334155; line-height: 1.6;">
                         ${attRate >= 85 ? `
-                            التلميذ(ة) يظهر التزاماً متميزاً بالحضور والمواظبة على حصص الدعم التربوي في مادة الرياضيات، مع استيعاب جيد للمفاهيم الرياضية وإنجاز منتظم للتمارين التطبيقية. يُوصى بالاستمرار في حل المسائل التركيبية والاستعداد للامتحانات الإشهادية.
+                            التلميذ(ة) يظهر التزاماً متميزاً بالحضور والمواظبة على حصص الدعم التربوي في ${escHtml(subjectName)}، مع استيعاب جيد للمفاهيم الدراسية وإنجاز منتظم للتمارين التطبيقية. يُوصى بالاستمرار في حل التمارين التركيبية والاستعداد الجيد للفروض والامتحانات.
                         ` : (attRate >= 70 ? `
-                            مستوى مواظبة متوسط مع تسجيل بعض الغيابات التي تتطلب التدارك الفوري للحيلولة دون تراكم التعثرات في الهندسة الفضائية وحساب النهايات والدوال.
+                            مستوى مواظبة متوسط مع تسجيل بعض الغيابات التي تتطلب التدارك الفوري للحيلولة دون تراكم التعثرات في الدروس والمحاور المقررة في ${escHtml(subjectName)}.
                         ` : `
-                            تنبيه بيداغوجي: تكرار الغياب عن حصص الدعم يؤثر سلباً على وتيرة اكتساب المعارف الرياضية. يتعين على ولي الأمر التنسيق مع الأستاذ المشرف لضبط برنامج تعويضي عاجل.
+                            تنبيه بيداغوجي: تكرار الغياب عن حصص الدعم يؤثر سلباً على وتيرة اكتساب المعارف والمهارات الأساسية في ${escHtml(subjectName)}. يتعين على ولي الأمر التنسيق مع الأستاذ المشرف لضبط برنامج تعويضي عاجل.
                         `)}
                     </div>
                 </div>
@@ -6270,7 +6455,7 @@
                         </div>
                         <div class="signature-box">
                             <h5>توقيع وخاتم الأستاذ(ة) المشرف(ة):</h5>
-                            <p style="font-size: 7.5pt; color: #64748b; margin: 2px 0 20px 0;">(أستاذ مادة الرياضيات)</p>
+                            <p style="font-size: 7.5pt; color: #64748b; margin: 2px 0 20px 0;">(${escHtml(subjectName)})</p>
                             <div style="color: #94a3b8; font-size: 8pt;">...............................................................</div>
                         </div>
                     </div>
@@ -6372,13 +6557,14 @@
         const total = sessions.length;
         const rate = total > 0 ? Math.round(((present + late) / total) * 100) : 100;
 
-        const tp = (db && db.teacherProfile) ? db.teacherProfile : {};
-        const teacherName = tp.name || 'أستاذ مادة الرياضيات';
+        const tp = getAuthoritativeTeacherProfile();
+        const teacherName = tp.name || 'الأستاذ(ة)';
+        const subjectName = tp.subject || 'الدعم التربوي';
 
         const msgLines = [
             `السلام عليكم ورحمة الله وبركاته، ولي أمر التلميذ(ة) المحترم(ة): *${student.name}*`,
             ``,
-            `📊 *تقرير المواظبة والتتبع البيداغوجي لحصص الدعم والتقوية في مادة الرياضيات*`,
+            `📊 *تقرير المواظبة والتتبع البيداغوجي لحصص الدعم والتقوية (${subjectName})*`,
             `📅 الفترة المحددة: من *${dateFrom}* إلى *${dateTo}*`,
             ``,
             `📌 *ملخص الحصص والمواظبة:*`,
@@ -6401,7 +6587,7 @@
         if (typeof window.showNotification === 'function') {
             window.showNotification(`جاري فتح واتساب لإرسال تقرير المواظبة لولي أمر ${student.name} 📲`, 'success');
         }
-        window.open(`https://wa.me/${cleanPhone}?text=${fullMsg}`, '_blank');
+        window.openSafeExternalUrl(`https://wa.me/${cleanPhone}?text=${fullMsg}`, '_blank');
     };
 
     window.printTutoringAttendanceLedger = function () {
@@ -6612,11 +6798,11 @@
         const defaultFee = defaultFeeInput ? parseFloat(defaultFeeInput.value) : 80;
 
         if (!cls) {
-            alert('يرجى اختيار القسم الرسمي أولاً.');
+            window.notifySafeToast('يرجى اختيار القسم الرسمي أولاً.');
             return;
         }
         if (checkedBoxes.length === 0) {
-            alert('يرجى تحديد تلميذ واحد على الأقل للاستيراد.');
+            window.notifySafeToast('يرجى تحديد تلميذ واحد على الأقل للاستيراد.');
             return;
         }
 
@@ -6718,122 +6904,12 @@
         if (packBox) packBox.style.display = (mode === 'session_pack') ? 'grid' : 'none';
     };
 
-    // --- Hook Student Modal Open / Edit / Save & Payment Calculation ---
+    // --- Hook Payment Aliases & Smart Insights Render (Native modal handling lives in resources.js) ---
     function installTutoringExpertHooks() {
         if (window.__tutoringExpertHooksInstalled) return;
         window.__tutoringExpertHooksInstalled = true;
 
-        // 1. Hook openAddTutoringStudentModal to reset new fields
-        const origOpenAdd = window.openAddTutoringStudentModal;
-        if (typeof origOpenAdd === 'function') {
-            window.openAddTutoringStudentModal = function () {
-                origOpenAdd.apply(this, arguments);
-                const bm = document.getElementById('tutoringBillingMode');
-                if (bm) bm.value = 'hourly';
-                window.toggleTutoringBillingModeFields('hourly');
-                ['tutoringMonthlyFixedFee', 'tutoringPackPrice', 'tutoringGradeBefore', 'tutoringGradeAfter', 'tutoringNextExamDate', 'tutoringNextExamTopic'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.value = '';
-                });
-                const packSess = document.getElementById('tutoringPackSessions');
-                if (packSess) packSess.value = '4';
-                const disc = document.getElementById('tutoringDiscountPercent');
-                if (disc) disc.value = '0';
-            };
-        }
-
-        // 2. Hook editTutoringStudent to populate new fields
-        const origEditStudent = window.editTutoringStudent;
-        if (typeof origEditStudent === 'function') {
-            window.editTutoringStudent = function (id) {
-                origEditStudent.apply(this, arguments);
-                const std = (db.tutoring && db.tutoring.students || []).find(s => s.id === id);
-                if (!std) return;
-                const mode = std.billingMode || 'hourly';
-                const bm = document.getElementById('tutoringBillingMode');
-                if (bm) bm.value = mode;
-                window.toggleTutoringBillingModeFields(mode);
-
-                const setVal = (elId, val) => {
-                    const el = document.getElementById(elId);
-                    if (el) el.value = (val !== undefined && val !== null) ? val : '';
-                };
-                setVal('tutoringMonthlyFixedFee', std.monthlyFixedFee || '');
-                setVal('tutoringPackSessions', std.packSessions || 4);
-                setVal('tutoringPackPrice', std.packPrice || '');
-                setVal('tutoringDiscountPercent', std.discountPercent || 0);
-                setVal('tutoringGradeBefore', std.gradeBefore !== undefined ? std.gradeBefore : '');
-                setVal('tutoringGradeAfter', std.gradeAfter !== undefined ? std.gradeAfter : '');
-                setVal('tutoringNextExamDate', std.nextExamDate || '');
-                setVal('tutoringNextExamTopic', std.nextExamTopic || '');
-            };
-        }
-
-        // 3. Hook saveTutoringStudent to persist flexible billing & pedagogical ROI fields
-        const origSaveStudent = window.saveTutoringStudent;
-        if (typeof origSaveStudent === 'function') {
-            window.saveTutoringStudent = function () {
-                const editId = (document.getElementById('tutoringStudentId') || {}).value;
-                const nameVal = ((document.getElementById('tutoringName') || {}).value || '').trim();
-                const billingMode = ((document.getElementById('tutoringBillingMode') || {}).value) || 'hourly';
-                const monthlyFixedFee = parseFloat((document.getElementById('tutoringMonthlyFixedFee') || {}).value) || 0;
-                const packSessions = parseInt((document.getElementById('tutoringPackSessions') || {}).value, 10) || 4;
-                const packPrice = parseFloat((document.getElementById('tutoringPackPrice') || {}).value) || 0;
-                const discountPercent = Math.min(100, Math.max(0, parseFloat((document.getElementById('tutoringDiscountPercent') || {}).value) || 0));
-                const gradeBeforeRaw = (document.getElementById('tutoringGradeBefore') || {}).value;
-                const gradeAfterRaw = (document.getElementById('tutoringGradeAfter') || {}).value;
-                const nextExamDate = ((document.getElementById('tutoringNextExamDate') || {}).value || '').trim();
-                const nextExamTopic = ((document.getElementById('tutoringNextExamTopic') || {}).value || '').trim();
-
-                // Ensure #tutoringFee has a sensible fallback if monthly_fixed or session_pack is chosen
-                const feeInput = document.getElementById('tutoringFee');
-                if (feeInput && (!feeInput.value || parseFloat(feeInput.value) <= 0)) {
-                    if (billingMode === 'monthly_fixed' && monthlyFixedFee > 0) {
-                        feeInput.value = Math.round(monthlyFixedFee / 8) || 100;
-                    } else if (billingMode === 'session_pack' && packPrice > 0) {
-                        feeInput.value = Math.round(packPrice / (packSessions * 2)) || 100;
-                    }
-                }
-
-                // Pre-attach advanced fields if editing existing student so origSaveStudent saves once
-                if (editId && db.tutoring && Array.isArray(db.tutoring.students)) {
-                    const preTarget = db.tutoring.students.find(s => s.id === editId);
-                    if (preTarget) {
-                        preTarget.billingMode = billingMode;
-                        preTarget.monthlyFixedFee = monthlyFixedFee;
-                        preTarget.packSessions = packSessions;
-                        preTarget.packPrice = packPrice;
-                        preTarget.discountPercent = discountPercent;
-                        preTarget.gradeBefore = (gradeBeforeRaw !== '' && gradeBeforeRaw !== undefined) ? parseFloat(gradeBeforeRaw) : '';
-                        preTarget.gradeAfter = (gradeAfterRaw !== '' && gradeAfterRaw !== undefined) ? parseFloat(gradeAfterRaw) : '';
-                        preTarget.nextExamDate = nextExamDate;
-                        preTarget.nextExamTopic = nextExamTopic;
-                    }
-                }
-
-                origSaveStudent.apply(this, arguments);
-
-                // For newly created student (no editId prior to origSaveStudent), attach fields and persist
-                if (!editId && db.tutoring && Array.isArray(db.tutoring.students) && nameVal) {
-                    const matches = db.tutoring.students.filter(s => (s.name || '').trim() === nameVal);
-                    const target = matches[matches.length - 1];
-                    if (target) {
-                        target.billingMode = billingMode;
-                        target.monthlyFixedFee = monthlyFixedFee;
-                        target.packSessions = packSessions;
-                        target.packPrice = packPrice;
-                        target.discountPercent = discountPercent;
-                        target.gradeBefore = (gradeBeforeRaw !== '' && gradeBeforeRaw !== undefined) ? parseFloat(gradeBeforeRaw) : '';
-                        target.gradeAfter = (gradeAfterRaw !== '' && gradeAfterRaw !== undefined) ? parseFloat(gradeAfterRaw) : '';
-                        target.nextExamDate = nextExamDate;
-                        target.nextExamTopic = nextExamTopic;
-                        saveDB();
-                    }
-                }
-            };
-        }
-
-        // 4. Ensure getTutoringPaymentInfo includes paid/effectiveDue aliases and supports all billing modes
+        // 1. Ensure getTutoringPaymentInfo includes paid/effectiveDue aliases and supports all billing modes
         const origGetPaymentInfo = window.getTutoringPaymentInfo;
         if (typeof origGetPaymentInfo === 'function') {
             window.getTutoringPaymentInfo = function (student, month, calculatedDue) {
@@ -6847,7 +6923,7 @@
             };
         }
 
-        // 5. Hook renderTutoringStudents to render the Smart Pedagogical & Billing Insights Strip + Student Row Badges
+        // 2. Hook renderTutoringStudents to render the Smart Pedagogical & Billing Insights Strip + Student Row/Card Badges
         const origRenderStudents = window.renderTutoringStudents;
         if (typeof origRenderStudents === 'function') {
             window.renderTutoringStudents = function () {
@@ -6865,16 +6941,20 @@
     function getStudentPedagogicalBadgesHTML(std, month) {
         if (!std) return '';
         const badges = [];
-        const mode = std.billingMode || 'hourly';
+        const mode = std.billingMode || std.billingType || 'hourly';
         const discount = parseFloat(std.discountPercent) || 0;
-        const sessions = (std.sessions || []).filter(s => s.date && s.date.startsWith(month) && s.attendance !== 'absent');
 
         if (mode === 'monthly_fixed') {
-            badges.push(`<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:1px 7px;border-radius:99px;font-size:0.68rem;font-weight:800;">📅 شهري: ${std.monthlyFixedFee || std.fee || 0} د.م</span>`);
+            badges.push(`<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:1px 7px;border-radius:99px;font-size:0.68rem;font-weight:800;">📅 شهري: ${parseFloat(std.monthlyFixedFee || std.fee) || 0} د.م</span>`);
         } else if (mode === 'session_pack') {
-            const packSize = parseInt(std.packSessions, 10) || 4;
-            const rem = Math.max(0, packSize - sessions.length);
-            const low = rem <= 1;
+            const packStatus = (typeof window.getStudentPackStatus === 'function')
+                ? window.getStudentPackStatus(std, month)
+                : null;
+            const packSize = packStatus ? packStatus.packSize : (parseInt(std.packSessions, 10) || 4);
+            const rem = packStatus
+                ? packStatus.remaining
+                : Math.max(0, packSize - (std.sessions || []).filter(s => s.date && s.date.startsWith(month) && s.attendance !== 'absent').length);
+            const low = packStatus ? packStatus.isLow : (rem <= 1);
             badges.push(`<span style="background:${low ? '#fef2f2' : '#f0f9ff'};color:${low ? '#dc2626' : '#0369a1'};border:1px solid ${low ? '#fecaca' : '#bae6fd'};padding:1px 7px;border-radius:99px;font-size:0.68rem;font-weight:800;">📦 باقة: باقي ${rem}/${packSize} ح</span>`);
         }
 
@@ -6895,8 +6975,8 @@
             today.setHours(0, 0, 0, 0);
             const exDate = new Date(std.nextExamDate + 'T00:00:00');
             const diffDays = Math.round((exDate - today) / 86400000);
-            if (diffDays >= 0 && diffDays <= 10) {
-                badges.push(`<span style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:1px 7px;border-radius:99px;font-size:0.68rem;font-weight:800;" title="${std.nextExamTopic || 'فرض محروس قادم بمؤسسته'}">🎯 فرض بعد ${diffDays === 0 ? 'اليوم!' : diffDays + ' ي'}</span>`);
+            if (!isNaN(diffDays) && diffDays >= 0 && diffDays <= 10) {
+                badges.push(`<span style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;padding:1px 7px;border-radius:99px;font-size:0.68rem;font-weight:800;" title="${escHtml(std.nextExamTopic || 'فرض محروس قادم بمؤسسته')}">🎯 فرض بعد ${diffDays === 0 ? 'اليوم!' : diffDays + ' ي'}</span>`);
             }
         }
 
@@ -6909,7 +6989,7 @@
         const students = (db.tutoring && Array.isArray(db.tutoring.students)) ? db.tutoring.students : [];
         if (!students.length) return;
 
-        // Decorate table rows
+        // Decorate desktop table rows into the student name column (cells[1])
         const tbody = document.getElementById('tutoringTableBody');
         if (tbody) {
             const rows = tbody.querySelectorAll('tr');
@@ -6923,11 +7003,32 @@
                 if (!std) return;
                 const badgeHtml = getStudentPedagogicalBadgesHTML(std, month);
                 if (badgeHtml) {
-                    const firstTd = tr.querySelector('td');
-                    if (firstTd) firstTd.insertAdjacentHTML('beforeend', badgeHtml);
+                    const targetCell = (tr.cells && tr.cells.length > 1) ? tr.cells[1] : tr.querySelector('td');
+                    if (targetCell) targetCell.insertAdjacentHTML('beforeend', badgeHtml);
                 }
             });
         }
+
+        // Decorate responsive mobile cards
+        const cards = document.querySelectorAll('.tutoring-student-card');
+        cards.forEach(card => {
+            if (card.querySelector('.tut-expert-badges')) return;
+            const profileLink = card.querySelector('[onclick*="openTutoringStudentProfileModal"]');
+            if (!profileLink) return;
+            const m = (profileLink.getAttribute('onclick') || '').match(/openTutoringStudentProfileModal\(['"]([^'"]+)['"]\)/);
+            if (!m) return;
+            const std = students.find(s => s.id === m[1]);
+            if (!std) return;
+            const badgeHtml = getStudentPedagogicalBadgesHTML(std, month);
+            if (badgeHtml) {
+                const headerEl = card.querySelector('.tutoring-card-header');
+                if (headerEl) {
+                    headerEl.insertAdjacentHTML('afterend', badgeHtml);
+                } else {
+                    card.insertAdjacentHTML('beforeend', badgeHtml);
+                }
+            }
+        });
     }
 
     function renderTutoringSmartInsightsStrip() {
@@ -6964,7 +7065,7 @@
             if (std.nextExamDate) {
                 const exDate = new Date(std.nextExamDate + 'T00:00:00');
                 const diffDays = Math.round((exDate - today) / 86400000);
-                if (diffDays >= 0 && diffDays <= 7) {
+                if (!isNaN(diffDays) && diffDays >= 0 && diffDays <= 7) {
                     upcomingExams.push({ name: std.name, days: diffDays, topic: std.nextExamTopic || '' });
                 }
             }
@@ -6972,12 +7073,19 @@
             const pInfo = window.getTutoringPaymentInfo ? window.getTutoringPaymentInfo(std, month) : { paidAmount: 0, paid: 0, totalDue: 0 };
             monthCollected += (parseFloat(pInfo.paidAmount ?? pInfo.paid) || 0);
 
-            if (std.billingMode === 'session_pack') {
-                const packSize = parseInt(std.packSessions, 10) || 4;
-                const attended = ((std.sessions || []).filter(s => s.date && s.date.startsWith(month) && s.attendance !== 'absent')).length;
-                const rem = Math.max(0, packSize - (attended % packSize || (attended > 0 ? packSize : 0)));
-                if (rem <= 1) {
-                    lowPacks.push({ name: std.name, rem, packSize });
+            if ((std.billingMode || std.billingType) === 'session_pack') {
+                const packStatus = (typeof window.getStudentPackStatus === 'function')
+                    ? window.getStudentPackStatus(std, month)
+                    : null;
+                if (packStatus) {
+                    if (packStatus.isLow) {
+                        lowPacks.push({ name: std.name, rem: packStatus.remaining, packSize: packStatus.packSize });
+                    }
+                } else {
+                    const packSize = parseInt(std.packSessions, 10) || 4;
+                    const attended = ((std.sessions || []).filter(s => s.date && s.date.startsWith(month) && s.attendance !== 'absent')).length;
+                    const rem = Math.max(0, packSize - (attended % packSize || (attended > 0 ? packSize : 0)));
+                    if (rem <= 1) lowPacks.push({ name: std.name, rem, packSize });
                 }
             }
         });
@@ -7003,7 +7111,7 @@
                 <div>
                     <div style="font-size: 0.73rem; color: #b45309; font-weight: 800;">🎯 فروض محروسة قادمة للتلاميذ (7 أيام)</div>
                     <div style="font-size: 0.85rem; font-weight: 800; color: #78350f; margin-top: 2px;">
-                        ${upcomingExams.length > 0 ? `${upcomingExams.length} تلاميذ: ${upcomingExams.slice(0, 2).map(e => `${e.name} (${e.days === 0 ? 'اليوم' : e.days + 'ي'})`).join('، ')}` : 'لا توجد فروض معلنة خلال هذا الأسبوع'}
+                        ${upcomingExams.length > 0 ? `${upcomingExams.length} تلاميذ: ${upcomingExams.slice(0, 2).map(e => `${escHtml(e.name)} (${e.days === 0 ? 'اليوم' : e.days + 'ي'})`).join('، ')}` : 'لا توجد فروض معلنة خلال هذا الأسبوع'}
                     </div>
                 </div>
                 <span style="font-size: 1.3rem;">📝</span>
@@ -7019,9 +7127,9 @@
                 <span style="font-size: 1.3rem;">📦</span>
             </div>
 
-            <div onclick="openTutoringExpensesModal('${month}')" style="background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer;" title="انقر لإدارة مصاريف الدعم وحساب الربح الصافي">
+            <div onclick="openTutoringExpensesModal('${escHtml(month)}')" style="background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer;" title="انقر لإدارة مصاريف الدعم وحساب الربح الصافي">
                 <div>
-                    <div style="font-size: 0.73rem; color: #0f766e; font-weight: 800;">💎 الربح الصافي لشهر ${month} (المحصل - المصاريف)</div>
+                    <div style="font-size: 0.73rem; color: #0f766e; font-weight: 800;">💎 الربح الصافي لشهر ${escHtml(month)} (المحصل - المصاريف)</div>
                     <div style="font-size: 0.95rem; font-weight: 900; color: ${netProfit >= 0 ? '#047857' : '#dc2626'}; margin-top: 2px;">
                         ${netProfit} د.م <span style="font-size: 0.72rem; color: #64748b; font-weight: bold;">(محصل: ${monthCollected} | مصاريف: ${totalExp} د.م)</span>
                     </div>
@@ -7050,7 +7158,7 @@
                 if (tEl && (slot.pedagogicalFocus || slot.notes) && !tEl.value) {
                     tEl.value = slot.pedagogicalFocus || slot.notes || '';
                 }
-                showTutoringExpertToast(`⚡ تم تحميل حصة اليوم تلقائياً: ${groupName} (${slot.startTime} - ${slot.endTime})`, '#7c3aed');
+                showTutoringExpertToast(`⚡ تم تحميل حصة اليوم تلقائياً: ${escHtml(groupName)} (${escHtml(slot.startTime)} - ${escHtml(slot.endTime)})`, '#7c3aed');
                 return;
             }
         } else if (legacySlots.length > 0) {
@@ -7061,7 +7169,7 @@
                 if (hEl && slot.duration) hEl.value = slot.duration;
                 const tEl = document.getElementById('groupSessionTopic');
                 if (tEl && slot.subject && !tEl.value) tEl.value = slot.subject;
-                showTutoringExpertToast(`⚡ تم تحميل حصة اليوم تلقائياً: ${slot.groupName || 'مجموعة اليوم'}`, '#7c3aed');
+                showTutoringExpertToast(`⚡ تم تحميل حصة اليوم تلقائياً: ${escHtml(slot.groupName || 'مجموعة اليوم')}`, '#7c3aed');
                 return;
             }
         }
@@ -7088,17 +7196,35 @@
             return;
         }
 
-        // Count present/absent before saving
-        const cbs = document.querySelectorAll('.group-session-student-cb');
+        // Count attendance using modern select elements (.tutoring-group-attendance-select) with legacy checkbox fallback
         let presentCount = 0;
         let absentCount = 0;
-        cbs.forEach(cb => { if (cb.checked) presentCount++; else absentCount++; });
+        const attSelects = document.querySelectorAll('.tutoring-group-attendance-select');
+        if (attSelects.length > 0) {
+            attSelects.forEach(sel => {
+                if (sel.value === 'present' || sel.value === 'late') presentCount++;
+                else absentCount++;
+            });
+        } else {
+            const cbs = document.querySelectorAll('.group-session-student-cb');
+            cbs.forEach(cb => { if (cb.checked) presentCount++; else absentCount++; });
+        }
+
+        // Capture attached digital library resources before saving closes/resets the modal
+        const attachedResources = (typeof window.getSelectedTutoringLibraryResources === 'function')
+            ? window.getSelectedTutoringLibraryResources('groupSessionLibraryLinkerContainer')
+            : [];
 
         if (typeof window.saveTutoringGroupSession === 'function') {
             window.saveTutoringGroupSession();
         }
 
-        const teacherName = (db.settings && db.settings.teacherName) ? db.settings.teacherName : 'الأستاذ(ة)';
+        const tp = getAuthoritativeTeacherProfile();
+        const teacherName = tp.name || 'الأستاذ(ة)';
+        const resBlock = attachedResources.length > 0
+            ? `\n📎 *الموارد الرقمية المرفقة:*\n` + attachedResources.map(r => `  • ${r.title}${r.url ? ` (${r.url})` : ''}`).join('\n')
+            : '';
+
         const summaryText =
 `📚 *ملخص حصة الدعم والواجب المنزلي*
 ━━━━━━━━━━━━━━━━━━
@@ -7106,7 +7232,7 @@
 📅 *التاريخ:* ${dateVal} (المدة: ${hoursVal} س)
 📖 *محور الحصة المنجز:* ${topicVal}
 ✍️ *الواجب المطلوب للحصة القادمة:* ${hwVal}
-✅ *المواظبة:* حضور ${presentCount} تلميذ(ة)${absentCount > 0 ? ` | غياب ${absentCount}` : ''}
+✅ *المواظبة:* حضور ${presentCount} تلميذ(ة)${absentCount > 0 ? ` | غياب ${absentCount}` : ''}${resBlock}
 ━━━━━━━━━━━━━━━━━━
 مع تحيات ${teacherName} 🌟`;
 
@@ -7114,11 +7240,66 @@
             navigator.clipboard.writeText(summaryText).catch(() => {});
         }
         const waUrl = `https://wa.me/?text=${encodeURIComponent(summaryText)}`;
-        window.open(waUrl, '_blank');
+        window.openSafeExternalUrl(waUrl, '_blank');
         showTutoringExpertToast('📲 تم حفظ الحصة ونسخ الملخص وفتح واتساب للمشاركة!');
     };
 
-    // --- Axis 4: Tutoring Expenses & Net Profit Modal ---
+    // --- Axis 4: Tutoring Expenses (Group-Tagged & Recurring) & Net Profit Modal ---
+    function getPrevMonthStr(monthStr) {
+        if (!monthStr || !/^\d{4}-\d{2}$/.test(monthStr)) return '';
+        const parts = monthStr.split('-');
+        let y = parseInt(parts[0], 10);
+        let m = parseInt(parts[1], 10) - 1;
+        if (m < 1) { m = 12; y -= 1; }
+        return `${y}-${String(m).padStart(2, '0')}`;
+    }
+
+    window.copyRecurringTutoringExpenses = function (targetMonth) {
+        if (!db.tutoring) db.tutoring = { students: [], expenses: [] };
+        if (!Array.isArray(db.tutoring.expenses)) db.tutoring.expenses = [];
+        const month = targetMonth || ((document.getElementById('tutExpMonth') || {}).value) || new Date().toISOString().slice(0, 7);
+        const prevMonth = getPrevMonthStr(month);
+        const recurringFromPrev = db.tutoring.expenses.filter(e => e.month === prevMonth && e.recurring);
+        if (recurringFromPrev.length === 0) {
+            showTutoringExpertToast(`ℹ️ لا توجد مصاريف متكررة مسجلة في الشهر السابق (${prevMonth})`, '#0284c7');
+            return;
+        }
+        let copied = 0;
+        const todayIso = new Date().toISOString().slice(0, 10);
+        recurringFromPrev.forEach(src => {
+            const alreadyExists = db.tutoring.expenses.some(e =>
+                e.month === month &&
+                e.category === src.category &&
+                e.title === src.title &&
+                (e.group || '') === (src.group || '') &&
+                parseFloat(e.amount) === parseFloat(src.amount)
+            );
+            if (!alreadyExists) {
+                db.tutoring.expenses.push({
+                    id: 'exp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                    category: src.category,
+                    title: src.title,
+                    amount: parseFloat(src.amount) || 0,
+                    group: src.group || '',
+                    recurring: true,
+                    month: month,
+                    date: todayIso
+                });
+                copied++;
+            }
+        });
+        if (copied > 0) {
+            saveDB();
+            if (typeof window.__rerenderTutoringExpModal === 'function') window.__rerenderTutoringExpModal(month);
+            if (typeof window.renderTutoringStudents === 'function') window.renderTutoringStudents();
+            if (typeof window.renderTutoringGroupsHub === 'function') window.renderTutoringGroupsHub();
+            if (typeof window.renderTutoringAnalytics === 'function') window.renderTutoringAnalytics();
+            showTutoringExpertToast(`✓ تم نسخ ${copied} مصروف متكرر من شهر ${prevMonth}`);
+        } else {
+            showTutoringExpertToast(`ℹ️ كافة المصاريف المتكررة لشهر ${prevMonth} منسوخة بالفعل لهذا الشهر`, '#0284c7');
+        }
+    };
+
     window.openTutoringExpensesModal = function (defaultMonth) {
         const monthEl = document.getElementById('tutoringMonth');
         const activeMonth = defaultMonth || (monthEl && monthEl.value) || new Date().toISOString().slice(0, 7);
@@ -7138,6 +7319,14 @@
             const monthExp = allExp.filter(e => e.month === selectedMonth);
             const totalMonthExp = Math.round(monthExp.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0) * 100) / 100;
             const totalAllExp = Math.round(allExp.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0) * 100) / 100;
+            const prevMonth = getPrevMonthStr(selectedMonth);
+            const prevRecurringCount = allExp.filter(e => e.month === prevMonth && e.recurring).length;
+
+            const knownGroups = new Set();
+            (db.tutoring.groups || []).forEach(g => { if (g && g.name) knownGroups.add(g.name); });
+            (db.tutoring.students || []).forEach(s => { if (s && s.group) knownGroups.add(s.group); });
+            const groupOptionsHtml = `<option value="">عام / مشترك لكل المجموعات</option>` +
+                Array.from(knownGroups).sort((a, b) => a.localeCompare(b, 'ar')).map(g => `<option value="${escHtml(g)}">${escHtml(g)}</option>`).join('');
 
             let monthCollected = 0;
             let monthGrossDue = 0;
@@ -7152,7 +7341,7 @@
             const expectedNetProfit = Math.round((monthGrossDue - totalMonthExp) * 100) / 100;
 
             modal.innerHTML = `
-                <div class="card" style="width:100%;max-width:720px;max-height:92vh;overflow-y:auto;border-radius:16px;background:#fff;padding:22px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
+                <div class="card" style="width:100%;max-width:780px;max-height:92vh;overflow-y:auto;border-radius:16px;background:#fff;padding:22px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
                     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #f1f5f9;padding-bottom:12px;margin-bottom:16px;">
                         <div>
                             <h3 style="margin:0;font-size:1.15rem;font-weight:900;color:#0f766e;display:flex;align-items:center;gap:8px;">
@@ -7166,12 +7355,12 @@
                     <!-- KPI Row -->
                     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;text-align:center;">
                         <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px;">
-                            <div style="font-size:0.72rem;color:#166534;font-weight:bold;">المداخيل المحصلة (${selectedMonth})</div>
+                            <div style="font-size:0.72rem;color:#166534;font-weight:bold;">المداخيل المحصلة (${escHtml(selectedMonth)})</div>
                             <div style="font-size:1.2rem;font-weight:900;color:#15803d;">${monthCollected} د.م</div>
                             <div style="font-size:0.68rem;color:#16a34a;">من أصل ${monthGrossDue} د.م مستحق</div>
                         </div>
                         <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px;">
-                            <div style="font-size:0.72rem;color:#b45309;font-weight:bold;">مصاريف الشهر (${selectedMonth})</div>
+                            <div style="font-size:0.72rem;color:#b45309;font-weight:bold;">مصاريف الشهر (${escHtml(selectedMonth)})</div>
                             <div style="font-size:1.2rem;font-weight:900;color:#d97706;">${totalMonthExp} د.م</div>
                             <div style="font-size:0.68rem;color:#b45309;">${monthExp.length} عملية مسجلة</div>
                         </div>
@@ -7189,8 +7378,11 @@
 
                     <!-- Add Expense Form -->
                     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:16px;">
-                        <div style="font-weight:800;font-size:0.84rem;color:#1e293b;margin-bottom:10px;">➕ إضافة مصروف جديد:</div>
-                        <div style="display:grid;grid-template-columns:1.1fr 1.2fr 0.9fr 0.9fr auto;gap:8px;align-items:end;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+                            <span style="font-weight:800;font-size:0.84rem;color:#1e293b;">➕ إضافة مصروف جديد:</span>
+                            ${prevRecurringCount > 0 ? `<button type="button" onclick="window.copyRecurringTutoringExpenses('${escHtml(selectedMonth)}')" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:4px 10px;border-radius:7px;font-size:0.74rem;font-weight:800;cursor:pointer;">📋 نسخ المتكررة من ${escHtml(prevMonth)} (${prevRecurringCount})</button>` : ''}
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1.2fr 0.8fr 0.9fr;gap:8px;align-items:end;margin-bottom:8px;">
                             <div>
                                 <label style="font-size:0.72rem;margin-bottom:2px;">التصنيف:</label>
                                 <select id="tutExpCategory" style="margin:0;padding:7px;font-size:0.8rem;">
@@ -7211,22 +7403,35 @@
                             </div>
                             <div>
                                 <label style="font-size:0.72rem;margin-bottom:2px;">الشهر:</label>
-                                <input type="month" id="tutExpMonth" value="${selectedMonth}" onchange="window.__rerenderTutoringExpModal(this.value)" style="margin:0;padding:6px;font-size:0.8rem;">
+                                <input type="month" id="tutExpMonth" value="${escHtml(selectedMonth)}" onchange="window.__rerenderTutoringExpModal(this.value)" style="margin:0;padding:6px;font-size:0.8rem;">
                             </div>
-                            <button type="button" onclick="window.addTutoringExpenseItem()" style="background:#0f766e;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-weight:800;font-size:0.82rem;cursor:pointer;height:36px;">+ تسجيل</button>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:1;">
+                                <div style="min-width:200px;flex:1;max-width:280px;">
+                                    <select id="tutExpGroup" style="margin:0;padding:6px 8px;font-size:0.79rem;">
+                                        ${groupOptionsHtml}
+                                    </select>
+                                </div>
+                                <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;font-weight:700;color:#334155;cursor:pointer;">
+                                    <input type="checkbox" id="tutExpRecurring" style="width:15px;height:15px;accent-color:#0f766e;">
+                                    <span>🔁 مصروف شهري متكرر (مثل كراء القاعة)</span>
+                                </label>
+                            </div>
+                            <button type="button" onclick="window.addTutoringExpenseItem()" style="background:#0f766e;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:800;font-size:0.82rem;cursor:pointer;">+ تسجيل المصروف</button>
                         </div>
                     </div>
 
                     <!-- Expenses List -->
                     <div style="max-height:260px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px;">
                         ${monthExp.length === 0 ? `
-                            <div style="text-align:center;padding:24px;color:#94a3b8;font-size:0.85rem;">لا توجد مصاريف مسجلة لشهر ${selectedMonth}.</div>
+                            <div style="text-align:center;padding:24px;color:#94a3b8;font-size:0.85rem;">لا توجد مصاريف مسجلة لشهر ${escHtml(selectedMonth)}.</div>
                         ` : `
                             <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
                                 <thead>
                                     <tr style="background:#f1f5f9;color:#334155;text-align:right;">
                                         <th style="padding:8px 10px;">التصنيف</th>
-                                        <th style="padding:8px 10px;">البيان</th>
+                                        <th style="padding:8px 10px;">البيان والمجموعة</th>
                                         <th style="padding:8px 10px;">التاريخ</th>
                                         <th style="padding:8px 10px;">المبلغ</th>
                                         <th style="padding:8px 10px;text-align:center;">حذف</th>
@@ -7235,12 +7440,18 @@
                                 <tbody>
                                     ${monthExp.slice().reverse().map(e => `
                                         <tr style="border-top:1px solid #f1f5f9;">
-                                            <td style="padding:8px 10px;font-weight:bold;color:#0f766e;">${e.category || '-'}</td>
-                                            <td style="padding:8px 10px;color:#1e293b;">${e.title || '-'}</td>
-                                            <td style="padding:8px 10px;color:#64748b;font-size:0.75rem;">${e.date || e.month}</td>
-                                            <td style="padding:8px 10px;font-weight:900;color:#b45309;">${e.amount} د.م</td>
+                                            <td style="padding:8px 10px;font-weight:bold;color:#0f766e;">
+                                                ${escHtml(e.category || '-')}
+                                                ${e.recurring ? `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:1px 5px;border-radius:99px;font-size:0.65rem;margin-right:4px;">🔁 متكرر</span>` : ''}
+                                            </td>
+                                            <td style="padding:8px 10px;color:#1e293b;">
+                                                <div>${escHtml(e.title || '-')}</div>
+                                                ${e.group ? `<span style="background:#f1f5f9;color:#475569;padding:1px 6px;border-radius:4px;font-size:0.68rem;font-weight:700;">👥 ${escHtml(e.group)}</span>` : ''}
+                                            </td>
+                                            <td style="padding:8px 10px;color:#64748b;font-size:0.75rem;">${escHtml(e.date || e.month)}</td>
+                                            <td style="padding:8px 10px;font-weight:900;color:#b45309;">${parseFloat(e.amount) || 0} د.م</td>
                                             <td style="padding:8px 10px;text-align:center;">
-                                                <button type="button" onclick="window.deleteTutoringExpenseItem('${e.id}', '${selectedMonth}')" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:2px 8px;font-size:0.72rem;cursor:pointer;">حذف</button>
+                                                <button type="button" onclick="window.deleteTutoringExpenseItem('${escHtml(e.id)}', '${escHtml(selectedMonth)}')" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:2px 8px;font-size:0.72rem;cursor:pointer;">حذف</button>
                                             </td>
                                         </tr>
                                     `).join('')}
@@ -7266,6 +7477,8 @@
         const title = ((document.getElementById('tutExpTitle') || {}).value || '').trim() || cat;
         const amount = parseFloat((document.getElementById('tutExpAmount') || {}).value);
         const month = ((document.getElementById('tutExpMonth') || {}).value) || new Date().toISOString().slice(0, 7);
+        const group = ((document.getElementById('tutExpGroup') || {}).value) || '';
+        const recurring = Boolean((document.getElementById('tutExpRecurring') || {}).checked);
 
         if (isNaN(amount) || amount <= 0) {
             showTutoringExpertToast('⚠️ يرجى إدخال مبلغ مصروف صحيح', '#dc2626');
@@ -7278,12 +7491,15 @@
             category: cat,
             title: title,
             amount: amount,
+            group: group,
+            recurring: recurring,
             month: month,
             date: new Date().toISOString().slice(0, 10)
         });
         saveDB();
         if (typeof window.__rerenderTutoringExpModal === 'function') window.__rerenderTutoringExpModal(month);
         if (typeof window.renderTutoringStudents === 'function') window.renderTutoringStudents();
+        if (typeof window.renderTutoringGroupsHub === 'function') window.renderTutoringGroupsHub();
         if (typeof window.renderTutoringAnalytics === 'function') window.renderTutoringAnalytics();
         showTutoringExpertToast('✓ تم تسجيل المصروف وتحديث الربح الصافي بنجاح');
     };
@@ -7294,6 +7510,7 @@
         saveDB();
         if (typeof window.__rerenderTutoringExpModal === 'function') window.__rerenderTutoringExpModal(month);
         if (typeof window.renderTutoringStudents === 'function') window.renderTutoringStudents();
+        if (typeof window.renderTutoringGroupsHub === 'function') window.renderTutoringGroupsHub();
         if (typeof window.renderTutoringAnalytics === 'function') window.renderTutoringAnalytics();
     };
 
@@ -7312,13 +7529,14 @@
             document.body.appendChild(modal);
         }
 
+        const safeGrpAttr = groupName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         const renderSeries = () => {
             const list = db.tutoring.groupSeries[groupName] || [];
             modal.innerHTML = `
                 <div class="card" style="width:100%;max-width:650px;max-height:92vh;overflow-y:auto;border-radius:16px;background:#fff;padding:22px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
                     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #f1f5f9;padding-bottom:12px;margin-bottom:16px;">
                         <div>
-                            <h3 style="margin:0;font-size:1.12rem;font-weight:900;color:#0369a1;">📚 سجل السلاسل والتمارين والفروض التجريبية — ${groupName}</h3>
+                            <h3 style="margin:0;font-size:1.12rem;font-weight:900;color:#0369a1;">📚 سجل السلاسل والتمارين والفروض التجريبية — ${escHtml(groupName)}</h3>
                             <p style="margin:3px 0 0 0;font-size:0.78rem;color:#64748b;">تتبع السلاسل الموزعة على المجموعة وحالة تصحيحها لضمان عدم تكرار أو نسيان أي تمرين</p>
                         </div>
                         <button type="button" onclick="document.getElementById('tutoringGroupSeriesModal').style.display='none'" style="background:#f1f5f9;border:none;width:34px;height:34px;border-radius:50%;font-weight:bold;cursor:pointer;">✕</button>
@@ -7327,7 +7545,7 @@
                     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:16px;display:grid;grid-template-columns:1.5fr 1fr 1fr auto;gap:8px;align-items:end;">
                         <div>
                             <label style="font-size:0.74rem;margin-bottom:2px;">عنوان السلسلة أو الفرض التجريبي:</label>
-                            <input type="text" id="grpSeriesTitle" placeholder="مثال: سلسلة رقم 3 - الاتصال والاشتقاق" style="margin:0;padding:7px;font-size:0.82rem;">
+                            <input type="text" id="grpSeriesTitle" placeholder="مثال: سلسلة رقم 3 - مراجعة المحور" style="margin:0;padding:7px;font-size:0.82rem;">
                         </div>
                         <div>
                             <label style="font-size:0.74rem;margin-bottom:2px;">عدد التمارين / الحالة:</label>
@@ -7340,21 +7558,21 @@
                                 <option value="completed">✅ مكتملة ومصححة بالكامل</option>
                             </select>
                         </div>
-                        <button type="button" onclick="window.addGroupSeriesItem('${groupName.replace(/'/g, "\\'")}')" style="background:#0284c7;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-weight:800;font-size:0.82rem;cursor:pointer;height:36px;">+ إضافة</button>
+                        <button type="button" onclick="window.addGroupSeriesItem('${safeGrpAttr}')" style="background:#0284c7;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-weight:800;font-size:0.82rem;cursor:pointer;height:36px;">+ إضافة</button>
                     </div>
 
                     <div style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;">
                         ${list.length === 0 ? `<div style="text-align:center;padding:24px;color:#94a3b8;font-size:0.85rem;">لم يتم تسجيل أي سلسلة لهذه المجموعة بعد.</div>` : list.slice().reverse().map(item => `
                             <div style="background:${item.status === 'completed' ? '#f0fdf4' : '#fff'};border:1px solid ${item.status === 'completed' ? '#bbf7d0' : '#e2e8f0'};border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
                                 <div>
-                                    <div style="font-weight:800;font-size:0.88rem;color:#0f172a;">${item.title}</div>
-                                    <div style="font-size:0.75rem;color:#64748b;margin-top:2px;">📅 ${item.date || '-'} • ${item.meta || 'سلسلة دعم'}</div>
+                                    <div style="font-weight:800;font-size:0.88rem;color:#0f172a;">${escHtml(item.title)}</div>
+                                    <div style="font-size:0.75rem;color:#64748b;margin-top:2px;">📅 ${escHtml(item.date || '-')} • ${escHtml(item.meta || 'سلسلة دعم')}</div>
                                 </div>
                                 <div style="display:flex;align-items:center;gap:6px;">
-                                    <button type="button" onclick="window.toggleGroupSeriesStatus('${groupName.replace(/'/g, "\\'")}', '${item.id}')" style="background:${item.status === 'completed' ? '#dcfce7' : '#fef3c7'};color:${item.status === 'completed' ? '#166534' : '#92400e'};border:none;padding:4px 10px;border-radius:99px;font-size:0.74rem;font-weight:800;cursor:pointer;">
+                                    <button type="button" onclick="window.toggleGroupSeriesStatus('${safeGrpAttr}', '${escHtml(item.id)}')" style="background:${item.status === 'completed' ? '#dcfce7' : '#fef3c7'};color:${item.status === 'completed' ? '#166534' : '#92400e'};border:none;padding:4px 10px;border-radius:99px;font-size:0.74rem;font-weight:800;cursor:pointer;">
                                         ${item.status === 'completed' ? '✅ مكتملة' : '⏳ قيد التصحيح'}
                                     </button>
-                                    <button type="button" onclick="window.deleteGroupSeriesItem('${groupName.replace(/'/g, "\\'")}', '${item.id}')" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:4px 8px;font-size:0.72rem;cursor:pointer;">حذف</button>
+                                    <button type="button" onclick="window.deleteGroupSeriesItem('${safeGrpAttr}', '${escHtml(item.id)}')" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;padding:4px 8px;font-size:0.72rem;cursor:pointer;">حذف</button>
                                 </div>
                             </div>
                         `).join('')}
@@ -7408,14 +7626,14 @@
         if (typeof window.renderTutoringGroupsHub === 'function') window.renderTutoringGroupsHub();
     };
 
-    // --- Axis 5A: Smart Student Membership Card (QR) ---
+    // --- Axis 5A: Smart Offline Student Membership Card (QR) ---
     window.printStudentTutoringQrCard = function (studentId) {
         const std = (db.tutoring && db.tutoring.students || []).find(s => s.id === studentId);
         if (!std) return;
-        const teacherName = (db.settings && db.settings.teacherName) ? db.settings.teacherName : 'الأستاذ(ة)';
-        const subjectName = (db.settings && db.settings.subject) ? db.settings.subject : 'الرياضيات والعلوم';
-        const qrPayload = encodeURIComponent(`TUTORING-ID:${std.id}|NAME:${std.name}|GROUP:${std.group || 'فردي'}|LEVEL:${std.level || '-'}`);
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${qrPayload}`;
+        const tp = getAuthoritativeTeacherProfile();
+        const teacherName = tp.name || 'الأستاذ(ة)';
+        const subjectName = tp.subject || 'الدعم التربوي';
+        const qrRawPayload = `TUTORING-ID:${std.id}|NAME:${std.name || ''}|GROUP:${std.group || 'فردي'}|LEVEL:${std.level || '-'}`;
 
         let modal = document.getElementById('tutoringQrCardModal');
         if (!modal) {
@@ -7425,9 +7643,10 @@
             document.body.appendChild(modal);
         }
 
-        const billingLabel = std.billingMode === 'monthly_fixed'
+        const billingLabel = (std.billingMode || std.billingType) === 'monthly_fixed'
             ? `شهري ثابت (${std.monthlyFixedFee || std.fee || 300} د.م)`
-            : (std.billingMode === 'session_pack' ? `باقة ${std.packSessions || 4} حصص` : `بالساعة (${std.fee || 100} د.م/س)`);
+            : ((std.billingMode || std.billingType) === 'session_pack' ? `باقة ${std.packSessions || 4} حصص` : `بالساعة (${std.fee || 100} د.م/س)`);
+        const shortCode = String(std.id || '').slice(-6).toUpperCase();
 
         modal.innerHTML = `
             <div class="card" style="width:100%;max-width:460px;background:#fff;border-radius:18px;padding:22px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);">
@@ -7437,18 +7656,20 @@
                             <div style="font-size:0.72rem;color:#bfdbfe;font-weight:bold;">بطاقة الانخراط والمواظبة في حصص الدعم</div>
                             <div style="font-size:1.05rem;font-weight:900;">فضاء التميز للدعم التربوي</div>
                         </div>
-                        <div style="background:rgba(255,255,255,0.18);padding:4px 10px;border-radius:8px;font-size:0.75rem;font-weight:bold;">${subjectName}</div>
+                        <div style="background:rgba(255,255,255,0.18);padding:4px 10px;border-radius:8px;font-size:0.75rem;font-weight:bold;">${escHtml(subjectName)}</div>
                     </div>
                     <div style="padding:18px;display:grid;grid-template-columns:1.4fr 1fr;gap:14px;align-items:center;">
                         <div style="font-size:0.84rem;color:#1e293b;display:flex;flex-direction:column;gap:6px;">
-                            <div><span style="color:#64748b;font-size:0.74rem;">الاسم الكامل:</span><div style="font-weight:900;font-size:1rem;color:#0f172a;">${std.name}</div></div>
-                            <div><span style="color:#64748b;font-size:0.74rem;">المجموعة / المستوى:</span><div style="font-weight:800;color:#1d4ed8;">${std.group || 'دعم فردي'} • ${std.level || 'عام'}</div></div>
-                            <div><span style="color:#64748b;font-size:0.74rem;">نظام الانخراط:</span><div style="font-weight:800;color:#047857;">${billingLabel}</div></div>
-                            <div><span style="color:#64748b;font-size:0.74rem;">إشراف:</span><div style="font-weight:700;">${teacherName}</div></div>
+                            <div><span style="color:#64748b;font-size:0.74rem;">الاسم الكامل:</span><div style="font-weight:900;font-size:1rem;color:#0f172a;">${escHtml(std.name)}</div></div>
+                            <div><span style="color:#64748b;font-size:0.74rem;">المجموعة / المستوى:</span><div style="font-weight:800;color:#1d4ed8;">${escHtml(std.group || 'دعم فردي')} • ${escHtml(std.level || 'عام')}</div></div>
+                            <div><span style="color:#64748b;font-size:0.74rem;">نظام الانخراط:</span><div style="font-weight:800;color:#047857;">${escHtml(billingLabel)}</div></div>
+                            <div><span style="color:#64748b;font-size:0.74rem;">إشراف:</span><div style="font-weight:700;">${escHtml(teacherName)}</div></div>
                         </div>
                         <div style="text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px;">
-                            <img src="${qrUrl}" alt="QR" style="width:115px;height:115px;display:block;margin:0 auto;" />
-                            <div style="font-size:0.65rem;color:#64748b;margin-top:4px;font-family:monospace;">#${std.id.slice(-6).toUpperCase()}</div>
+                            <div id="tutQrCardRenderTarget" style="width:118px;height:118px;margin:0 auto;display:flex;align-items:center;justify-content:center;">
+                                <span style="font-size:0.72rem;color:#64748b;">جاري التوليد...</span>
+                            </div>
+                            <div style="font-size:0.65rem;color:#64748b;margin-top:4px;font-family:monospace;">#${escHtml(shortCode)}</div>
                         </div>
                     </div>
                 </div>
@@ -7459,6 +7680,297 @@
             </div>
         `;
         modal.style.display = 'flex';
+
+        const qrBox = document.getElementById('tutQrCardRenderTarget');
+        if (qrBox && window.QRCode && typeof window.QRCode.toDataURL === 'function') {
+            window.QRCode.toDataURL(qrRawPayload, { width: 160, margin: 1, errorCorrectionLevel: 'M' })
+                .then(dataUrl => {
+                    if (qrBox) {
+                        qrBox.innerHTML = `<img src="${dataUrl}" alt="QR Code" style="width:118px;height:118px;display:block;margin:0 auto;border-radius:6px;" />`;
+                    }
+                })
+                .catch(() => {
+                    if (window.QRCode && typeof window.QRCode.toString === 'function') {
+                        window.QRCode.toString(qrRawPayload, { type: 'svg', width: 118, margin: 1 }, (err, svg) => {
+                            if (qrBox) qrBox.innerHTML = !err && svg ? svg : `<div style="font-size:0.75rem;color:#dc2626;">#${escHtml(shortCode)}</div>`;
+                        });
+                    }
+                });
+        } else if (qrBox && window.QRCode && typeof window.QRCode.toString === 'function') {
+            window.QRCode.toString(qrRawPayload, { type: 'svg', width: 118, margin: 1 }, (err, svg) => {
+                qrBox.innerHTML = !err && svg ? svg : `<div style="font-size:0.75rem;color:#dc2626;">#${escHtml(shortCode)}</div>`;
+            });
+        } else if (qrBox) {
+            qrBox.innerHTML = `<div style="font-size:0.74rem;color:#475569;font-weight:bold;">رمز البطاقة:<br><span style="font-family:monospace;font-size:0.9rem;">#${escHtml(shortCode)}</span></div>`;
+        }
+    };
+
+    // --- Axis 5A-Plus: Offline QR Attendance Scanner (Camera + USB Barcode / Manual Code) ---
+    let _tutQrStream = null;
+    let _tutQrScanTimer = null;
+    let _tutQrScannerActive = false;
+
+    window.closeTutoringQrScannerModal = function () {
+        _tutQrScannerActive = false;
+        if (_tutQrScanTimer) {
+            clearTimeout(_tutQrScanTimer);
+            _tutQrScanTimer = null;
+        }
+        if (_tutQrStream) {
+            try { _tutQrStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+            _tutQrStream = null;
+        }
+        const vid = document.getElementById('tutQrScannerVideo');
+        if (vid) vid.srcObject = null;
+        const modal = document.getElementById('tutoringQrScannerModal');
+        if (modal) modal.style.display = 'none';
+    };
+
+    window.openTutoringQrAttendanceScannerModal = function (context = 'quick') {
+        if (!db.tutoring) db.tutoring = { students: [], groups: [] };
+        const students = Array.isArray(db.tutoring.students) ? db.tutoring.students : [];
+        if (students.length === 0) {
+            showTutoringExpertToast('⚠️ لا يوجد تلاميذ مسجلون في الدعم الخصوصي بعد', '#dc2626');
+            return;
+        }
+
+        let modal = document.getElementById('tutoringQrScannerModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'tutoringQrScannerModal';
+            modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(15,23,42,0.78);z-index:10035;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);';
+            document.body.appendChild(modal);
+        }
+
+        const isGroupCtx = context === 'group_modal';
+        const todayStr = window.formatLocalDate ? window.formatLocalDate() : new Date().toISOString().slice(0, 10);
+        const nowTime = new Date().toTimeString().slice(0, 5);
+
+        modal.innerHTML = `
+            <div class="card" style="width:100%;max-width:540px;max-height:92vh;overflow-y:auto;background:#fff;border-radius:18px;padding:20px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.45);">
+                <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #f1f5f9;padding-bottom:10px;margin-bottom:14px;">
+                    <div>
+                        <h3 style="margin:0;font-size:1.1rem;font-weight:900;color:#6d28d9;display:flex;align-items:center;gap:8px;">
+                            <span>📷 مسح QR لتسجيل الحضور الفوري</span>
+                        </h3>
+                        <p style="margin:2px 0 0 0;font-size:0.76rem;color:#64748b;">
+                            ${isGroupCtx ? 'سيتم تعليم التلميذ كـ «حاضر» تلقائياً داخل نافذة حصة المجموعة المفتوحة' : 'تسجيل حصة حضور سريعة لتاريخ اليوم عبر الكاميرا أو قارئ USB أو الرمز المختصر'}
+                        </p>
+                    </div>
+                    <button type="button" onclick="window.closeTutoringQrScannerModal()" style="background:#f1f5f9;border:none;width:34px;height:34px;border-radius:50%;font-weight:bold;cursor:pointer;">✕</button>
+                </div>
+
+                ${!isGroupCtx ? `
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:10px 12px;margin-bottom:12px;">
+                        <div>
+                            <label style="font-size:0.72rem;font-weight:800;color:#6b21a8;display:block;margin-bottom:3px;">المدة الافتراضية للحصة (س):</label>
+                            <input type="number" id="tutQrQuickHours" value="2" min="0.5" max="6" step="0.5" style="margin:0;padding:6px 8px;font-size:0.84rem;font-weight:bold;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.72rem;font-weight:800;color:#6b21a8;display:block;margin-bottom:3px;">عنوان الحصة (اختياري):</label>
+                            <input type="text" id="tutQrQuickTopic" placeholder="مثال: حضور عبر بطاقة QR" style="margin:0;padding:6px 8px;font-size:0.84rem;">
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- Camera Scanner Viewport -->
+                <div style="background:#0f172a;border-radius:12px;overflow:hidden;position:relative;margin-bottom:12px;min-height:195px;display:flex;align-items:center;justify-content:center;">
+                    <video id="tutQrScannerVideo" autoplay playsinline muted style="width:100%;max-height:220px;object-fit:cover;display:none;"></video>
+                    <div id="tutQrCameraStatus" style="color:#cbd5e1;padding:18px;text-align:center;font-size:0.82rem;line-height:1.6;">
+                        جاري تهيئة الكاميرا للمسح المباشر...<br>
+                        <span style="font-size:0.74rem;color:#94a3b8;">يمكنك أيضاً استخدام قارئ الباركود USB أو إدخال رمز التلميذ أدناه مباشرة</span>
+                    </div>
+                </div>
+
+                <!-- Manual / USB Scanner Input -->
+                <form onsubmit="event.preventDefault(); window.processTutoringQrScannedPayload(document.getElementById('tutQrManualInput').value, '${escHtml(context)}');" style="display:flex;gap:8px;margin-bottom:12px;">
+                    <input type="text" id="tutQrManualInput" placeholder="امسح بـ USB أو اكتب رمز البطاقة (#XXXXXX) أو اسم التلميذ..." autocomplete="off" style="flex:1;margin:0;padding:9px 12px;font-size:0.86rem;border:1.5px solid #cbd5e1;border-radius:10px;">
+                    <button type="submit" style="background:#7c3aed;color:#fff;border:none;padding:9px 16px;border-radius:10px;font-weight:800;font-size:0.84rem;cursor:pointer;">✓ تأكيد</button>
+                </form>
+
+                <!-- Scan Result Banner & Log -->
+                <div id="tutQrScanFeedback" style="display:none;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:0.82rem;font-weight:800;"></div>
+                <div style="font-size:0.76rem;font-weight:800;color:#475569;margin-bottom:6px;">سجل المسح لهذه الجلسة:</div>
+                <div id="tutQrScanHistoryList" style="max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;">
+                    <div style="text-align:center;color:#94a3b8;font-size:0.78rem;">في انتظار مسح أول بطاقة تلميذ...</div>
+                </div>
+            </div>
+        `;
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            const inp = document.getElementById('tutQrManualInput');
+            if (inp) inp.focus();
+        }, 80);
+
+        const lastScanTimes = {};
+        window.processTutoringQrScannedPayload = function (rawText, scanCtx) {
+            const val = String(rawText || '').trim();
+            if (!val) return;
+            const listStudents = (db.tutoring && Array.isArray(db.tutoring.students)) ? db.tutoring.students : [];
+            let matched = null;
+
+            // 1. Parse TUTORING-ID:<id>|... format
+            const idMatch = val.match(/TUTORING-ID:([^|\s]+)/i);
+            if (idMatch) {
+                matched = listStudents.find(s => s.id === idMatch[1]);
+            }
+            // 2. Direct ID match
+            if (!matched) {
+                matched = listStudents.find(s => s.id === val);
+            }
+            // 3. Short 6-char code match (#A1B2C3 or A1B2C3)
+            if (!matched) {
+                const cleanCode = val.replace(/^#/, '').toUpperCase();
+                if (cleanCode.length >= 4) {
+                    const codeHits = listStudents.filter(s => String(s.id || '').toUpperCase().endsWith(cleanCode));
+                    if (codeHits.length === 1) matched = codeHits[0];
+                }
+            }
+            // 4. Exact or unique partial name match
+            if (!matched) {
+                const q = val.toLowerCase();
+                matched = listStudents.find(s => (s.name || '').trim().toLowerCase() === q);
+                if (!matched) {
+                    const partialHits = listStudents.filter(s => (s.name || '').toLowerCase().includes(q));
+                    if (partialHits.length === 1) matched = partialHits[0];
+                }
+            }
+
+            const fbEl = document.getElementById('tutQrScanFeedback');
+            const histEl = document.getElementById('tutQrScanHistoryList');
+            const manualEl = document.getElementById('tutQrManualInput');
+
+            if (!matched) {
+                if (fbEl) {
+                    fbEl.style.display = 'block';
+                    fbEl.style.background = '#fef2f2';
+                    fbEl.style.color = '#dc2626';
+                    fbEl.style.border = '1px solid #fecaca';
+                    fbEl.textContent = `⚠️ لم يتم العثور على تلميذ مطابق للرمز: ${val}`;
+                }
+                return;
+            }
+
+            // Debounce repeated camera frames of the same student within 3 seconds
+            const nowMs = Date.now();
+            if (lastScanTimes[matched.id] && (nowMs - lastScanTimes[matched.id] < 3000)) {
+                return;
+            }
+            lastScanTimes[matched.id] = nowMs;
+            if (manualEl) manualEl.value = '';
+
+            let outcomeMsg = '';
+            if (scanCtx === 'group_modal') {
+                const sel = Array.from(document.querySelectorAll('.tutoring-group-attendance-select'))
+                    .find(el => el.getAttribute('data-student-id') === matched.id);
+                if (sel) {
+                    sel.value = 'present';
+                    if (typeof window.onGroupSessionAttendanceSelectChange === 'function') {
+                        window.onGroupSessionAttendanceSelectChange(sel);
+                    }
+                    outcomeMsg = `✅ تم تعليم «${matched.name}» كـ حاضر في كشف المجموعة`;
+                } else {
+                    if (fbEl) {
+                        fbEl.style.display = 'block';
+                        fbEl.style.background = '#fffbeb';
+                        fbEl.style.color = '#b45309';
+                        fbEl.style.border = '1px solid #fde68a';
+                        fbEl.textContent = `ℹ️ التلميذ(ة) «${matched.name}» ينتمي لمجموعة (${matched.group || 'أخرى'}) وليس في هذه الحصة`;
+                    }
+                    return;
+                }
+            } else {
+                const hrs = parseFloat((document.getElementById('tutQrQuickHours') || {}).value) || 2;
+                const topic = ((document.getElementById('tutQrQuickTopic') || {}).value || '').trim() || 'حصة دعم (تسجيل عبر QR)';
+                if (!Array.isArray(matched.sessions)) matched.sessions = [];
+                const alreadyToday = matched.sessions.some(s => s.date === todayStr && s.attendance === 'present');
+                if (alreadyToday) {
+                    outcomeMsg = `ℹ️ «${matched.name}» مسجل حضوره مسبقاً اليوم (${todayStr})`;
+                } else {
+                    matched.sessions.push({
+                        id: 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                        date: todayStr,
+                        time: nowTime,
+                        hours: hrs,
+                        topic: topic,
+                        attendance: 'present',
+                        qrScanned: true
+                    });
+                    if (typeof saveDB === 'function') saveDB();
+                    if (typeof window.renderTutoringStudents === 'function') window.renderTutoringStudents();
+                    if (typeof window.renderTutoringAttendanceLedger === 'function') window.renderTutoringAttendanceLedger();
+
+                    const packStatus = (typeof window.getStudentPackStatus === 'function') ? window.getStudentPackStatus(matched, todayStr.slice(0, 7)) : null;
+                    const packNote = packStatus ? ` • باقي بالباقة: ${packStatus.remaining}/${packStatus.packSize}` : '';
+                    outcomeMsg = `✅ تم تسجيل حضور «${matched.name}» (${hrs} س)${packNote}`;
+                }
+            }
+
+            if (fbEl) {
+                fbEl.style.display = 'block';
+                fbEl.style.background = '#f0fdf4';
+                fbEl.style.color = '#15803d';
+                fbEl.style.border = '1px solid #bbf7d0';
+                fbEl.textContent = outcomeMsg;
+            }
+            if (histEl) {
+                if (histEl.querySelector('div')?.textContent?.includes('في انتظار')) histEl.innerHTML = '';
+                histEl.insertAdjacentHTML('afterbegin', `
+                    <div style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:6px 10px;display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;">
+                        <span style="font-weight:800;color:#0f172a;">${escHtml(outcomeMsg)}</span>
+                        <span style="color:#64748b;font-family:monospace;font-size:0.72rem;">${escHtml(nowTime)}</span>
+                    </div>
+                `);
+            }
+        };
+
+        // Start camera + BarcodeDetector loop cleanly
+        const statusEl = document.getElementById('tutQrCameraStatus');
+        const videoEl = document.getElementById('tutQrScannerVideo');
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            _tutQrScannerActive = true;
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                .then(stream => {
+                    if (!_tutQrScannerActive) {
+                        stream.getTracks().forEach(t => t.stop());
+                        return;
+                    }
+                    _tutQrStream = stream;
+                    if (videoEl) {
+                        videoEl.srcObject = stream;
+                        videoEl.style.display = 'block';
+                    }
+                    if ('BarcodeDetector' in window) {
+                        if (statusEl) statusEl.style.display = 'none';
+                        const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+                        const scanLoop = async () => {
+                            if (!_tutQrScannerActive || !videoEl) return;
+                            try {
+                                if (videoEl.readyState >= 2) {
+                                    const codes = await detector.detect(videoEl);
+                                    if (codes && codes.length > 0 && codes[0].rawValue) {
+                                        window.processTutoringQrScannedPayload(codes[0].rawValue, context);
+                                    }
+                                }
+                            } catch (e) {}
+                            if (_tutQrScannerActive) {
+                                _tutQrScanTimer = setTimeout(scanLoop, 350);
+                            }
+                        };
+                        _tutQrScanTimer = setTimeout(scanLoop, 500);
+                    } else if (statusEl) {
+                        statusEl.style.display = 'block';
+                        statusEl.innerHTML = 'الكاميرا مفعّلة، لكن المتصفح لا يدعم القراءة التلقائية لـ QR.<br><span style="color:#fcd34d;">استخدم قارئ الباركود USB أو اكتب الرمز المختصر (#XXXXXX) أدناه.</span>';
+                    }
+                })
+                .catch(() => {
+                    if (statusEl) {
+                        statusEl.innerHTML = 'تعذر الوصول إلى الكاميرا أو تم رفض الإذن.<br><span style="color:#93c5fd;">يمكنك استخدام قارئ USB أو إدخال الرمز/الاسم يدوياً في الحقل أدناه.</span>';
+                    }
+                });
+        } else if (statusEl) {
+            statusEl.innerHTML = 'الكاميرا غير متاحة في هذا المتصفح — استخدم قارئ USB أو الإدخال اليدوي أدناه.';
+        }
     };
 
     // --- Axis 5B: Parent Monthly Report Card via WhatsApp ---
@@ -7496,7 +8008,7 @@ ${std.notes ? `📝 *ملاحظة تربوية:* ${std.notes}\n` : ''}━━━�
         let cleanPhone = (std.phone || '').replace(/\s+/g, '').replace(/[^0-9+]/g, '');
         if (cleanPhone.startsWith('0')) cleanPhone = '212' + cleanPhone.slice(1);
         const url = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-        window.open(url, '_blank');
+        window.openSafeExternalUrl(url, '_blank');
     };
 
     // Initialize hooks when DOM is ready and after short delay

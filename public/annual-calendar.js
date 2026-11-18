@@ -595,36 +595,249 @@
         }
     ];
 
+    // تحديد سنة بداية الموسم الدراسي النشط بناءً على تاريخ التطبيق أو إعدادات المستخدم
+    function detectInitialAcademicStartYear() {
+        try {
+            if (window.db && window.db.settings && window.db.settings.schoolYearUserCustomized && window.db.settings.schoolYearStart) {
+                const customYr = parseInt(String(window.db.settings.schoolYearStart).slice(0, 4), 10);
+                if (!isNaN(customYr) && customYr >= 2023 && customYr <= 2032) return customYr;
+            }
+        } catch (e) {}
+        const now = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+        const m = now.getMonth(); // 0=Jan .. 11=Dec
+        const y = now.getFullYear();
+        return (m < 7) ? (y - 1) : y;
+    }
+
     // المتغيرات العامة للتقويم السنوي والمحطات
-    let selectedAcademicYearStart = 2026; // 2026-2027
+    let selectedAcademicYearStart = detectInitialAcademicStartYear();
     let annualCalendarViewMode = 'grid'; // 'grid' | 'table'
     let activeAnnualSubSection = 'holidays'; // 'holidays' | 'milestones'
     let activeMilestonesSemesterFilter = 'all'; // 'all' | 's1' | 's2'
+    let activeMilestonesCategoryFilter = 'all'; // 'all' | 'exam' | 'certification' | 'massar' | 'council' | 'teacher'
+    let activeMilestonesStatusFilter = 'all'; // 'all' | 'upcoming' | 'completed'
+    let milestonesSearchQuery = '';
+    let activeHolidaysCategoryFilter = 'all'; // 'all' | 'upcoming' | 'past' | 'interim' | 'national' | 'religious'
+    let holidaysSearchQuery = '';
+    let showPrePostHolidayRadar = true; // تمييز الأيام الحرجة قبل وبعد العطل
+    let showClassTimeBudgetPanel = false; // إظهار حاسبة الحصص المتبقية لكل قسم
+
+    // دالة مساعدة لتكييف تواريخ قائمة العطل أو المحطات مع سنة بداية الموسم الدراسي النشط
+    function alignItemsDatesToStartYear(items, targetStartYear) {
+        if (!Array.isArray(items) || items.length === 0) return false;
+        const yr = Number(targetStartYear);
+        if (isNaN(yr) || yr < 2023 || yr > 2032) return false;
+
+        // فحص سنة أول عنصر في القائمة (غالباً في شهر شتنبر 09)
+        const firstWithDate = items.find(it => it && typeof it.startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(it.startDate));
+        if (!firstWithDate) return false;
+
+        const firstParts = firstWithDate.startDate.split('-');
+        const firstYear = parseInt(firstParts[0], 10);
+        const firstMonth = parseInt(firstParts[1], 10);
+        const inferredBaseStartYear = (firstMonth >= 8) ? firstYear : (firstYear - 1);
+        const yearDiff = yr - inferredBaseStartYear;
+
+        if (yearDiff === 0) return false;
+
+        const shiftDateStr = (dStr) => {
+            if (!dStr || typeof dStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dStr)) return dStr;
+            const p = dStr.split('-');
+            const shiftedYr = parseInt(p[0], 10) + yearDiff;
+            return `${shiftedYr}-${p[1]}-${p[2]}`;
+        };
+
+        items.forEach(item => {
+            if (!item) return;
+            if (item.startDate) item.startDate = shiftDateStr(item.startDate);
+            if (item.endDate) item.endDate = shiftDateStr(item.endDate);
+        });
+        return true;
+    }
 
     /**
-     * استرجاع وضمان قائمة العطل الرسمية في قاعدة البيانات
+     * استرجاع وضمان قائمة العطل الرسمية في قاعدة البيانات ومطابقتها مع الموسم الدراسي النشط
      */
     function getOfficialHolidays() {
-        if (!window.db) return DEFAULT_OFFICIAL_HOLIDAYS_2026_2027;
+        const targetYr = detectInitialAcademicStartYear();
+        if (!window.db) {
+            const copy = JSON.parse(JSON.stringify(DEFAULT_OFFICIAL_HOLIDAYS_2026_2027));
+            alignItemsDatesToStartYear(copy, targetYr);
+            return copy;
+        }
         if (!Array.isArray(window.db.officialHolidays) || window.db.officialHolidays.length === 0) {
             window.db.officialHolidays = JSON.parse(JSON.stringify(DEFAULT_OFFICIAL_HOLIDAYS_2026_2027));
+            alignItemsDatesToStartYear(window.db.officialHolidays, selectedAcademicYearStart || targetYr);
             syncOfficialHolidaysWithCalendarEvents();
             if (typeof window.saveDB === 'function') window.saveDB();
+        } else if (!window.db.settings || !window.db.settings.holidaysYearManuallyLocked) {
+            if (alignItemsDatesToStartYear(window.db.officialHolidays, selectedAcademicYearStart || targetYr)) {
+                syncOfficialHolidaysWithCalendarEvents();
+            }
         }
         return window.db.officialHolidays;
     }
 
     /**
-     * استرجاع وضمان قائمة المحطات التربوية المدرسية في قاعدة البيانات
+     * استرجاع وضمان قائمة المحطات التربوية المدرسية في قاعدة البيانات ومطابقتها مع الموسم الدراسي النشط
      */
     function getAcademicMilestones() {
-        if (!window.db) return DEFAULT_ACADEMIC_MILESTONES_2026_2027;
+        const targetYr = detectInitialAcademicStartYear();
+        if (!window.db) {
+            const copy = JSON.parse(JSON.stringify(DEFAULT_ACADEMIC_MILESTONES_2026_2027));
+            alignItemsDatesToStartYear(copy, targetYr);
+            return copy;
+        }
         if (!Array.isArray(window.db.academicMilestones) || window.db.academicMilestones.length === 0) {
             window.db.academicMilestones = JSON.parse(JSON.stringify(DEFAULT_ACADEMIC_MILESTONES_2026_2027));
+            alignItemsDatesToStartYear(window.db.academicMilestones, selectedAcademicYearStart || targetYr);
             syncMilestonesWithCalendarEvents();
             if (typeof window.saveDB === 'function') window.saveDB();
+        } else if (!window.db.settings || !window.db.settings.holidaysYearManuallyLocked) {
+            if (alignItemsDatesToStartYear(window.db.academicMilestones, selectedAcademicYearStart || targetYr)) {
+                syncMilestonesWithCalendarEvents();
+            }
         }
         return window.db.academicMilestones;
+    }
+
+    /**
+     * حساب تاريخ اليوم الموالي لاستئناف الدراسة بعد عطلة (يتخطى يوم الأحد)
+     */
+    function getHolidayResumptionDateStr(endDateStr) {
+        if (!endDateStr) return '';
+        const d = new Date(endDateStr + 'T00:00:00');
+        if (isNaN(d.getTime())) return endDateStr;
+        d.setDate(d.getDate() + 1);
+        // إذا صادف يوم الاستئناف يوم الأحد (0)، ننتقل ليوم الإثنين
+        if (d.getDay() === 0) {
+            d.setDate(d.getDate() + 1);
+        }
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    /**
+     * حساب آخر يوم دراسي قبل بداية العطلة (يتخطى يوم الأحد)
+     */
+    function getHolidayPreVigilanceDateStr(startDateStr) {
+        if (!startDateStr) return '';
+        const d = new Date(startDateStr + 'T00:00:00');
+        if (isNaN(d.getTime())) return startDateStr;
+        d.setDate(d.getDate() - 1);
+        if (d.getDay() === 0) {
+            d.setDate(d.getDate() - 1);
+        }
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    /**
+     * فحص هل التاريخ المحدد هو يوم يقظة حرج (قبل عطلة مباشرة أو أول يوم استئناف بعدها)
+     */
+    function getPrePostHolidayAlertForDate(dateStr) {
+        if (!dateStr) return null;
+        if (getOfficialHolidayForDate(dateStr)) return null;
+        const dObj = new Date(dateStr + 'T00:00:00');
+        if (isNaN(dObj.getTime()) || dObj.getDay() === 0) return null;
+
+        const holidays = getOfficialHolidays();
+        for (let i = 0; i < holidays.length; i++) {
+            const h = holidays[i];
+            if (!h || !h.startDate) continue;
+            const preDate = getHolidayPreVigilanceDateStr(h.startDate);
+            const postDate = getHolidayResumptionDateStr(h.endDate || h.startDate);
+            if (dateStr === preDate) {
+                return {
+                    type: 'pre',
+                    label: `عشية ${h.title}`,
+                    shortBadge: '⚠️ عشية عطلة',
+                    holiday: h
+                };
+            }
+            if (dateStr === postDate) {
+                return {
+                    type: 'post',
+                    label: `استئناف الدراسة بعد ${h.title}`,
+                    shortBadge: '🔔 يوم استئناف',
+                    holiday: h
+                };
+            }
+        }
+        return null;
+    }
+
+    /**
+     * استخراج العطلة الرسمية الجارية حالياً أو الأقرب القادمة مع العد التنازلي
+     */
+    function getActiveOrUpcomingHoliday() {
+        const holidays = getOfficialHolidays();
+        if (!holidays || holidays.length === 0) return null;
+
+        const today = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        const d = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${y}-${m}-${d}`;
+
+        // 1. فحص هل اليوم عطلة جارية
+        const currentActive = holidays.find(h => {
+            const start = h.startDate;
+            const end = h.endDate || h.startDate;
+            return todayStr >= start && todayStr <= end;
+        });
+
+        if (currentActive) {
+            const end = currentActive.endDate || currentActive.startDate;
+            const daysLeft = Math.max(0, calculateDaysBetween(todayStr, end) - 1);
+            const totalDays = currentActive.daysCount || calculateDaysBetween(currentActive.startDate, end);
+            const elapsed = Math.max(1, totalDays - daysLeft);
+            const resumptionDate = getHolidayResumptionDateStr(end);
+            return {
+                holiday: currentActive,
+                status: 'active',
+                type: 'active',
+                daysLeft,
+                daysUntil: daysLeft,
+                totalDays,
+                elapsed,
+                resumptionDate,
+                statusText: daysLeft === 0 ? 'اليوم هو آخر أيام العطلة' : `عطلة جارية الآن (متبقي ${daysLeft} يوم)`
+            };
+        }
+
+        // 2. البحث عن أقرب عطلة قادمة
+        const upcoming = holidays
+            .filter(h => h && h.startDate > todayStr)
+            .sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+        if (upcoming.length > 0) {
+            const nextHol = upcoming[0];
+            const d1 = new Date(todayStr + 'T00:00:00');
+            const d2 = new Date(nextHol.startDate + 'T00:00:00');
+            const diffDays = Math.max(1, Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24)));
+            const end = nextHol.endDate || nextHol.startDate;
+            const totalDays = nextHol.daysCount || calculateDaysBetween(nextHol.startDate, end);
+            const resumptionDate = getHolidayResumptionDateStr(end);
+            const preVigilanceDate = getHolidayPreVigilanceDateStr(nextHol.startDate);
+            return {
+                holiday: nextHol,
+                status: 'upcoming',
+                type: 'upcoming',
+                daysLeft: diffDays,
+                daysUntil: diffDays,
+                totalDays,
+                resumptionDate,
+                preVigilanceDate,
+                statusText: diffDays === 1 ? 'تبدأ غداً!' : `تبدأ بعد ${diffDays} ${diffDays <= 10 ? 'أيام' : 'يوماً'}`
+            };
+        }
+
+        return null;
     }
 
     /**
@@ -634,44 +847,49 @@
         const milestones = getAcademicMilestones();
         if (!milestones || milestones.length === 0) return null;
 
-        const today = new Date();
+        const today = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
         const y = today.getFullYear();
         const m = String(today.getMonth() + 1).padStart(2, '0');
         const d = String(today.getDate()).padStart(2, '0');
         const todayStr = `${y}-${m}-${d}`;
 
-        // 1. فحص هل هناك محطة جارية اليوم
+        // 1. فحص هل هناك محطة جارية اليوم وغير مكتملة
         const currentActive = milestones.find(ms => {
+            if (ms.status === 'completed' || ms.isCompleted) return false;
             const start = ms.startDate;
             const end = ms.endDate || ms.startDate;
             return todayStr >= start && todayStr <= end;
         });
 
         if (currentActive) {
-            const daysLeft = calculateDaysBetween(todayStr, currentActive.endDate || currentActive.startDate) - 1;
+            const daysLeft = Math.max(0, calculateDaysBetween(todayStr, currentActive.endDate || currentActive.startDate) - 1);
             return {
                 milestone: currentActive,
                 status: 'active',
+                type: 'active',
                 daysLeft,
+                daysUntil: daysLeft,
                 statusText: daysLeft === 0 ? 'اليوم هو آخر أيام المحطة' : `جارية الآن (متبقي ${daysLeft} يوم)`
             };
         }
 
         // 2. البحث عن أقرب محطة قادمة
         const upcoming = milestones
-            .filter(ms => ms.startDate > todayStr)
+            .filter(ms => ms && ms.startDate > todayStr && ms.status !== 'completed' && !ms.isCompleted)
             .sort((a, b) => a.startDate.localeCompare(b.startDate));
 
         if (upcoming.length > 0) {
             const nextMs = upcoming[0];
-            const d1 = new Date(todayStr);
-            const d2 = new Date(nextMs.startDate);
-            const diffDays = Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24));
+            const d1 = new Date(todayStr + 'T00:00:00');
+            const d2 = new Date(nextMs.startDate + 'T00:00:00');
+            const diffDays = Math.max(1, Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24)));
             return {
                 milestone: nextMs,
                 status: 'upcoming',
+                type: 'upcoming',
                 daysLeft: diffDays,
-                statusText: `المحطة القادمة (بعد ${diffDays} يوم)`
+                daysUntil: diffDays,
+                statusText: diffDays === 1 ? 'تبدأ غداً!' : `بعد ${diffDays} ${diffDays <= 10 ? 'أيام' : 'يوماً'}`
             };
         }
 
@@ -1318,6 +1536,9 @@
             syncOfficialHolidaysWithCalendarEvents();
             syncAcademicMilestonesWithCalendarEvents();
             syncTeacherLeavesWithCalendarEvents();
+            if (typeof syncHomeworkAgendaWithCalendarEvents === 'function') {
+                syncHomeworkAgendaWithCalendarEvents();
+            }
 
             const holidays = getOfficialHolidays();
             const milestones = getAcademicMilestones();
@@ -1383,18 +1604,233 @@
     window.syncAllCalendarUnits = syncAllCalendarUnits;
 
     /**
+     * مزامنة مواعيد تسليم الواجبات المنزلية (db.homeworkAgenda) مع أحداث التقويم (calendarEvents)
+     */
+    function syncHomeworkAgendaWithCalendarEvents() {
+        if (!window.db) return;
+        if (!Array.isArray(window.db.calendarEvents)) window.db.calendarEvents = [];
+
+        // إزالة أحداث الواجبات المنزلية المزامنة سابقاً
+        window.db.calendarEvents = window.db.calendarEvents.filter(ev => ev && !ev.isHomeworkAgendaSync);
+
+        const hwAgenda = window.db.homeworkAgenda || {};
+        Object.keys(hwAgenda).forEach(className => {
+            const list = Array.isArray(hwAgenda[className]) ? hwAgenda[className] : [];
+            list.forEach(item => {
+                if (!item || !item.dueDate || !item.title) return;
+                window.db.calendarEvents.push({
+                    id: `hw_sync_${className}_${item.id}`,
+                    date: item.dueDate,
+                    title: `📚 واجب (${className}): ${item.title}`,
+                    cleanTitle: `${item.title} (${className})`,
+                    type: 'homework',
+                    category: 'schoolwork',
+                    color: '#7c3aed',
+                    targetClass: className,
+                    isHomeworkAgendaSync: true,
+                    hwId: item.id,
+                    details: `واجب منزلي مسند لقسم ${className}${item.topic ? ' — المحور: ' + item.topic : ''}`
+                });
+            });
+        });
+    }
+    window.syncHomeworkAgendaWithCalendarEvents = syncHomeworkAgendaWithCalendarEvents;
+
+    /**
+     * محرك الحساب الحقيقي والدقيق لأيام الدراسة الفعلية والحصص المتبقية لكل قسم
+     */
+    function calculateTrueAcademicYearMetrics(academicYear, customStartStr, customEndStr) {
+        const yr = Number(academicYear) || selectedAcademicYearStart || detectInitialAcademicStartYear();
+
+        // ضمان توافق العطل والمحطات مع السنة المطلوبة
+        getOfficialHolidays();
+
+        let startStr = customStartStr || `${yr}-09-01`;
+        let endStr = customEndStr || `${yr + 1}-06-30`;
+        if (!customStartStr && !customEndStr && typeof window.getSchoolYearDates === 'function') {
+            try {
+                const sy = window.getSchoolYearDates();
+                if (sy && sy.startStr && sy.endStr && Number(sy.startYear) === yr) {
+                    startStr = sy.startStr;
+                    endStr = sy.endStr;
+                }
+            } catch (e) {}
+        }
+
+        const s1EndStr = `${yr + 1}-01-24`; // نهاية الأسدوس الأول
+        const s2StartStr = `${yr + 1}-02-01`; // انطلاق الأسدوس الثاني
+
+        const today = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+        let totalCalendarDays = 0;
+        let sundaysCount = 0;
+        let netWeekdayHolidays = 0;
+        let netWeekdayLeaves = 0;
+        let netSchoolDaysTotal = 0;
+        let netSchoolDaysS1 = 0;
+        let netSchoolDaysS2 = 0;
+        let elapsedSchoolDays = 0;
+        let remainingSchoolDays = 0;
+
+        // إحصاء أيام الأسبوع الفعلية المتبقية والضائعة بسبب العطل (الإثنين=1 ... السبت=6)
+        const remainingWeekdayCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+        const holidayLostWeekdayCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+
+        const cur = new Date(startStr + 'T00:00:00');
+        const end = new Date(endStr + 'T00:00:00');
+        let guard = 0;
+
+        while (cur <= end && guard < 400) {
+            guard++;
+            totalCalendarDays++;
+            const y = cur.getFullYear();
+            const m = String(cur.getMonth() + 1).padStart(2, '0');
+            const d = String(cur.getDate()).padStart(2, '0');
+            const dStr = `${y}-${m}-${d}`;
+            const dow = cur.getDay(); // 0 = Sunday
+
+            if (dow === 0) {
+                sundaysCount++;
+            } else {
+                const hol = getOfficialHolidayForDate(dStr);
+                const leave = getTeacherLeaveForDate(dStr);
+                if (hol && hol.disableAbsence !== false) {
+                    netWeekdayHolidays++;
+                    holidayLostWeekdayCounts[dow] = (holidayLostWeekdayCounts[dow] || 0) + 1;
+                } else if (leave && leave.disableStudentAbsence !== false) {
+                    netWeekdayLeaves++;
+                } else {
+                    netSchoolDaysTotal++;
+                    if (dStr <= s1EndStr) netSchoolDaysS1++;
+                    else if (dStr >= s2StartStr) netSchoolDaysS2++;
+                    else netSchoolDaysS1++;
+
+                    if (dStr < todayStr) {
+                        elapsedSchoolDays++;
+                    } else {
+                        remainingSchoolDays++;
+                        remainingWeekdayCounts[dow] = (remainingWeekdayCounts[dow] || 0) + 1;
+                    }
+                }
+            }
+            cur.setDate(cur.getDate() + 1);
+        }
+
+        const progressPct = netSchoolDaysTotal > 0
+            ? Math.min(100, Math.max(0, Math.round((elapsedSchoolDays / netSchoolDaysTotal) * 100)))
+            : 0;
+
+        // حساب الحصص المتبقية والحصص المتأثرة بالعطل لكل قسم مسند (يدعم مفاتيح الأيام بالعربية والإنجليزية)
+        const classBreakdown = [];
+        const assignedClasses = (window.db && window.db.classes) ? Object.keys(window.db.classes).filter(c => !(window.db.archivedClasses || []).includes(c)) : [];
+        const dayIndexToKey = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat' };
+        const dayIndexToAr = { 1: 'الإثنين', 2: 'الثلاثاء', 3: 'الأربعاء', 4: 'الخميس', 5: 'الجمعة', 6: 'السبت' };
+        const timetable = (window.db && window.db.timetable) ? window.db.timetable : {};
+
+        assignedClasses.forEach(cls => {
+            const weeklyByDow = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+            let weeklyTotalSessions = 0;
+
+            Object.keys(dayIndexToKey).forEach(dowStr => {
+                const dow = Number(dowStr);
+                const dayKey = dayIndexToKey[dow];
+                const dayAr = dayIndexToAr[dow];
+
+                // 1. فحص صيغة الكائن اليومي بالعربية (db.timetable['الإثنين'])
+                const arDayRow = timetable[dayAr] || (dayAr === 'الإثنين' ? timetable['الاثنين'] : null);
+                if (arDayRow && typeof arDayRow === 'object') {
+                    Object.keys(arDayRow).forEach(slotKey => {
+                        const cellVal = arDayRow[slotKey];
+                        if (!cellVal) return;
+                        const cellCls = typeof cellVal === 'object' ? (cellVal.className || cellVal.class || '') : String(cellVal).split(' - ')[0].trim();
+                        if (cellCls === cls) {
+                            weeklyByDow[dow]++;
+                            weeklyTotalSessions++;
+                        }
+                    });
+                } else {
+                    // 2. فحص صيغة المفاتيح المسطحة (Mon_m1)
+                    ['m1', 'm2', 'e1', 'e2'].forEach(slot => {
+                        const cellVal = timetable[`${dayKey}_${slot}`];
+                        if (cellVal) {
+                            const cellCls = typeof cellVal === 'object' ? (cellVal.className || cellVal.class || '') : String(cellVal).split(' - ')[0].trim();
+                            if (cellCls === cls) {
+                                weeklyByDow[dow]++;
+                                weeklyTotalSessions++;
+                            }
+                        }
+                    });
+                }
+            });
+
+            // إذا لم يكن الجدول معبأً بعد، نفترض 3 حصص أسبوعياً افتراضياً (إثنين، أربعاء، جمعة)
+            const isEstimated = (weeklyTotalSessions === 0);
+            if (isEstimated) {
+                weeklyByDow[1] = 1;
+                weeklyByDow[3] = 1;
+                weeklyByDow[5] = 1;
+                weeklyTotalSessions = 3;
+            }
+
+            let remainingSessions = 0;
+            let lostSessionsToHolidays = 0;
+            for (let dow = 1; dow <= 6; dow++) {
+                remainingSessions += (weeklyByDow[dow] || 0) * (remainingWeekdayCounts[dow] || 0);
+                lostSessionsToHolidays += (weeklyByDow[dow] || 0) * (holidayLostWeekdayCounts[dow] || 0);
+            }
+
+            classBreakdown.push({
+                className: cls,
+                weeklySessions: weeklyTotalSessions,
+                isEstimated,
+                remainingSessions,
+                lostSessionsToHolidays
+            });
+        });
+
+        return {
+            totalCalendarDays,
+            sundaysCount,
+            netWeekdayHolidays,
+            netWeekdayLeaves,
+            netSchoolDaysTotal,
+            netSchoolDays: netSchoolDaysTotal,
+            netSchoolDaysS1,
+            s1NetDays: netSchoolDaysS1,
+            netSchoolDaysS2,
+            s2NetDays: netSchoolDaysS2,
+            elapsedSchoolDays,
+            elapsedNetSchoolDays: elapsedSchoolDays,
+            remainingSchoolDays,
+            remainingNetSchoolDays: remainingSchoolDays,
+            progressPct,
+            classBreakdown,
+            classSessionBudgets: classBreakdown
+        };
+    }
+    window.calculateTrueAcademicYearMetrics = calculateTrueAcademicYearMetrics;
+
+    /**
      * حساب إحصائيات العطل السنوية
      */
     function getOfficialHolidaysStats() {
         const holidays = getOfficialHolidays();
+        const today = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
         let totalHolidayDays = 0;
         let interimPeriodsCount = 0;
         let nationalCount = 0;
         let religiousCount = 0;
         let disabledAbsenceDays = 0;
+        let elapsedHolidayDays = 0;
+        let remainingHolidayDays = 0;
+        let upcomingHolidaysCount = 0;
 
         holidays.forEach(h => {
             const days = h.daysCount || calculateDaysBetween(h.startDate, h.endDate);
+            const end = h.endDate || h.startDate;
             totalHolidayDays += days;
             if (h.disableAbsence !== false) {
                 disabledAbsenceDays += days;
@@ -1402,10 +1838,22 @@
             if (h.category === 'interim') interimPeriodsCount++;
             if (h.category === 'national') nationalCount++;
             if (h.category === 'religious') religiousCount++;
+
+            if (end < todayStr) {
+                elapsedHolidayDays += days;
+            } else if (h.startDate > todayStr) {
+                remainingHolidayDays += days;
+                upcomingHolidaysCount++;
+            } else {
+                const rem = calculateDaysBetween(todayStr, end);
+                remainingHolidayDays += rem;
+                elapsedHolidayDays += Math.max(0, days - rem);
+                upcomingHolidaysCount++;
+            }
         });
 
-        // تقدير أيام الدراسة الفعلية (الموسم ~ 260 يوماً إجمالياً مطروحاً منها أيام العطل وعطل نهاية الأسبوع)
-        const estimatedSchoolDays = Math.max(160, 240 - totalHolidayDays);
+        const trueMetrics = calculateTrueAcademicYearMetrics(selectedAcademicYearStart);
+        const estimatedSchoolDays = trueMetrics.netSchoolDaysTotal || Math.max(160, 240 - totalHolidayDays);
 
         return {
             totalHolidaysCount: holidays.length,
@@ -1414,9 +1862,55 @@
             nationalCount,
             religiousCount,
             disabledAbsenceDays,
-            estimatedSchoolDays
+            elapsedHolidayDays,
+            remainingHolidayDays,
+            upcomingHolidaysCount,
+            estimatedSchoolDays,
+            trueMetrics
         };
     }
+
+    /**
+     * تبديل سنة الموسم الدراسي في التقويم السنوي
+     */
+    function changeSelectedAcademicYear(newStartYear) {
+        const yr = parseInt(newStartYear, 10);
+        if (isNaN(yr) || yr < 2023 || yr > 2032) return;
+        selectedAcademicYearStart = yr;
+
+        if (window.db) {
+            if (!window.db.settings) window.db.settings = {};
+            window.db.settings.holidaysYearManuallyLocked = true;
+            if (Array.isArray(window.db.officialHolidays)) {
+                alignItemsDatesToStartYear(window.db.officialHolidays, yr);
+            }
+            if (Array.isArray(window.db.academicMilestones)) {
+                alignItemsDatesToStartYear(window.db.academicMilestones, yr);
+            }
+            syncAllCalendarUnits(false);
+        }
+
+        renderAnnualSchoolCalendar();
+        if (typeof window.renderSchoolYearProgress === 'function') {
+            try { window.renderSchoolYearProgress(); } catch (e) {}
+        }
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(`تم ضبط التقويم السنوي على الموسم الدراسي ${yr} - ${yr + 1}`, 'info');
+        }
+    }
+    window.changeSelectedAcademicYear = changeSelectedAcademicYear;
+
+    function togglePrePostHolidayRadar() {
+        showPrePostHolidayRadar = !showPrePostHolidayRadar;
+        renderAnnualSchoolCalendar();
+    }
+    window.togglePrePostHolidayRadar = togglePrePostHolidayRadar;
+
+    function toggleClassTimeBudgetPanel() {
+        showClassTimeBudgetPanel = !showClassTimeBudgetPanel;
+        renderAnnualSchoolCalendar();
+    }
+    window.toggleClassTimeBudgetPanel = toggleClassTimeBudgetPanel;
 
     /**
      * رسم التقويم السنوي الشامل في صفحة جدول الحصص والأجندة
@@ -1428,7 +1922,9 @@
         const holidays = getOfficialHolidays();
         const milestones = getAcademicMilestones();
         const stats = getOfficialHolidaysStats();
+        const tm = stats.trueMetrics || calculateTrueAcademicYearMetrics(selectedAcademicYearStart);
         const activeMsInfo = getActiveOrUpcomingMilestone();
+        const activeHolInfo = getActiveOrUpcomingHoliday();
 
         // تحديث الشارة في زر التبويب الفرعي
         const badgeEl = document.getElementById('calSubnavHolidayCountBadge') || document.getElementById('ttSubnavHolidayCountBadge');
@@ -1436,132 +1932,240 @@
             badgeEl.textContent = `${holidays.length} عطلة`;
         }
 
+        const completedMsCount = milestones.filter(m => m.status === 'completed' || m.isCompleted || (m.endDate && m.endDate < new Date().toISOString().slice(0, 10))).length;
+
         let html = `
             <!-- بطاقة الترويسة الرئيسية للتقويم السنوي -->
-            <div class="card" style="padding: 22px; margin-bottom: 20px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.3); border: 1px solid #334155;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+            <div class="card" style="padding: 22px; margin-bottom: 18px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.3); border: 1px solid #334155;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
                     <div style="display: flex; align-items: center; gap: 14px;">
                         <div style="width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4); flex-shrink: 0;">
                             <span class="ui-icon" style="margin: 0;"><span data-lucide="sparkles" data-size="28"></span></span>
                         </div>
                         <div>
                             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                <h2 style="margin: 0; font-size: 1.35rem; font-weight: 900; color: #ffffff; font-family: 'Cairo', sans-serif;">
+                                <h2 style="margin: 0; font-size: 1.32rem; font-weight: 900; color: #ffffff; font-family: 'Cairo', sans-serif;">
                                     التقويم السنوي والمحطات المدرسية الذكية
                                 </h2>
-                                <span style="font-size: 0.72rem; padding: 3px 10px; border-radius: 9999px; background: rgba(124, 58, 237, 0.25); color: #c4b5fd; border: 1px solid rgba(196, 181, 253, 0.4); font-weight: 800;">
-                                    الموسم الدراسي ${selectedAcademicYearStart} - ${selectedAcademicYearStart + 1}
-                                </span>
+                                <select onchange="window.changeSelectedAcademicYear(this.value)" style="font-size: 0.75rem; padding: 3px 10px; border-radius: 9999px; background: rgba(124, 58, 237, 0.3); color: #e9d5ff; border: 1px solid rgba(196, 181, 253, 0.5); font-weight: 800; font-family: 'Cairo', sans-serif; cursor: pointer;">
+                                    <option value="2025" ${selectedAcademicYearStart === 2025 ? 'selected' : ''} style="color:#0f172a; background:#fff;">الموسم الدراسي 2025 - 2026</option>
+                                    <option value="2026" ${selectedAcademicYearStart === 2026 ? 'selected' : ''} style="color:#0f172a; background:#fff;">الموسم الدراسي 2026 - 2027</option>
+                                    <option value="2027" ${selectedAcademicYearStart === 2027 ? 'selected' : ''} style="color:#0f172a; background:#fff;">الموسم الدراسي 2027 - 2028</option>
+                                </select>
                                 <span style="font-size: 0.7rem; padding: 2px 8px; border-radius: 9999px; background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(110, 231, 183, 0.3); font-weight: 800;">
                                     استيراد ذكي بالذكاء الاصطناعي
                                 </span>
                             </div>
-                            <p style="margin: 4px 0 0 0; font-size: 0.83rem; color: #cbd5e1; line-height: 1.5;">
-                                روزنامة العطل الرسمية والمحطات الإدارية والتربوية المستخرجة آلياً من المقرر الوزاري، مربوطة بنظام الغياب وأجندة التقويم
+                            <p style="margin: 4px 0 0 0; font-size: 0.82rem; color: #cbd5e1; line-height: 1.5;">
+                                روزنامة العطل الرسمية والمحطات الإدارية والتربوية المستخرجة آلياً من المقرر الوزاري، مربوطة بنظام الغياب، الواجبات المنزلية، وجدول الحصص
                             </p>
                         </div>
                     </div>
 
                     <!-- أزرار الإجراءات والتحكم في مستوى أفقي واحد متناسق -->
-                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                        <button type="button" class="btn-primary" onclick="window.openHolidayAbsenceMigrationModal()" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); border: none; height: 36px; min-height: 36px; margin: 0; padding: 0 14px; border-radius: 9px; font-weight: 800; font-size: 0.8rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-sizing: border-box; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.35); cursor: pointer;" title="الترحيل التلقائي لغياب العطل ومنع تسجيل أي غياب غير مبرر">
-                            <span class="ui-icon" style="margin:0;"><span data-lucide="shield-check" data-size="15"></span></span>
-                            <span>الترحيل التلقائي لغياب العطل 🛡️</span>
+                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" class="btn-primary" onclick="window.toggleClassTimeBudgetPanel()" style="background: ${showClassTimeBudgetPanel ? '#f59e0b' : 'rgba(245, 158, 11, 0.2)'}; color: ${showClassTimeBudgetPanel ? '#0f172a' : '#fde68a'}; border: 1px solid rgba(251, 191, 36, 0.45); height: 34px; min-height: 34px; margin: 0; padding: 0 11px; border-radius: 8px; font-weight: 800; font-size: 0.76rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; cursor: pointer;" title="عرض حاسبة الزمن المدرسي والحصص المتبقية الفعلية لكل قسم">
+                            <span>⏱️</span>
+                            <span>حاسبة حصص الأقسام</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="window.openAddHolidayModal()" style="background: linear-gradient(135deg, #10b981, #059669); border: none; height: 36px; min-height: 36px; margin: 0; padding: 0 14px; border-radius: 9px; font-weight: 800; font-size: 0.8rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-sizing: border-box; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); cursor: pointer;">
-                            <span class="ui-icon" style="margin:0;"><span data-lucide="plus-circle" data-size="15"></span></span>
-                            <span>إضافة عطلة رسمية</span>
+                        <button type="button" class="btn-primary" onclick="window.openHolidayAbsenceMigrationModal()" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); border: none; height: 34px; min-height: 34px; margin: 0; padding: 0 12px; border-radius: 8px; font-weight: 800; font-size: 0.76rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.35); cursor: pointer;" title="الترحيل التلقائي لغياب العطل ومنع تسجيل أي غياب غير مبرر">
+                            <span class="ui-icon" style="margin:0;"><span data-lucide="shield-check" data-size="14"></span></span>
+                            <span>ترحيل غياب العطل 🛡️</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="window.confirmResetOfficialHolidays()" style="background: rgba(255, 255, 255, 0.12); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.2); height: 36px; min-height: 36px; margin: 0; padding: 0 12px; border-radius: 9px; font-weight: 700; font-size: 0.8rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-sizing: border-box; cursor: pointer;" title="استعادة لائحة العطل الرسمية لوزارة التربية الوطنية">
-                            <span class="ui-icon" style="margin:0;"><span data-lucide="rotate-ccw" data-size="15"></span></span>
-                            <span>استعادة العطل الوزارية</span>
+                        <button type="button" class="btn-primary" onclick="window.openAddHolidayModal()" style="background: linear-gradient(135deg, #10b981, #059669); border: none; height: 34px; min-height: 34px; margin: 0; padding: 0 12px; border-radius: 8px; font-weight: 800; font-size: 0.76rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3); cursor: pointer;">
+                            <span class="ui-icon" style="margin:0;"><span data-lucide="plus-circle" data-size="14"></span></span>
+                            <span>إضافة عطلة</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="window.printAnnualSchoolCalendar()" style="background: rgba(255, 255, 255, 0.12); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.2); height: 36px; min-height: 36px; margin: 0; padding: 0 12px; border-radius: 9px; font-weight: 700; font-size: 0.8rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-sizing: border-box; cursor: pointer;">
-                            <span class="ui-icon" style="margin:0;"><span data-lucide="printer" data-size="15"></span></span>
+                        <button type="button" class="btn-primary" onclick="window.confirmResetOfficialHolidays()" style="background: rgba(255, 255, 255, 0.12); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.2); height: 34px; min-height: 34px; margin: 0; padding: 0 10px; border-radius: 8px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; cursor: pointer;" title="استعادة لائحة العطل الرسمية لوزارة التربية الوطنية">
+                            <span class="ui-icon" style="margin:0;"><span data-lucide="rotate-ccw" data-size="14"></span></span>
+                            <span>استعادة الوزارية</span>
+                        </button>
+                        <button type="button" class="btn-primary" onclick="window.printAnnualSchoolCalendar()" style="background: rgba(255, 255, 255, 0.12); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.2); height: 34px; min-height: 34px; margin: 0; padding: 0 10px; border-radius: 8px; font-weight: 700; font-size: 0.76rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; cursor: pointer;">
+                            <span class="ui-icon" style="margin:0;"><span data-lucide="printer" data-size="14"></span></span>
                             <span>طباعة (A4)</span>
                         </button>
-                        <div style="display: inline-flex; align-items: center; height: 36px; background: rgba(0,0,0,0.25); padding: 3px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.1); box-sizing: border-box;">
-                            <button type="button" onclick="window.switchAnnualCalendarViewMode('grid')" class="${annualCalendarViewMode === 'grid' ? 'active-mode-btn' : 'inactive-mode-btn'}" style="height: 28px; margin: 0; padding: 0 10px; border: none; border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; background: ${annualCalendarViewMode === 'grid' ? '#2563eb' : 'transparent'}; color: #fff;">
-                                <span class="ui-icon" style="margin:0;"><span data-lucide="grid" data-size="14"></span></span>
+                        <div style="display: inline-flex; align-items: center; height: 34px; background: rgba(0,0,0,0.25); padding: 3px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); box-sizing: border-box;">
+                            <button type="button" onclick="window.switchAnnualCalendarViewMode('grid')" class="${annualCalendarViewMode === 'grid' ? 'active-mode-btn' : 'inactive-mode-btn'}" style="height: 26px; margin: 0; padding: 0 9px; border: none; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; background: ${annualCalendarViewMode === 'grid' ? '#2563eb' : 'transparent'}; color: #fff;">
+                                <span class="ui-icon" style="margin:0;"><span data-lucide="grid" data-size="13"></span></span>
                                 <span>شبكة الشهور</span>
                             </button>
-                            <button type="button" onclick="window.switchAnnualCalendarViewMode('table')" class="${annualCalendarViewMode === 'table' ? 'active-mode-btn' : 'inactive-mode-btn'}" style="height: 28px; margin: 0; padding: 0 10px; border: none; border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; background: ${annualCalendarViewMode === 'table' ? '#2563eb' : 'transparent'}; color: #fff;">
-                                <span class="ui-icon" style="margin:0;"><span data-lucide="list" data-size="14"></span></span>
+                            <button type="button" onclick="window.switchAnnualCalendarViewMode('table')" class="${annualCalendarViewMode === 'table' ? 'active-mode-btn' : 'inactive-mode-btn'}" style="height: 26px; margin: 0; padding: 0 9px; border: none; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; background: ${annualCalendarViewMode === 'table' ? '#2563eb' : 'transparent'}; color: #fff;">
+                                <span class="ui-icon" style="margin:0;"><span data-lucide="list" data-size="13"></span></span>
                                 <span>لائحة العطل</span>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- شريط مؤشرات الأداء السنوية (KPIs) -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 20px; padding-top: 18px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-                    <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(16, 185, 129, 0.2); color: #34d399; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                <!-- شريط مؤشرات الأداء السنوية (KPIs) الدقيقة -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(195px, 1fr)); gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+                    <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 11px 14px; display: flex; align-items: center; gap: 11px;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(16, 185, 129, 0.2); color: #34d399; display: flex; align-items: center; justify-content: center; font-size: 1.15rem;">
                             🏖️
                         </div>
                         <div>
-                            <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">مجموع أيام العطل الرسمية</div>
-                            <div style="font-size: 1.25rem; font-weight: 900; color: #34d399;">${stats.totalHolidayDays} يوماً</div>
+                            <div style="font-size: 0.73rem; color: #94a3b8; font-weight: 700;">مجموع أيام العطل الرسمية</div>
+                            <div style="font-size: 1.15rem; font-weight: 900; color: #34d399;">${stats.totalHolidayDays} يوماً <span style="font-size:0.7rem; color:#a7f3d0;">(متبقي ${stats.remainingHolidayDays} ي)</span></div>
                         </div>
                     </div>
 
-                    <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
-                            📅
-                        </div>
-                        <div>
-                            <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">فترات ومناسبات العطل</div>
-                            <div style="font-size: 1.25rem; font-weight: 900; color: #60a5fa;">${stats.totalHolidaysCount} فترات</div>
-                        </div>
-                    </div>
-
-                    <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(239, 68, 68, 0.2); color: #f87171; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
-                            🛡️
-                        </div>
-                        <div>
-                            <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">ربط الغياب الآلي</div>
-                            <div style="font-size: 1.1rem; font-weight: 900; color: #34d399; display: flex; align-items: center; gap: 6px;">
-                                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
-                                <span>مفعل تلقائياً (${stats.disabledAbsenceDays} يوم معطل)</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(245, 158, 11, 0.2); color: #fbbf24; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                    <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 11px 14px; display: flex; align-items: center; gap: 11px;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(245, 158, 11, 0.2); color: #fbbf24; display: flex; align-items: center; justify-content: center; font-size: 1.15rem;">
                             🎓
                         </div>
                         <div>
-                            <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">أيام الدراسة الصافية (تقديرية)</div>
-                            <div style="font-size: 1.25rem; font-weight: 900; color: #fbbf24;">~ ${stats.estimatedSchoolDays} يوم دراسي</div>
+                            <div style="font-size: 0.73rem; color: #94a3b8; font-weight: 700;">أيام الدراسة الصافية الفعلية</div>
+                            <div style="font-size: 1.15rem; font-weight: 900; color: #fbbf24;">${tm.netSchoolDaysTotal} يوم <span style="font-size:0.7rem; color:#fde68a;">(S1: ${tm.netSchoolDaysS1} | S2: ${tm.netSchoolDaysS2})</span></div>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 11px 14px; display: flex; align-items: center; gap: 11px;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; display: flex; align-items: center; justify-content: center; font-size: 1.15rem;">
+                            🎯
+                        </div>
+                        <div>
+                            <div style="font-size: 0.73rem; color: #94a3b8; font-weight: 700;">إنجاز المحطات التربوية</div>
+                            <div style="font-size: 1.15rem; font-weight: 900; color: #60a5fa;">${completedMsCount} / ${milestones.length} <span style="font-size:0.7rem; color:#bfdbfe;">محطة منجزة</span></div>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 11px 14px; display: flex; align-items: center; gap: 11px;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(239, 68, 68, 0.2); color: #f87171; display: flex; align-items: center; justify-content: center; font-size: 1.15rem;">
+                            🛡️
+                        </div>
+                        <div>
+                            <div style="font-size: 0.73rem; color: #94a3b8; font-weight: 700;">حماية الغياب الآلية</div>
+                            <div style="font-size: 1.02rem; font-weight: 900; color: #34d399; display: flex; align-items: center; gap: 5px;">
+                                <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+                                <span>نشطة (${stats.disabledAbsenceDays} يوم معفى)</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- شريط التنبيه الإيضاحي لربط الغياب -->
-            <div style="margin-bottom: 20px; padding: 12px 18px; background: #f0fdf4; border: 1px solid #bbf7d0; border-right: 5px solid #10b981; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 36px; height: 36px; border-radius: 50%; background: #dcfce7; color: #166534; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0;">
-                        💡
-                    </div>
-                    <div>
-                        <div style="font-weight: 800; font-size: 0.9rem; color: #166534;">
-                            الربط التلقائي الذكي بين التقويم السنوي ونظام الغياب والمواظبة:
+            <!-- المرحلة 1: بانر الرادار الزمني المباشر للعطلة القادمة والمحطة البيداغوجية الجارية/القادمة -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 18px;">
+                <!-- بطاقة رادار العطلة الرسمية القادمة أو الجارية -->
+                <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1.5px solid #86efac; border-right: 5px solid #10b981; border-radius: 14px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; box-shadow: 0 3px 10px rgba(16, 185, 129, 0.08);">
+                    <div style="display: flex; align-items: flex-start; gap: 12px; flex: 1; min-width: 220px;">
+                        <div style="width: 42px; height: 42px; border-radius: 11px; background: #10b981; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; box-shadow: 0 3px 8px rgba(16, 185, 129, 0.25);">
+                            🏖️
                         </div>
-                        <div style="font-size: 0.8rem; color: #475569; margin-top: 2px;">
-                            عند اختيار أي تاريخ يوافق عطلة مدرسية رسمية في صفحة «الغياب»، يقوم التطبيق آلياً بتعطيل أزرار تسجيل الغياب وإشعار الأستاذ بأن اليوم عطلة رسمية، مع استثناء أيام العطل من احتساب ساعات الغياب ونسب المواظبة.
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span style="font-size: 0.72rem; font-weight: 800; color: #065f46; background: #bbf7d0; padding: 2px 8px; border-radius: 999px;">
+                                    ${activeHolInfo ? (activeHolInfo.status === 'active' ? '🟢 عطلة جارية حالياً' : '⏳ أقرب عطلة مدرسية قادمة') : '🌴 العطل الرسمية'}
+                                </span>
+                                ${activeHolInfo ? `
+                                    <span style="font-size: 0.74rem; font-weight: 900; color: #ffffff; background: #059669; padding: 2px 9px; border-radius: 999px;">
+                                        ${escapeHtml(activeHolInfo.statusText)}
+                                    </span>
+                                ` : ''}
+                            </div>
+                            <div style="font-weight: 900; font-size: 0.98rem; color: #064e3b; margin-top: 4px;">
+                                ${activeHolInfo ? escapeHtml(activeHolInfo.holiday.title) : 'تم استنفاد كافة عطل الموسم الحالي'}
+                            </div>
+                            ${activeHolInfo ? `
+                                <div style="font-size: 0.76rem; color: #166534; margin-top: 3px; font-weight: 700; display: flex; gap: 10px; flex-wrap: wrap;">
+                                    <span>📅 من <strong>${activeHolInfo.holiday.startDate}</strong> إلى <strong>${activeHolInfo.holiday.endDate || activeHolInfo.holiday.startDate}</strong> (${activeHolInfo.totalDays} أيام)</span>
+                                    <span>🔔 الاستئناف: <strong>${activeHolInfo.resumptionDate}</strong></span>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
+                    ${activeHolInfo ? `
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            <button type="button" onclick="window.assignHolidayHomeworkFromCalendar('${activeHolInfo.holiday.id}')" style="background: #ffffff; color: #047857; border: 1px solid #6ee7b7; padding: 6px 10px; border-radius: 8px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="إسناد واجب منزلي أو سلسلة مراجعة لهذه العطلة">
+                                📚 واجب عطلة
+                            </button>
+                            <button type="button" onclick="window.sendHolidayResumptionWhatsappAlert('${activeHolInfo.holiday.id}')" style="background: #059669; color: #ffffff; border: none; padding: 6px 10px; border-radius: 8px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="نسخ أو إرسال إشعار واتساب للانضباط قبل العطلة واستئناف الدراسة بعدها">
+                                📲 إشعار الاستئناف
+                            </button>
+                        </div>
+                    ` : ''}
                 </div>
-                <div style="display: flex; gap: 8px;">
-                    <button type="button" class="btn-primary" onclick="window.switchTab('absence')" style="background: #10b981; color: #fff; border: none; padding: 6px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
-                        <span>الانتقال لصفحة الغياب</span>
-                        <span class="ui-icon" style="margin:0;"><span data-lucide="arrow-left" data-size="14"></span></span>
-                    </button>
+
+                <!-- بطاقة رادار المحطة التربوية أو الفرض المحروس القادم -->
+                <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1.5px solid #93c5fd; border-right: 5px solid #2563eb; border-radius: 14px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; box-shadow: 0 3px 10px rgba(37, 99, 235, 0.08);">
+                    <div style="display: flex; align-items: flex-start; gap: 12px; flex: 1; min-width: 220px;">
+                        <div style="width: 42px; height: 42px; border-radius: 11px; background: #2563eb; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; box-shadow: 0 3px 8px rgba(37, 99, 235, 0.25);">
+                            🎯
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span style="font-size: 0.72rem; font-weight: 800; color: #1e3a8a; background: #bfdbfe; padding: 2px 8px; border-radius: 999px;">
+                                    ${activeMsInfo ? (activeMsInfo.status === 'active' ? '🟢 محطة تربوية جارية الآن' : '📅 المحطة التربوية القادمة') : '📌 المحطات التربوية'}
+                                </span>
+                                ${activeMsInfo ? `
+                                    <span style="font-size: 0.74rem; font-weight: 900; color: #ffffff; background: #1d4ed8; padding: 2px 9px; border-radius: 999px;">
+                                        ${escapeHtml(activeMsInfo.statusText)}
+                                    </span>
+                                ` : ''}
+                            </div>
+                            <div style="font-weight: 900; font-size: 0.98rem; color: #1e3a8a; margin-top: 4px;">
+                                ${activeMsInfo ? escapeHtml(activeMsInfo.milestone.title) : 'جميع محطات الموسم الدراسي مكتملة'}
+                            </div>
+                            ${activeMsInfo ? `
+                                <div style="font-size: 0.76rem; color: #1e40af; margin-top: 3px; font-weight: 700; display: flex; gap: 10px; flex-wrap: wrap;">
+                                    <span>📅 من <strong>${activeMsInfo.milestone.startDate}</strong> إلى <strong>${activeMsInfo.milestone.endDate || activeMsInfo.milestone.startDate}</strong></span>
+                                    <span>👥 ${escapeHtml(activeMsInfo.milestone.targetLevels || 'جميع المستويات')}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    ${activeMsInfo ? `
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            <button type="button" onclick="window.openEditAcademicMilestoneModal('${activeMsInfo.milestone.id}')" style="background: #ffffff; color: #1d4ed8; border: 1px solid #93c5fd; padding: 6px 10px; border-radius: 8px; font-size: 0.74rem; font-weight: 800; cursor: pointer;">
+                                ✏️ التفاصيل
+                            </button>
+                            <button type="button" onclick="window.toggleAcademicMilestoneQuickStatus('${activeMsInfo.milestone.id}')" style="background: #2563eb; color: #ffffff; border: none; padding: 6px 10px; border-radius: 8px; font-size: 0.74rem; font-weight: 800; cursor: pointer;" title="تحديد المحطة كمنجزة">
+                                ✔️ تحديد كمنجزة
+                            </button>
+                        </div>
+                    ` : ''}
                 </div>
             </div>
+
+            <!-- لوحة حاسبة الحصص الفعلية المتبقية وأثر العطل لكل قسم مسند (قابلة للطي) -->
+            ${showClassTimeBudgetPanel ? `
+                <div class="card" style="margin-bottom: 18px; padding: 16px 20px; background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%); border: 1.5px solid #fcd34d; border-radius: 14px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.08);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #fde68a;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 1rem; font-weight: 900; color: #92400e; display: flex; align-items: center; gap: 8px;">
+                                <span>⏱️ الميزانية الزمنية الفعلية وحاسبة حصص الرياضيات المتبقية لكل قسم مسند</span>
+                                <span style="font-size: 0.72rem; background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 999px; border: 1px solid #fde68a;">تقدم الموسم: ${tm.progressPct}%</span>
+                            </h3>
+                            <p style="margin: 2px 0 0 0; font-size: 0.76rem; color: #78350f;">
+                                حساب آلي دقيق يستثني أيام الآحاد (${tm.sundaysCount} يوماً) والعطل الرسمية التي تصادف أيام الدراسة (${tm.netWeekdayHolidays} يوماً) ورخص الأستاذ (${tm.netWeekdayLeaves} يوماً)
+                            </p>
+                        </div>
+                        <button type="button" onclick="window.toggleClassTimeBudgetPanel()" style="background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; border-radius: 7px; padding: 4px 10px; font-size: 0.75rem; font-weight: 800; cursor: pointer;">إخفاء ✕</button>
+                    </div>
+                    ${tm.classBreakdown.length === 0 ? `
+                        <div style="font-size: 0.82rem; color: #92400e; text-align: center; padding: 10px;">لا توجد أقسام مسندة حالياً لحساب حصصها المتبقية.</div>
+                    ` : `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px;">
+                            ${tm.classBreakdown.map(cb => `
+                                <div style="background: #ffffff; border: 1px solid #fde68a; border-right: 4px solid #f59e0b; border-radius: 10px; padding: 10px 12px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                        <span style="font-weight: 900; font-size: 0.9rem; color: #0f172a;">🏫 قسم ${escapeHtml(cb.className)}</span>
+                                        <span style="font-size: 0.7rem; font-weight: 800; background: #eff6ff; color: #1d4ed8; padding: 2px 7px; border-radius: 999px;">${cb.weeklySessions} حصص/أسبوع${cb.isEstimated ? ' (تقديري)' : ''}</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.78rem; color: #334155; font-weight: 700;">
+                                        <span>🟢 الحصص الصافية المتبقية:</span>
+                                        <strong style="color: #15803d;">${cb.remainingSessions} حصة</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #64748b; margin-top: 3px;">
+                                        <span>🏖️ حصص مصادفة للعطل:</span>
+                                        <strong style="color: #b45309;">${cb.lostSessionsToHolidays} حصة</strong>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `}
+                </div>
+            ` : ''}
         `;
 
         // إدراج إما شبكة الشهور أو جدول اللائحة
@@ -1582,7 +2186,6 @@
      * رسم شبكة الشهور الـ 12 للموسم الدراسي (من شتنبر إلى غشت)
      */
     function renderMonthsGridHtml(academicYear) {
-        // ترتيب أشهر الموسم الدراسي: شتنبر (8)، أكتوبر (9)، نونبر (10)، دجنبر (11)، يناير (0)، فبراير (1)، مارس (2)، أبريل (3)، ماي (4)، يونيو (5)، يوليوز (6)، غشت (7)
         const academicMonths = [
             { year: academicYear, month: 8, name: 'شتنبر (سبتمبر)' },
             { year: academicYear, month: 9, name: 'أكتوبر' },
@@ -1599,32 +2202,34 @@
         ];
 
         let gridHtml = `
-            <!-- دليل دلالات ألوان التقويم السنوي الشامل -->
-            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 18px; margin-bottom: 20px; display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; font-size: 0.83rem;">
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 12px; height: 12px; border-radius: 4px; background: #10b981; display: inline-block;"></span>
-                    <span style="font-weight: 700; color: #065f46;">فترات بينية (معطلة للغياب)</span>
+            <!-- دليل دلالات ألوان التقويم السنوي الشامل + زر رادار اليقظة حول العطل -->
+            <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 16px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 0.8rem;">
+                <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 11px; height: 11px; border-radius: 3px; background: #10b981; display: inline-block;"></span>
+                        <span style="font-weight: 700; color: #065f46;">فترات بينية</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 11px; height: 11px; border-radius: 3px; background: #ef4444; display: inline-block;"></span>
+                        <span style="font-weight: 700; color: #991b1b;">أعياد وطنية</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 11px; height: 11px; border-radius: 3px; background: #8b5cf6; display: inline-block;"></span>
+                        <span style="font-weight: 700; color: #5b21b6;">أعياد دينية</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 11px; height: 11px; border-radius: 3px; background: #eff6ff; border: 1.5px solid #2563eb; display: inline-block;"></span>
+                        <span style="font-weight: 800; color: #1d4ed8;">🎯 محطات وفروض</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span style="width: 11px; height: 11px; border-radius: 3px; background: #fff7ed; border: 1.5px dashed #f97316; display: inline-block;"></span>
+                        <span style="font-weight: 800; color: #c2410c;">⚠️ يوم يقظة (قبل/بعد عطلة)</span>
+                    </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 12px; height: 12px; border-radius: 4px; background: #ef4444; display: inline-block;"></span>
-                    <span style="font-weight: 700; color: #991b1b;">أعياد وطنية رسمية</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 12px; height: 12px; border-radius: 4px; background: #8b5cf6; display: inline-block;"></span>
-                    <span style="font-weight: 700; color: #5b21b6;">أعياد دينية</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 12px; height: 12px; border-radius: 4px; background: #eff6ff; border: 1.5px solid #2563eb; display: inline-block;"></span>
-                    <span style="font-weight: 800; color: #1d4ed8;">🎯 محطات بيداغوجية وفروض ومواعيد</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 12px; height: 12px; border-radius: 4px; background: #fef08a; border: 1px solid #eab308; display: inline-block;"></span>
-                    <span style="font-weight: 700; color: #854d0e;">اليوم الحالي (اليوم)</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 12px; height: 12px; border-radius: 4px; background: #f1f5f9; display: inline-block;"></span>
-                    <span style="font-weight: 700; color: #64748b;">نهاية الأسبوع (الأحد)</span>
-                </div>
+                <button type="button" onclick="window.togglePrePostHolidayRadar()" style="background: ${showPrePostHolidayRadar ? '#fff7ed' : '#f8fafc'}; color: ${showPrePostHolidayRadar ? '#c2410c' : '#64748b'}; border: 1px solid ${showPrePostHolidayRadar ? '#fdba74' : '#cbd5e1'}; padding: 4px 10px; border-radius: 8px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="إظهار أو إخفاء تمييز الأيام الحرجة قبل وبعد العطل لمحاربة الغياب الجماعي">
+                    <span>${showPrePostHolidayRadar ? '🟢' : '⚪'}</span>
+                    <span>رادار اليقظة حول العطل</span>
+                </button>
             </div>
 
             <!-- شبكة بطاقات الشهور (3-4 أعمدة متجاوبة) متزامنة مع المحطات والتقويم الشهري -->
@@ -1643,17 +2248,20 @@
             const totalDays = lastDay.getDate();
             const startingDay = firstDay.getDay(); // 0 = Sunday
 
-            // عدّ أيام العطل والمحطات البيداغوجية في هذا الشهر
             let monthHolidaysCount = 0;
+            let monthNetSchoolDays = 0;
             const monthHolidaysNames = new Set();
             const monthMilestonesList = [];
 
             for (let d = 1; d <= totalDays; d++) {
                 const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const dow = new Date(y, m, d).getDay();
                 const hol = getOfficialHolidayForDate(dateStr);
                 if (hol) {
                     monthHolidaysCount++;
                     monthHolidaysNames.add(hol.title);
+                } else if (dow !== 0) {
+                    monthNetSchoolDays++;
                 }
                 allMilestones.forEach(ms => {
                     const sDate = ms.startDate;
@@ -1673,20 +2281,20 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9;">
                             <div>
                                 <span style="font-weight: 800; font-size: 1.02rem; color: #0f172a; font-family: 'Cairo', sans-serif;">${mObj.name}</span>
-                                <span style="font-size: 0.76rem; color: #64748b; margin-right: 4px;">${y}</span>
+                                <span style="font-size: 0.74rem; color: #64748b; margin-right: 4px;">${y} (${monthNetSchoolDays} يوم دراسة)</span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 5px;">
+                            <div style="display: flex; align-items: center; gap: 4px;">
                                 ${monthHolidaysCount > 0 ? `
-                                    <span style="font-size: 0.68rem; font-weight: 800; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; padding: 2px 7px; border-radius: 999px;" title="${Array.from(monthHolidaysNames).join(' • ')}">
+                                    <span style="font-size: 0.66rem; font-weight: 800; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; padding: 2px 6px; border-radius: 999px;" title="${Array.from(monthHolidaysNames).join(' • ')}">
                                         🏖️ ${monthHolidaysCount} ع
                                     </span>
                                 ` : ''}
                                 ${monthMilestonesList.length > 0 ? `
-                                    <span style="font-size: 0.68rem; font-weight: 800; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 999px;" title="${monthMilestonesList.map(x => x.title).join(' • ')}">
-                                        🎯 ${monthMilestonesList.length} محطة
+                                    <span style="font-size: 0.66rem; font-weight: 800; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 2px 6px; border-radius: 999px;" title="${monthMilestonesList.map(x => x.title).join(' • ')}">
+                                        🎯 ${monthMilestonesList.length}
                                     </span>
                                 ` : ''}
-                                <button type="button" onclick="window.navigateToMonthlyCalendarMonth(${y}, ${m})" style="font-size: 0.68rem; background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; padding: 2px 7px; border-radius: 6px; font-weight: 800; cursor: pointer;" title="فتح شهر ${mObj.name} في التقويم الشهري">الشهري ⬅</button>
+                                <button type="button" onclick="window.navigateToMonthlyCalendarMonth(${y}, ${m})" style="font-size: 0.66rem; background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; padding: 2px 6px; border-radius: 6px; font-weight: 800; cursor: pointer;" title="فتح شهر ${mObj.name} في التقويم الشهري">الشهري ⬅</button>
                             </div>
                         </div>
 
@@ -1705,12 +2313,10 @@
                         <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center;">
             `;
 
-            // خلايا فارغة قبل بداية الشهر
             for (let i = 0; i < startingDay; i++) {
                 gridHtml += `<div style="height: 32px; border-radius: 6px; background: #fafafa; opacity: 0.4;"></div>`;
             }
 
-            // أيام الشهر
             for (let d = 1; d <= totalDays; d++) {
                 const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 const curDate = new Date(y, m, d);
@@ -1724,11 +2330,19 @@
                 const isLeave = !isHoliday && !!leave;
                 const dayMilestones = allMilestones.filter(ms => ms.startDate && dateStr >= ms.startDate && dateStr <= (ms.endDate || ms.startDate));
                 const hasMilestone = dayMilestones.length > 0;
+                const vigilanceAlert = (!isHoliday && !isLeave && showPrePostHolidayRadar) ? getPrePostHolidayAlertForDate(dateStr) : null;
 
                 let cellBg = isSunday ? '#f8fafc' : '#ffffff';
                 let cellColor = isSunday ? '#94a3b8' : '#1e293b';
                 let cellBorder = '1px solid #f1f5f9';
                 let titleText = `${d} ${mObj.name} ${y}`;
+
+                if (vigilanceAlert) {
+                    cellBg = '#fff7ed';
+                    cellColor = '#c2410c';
+                    cellBorder = '1.5px dashed #f97316';
+                    titleText += ` • ${vigilanceAlert.shortBadge}: ${vigilanceAlert.label}`;
+                }
 
                 if (hasMilestone && !isHoliday && !isLeave) {
                     const topMs = dayMilestones[0];
@@ -1771,7 +2385,7 @@
 
                 gridHtml += `
                     <div class="annual-day-cell ${isHoliday ? 'has-official-holiday' : ''} ${isLeave ? 'has-teacher-leave' : ''}"
-                         style="height: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 6px; font-size: 0.78rem; font-weight: ${isHoliday || isLeave || hasMilestone || isToday ? '900' : '600'}; background: ${cellBg}; color: ${cellColor}; border: ${cellBorder}; cursor: pointer; position: relative; transition: all 0.15s;"
+                         style="height: 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 6px; font-size: 0.78rem; font-weight: ${isHoliday || isLeave || hasMilestone || isToday || vigilanceAlert ? '900' : '600'}; background: ${cellBg}; color: ${cellColor}; border: ${cellBorder}; cursor: pointer; position: relative; transition: all 0.15s;"
                          title="${escapeHtml(titleText)}"
                          onclick="window.onAnnualDayCellClick('${dateStr}', '${holiday ? escapeQuotes(holiday.title) : ''}')">
                         <span>${d}</span>
@@ -1781,7 +2395,9 @@
                             <span style="width: 5px; height: 5px; border-radius: 50%; background: #0284c7; position: absolute; bottom: 2px;" title="رخصة أستاذ"></span>
                         ` : (hasMilestone ? `
                             <span style="width: 5px; height: 5px; border-radius: 50%; background: ${dayMilestones[0].color || '#2563eb'}; position: absolute; bottom: 2px;"></span>
-                        ` : ''))}
+                        ` : (vigilanceAlert ? `
+                            <span style="width: 4px; height: 4px; border-radius: 50%; background: #f97316; position: absolute; bottom: 2px;"></span>
+                        ` : '')))}
                     </div>
                 `;
             }
@@ -1791,7 +2407,6 @@
                     </div>
             `;
 
-            // عرض ملخص المحطات التربوية والمواعيد أسفل بطاقة الشهر للتزامن البصري الفوري
             if (monthMilestonesList.length > 0) {
                 gridHtml += `
                     <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #e2e8f0; font-size: 0.72rem; max-height: 76px; overflow-y: auto;">
@@ -1810,7 +2425,7 @@
             } else {
                 gridHtml += `
                     <div style="margin-top: 10px; padding-top: 6px; border-top: 1px dashed #f1f5f9; font-size: 0.68rem; color: #94a3b8; text-align: center;">
-                        انقر على أي يوم لإضافة محطة أو موعد
+                        انقر على أي يوم لمعاينة تفاصيله أو إضافة حدث
                     </div>
                 `;
             }
@@ -1825,92 +2440,316 @@
     }
 
     /**
-     * رسم جدول لائحة العطل الرسمية المفصل
+     * دوال التصفية والتصدير والمشاركة للائحة العطل الرسمية (المرحلة 2)
+     */
+    function setHolidaysCategoryFilter(cat) {
+        activeHolidaysCategoryFilter = cat || 'all';
+        renderAnnualSchoolCalendar();
+    }
+    window.setHolidaysCategoryFilter = setHolidaysCategoryFilter;
+
+    function onHolidaysSearchInput(val) {
+        holidaysSearchQuery = (val || '').trim();
+        renderAnnualSchoolCalendar();
+    }
+    window.onHolidaysSearchInput = onHolidaysSearchInput;
+
+    function exportOfficialHolidaysToExcel() {
+        const holidays = getOfficialHolidays();
+        if (!holidays || holidays.length === 0) {
+            window.notifySafeToast('لا توجد عطل مسجلة لتصديرها.');
+            return;
+        }
+        let tableHtml = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head>
+            <body>
+                <table border="1" dir="rtl">
+                    <thead>
+                        <tr style="background:#10b981; color:#fff; font-weight:bold;">
+                            <th>#</th>
+                            <th>اسم العطلة المدرسية</th>
+                            <th>الصنف</th>
+                            <th>من تاريخ</th>
+                            <th>إلى تاريخ</th>
+                            <th>عدد الأيام</th>
+                            <th>تاريخ استئناف الدراسة</th>
+                            <th>حماية غياب التلاميذ</th>
+                            <th>ملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        holidays.forEach((h, idx) => {
+            const days = h.daysCount || calculateDaysBetween(h.startDate, h.endDate);
+            const resDate = getHolidayResumptionDateStr(h.endDate || h.startDate);
+            tableHtml += `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td>${escapeHtml(h.title || '')}</td>
+                    <td>${escapeHtml(h.categoryLabel || 'عطلة رسمية')}</td>
+                    <td>${h.startDate || ''}</td>
+                    <td>${h.endDate || h.startDate || ''}</td>
+                    <td>${days}</td>
+                    <td>${resDate}</td>
+                    <td>${h.disableAbsence !== false ? 'معفى تلقائياً' : 'عادي'}</td>
+                    <td>${escapeHtml(h.notes || '')}</td>
+                </tr>
+            `;
+        });
+        tableHtml += `</tbody></table></body></html>`;
+        const blob = new Blob(['\ufeff' + tableHtml], { type: 'application/vnd.ms-excel;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `لائحة_العطل_المدرسية_${selectedAcademicYearStart}-${selectedAcademicYearStart + 1}.xls`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+    window.exportOfficialHolidaysToExcel = exportOfficialHolidaysToExcel;
+
+    function shareHolidaysScheduleWhatsApp() {
+        const holidays = getOfficialHolidays();
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const upcoming = holidays.filter(h => (h.endDate || h.startDate) >= todayStr);
+        const listToShare = upcoming.length > 0 ? upcoming : holidays;
+
+        let msg = `🌴 *روزنامة العطل المدرسية الرسمية (${selectedAcademicYearStart}-${selectedAcademicYearStart + 1})*\n`;
+        msg += `━━━━━━━━━━━━━━━━━━\n`;
+        listToShare.forEach((h, i) => {
+            const days = h.daysCount || calculateDaysBetween(h.startDate, h.endDate);
+            const resDate = getHolidayResumptionDateStr(h.endDate || h.startDate);
+            msg += `${i + 1}. *${h.title}*\n   📅 من ${h.startDate} إلى ${h.endDate || h.startDate} (${days} ${days === 1 ? 'يوم' : 'أيام'})\n   🔔 الاستئناف: ${resDate}\n`;
+        });
+        msg += `━━━━━━━━━━━━━━━━━━\n📐 *مادة الرياضيات — الثانوي التأهيلي*`;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(msg).then(() => {
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification('تم نسخ برنامج العطل المدرسية للحافظة لمشاركته عبر واتساب 📲', 'success');
+                }
+            });
+        }
+    }
+    window.shareHolidaysScheduleWhatsApp = shareHolidaysScheduleWhatsApp;
+
+    function sendHolidayResumptionWhatsappAlert(holidayId) {
+        const holidays = getOfficialHolidays();
+        const hol = holidays.find(h => h.id === holidayId);
+        if (!hol) return;
+        const resDate = getHolidayResumptionDateStr(hol.endDate || hol.startDate);
+        const preDate = getHolidayPreVigilanceDateStr(hol.startDate);
+        const msg = `🔔 *إشعار تربوي هام بخصوص ${hol.title}*\n\n` +
+            `📅 فترة العطلة: من *${hol.startDate}* إلى *${hol.endDate || hol.startDate}* (${hol.daysCount || 1} أيام).\n` +
+            `⚠️ آخر يوم دراسي قبل العطلة: *${preDate}* (تستمر فيه الحصص الدراسية بشكل عادي وتراقب فيه المواظبة).\n` +
+            `🏫 تاريخ استئناف الدراسة الفعلي: *${resDate}*.\n\n` +
+            `يرجى الحرص على الحضور المنتظم وإنجاز سلاسل التمارين المقررة خلال فترة العطلة. عطلة سعيدة للجميع! 📐✨`;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(msg).then(() => {
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification(`تم نسخ إشعار الانضباط والاستئناف لـ "${hol.title}" إلى الحافظة 📲`, 'success');
+                }
+            });
+        }
+    }
+    window.sendHolidayResumptionWhatsappAlert = sendHolidayResumptionWhatsappAlert;
+
+    function assignHolidayHomeworkFromCalendar(holidayId) {
+        const holidays = getOfficialHolidays();
+        const hol = holidays.find(h => h.id === holidayId);
+        if (!hol) return;
+        const resDate = getHolidayResumptionDateStr(hol.endDate || hol.startDate);
+
+        if (typeof window.switchTab === 'function') {
+            window.switchTab('notes');
+        }
+        setTimeout(() => {
+            if (typeof window.switchNotesSubView === 'function') {
+                window.switchNotesSubView('homework');
+            }
+            const titleInp = document.getElementById('hwAgendaTitle');
+            const dateInp = document.getElementById('hwAgendaDate');
+            const typeSel = document.getElementById('hwAgendaTypeSelect');
+            if (titleInp) {
+                titleInp.value = `سلسلة تمارين ومراجعة خاصة بـ (${hol.title})`;
+                titleInp.focus();
+            }
+            if (dateInp && resDate) {
+                dateInp.value = resDate;
+            }
+            if (typeSel) {
+                typeSel.value = 'worksheet';
+            }
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(`تم تجهيز نموذج واجب العطلة بتاريخ استئناف الدراسة (${resDate}) 📚`, 'success');
+            }
+        }, 120);
+    }
+    window.assignHolidayHomeworkFromCalendar = assignHolidayHomeworkFromCalendar;
+
+    /**
+     * رسم جدول لائحة العطل الرسمية المفصل (مع حالة العطلة، تاريخ الاستئناف، الفلاتر، وواجب العطلة)
      */
     function renderHolidaysTableHtml(holidays) {
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+        const filteredHolidays = (holidays || []).filter(h => {
+            if (!h) return false;
+            const end = h.endDate || h.startDate;
+            if (activeHolidaysCategoryFilter === 'upcoming' && end < todayStr) return false;
+            if (activeHolidaysCategoryFilter === 'past' && end >= todayStr) return false;
+            if (activeHolidaysCategoryFilter === 'interim' && h.category !== 'interim' && h.category !== 'midterm') return false;
+            if (activeHolidaysCategoryFilter === 'national' && h.category !== 'national') return false;
+            if (activeHolidaysCategoryFilter === 'religious' && h.category !== 'religious') return false;
+
+            if (holidaysSearchQuery) {
+                const q = holidaysSearchQuery.toLowerCase();
+                const matchTitle = String(h.title || '').toLowerCase().includes(q);
+                const matchNotes = String(h.notes || '').toLowerCase().includes(q);
+                const matchCat = String(h.categoryLabel || '').toLowerCase().includes(q);
+                if (!matchTitle && !matchNotes && !matchCat) return false;
+            }
+            return true;
+        });
+
         let tableHtml = `
             <div class="card" style="padding: 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; margin-bottom: 24px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
                     <div>
                         <h3 style="margin: 0; font-size: 1.15rem; font-weight: 800; color: #0f172a; font-family: 'Cairo', sans-serif;">
                             لائحة العطل المدرسية الرسمية المعتمدة للموسم الدراسي
                         </h3>
                         <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #64748b;">
-                            يمكنك تعديل تواريخ العطل أو إضافة فترات جديدة أو تبديل خيار تعطيل تسجيل الغياب
+                            تتبع العد التنازلي لكل عطلة، تاريخ استئناف الدراسة، إسناد سلاسل العطل، وإرسال إشعارات المواظبة عبر واتساب
                         </p>
                     </div>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" class="btn-primary" onclick="window.printOfficialHolidaysTable()" style="background: #0284c7; color: #fff; border: none; padding: 6px 14px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" title="معاينة وطباعة لائحة العطل المدرسية الرسمية (A4)">
-                            <span class="ui-icon" style="margin:0;"><span data-lucide="printer" data-size="14"></span></span>
-                            <span>طباعة لائحة العطل (A4)</span>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        <button type="button" class="btn-primary" onclick="window.shareHolidaysScheduleWhatsApp()" style="background: #059669; color: #fff; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" title="نسخ برنامج العطل لمشاركته عبر واتساب">
+                            <span>📲</span>
+                            <span>مشاركة واتساب</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="window.openAddHolidayModal()" style="background: #10b981; border: none; padding: 6px 14px; border-radius: 8px; font-weight: bold; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;">
+                        <button type="button" class="btn-primary" onclick="window.exportOfficialHolidaysToExcel()" style="background: #0f766e; color: #fff; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" title="تصدير لائحة العطل إلى ملف Excel">
+                            <span class="ui-icon" style="margin:0;"><span data-lucide="file-spreadsheet" data-size="14"></span></span>
+                            <span>تصدير Excel</span>
+                        </button>
+                        <button type="button" class="btn-primary" onclick="window.printOfficialHolidaysTable()" style="background: #0284c7; color: #fff; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" title="معاينة وطباعة لائحة العطل المدرسية الرسمية (A4)">
+                            <span class="ui-icon" style="margin:0;"><span data-lucide="printer" data-size="14"></span></span>
+                            <span>طباعة (A4)</span>
+                        </button>
+                        <button type="button" class="btn-primary" onclick="window.openAddHolidayModal()" style="background: #10b981; border: none; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;">
                             <span class="ui-icon" style="margin:0;"><span data-lucide="plus" data-size="14"></span></span>
-                            <span>إضافة عطلة جديدة</span>
+                            <span>+ إضافة عطلة</span>
                         </button>
                     </div>
                 </div>
 
+                <!-- شريط الفلترة والبحث في العطل -->
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; padding: 10px 12px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;">
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                        <span style="font-size: 0.76rem; font-weight: 800; color: #475569;">تصفية:</span>
+                        ${[
+                            { id: 'all', label: `الكل (${holidays.length})` },
+                            { id: 'upcoming', label: '⏳ القادمة والجارية' },
+                            { id: 'past', label: '✔️ المنقضية' },
+                            { id: 'interim', label: '🌿 فترات بينية' },
+                            { id: 'national', label: '🇲🇦 أعياد وطنية' },
+                            { id: 'religious', label: '🕌 أعياد دينية' }
+                        ].map(f => `
+                            <button type="button" onclick="window.setHolidaysCategoryFilter('${f.id}')" style="padding: 4px 10px; border-radius: 7px; font-size: 0.75rem; font-weight: 800; cursor: pointer; border: 1px solid ${activeHolidaysCategoryFilter === f.id ? '#10b981' : '#cbd5e1'}; background: ${activeHolidaysCategoryFilter === f.id ? '#10b981' : '#ffffff'}; color: ${activeHolidaysCategoryFilter === f.id ? '#ffffff' : '#334155'};">
+                                ${f.label}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <input type="text" value="${escapeHtml(holidaysSearchQuery)}" oninput="window.onHolidaysSearchInput(this.value)" placeholder="🔍 بحث في أسماء العطل..." style="padding: 5px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.78rem; min-width: 190px; font-family: 'Cairo', sans-serif;">
+                </div>
+
                 <div style="overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem;">
+                    <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.83rem;">
                         <thead>
                             <tr style="background: #f8fafc; color: #475569; border-bottom: 2px solid #e2e8f0;">
-                                <th style="padding: 12px 14px; text-align: right; border-radius: 8px 0 0 0;">#</th>
-                                <th style="padding: 12px 14px; text-align: right;">اسم العطلة المدرسية</th>
-                                <th style="padding: 12px 14px; text-align: right;">الصنف</th>
-                                <th style="padding: 12px 14px; text-align: center;">من تاريخ</th>
-                                <th style="padding: 12px 14px; text-align: center;">إلى تاريخ</th>
-                                <th style="padding: 12px 14px; text-align: center;">المدة</th>
-                                <th style="padding: 12px 14px; text-align: center;">تعطيل احتساب الغياب</th>
-                                <th style="padding: 12px 14px; text-align: center; border-radius: 0 8px 0 0;">إجراءات</th>
+                                <th style="padding: 10px 12px; text-align: right; border-radius: 8px 0 0 0;">#</th>
+                                <th style="padding: 10px 12px; text-align: right;">اسم العطلة المدرسية</th>
+                                <th style="padding: 10px 12px; text-align: right;">الصنف</th>
+                                <th style="padding: 10px 12px; text-align: center;">الفترة الزمنية</th>
+                                <th style="padding: 10px 12px; text-align: center;">المدة</th>
+                                <th style="padding: 10px 12px; text-align: center;">الحالة والعد التنازلي</th>
+                                <th style="padding: 10px 12px; text-align: center;">تاريخ الاستئناف</th>
+                                <th style="padding: 10px 12px; text-align: center;">حماية الغياب</th>
+                                <th style="padding: 10px 12px; text-align: center; border-radius: 0 8px 0 0;">إجراءات</th>
                             </tr>
                         </thead>
                         <tbody>
         `;
 
-        holidays.forEach((h, idx) => {
+        filteredHolidays.forEach((h, idx) => {
             const days = h.daysCount || calculateDaysBetween(h.startDate, h.endDate);
+            const end = h.endDate || h.startDate;
+            const resDate = getHolidayResumptionDateStr(end);
             const isAbsenceDisabled = h.disableAbsence !== false;
             const categoryBadgeStyle = h.category === 'national' ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;'
                                      : h.category === 'religious' ? 'background: #ede9fe; color: #5b21b6; border: 1px solid #d8b4fe;'
                                      : h.category === 'midterm' ? 'background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd;'
                                      : 'background: #dcfce7; color: #166534; border: 1px solid #86efac;';
 
+            let statusHtml = '';
+            if (todayStr >= h.startDate && todayStr <= end) {
+                const rem = Math.max(0, calculateDaysBetween(todayStr, end) - 1);
+                statusHtml = `<span style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800;">🟢 جارية الآن (${rem === 0 ? 'آخر يوم' : 'متبقي ' + rem + ' ي'})</span>`;
+            } else if (h.startDate > todayStr) {
+                const diff = Math.max(1, Math.ceil((new Date(h.startDate + 'T00:00:00') - new Date(todayStr + 'T00:00:00')) / (1000 * 60 * 60 * 24)));
+                statusHtml = `<span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800;">⏳ بعد ${diff} يوم</span>`;
+            } else {
+                statusHtml = `<span style="background:#f1f5f9; color:#64748b; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:700;">✔️ منقضية</span>`;
+            }
+
             tableHtml += `
                 <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                    <td style="padding: 12px 14px; font-weight: 700; color: #64748b;">${idx + 1}</td>
-                    <td style="padding: 12px 14px;">
+                    <td style="padding: 10px 12px; font-weight: 700; color: #64748b;">${idx + 1}</td>
+                    <td style="padding: 10px 12px;">
                         <div style="font-weight: 800; color: #0f172a;">${escapeHtml(h.title)}</div>
-                        ${h.notes ? `<div style="font-size: 0.74rem; color: #94a3b8; margin-top: 2px;">${escapeHtml(h.notes)}</div>` : ''}
+                        ${h.notes ? `<div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">${escapeHtml(h.notes)}</div>` : ''}
                     </td>
-                    <td style="padding: 12px 14px;">
+                    <td style="padding: 10px 12px;">
                         <span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; font-weight: 700; display: inline-block; ${categoryBadgeStyle}">
                             ${escapeHtml(h.categoryLabel || 'عطلة رسمية')}
                         </span>
                     </td>
-                    <td style="padding: 12px 14px; text-align: center; font-family: monospace; font-weight: 700; color: #334155;">
-                        ${h.startDate}
+                    <td style="padding: 10px 12px; text-align: center; font-family: monospace; font-weight: 700; color: #334155;">
+                        ${h.startDate}${end !== h.startDate ? ` ⬅ ${end}` : ''}
                     </td>
-                    <td style="padding: 12px 14px; text-align: center; font-family: monospace; font-weight: 700; color: #334155;">
-                        ${h.endDate || h.startDate}
-                    </td>
-                    <td style="padding: 12px 14px; text-align: center;">
-                        <span style="font-weight: 800; color: #0284c7; background: #e0f2fe; padding: 2px 8px; border-radius: 999px; font-size: 0.76rem;">
+                    <td style="padding: 10px 12px; text-align: center;">
+                        <span style="font-weight: 800; color: #0284c7; background: #e0f2fe; padding: 2px 8px; border-radius: 999px; font-size: 0.74rem;">
                             ${days} ${days === 1 ? 'يوم' : days === 2 ? 'يومان' : 'أيام'}
                         </span>
                     </td>
-                    <td style="padding: 12px 14px; text-align: center;">
-                        <button type="button" onclick="window.toggleHolidayAbsenceDisable('${h.id}')" style="background: none; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; font-size: 0.78rem; font-weight: 800; color: ${isAbsenceDisabled ? '#15803d' : '#94a3b8'};">
-                            <span style="font-size: 1.1rem;">${isAbsenceDisabled ? '🟢' : '⚪'}</span>
-                            <span>${isAbsenceDisabled ? 'معطل تلقائياً' : 'مسموح'}</span>
+                    <td style="padding: 10px 12px; text-align: center;">
+                        ${statusHtml}
+                    </td>
+                    <td style="padding: 10px 12px; text-align: center; font-family: monospace; font-weight: 800; color: #047857;">
+                        ${resDate}
+                    </td>
+                    <td style="padding: 10px 12px; text-align: center;">
+                        <button type="button" onclick="window.toggleHolidayAbsenceDisable('${h.id}')" style="background: none; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 800; color: ${isAbsenceDisabled ? '#15803d' : '#94a3b8'};">
+                            <span>${isAbsenceDisabled ? '🟢' : '⚪'}</span>
+                            <span>${isAbsenceDisabled ? 'معطل' : 'مسموح'}</span>
                         </button>
                     </td>
-                    <td style="padding: 12px 14px; text-align: center;">
-                        <div style="display: flex; gap: 6px; justify-content: center;">
-                            <button type="button" onclick="window.openEditHolidayModal('${h.id}')" class="btn-action" style="padding: 4px 8px; font-size: 0.75rem; background: #f1f5f9; color: #2563eb; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer;" title="تعديل العطلة">
+                    <td style="padding: 10px 12px; text-align: center;">
+                        <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: nowrap;">
+                            <button type="button" onclick="window.assignHolidayHomeworkFromCalendar('${h.id}')" class="btn-action" style="padding: 4px 7px; font-size: 0.72rem; background: #faf5ff; color: #7c3aed; border: 1px solid #d8b4fe; border-radius: 6px; cursor: pointer; font-weight: 800;" title="إسناد واجب منزلي أو سلسلة تمارين لهذه العطلة">
+                                📚 واجب
+                            </button>
+                            <button type="button" onclick="window.sendHolidayResumptionWhatsappAlert('${h.id}')" class="btn-action" style="padding: 4px 7px; font-size: 0.72rem; background: #f0fdf4; color: #15803d; border: 1px solid #86efac; border-radius: 6px; cursor: pointer; font-weight: 800;" title="نسخ إشعار واتساب للاستئناف والانضباط">
+                                📲
+                            </button>
+                            <button type="button" onclick="window.openEditHolidayModal('${h.id}')" class="btn-action" style="padding: 4px 7px; font-size: 0.72rem; background: #f1f5f9; color: #2563eb; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer;" title="تعديل العطلة">
                                 <span class="ui-icon" style="margin:0;"><span data-lucide="edit-3" data-size="13"></span></span>
                             </button>
-                            <button type="button" onclick="window.deleteOfficialHoliday('${h.id}')" class="btn-action" style="padding: 4px 8px; font-size: 0.75rem; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer;" title="حذف العطلة">
+                            <button type="button" onclick="window.deleteOfficialHoliday('${h.id}')" class="btn-action" style="padding: 4px 7px; font-size: 0.72rem; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer;" title="حذف العطلة">
                                 <span class="ui-icon" style="margin:0;"><span data-lucide="trash-2" data-size="13"></span></span>
                             </button>
                         </div>
@@ -1929,30 +2768,161 @@
     }
 
     /**
-     * النقر على خلية يوم في التقويم السنوي
+     * المرحلة 4: نافذة المعاينة الشاملة والتفاعلية لليوم عند النقر على خلية في الشبكة السنوية
      */
-    function onAnnualDayCellClick(dateStr, holidayTitle) {
-        const milestones = getAcademicMilestones();
-        const matchedMs = milestones.find(ms => ms.startDate && dateStr >= ms.startDate && dateStr <= (ms.endDate || ms.startDate));
-        if (matchedMs) {
-            openEditAcademicMilestoneModal(matchedMs.id);
-            return;
-        }
-        if (holidayTitle) {
-            const hol = getOfficialHolidayForDate(dateStr);
-            if (hol) {
-                openEditHolidayModal(hol.id);
-                return;
-            }
-        }
-        const leave = getTeacherLeaveForDate(dateStr);
-        if (leave) {
-            openEditTeacherLeaveModal(leave.id);
-            return;
-        }
-        // فتح النافذة الموحدة لإضافة محطة بيداغوجية أو موعد/حدث في هذا التاريخ مباشرة دون تعارض
-        openAddAcademicMilestoneModal(dateStr);
+    function onAnnualDayCellClick(dateStr) {
+        openAnnualDayInspectorModal(dateStr);
     }
+
+    function openAnnualDayInspectorModal(dateStr) {
+        if (!dateStr) return;
+        const milestones = getAcademicMilestones();
+        const matchedMilestones = milestones.filter(ms => ms.startDate && dateStr >= ms.startDate && dateStr <= (ms.endDate || ms.startDate));
+        const hol = getOfficialHolidayForDate(dateStr);
+        const leave = getTeacherLeaveForDate(dateStr);
+        const vigilance = (!hol && !leave) ? getPrePostHolidayAlertForDate(dateStr) : null;
+
+        // استخراج حصص جدول الحصص والواجبات المنزلية في هذا اليوم
+        let daySessions = [];
+        if (typeof window.getTimetableSessionsForDate === 'function') {
+            try {
+                const ttInfo = window.getTimetableSessionsForDate(dateStr);
+                if (ttInfo && Array.isArray(ttInfo.sessions)) {
+                    daySessions = ttInfo.sessions;
+                }
+            } catch (e) {}
+        }
+
+        // استخراج الواجبات المنزلية المطلوبة في هذا اليوم
+        const dueHomeworks = [];
+        if (window.db && window.db.homeworkAgenda) {
+            Object.keys(window.db.homeworkAgenda).forEach(cls => {
+                const list = Array.isArray(window.db.homeworkAgenda[cls]) ? window.db.homeworkAgenda[cls] : [];
+                list.forEach(hw => {
+                    if (hw && hw.dueDate === dateStr) {
+                        dueHomeworks.push({ ...hw, className: cls });
+                    }
+                });
+            });
+        }
+
+        const dObj = new Date(dateStr + 'T00:00:00');
+        const daysAr = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+        const monthsAr = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'];
+        const readableDate = !isNaN(dObj.getTime())
+            ? `${daysAr[dObj.getDay()]} ${dObj.getDate()} ${monthsAr[dObj.getMonth()]} ${dObj.getFullYear()}`
+            : dateStr;
+
+        let modal = document.getElementById('annualDayInspectorModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'annualDayInspectorModal';
+            modal.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(15,23,42,0.65); z-index:10500; align-items:center; justify-content:center; backdrop-filter:blur(3px); direction:rtl; padding:16px;';
+            document.body.appendChild(modal);
+        }
+
+        modal.innerHTML = `
+            <div style="background:#ffffff; border-radius:16px; width:100%; max-width:650px; max-height:90vh; overflow-y:auto; padding:22px; box-shadow:0 20px 45px rgba(0,0,0,0.25); border:1.5px solid #cbd5e1; font-family:'Cairo',sans-serif;">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #e2e8f0; padding-bottom:12px; margin-bottom:14px;">
+                    <div>
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <span style="font-size:1.15rem; font-weight:900; color:#0f172a;">📅 ${escapeHtml(readableDate)}</span>
+                            <span style="font-size:0.75rem; font-family:monospace; background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:6px; font-weight:800;">${dateStr}</span>
+                        </div>
+                        <div style="font-size:0.78rem; color:#64748b; margin-top:2px;">بطاقة الفحص السريع لليوم (العطل، المحطات، الحصص، والواجبات المنزلية)</div>
+                    </div>
+                    <button type="button" onclick="document.getElementById('annualDayInspectorModal').style.display='none'" style="border:none; background:#f1f5f9; width:34px; height:34px; border-radius:8px; cursor:pointer; font-size:1rem; font-weight:bold; color:#475569;">✕</button>
+                </div>
+
+                ${hol ? `
+                    <div style="background:#f0fdf4; border:1.5px solid #86efac; border-right:5px solid #10b981; border-radius:10px; padding:12px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div>
+                            <div style="font-weight:900; font-size:0.92rem; color:#166534;">🏖️ عطلة رسمية: ${escapeHtml(hol.title)}</div>
+                            <div style="font-size:0.76rem; color:#15803d; margin-top:2px;">من ${hol.startDate} إلى ${hol.endDate || hol.startDate} • الغياب معطل ومحمي تلقائياً</div>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button type="button" onclick="document.getElementById('annualDayInspectorModal').style.display='none'; window.assignHolidayHomeworkFromCalendar('${hol.id}')" style="background:#ffffff; color:#047857; border:1px solid #86efac; border-radius:7px; padding:5px 10px; font-size:0.75rem; font-weight:800; cursor:pointer;">📚 واجب عطلة</button>
+                            <button type="button" onclick="document.getElementById('annualDayInspectorModal').style.display='none'; window.openEditHolidayModal('${hol.id}')" style="background:#10b981; color:#ffffff; border:none; border-radius:7px; padding:5px 10px; font-size:0.75rem; font-weight:800; cursor:pointer;">✏️ تعديل العطلة</button>
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${leave ? `
+                    <div style="background:#f0f9ff; border:1.5px solid #bae6fd; border-right:5px solid #0284c7; border-radius:10px; padding:12px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div>
+                            <div style="font-weight:900; font-size:0.92rem; color:#0369a1;">📋 رخصة للأستاذ: ${escapeHtml(leave.title || leave.typeLabel)}</div>
+                            <div style="font-size:0.76rem; color:#0284c7; margin-top:2px;">من ${leave.startDate} إلى ${leave.endDate || leave.startDate} • ساعات غياب التلاميذ معفاة</div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('annualDayInspectorModal').style.display='none'; window.openEditTeacherLeaveModal('${leave.id}')" style="background:#0284c7; color:#ffffff; border:none; border-radius:7px; padding:5px 10px; font-size:0.75rem; font-weight:800; cursor:pointer;">✏️ تعديل الرخصة</button>
+                    </div>
+                ` : ''}
+
+                ${vigilance ? `
+                    <div style="background:#fff7ed; border:1.5px dashed #f97316; border-radius:10px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div>
+                            <div style="font-weight:900; font-size:0.86rem; color:#c2410c;">${vigilance.shortBadge}: ${escapeHtml(vigilance.label)}</div>
+                            <div style="font-size:0.74rem; color:#9a3412;">ينصح بتكثيف مراقبة الحضور والواجبات لتفادي الغياب الجماعي حول العطل.</div>
+                        </div>
+                        <button type="button" onclick="window.sendHolidayResumptionWhatsappAlert('${vigilance.holiday.id}')" style="background:#ea580c; color:#fff; border:none; border-radius:7px; padding:5px 10px; font-size:0.74rem; font-weight:800; cursor:pointer;">📲 نسخ تنبيه واتساب</button>
+                    </div>
+                ` : ''}
+
+                <!-- المحطات التربوية في هذا اليوم -->
+                <div style="margin-bottom:12px;">
+                    <div style="font-size:0.82rem; font-weight:900; color:#1e293b; margin-bottom:6px;">🎯 المحطات التربوية والفروض المبرمجة (${matchedMilestones.length}):</div>
+                    ${matchedMilestones.length === 0 ? `
+                        <div style="font-size:0.78rem; color:#64748b; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:8px 12px;">لا توجد محطات تربوية مسجلة في هذا التاريخ.</div>
+                    ` : matchedMilestones.map(ms => `
+                        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-right:4px solid ${ms.color || '#2563eb'}; border-radius:8px; padding:8px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <div>
+                                <div style="font-weight:800; font-size:0.85rem; color:#0f172a;">${escapeHtml(ms.title)}</div>
+                                <div style="font-size:0.73rem; color:#475569;">👥 ${escapeHtml(ms.targetLevels || 'جميع المستويات')} • 📅 ${ms.startDate} ⬅ ${ms.endDate || ms.startDate}</div>
+                            </div>
+                            <div style="display:flex; gap:5px;">
+                                <button type="button" onclick="document.getElementById('annualDayInspectorModal').style.display='none'; window.openEditAcademicMilestoneModal('${ms.id}')" style="background:#2563eb; color:#fff; border:none; border-radius:6px; padding:4px 9px; font-size:0.73rem; font-weight:800; cursor:pointer;">✏️ تعديل</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <!-- حصص جدول الأسبوع والواجبات المنزلية -->
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px; margin-bottom:16px;">
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:10px 12px;">
+                        <div style="font-size:0.8rem; font-weight:900; color:#0369a1; margin-bottom:6px;">🕒 حصص جدول الأسبوع (${daySessions.length}):</div>
+                        ${daySessions.length === 0 ? `<div style="font-size:0.75rem; color:#94a3b8;">لا توجد حصص مبرمجة في هذا اليوم.</div>` : daySessions.map(s => `
+                            <div style="font-size:0.76rem; font-weight:700; color:#1e293b; padding:3px 0; border-bottom:1px dashed #e2e8f0;">
+                                • <strong>${escapeHtml(s.className || '')}</strong> (${escapeHtml(s.timeLabel || s.slotKey || '')})
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div style="background:#faf5ff; border:1px solid #e9d5ff; border-radius:10px; padding:10px 12px;">
+                        <div style="font-size:0.8rem; font-weight:900; color:#6d28d9; margin-bottom:6px;">📚 واجبات منزلية تحل في هذا اليوم (${dueHomeworks.length}):</div>
+                        ${dueHomeworks.length === 0 ? `<div style="font-size:0.75rem; color:#94a3b8;">لا توجد واجبات منزلية محددة لهذا اليوم.</div>` : dueHomeworks.map(hw => `
+                            <div style="font-size:0.76rem; font-weight:700; color:#4c1d95; padding:3px 0; border-bottom:1px dashed #e9d5ff;">
+                                • [${escapeHtml(hw.className)}] ${escapeHtml(hw.title)}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- شريط الإجراءات السريعة لليوم -->
+                <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:space-between; padding-top:12px; border-top:1px solid #e2e8f0;">
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button type="button" onclick="document.getElementById('annualDayInspectorModal').style.display='none'; window.openAddAcademicMilestoneModal('${dateStr}')" style="background:#2563eb; color:#fff; border:none; padding:7px 12px; border-radius:8px; font-size:0.76rem; font-weight:800; cursor:pointer;">+ إضافة محطة / فرض</button>
+                        <button type="button" onclick="document.getElementById('annualDayInspectorModal').style.display='none'; window.openAddHolidayModal('${dateStr}')" style="background:#10b981; color:#fff; border:none; padding:7px 12px; border-radius:8px; font-size:0.76rem; font-weight:800; cursor:pointer;">+ إضافة عطلة</button>
+                        <button type="button" onclick="document.getElementById('annualDayInspectorModal').style.display='none'; window.openAddTeacherLeaveModal('${dateStr}')" style="background:#0284c7; color:#fff; border:none; padding:7px 12px; border-radius:8px; font-size:0.76rem; font-weight:800; cursor:pointer;">+ رخصة أستاذ</button>
+                    </div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button type="button" onclick="document.getElementById('annualDayInspectorModal').style.display='none'; window.navigateToMonthlyCalendarDate('${dateStr}')" style="background:#f1f5f9; color:#1e293b; border:1px solid #cbd5e1; padding:7px 12px; border-radius:8px; font-size:0.76rem; font-weight:800; cursor:pointer;">📅 فتح في الشهري</button>
+                        <button type="button" onclick="document.getElementById('annualDayInspectorModal').style.display='none'; if(document.getElementById('datePicker')){document.getElementById('datePicker').value='${dateStr}';} if(window.switchTab) window.switchTab('absence'); if(window.renderStudents) window.renderStudents();" style="background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe; padding:7px 12px; border-radius:8px; font-size:0.76rem; font-weight:800; cursor:pointer;">🛡️ ورقة الغياب لهذا اليوم</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        modal.style.display = 'flex';
+    }
+    window.openAnnualDayInspectorModal = openAnnualDayInspectorModal;
 
     /**
      * تبديل نمط العرض بين شبكة الشهور وجدول اللائحة
@@ -2032,17 +3002,17 @@
         const editId = document.getElementById('holidayEditId').value;
 
         if (!title) {
-            alert('الرجاء إدخال اسم العطلة المدرسية');
+            window.notifySafeToast('الرجاء إدخال اسم العطلة المدرسية');
             unlock();
             return;
         }
         if (!startDate) {
-            alert('الرجاء تحديد تاريخ بداية العطلة');
+            window.notifySafeToast('الرجاء تحديد تاريخ بداية العطلة');
             unlock();
             return;
         }
         if (endDate < startDate) {
-            alert('تاريخ نهاية العطلة لا يمكن أن يكون قبل تاريخ البداية');
+            window.notifySafeToast('تاريخ نهاية العطلة لا يمكن أن يكون قبل تاريخ البداية');
             unlock();
             return;
         }
@@ -3353,7 +4323,7 @@
         if (!dateStr || !window.db) return;
         const holiday = getOfficialHolidayForDate(dateStr);
         if (!holiday) {
-            alert('التاريخ المختار ليس مسجلاً كعطلة رسمية في التقويم السنوي.');
+            window.notifySafeToast('التاريخ المختار ليس مسجلاً كعطلة رسمية في التقويم السنوي.');
             return;
         }
 
@@ -3361,7 +4331,7 @@
         const students = (className && window.db.classes && window.db.classes[className]) ? window.db.classes[className] : [];
 
         if (students.length === 0) {
-            alert('الرجاء اختيار قسم مسجل أولاً.');
+            window.notifySafeToast('الرجاء اختيار قسم مسجل أولاً.');
             return;
         }
 
@@ -4922,7 +5892,7 @@
             if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
                 processDecreePdfFile(file);
             } else {
-                alert('يرجى سحب وإفلات ملف PDF صالح للمقرر الوزاري.');
+                window.notifySafeToast('يرجى سحب وإفلات ملف PDF صالح للمقرر الوزاري.');
             }
         }
     }
@@ -4957,6 +5927,9 @@
                 if (badgeEl) badgeEl.textContent = 'PDF جاهز للتحليل';
 
                 // محاولة استخراج النصوص عبر PDF.js في المتصفح لملء مربع النص كمعاينة
+                if (!window.pdfjsLib && typeof window.ensurePdfJsLoaded === 'function') {
+                    await window.ensurePdfJsLoaded();
+                }
                 if (window.pdfjsLib) {
                     try {
                         const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
@@ -5013,7 +5986,7 @@
         const hasPdf = !!_attachedDecreePdfBase64;
 
         if (!text && !hasPdf) {
-            alert('يرجى رفع ملف المقرر الوزاري بصيغة PDF أو لصق نصه في الصندوق المخصص لتحليله.');
+            window.notifySafeToast('يرجى رفع ملف المقرر الوزاري بصيغة PDF أو لصق نصه في الصندوق المخصص لتحليله.');
             return;
         }
 
@@ -5080,7 +6053,7 @@
             }
         } catch(err) {
             console.error('Error during decree extraction:', err);
-            alert('حدث خطأ أثناء قراءة المقرر الوزاري: ' + (err.message || err));
+            window.notifySafeToast('حدث خطأ أثناء قراءة المقرر الوزاري: ' + (err.message || err));
         } finally {
             if (btn) btn.disabled = false;
             if (btnText) btnText.innerHTML = 'بدء استخراج العطل والمحطات آلياً بواسطة Gemini AI';
@@ -5295,7 +6268,7 @@
         const approvedMilestones = (_extractedDecreeData.milestones || []).filter(m => selectedMilestoneIds.size === 0 || selectedMilestoneIds.has(m.id));
 
         if (approvedHolidays.length === 0 && approvedMilestones.length === 0) {
-            alert('يرجى تحديد عنصر واحد على الأقل للاعتماد والتطبيق.');
+            window.notifySafeToast('يرجى تحديد عنصر واحد على الأقل للاعتماد والتطبيق.');
             unlock();
             return;
         }
@@ -5332,7 +6305,7 @@
         if (typeof window.showNotification === 'function') {
             window.showNotification(`تم اعتماد ${approvedMilestones.length} محطة تربوية و${approvedHolidays.length} عطلة رسمية بالتقويم بنجاح!`, 'success');
         } else {
-            alert('تم تطبيق بيانات المقرر الوزاري بنجاح!');
+            window.notifySafeToast('تم تطبيق بيانات المقرر الوزاري بنجاح!');
         }
     }
 
@@ -6061,13 +7034,13 @@
         const reason = document.getElementById('teacherLeaveReasonInput').value.trim();
 
         if (!startDate) {
-            alert('يرجى تحديد تاريخ بداية الرخصة.');
+            window.notifySafeToast('يرجى تحديد تاريخ بداية الرخصة.');
             unlock();
             return;
         }
 
         if (endDate < startDate) {
-            alert('تاريخ النهاية لا يمكن أن يكون قبل تاريخ البداية.');
+            window.notifySafeToast('تاريخ النهاية لا يمكن أن يكون قبل تاريخ البداية.');
             unlock();
             return;
         }
@@ -6592,7 +7565,7 @@
     function exportTeacherLeavesToExcel() {
         const leaves = getTeacherLeaves();
         if (leaves.length === 0) {
-            alert('لا توجد رخص مسجلة لتصديرها.');
+            window.notifySafeToast('لا توجد رخص مسجلة لتصديرها.');
             return;
         }
 
@@ -6653,6 +7626,115 @@
     }
 
     /**
+     * المرحلة 3: دوال الفلترة والبحث وتبديل الحالة السريع وتصدير Excel للمحطات التربوية
+     */
+    function setMilestonesSemesterFilter(sem) {
+        activeMilestonesSemesterFilter = sem || 'all';
+        renderAnnualSchoolCalendar();
+    }
+    window.setMilestonesSemesterFilter = setMilestonesSemesterFilter;
+
+    function setMilestonesCategoryFilter(cat) {
+        activeMilestonesCategoryFilter = cat || 'all';
+        renderAnnualSchoolCalendar();
+    }
+    window.setMilestonesCategoryFilter = setMilestonesCategoryFilter;
+
+    function setMilestonesStatusFilter(st) {
+        activeMilestonesStatusFilter = st || 'all';
+        renderAnnualSchoolCalendar();
+    }
+    window.setMilestonesStatusFilter = setMilestonesStatusFilter;
+
+    function onMilestonesSearchInput(val) {
+        milestonesSearchQuery = (val || '').trim();
+        renderAnnualSchoolCalendar();
+    }
+    window.onMilestonesSearchInput = onMilestonesSearchInput;
+
+    function toggleAcademicMilestoneQuickStatus(id) {
+        const milestones = getAcademicMilestones();
+        const ms = milestones.find(m => m.id === id);
+        if (!ms) return;
+
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const isCurrentlyCompleted = (ms.status === 'completed' || ms.isCompleted);
+
+        if (isCurrentlyCompleted) {
+            ms.status = 'scheduled';
+            ms.isCompleted = false;
+        } else {
+            ms.status = 'completed';
+            ms.isCompleted = true;
+            ms.completedAt = todayStr;
+        }
+
+        window.db.academicMilestones = milestones;
+        if (typeof window.saveDB === 'function') window.saveDB();
+        syncAllCalendarUnits(false);
+
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(ms.isCompleted ? `تم تحديد المحطة "${ms.title}" كمنجزة ✔️` : `تمت إعادة المحطة "${ms.title}" إلى حالة مبرمجة ⏳`, 'success');
+        }
+    }
+    window.toggleAcademicMilestoneQuickStatus = toggleAcademicMilestoneQuickStatus;
+
+    function exportAcademicMilestonesToExcel() {
+        const milestones = getAcademicMilestones();
+        if (!milestones || milestones.length === 0) {
+            window.notifySafeToast('لا توجد محطات تربوية لتصديرها.');
+            return;
+        }
+        let tableHtml = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head>
+            <body>
+                <table border="1" dir="rtl">
+                    <thead>
+                        <tr style="background:#1d4ed8; color:#fff; font-weight:bold;">
+                            <th>#</th>
+                            <th>عنوان المحطة التربوية / الفرض</th>
+                            <th>الفئة</th>
+                            <th>الأسدوس</th>
+                            <th>من تاريخ</th>
+                            <th>إلى تاريخ</th>
+                            <th>المستويات والأقسام المعنية</th>
+                            <th>الحالة</th>
+                            <th>التفاصيل والوصف</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        milestones.forEach((ms, idx) => {
+            const isComp = (ms.status === 'completed' || ms.isCompleted);
+            tableHtml += `
+                <tr>
+                    <td>${idx + 1}</td>
+                    <td>${escapeHtml(ms.title || '')}</td>
+                    <td>${escapeHtml(ms.categoryLabel || ms.category || '')}</td>
+                    <td>${ms.semester === 's2' ? 'الأسدوس الثاني' : 'الأسدوس الأول'}</td>
+                    <td>${ms.startDate || ''}</td>
+                    <td>${ms.endDate || ms.startDate || ''}</td>
+                    <td>${escapeHtml(ms.targetLevels || 'جميع المستويات')}</td>
+                    <td>${isComp ? 'منجزة' : 'مبرمجة'}</td>
+                    <td>${escapeHtml(ms.description || '')}</td>
+                </tr>
+            `;
+        });
+        tableHtml += `</tbody></table></body></html>`;
+        const blob = new Blob(['\ufeff' + tableHtml], { type: 'application/vnd.ms-excel;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `جدول_المحطات_التربوية_والفروض_${selectedAcademicYearStart}-${selectedAcademicYearStart + 1}.xls`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+    window.exportAcademicMilestonesToExcel = exportAcademicMilestonesToExcel;
+
+    /**
      * رسم قسم المحطات التربوية والإدارية وفروض المراقبة المعتمدة في التقويم السنوي
      */
     function renderAcademicMilestonesSectionHtml(milestones) {
@@ -6663,6 +7745,31 @@
         const m = String(today.getMonth() + 1).padStart(2, '0');
         const d = String(today.getDate()).padStart(2, '0');
         const todayStr = `${y}-${m}-${d}`;
+
+        // تطبيق الفلاتر والبحث
+        const filteredMilestones = milestones.filter(ms => {
+            if (!ms) return false;
+            if (activeMilestonesSemesterFilter !== 'all' && ms.semester !== activeMilestonesSemesterFilter) return false;
+
+            const isCompleted = !!(ms.status === 'completed' || ms.isCompleted || (ms.endDate && ms.endDate < todayStr));
+            if (activeMilestonesStatusFilter === 'completed' && !isCompleted) return false;
+            if (activeMilestonesStatusFilter === 'upcoming' && isCompleted) return false;
+
+            if (activeMilestonesCategoryFilter !== 'all') {
+                if (activeMilestonesCategoryFilter === 'exam' && ms.category !== 'exam' && ms.category !== 'diagnostic' && !ms.isMath) return false;
+                if (activeMilestonesCategoryFilter === 'certification' && ms.category !== 'certification' && !ms.isUnifiedExam) return false;
+                if (activeMilestonesCategoryFilter === 'massar' && ms.category !== 'massar') return false;
+                if (activeMilestonesCategoryFilter === 'council' && ms.category !== 'council' && ms.category !== 'orientation') return false;
+                if (activeMilestonesCategoryFilter === 'teacher' && !ms.isTeacher && ms.category !== 'admin') return false;
+            }
+
+            if (milestonesSearchQuery) {
+                const q = milestonesSearchQuery.toLowerCase();
+                const hay = `${ms.title || ''} ${ms.description || ''} ${ms.targetLevels || ''} ${ms.categoryLabel || ''}`.toLowerCase();
+                if (!hay.includes(q)) return false;
+            }
+            return true;
+        });
 
         const categoryIcons = {
             exam: 'award',
@@ -6689,48 +7796,85 @@
         let html = `
             <div class="card" style="padding: 22px; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 16px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
                 <!-- ترويسة القسم وأزرار الإجراءات -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 12px; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 14px;">
                     <div>
                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                             <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #1d4ed8, #2563eb); color: #fff; display: flex; align-items: center; justify-content: center;">
                                 <span class="ui-icon" style="margin:0;"><span data-lucide="award" data-size="20"></span></span>
                             </div>
                             <div>
-                                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 900; color: #0f172a; font-family: 'Cairo', sans-serif;">
+                                <h3 style="margin: 0; font-size: 1.18rem; font-weight: 900; color: #0f172a; font-family: 'Cairo', sans-serif;">
                                     المحطات التربوية والإدارية المدرسية وفروض المراقبة (المقرر الوزاري)
                                 </h3>
                                 <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #64748b;">
                                     الروزنامة المعتمدة لفروض المراقبة المستمرة، تواريخ مسك النقط في مسار، الامتحانات الموحدة ومجالس الأقسام
                                 </p>
                             </div>
-                            <span style="font-size: 0.76rem; padding: 2px 10px; border-radius: 9999px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-weight: 800;">
-                                ${milestones.length} محطة معتمدة
+                            <span style="font-size: 0.75rem; padding: 2px 10px; border-radius: 9999px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; font-weight: 800;">
+                                عرض ${filteredMilestones.length} من ${milestones.length} محطة
                             </span>
                         </div>
                     </div>
 
-                    <!-- أزرار الإجراءات السريعة والمزامنة في مستوى أفقي واحد متناسق -->
-                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: nowrap;">
-                        <button type="button" class="btn-primary" onclick="window.printAcademicMilestonesSchedule()" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; border: none; height: 36px; min-height: 36px; margin: 0; padding: 0 12px; border-radius: 9px; font-weight: 800; font-size: 0.78rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; box-sizing: border-box; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25); cursor: pointer;" title="معاينة وطباعة جدول المحطات التربوية وفروض المراقبة المستمرة (A4)">
+                    <!-- أزرار الإجراءات السريعة والمزامنة -->
+                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                        <button type="button" class="btn-primary" onclick="window.exportAcademicMilestonesToExcel()" style="background: #0f766e; color: #fff; border: none; height: 34px; min-height: 34px; margin: 0; padding: 0 11px; border-radius: 8px; font-weight: 800; font-size: 0.76rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; cursor: pointer;" title="تصدير جدول المحطات التربوية إلى ملف Excel">
+                            <span class="ui-icon" style="margin:0;"><span data-lucide="file-spreadsheet" data-size="14"></span></span>
+                            <span>Excel</span>
+                        </button>
+                        <button type="button" class="btn-primary" onclick="window.printAcademicMilestonesSchedule()" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; border: none; height: 34px; min-height: 34px; margin: 0; padding: 0 11px; border-radius: 8px; font-weight: 800; font-size: 0.76rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; cursor: pointer;" title="معاينة وطباعة جدول المحطات التربوية وفروض المراقبة المستمرة (A4)">
                             <span class="ui-icon" style="margin:0;"><span data-lucide="printer" data-size="14"></span></span>
-                            <span>طباعة جدول المحطات (A4)</span>
+                            <span>طباعة (A4)</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="window.openMinisterialCalendarSyncModal()" style="background: linear-gradient(135deg, #4285F4, #34A853); color: #fff; border: none; height: 36px; min-height: 36px; margin: 0; padding: 0 12px; border-radius: 9px; font-weight: 800; font-size: 0.78rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; box-sizing: border-box; box-shadow: 0 2px 6px rgba(66, 133, 244, 0.25); cursor: pointer;" title="مزامنة وتصدير كافة المحطات والفروض إلى Google Calendar و Apple Calendar و Outlook">
+                        <button type="button" class="btn-primary" onclick="window.openMinisterialCalendarSyncModal()" style="background: linear-gradient(135deg, #4285F4, #34A853); color: #fff; border: none; height: 34px; min-height: 34px; margin: 0; padding: 0 11px; border-radius: 8px; font-weight: 800; font-size: 0.76rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; cursor: pointer;" title="مزامنة وتصدير كافة المحطات والفروض إلى Google Calendar و Apple Calendar و Outlook">
                             <span class="ui-icon" style="margin:0;"><span data-lucide="calendar-sync" data-size="14"></span></span>
-                            <span>مزامنة (Google / ICS)</span>
+                            <span>مزامنة (ICS)</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="window.openAddAcademicMilestoneModal('general')" style="background: #2563eb; color: #fff; border: none; height: 36px; min-height: 36px; margin: 0; padding: 0 12px; border-radius: 9px; font-weight: 800; font-size: 0.78rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; box-sizing: border-box; cursor: pointer;">
+                        <button type="button" class="btn-primary" onclick="window.openAddAcademicMilestoneModal('general')" style="background: #2563eb; color: #fff; border: none; height: 34px; min-height: 34px; margin: 0; padding: 0 11px; border-radius: 8px; font-weight: 800; font-size: 0.76rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; cursor: pointer;">
                             <span class="ui-icon" style="margin:0;"><span data-lucide="plus-circle" data-size="14"></span></span>
-                            <span>إضافة محطة</span>
+                            <span>+ محطة</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="window.openAddAcademicMilestoneModal('unified')" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; border: none; height: 36px; min-height: 36px; margin: 0; padding: 0 12px; border-radius: 9px; font-weight: 800; font-size: 0.78rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; box-sizing: border-box; cursor: pointer; box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);" title="إضافة امتحان موحد إشهادي أو تجريبي أو فرض موحد">
+                        <button type="button" class="btn-primary" onclick="window.openAddAcademicMilestoneModal('unified')" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; border: none; height: 34px; min-height: 34px; margin: 0; padding: 0 11px; border-radius: 8px; font-weight: 800; font-size: 0.76rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; cursor: pointer;" title="إضافة امتحان موحد إشهادي أو تجريبي أو فرض موحد">
                             <span class="ui-icon" style="margin:0;"><span data-lucide="award" data-size="14"></span></span>
-                            <span>🎯 إضافة موحد</span>
+                            <span>🎯 + موحد</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="window.openDecreeAiImportModal()" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #fff; border: none; height: 36px; min-height: 36px; margin: 0; padding: 0 12px; border-radius: 9px; font-weight: 800; font-size: 0.78rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; box-sizing: border-box; cursor: pointer;">
+                        <button type="button" class="btn-primary" onclick="window.openDecreeAiImportModal()" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); color: #fff; border: none; height: 34px; min-height: 34px; margin: 0; padding: 0 11px; border-radius: 8px; font-weight: 800; font-size: 0.76rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; cursor: pointer;">
                             <span class="ui-icon" style="margin:0;"><span data-lucide="sparkles" data-size="14"></span></span>
-                            <span>استيراد ذكي (AI)</span>
+                            <span>استيراد (AI)</span>
                         </button>
+                    </div>
+                </div>
+
+                <!-- شريط الفلاتر والبحث الذكي للمحطات التربوية -->
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; padding: 10px 14px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                        <select onchange="window.setMilestonesSemesterFilter(this.value)" style="padding: 5px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.76rem; font-weight: 800; color: #1e293b; background: #ffffff; font-family: 'Cairo', sans-serif;">
+                            <option value="all" ${activeMilestonesSemesterFilter === 'all' ? 'selected' : ''}>📅 كل الأسدوسين (S1 + S2)</option>
+                            <option value="s1" ${activeMilestonesSemesterFilter === 's1' ? 'selected' : ''}>الأسدوس الأول (S1)</option>
+                            <option value="s2" ${activeMilestonesSemesterFilter === 's2' ? 'selected' : ''}>الأسدوس الثاني (S2)</option>
+                        </select>
+
+                        ${[
+                            { id: 'all', label: 'الكل' },
+                            { id: 'exam', label: '📐 فروض الرياضيات' },
+                            { id: 'certification', label: '🎓 امتحانات إشهادية' },
+                            { id: 'massar', label: '💻 مسك مسار' },
+                            { id: 'council', label: '👥 مجالس وتوجيه' },
+                            { id: 'teacher', label: '💼 الأستاذ والامتحان المهني' }
+                        ].map(cat => `
+                            <button type="button" onclick="window.setMilestonesCategoryFilter('${cat.id}')" style="padding: 4px 10px; border-radius: 7px; font-size: 0.74rem; font-weight: 800; cursor: pointer; border: 1px solid ${activeMilestonesCategoryFilter === cat.id ? '#2563eb' : '#cbd5e1'}; background: ${activeMilestonesCategoryFilter === cat.id ? '#2563eb' : '#ffffff'}; color: ${activeMilestonesCategoryFilter === cat.id ? '#ffffff' : '#334155'};">
+                                ${cat.label}
+                            </button>
+                        `).join('')}
+                    </div>
+
+                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                        <select onchange="window.setMilestonesStatusFilter(this.value)" style="padding: 5px 8px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.75rem; font-weight: 800; color: #334155; background: #ffffff; font-family: 'Cairo', sans-serif;">
+                            <option value="all" ${activeMilestonesStatusFilter === 'all' ? 'selected' : ''}>كل الحالات</option>
+                            <option value="upcoming" ${activeMilestonesStatusFilter === 'upcoming' ? 'selected' : ''}>⏳ الجارية والقادمة</option>
+                            <option value="completed" ${activeMilestonesStatusFilter === 'completed' ? 'selected' : ''}>✔️ المنجزة فقط</option>
+                        </select>
+                        <input type="text" value="${escapeHtml(milestonesSearchQuery)}" oninput="window.onMilestonesSearchInput(this.value)" placeholder="🔍 بحث في المحطات..." style="padding: 5px 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.76rem; min-width: 170px; font-family: 'Cairo', sans-serif;">
                     </div>
                 </div>
 
@@ -6738,21 +7882,26 @@
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px;">
         `;
 
-        milestones.forEach((ms, idx) => {
+        if (filteredMilestones.length === 0) {
+            html += `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 28px; color: #64748b; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; font-weight: 700;">
+                    لا توجد محطات تربوية تطابق معايير التصفية المختارة حالياً.
+                </div>
+            `;
+        }
+
+        filteredMilestones.forEach((ms) => {
             const isUni = !!(ms.isUnifiedExam || ms.category === 'certification' || (ms.title && ms.title.includes('موحد')));
             const iconName = isUni ? 'award' : (categoryIcons[ms.category] || 'milestone');
             const borderColor = isUni ? '#7c3aed' : (categoryBorderColors[ms.category] || '#2563eb');
             const isOngoing = (ms.startDate <= todayStr && (!ms.endDate || ms.endDate >= todayStr));
-            const isFinished = (ms.endDate && ms.endDate < todayStr);
-            const isFuture = (ms.startDate > todayStr);
+            const isFinished = (ms.status === 'completed' || ms.isCompleted || (ms.endDate && ms.endDate < todayStr));
 
-            const statusBadge = (ms.status === 'completed' || isFinished)
-                ? '<span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; background: #f1f5f9; color: #64748b; font-weight: 700;">✔️ منجزة</span>'
+            const statusBadge = isFinished
+                ? `<button type="button" onclick="window.toggleAcademicMilestoneQuickStatus('${ms.id}')" style="font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; background: #dcfce7; color: #166534; border: 1px solid #86efac; font-weight: 800; cursor: pointer;" title="انقر لإعادة المحطة إلى قيد البرمجة">✔️ منجزة</button>`
                 : (ms.status === 'in_progress' || isOngoing)
-                ? '<span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; background: #dcfce7; color: #166534; font-weight: 800; border: 1px solid #86efac; display: inline-flex; align-items: center; gap: 4px;">🟢 قيد الإنجاز</span>'
-                : (ms.status === 'postponed')
-                ? '<span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; background: #fef2f2; color: #dc2626; font-weight: 700; border: 1px solid #fecaca;">⏸️ مؤجلة</span>'
-                : '<span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; background: #eff6ff; color: #1d4ed8; font-weight: 700; border: 1px solid #bfdbfe;">⏳ مبرمجة</span>';
+                ? `<button type="button" onclick="window.toggleAcademicMilestoneQuickStatus('${ms.id}')" style="font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; background: #fff7ed; color: #c2410c; font-weight: 800; border: 1px solid #fdba74; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;" title="انقر لتحديد المحطة كمنجزة">🟢 جارية الآن</button>`
+                : `<button type="button" onclick="window.toggleAcademicMilestoneQuickStatus('${ms.id}')" style="font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; background: #eff6ff; color: #1d4ed8; font-weight: 700; border: 1px solid #bfdbfe; cursor: pointer;" title="انقر لتحديد المحطة كمنجزة">⏳ مبرمجة</button>`;
 
             const daysCount = calculateDaysBetween(ms.startDate, ms.endDate);
 
@@ -6835,12 +7984,17 @@
 
                     <!-- أزرار الإجراءات السريعة ومزامنة جوجل لكل محطة -->
                     <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #f1f5f9; margin-top: 6px;">
-                        <button type="button" onclick="window.syncMilestoneToGoogleCalendar('${ms.id}')" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; font-size: 0.75rem; font-weight: 800; padding: 4px 10px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="إضافة هذه المحطة مباشرة إلى تقويم Google عبر المتصفح">
+                        <button type="button" onclick="window.syncMilestoneToGoogleCalendar('${ms.id}')" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; font-size: 0.74rem; font-weight: 800; padding: 4px 9px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="إضافة هذه المحطة مباشرة إلى تقويم Google عبر المتصفح">
                             <span class="ui-icon" style="margin:0;"><span data-lucide="calendar-plus" data-size="12"></span></span>
-                            <span>إضافة إلى Google Calendar</span>
+                            <span>Google Calendar</span>
                         </button>
 
                         <div style="display: flex; gap: 4px;">
+                            ${(ms.category === 'exam' || ms.category === 'massar') ? `
+                                <button type="button" onclick="if(window.switchTab) window.switchTab('grades');" class="btn-action" style="padding: 4px 8px; font-size: 0.72rem; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; font-weight: 800;" title="الانتقال لتبويب رصد النقط والمراقبة المستمرة">
+                                    📝 النقط
+                                </button>
+                            ` : ''}
                             <button type="button" onclick="window.navigateToMonthlyCalendarDate('${ms.startDate}')" class="btn-action" style="padding: 4px 8px; font-size: 0.72rem; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 6px; cursor: pointer; font-weight: 700;" title="عرض في التقويم الشهري">
                                 📅 الشهري
                             </button>
@@ -7041,7 +8195,7 @@
         if (typeof window.showAppToast === 'function') {
             window.showAppToast('تم تنزيل ملف التقويم الرقمي (.ics) بنجاح 📅', 'success');
         } else {
-            alert('تم تنزيل ملف التقويم الرقمي (.ics) بنجاح! يمكنك فتحه الآن ليضاف مباشرة إلى تقويمك.');
+            window.notifySafeToast('تم تنزيل ملف التقويم الرقمي (.ics) بنجاح! يمكنك فتحه الآن ليضاف مباشرة إلى تقويمك.');
         }
     }
 
@@ -7200,7 +8354,7 @@
 
         const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startStr}/${endStr}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(location)}`;
 
-        window.open(googleUrl, '_blank');
+        window.openSafeExternalUrl(googleUrl, '_blank');
     }
 
     /**
@@ -7208,14 +8362,18 @@
      */
     function copyMinisterialFeedUrl() {
         const feedUrl = `${window.location.origin}/api/calendar/ministerial-milestones.ics`;
+        if (typeof window.safeCopyTextToClipboard === 'function') {
+            window.safeCopyTextToClipboard(feedUrl, 'تم نسخ رابط تغذية التقويم (iCal Feed URL) بنجاح 📋');
+            return;
+        }
         navigator.clipboard.writeText(feedUrl).then(() => {
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('تم نسخ رابط تغذية التقويم (iCal Feed URL) بنجاح 📋', 'success');
             } else {
-                alert(`تم نسخ رابط التغذية الحية للتقويم:\n${feedUrl}\n\nيمكنك إضافته في Google Calendar تحت "من عنوان URL" أو في تقويم Apple للاشتراك التلقائي.`);
+                window.notifySafeToast(`تم نسخ رابط التغذية الحية للتقويم:\n${feedUrl}`);
             }
         }).catch(() => {
-            prompt('انسخ رابط التغذية الحية للتقويم:', feedUrl);
+            window.notifySafeToast(`رابط التغذية الحية للتقويم: ${feedUrl}`);
         });
     }
 
@@ -7241,6 +8399,10 @@
     window.isAbsenceDisabledOnDate = isAbsenceDisabledOnDate;
     window.getAbsenceDisableDetails = getAbsenceDisableDetails;
     window.getOfficialHolidaysStats = getOfficialHolidaysStats;
+    window.calculateTrueAcademicYearMetrics = calculateTrueAcademicYearMetrics;
+    window.getActiveOrUpcomingHoliday = getActiveOrUpcomingHoliday;
+    window.getActiveOrUpcomingMilestone = getActiveOrUpcomingMilestone;
+    window.getHolidayResumptionDateStr = getHolidayResumptionDateStr;
     window.renderAnnualSchoolCalendar = renderAnnualSchoolCalendar;
     window.renderMonthsGridHtml = renderMonthsGridHtml;
     window.renderHolidaysTableHtml = renderHolidaysTableHtml;
@@ -7286,7 +8448,7 @@
     window.toggleAllDecreeItems = toggleAllDecreeItems;
 
     function openGoogleCalendarImportPage() {
-        window.open('https://calendar.google.com/calendar/u/0/r/settings/export', '_blank');
+        window.openSafeExternalUrl('https://calendar.google.com/calendar/u/0/r/settings/export', '_blank');
     }
 
     // دوال تصدير ومزامنة التقويم الوزاري مع Google Calendar و ICS
@@ -7345,10 +8507,14 @@
             syncTeacherLeavesWithCalendarEvents();
             syncMilestonesWithCalendarEvents();
             syncOfficialHolidaysWithCalendarEvents();
+            syncHomeworkAgendaWithCalendarEvents();
             updateTeacherLeavesBadgeCount();
             autoMigrateHolidayAbsences({ silent: true });
             if (typeof window.renderCalendar === 'function') {
                 window.renderCalendar();
+            }
+            if (typeof window.renderSchoolYearProgress === 'function') {
+                window.renderSchoolYearProgress();
             }
         } catch (initErr) {
             console.warn('Calendar initial sync warning:', initErr);

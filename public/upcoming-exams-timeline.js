@@ -4,7 +4,7 @@
  * وحدة جدولة مواعيد الفروض القادمة والجدول الزمني المصغر المطور (تبويب التقارير)
  * Advanced Upcoming Exams Scheduling & Interactive Mini-Timeline Engine
  * - برمجة مفردة أو جماعية متعددة الأقسام مع التصفية التراتبية بالمستوى
- * - شرائح دروس المقرر الرسمي للرياضيات حسب المستوى الدراسي (TCS / 1BAC / 2BAC / الإعدادي)
+ * - شرائح دروس المقرر الرسمي للرياضيات بالتعليم الثانوي التأهيلي (TCS / TCL / 1BAC / 2BAC)
  * - كاشف فوري للتعارض مع العطل الرسمية والرخص الإدارية وتزاحم الفروض في نفس اليوم
  * - مؤشر جاهزية وتنفيذ الفرض من 5 مراحل (0% -> 100%): الرقن، سلم التنقيط، الطبع، الإجراء، التصحيح ومسك مسار
  * - شريط خط زمني مصغر أفقي تفاعلي (Horizontal Mini-Timeline Strip) + بطاقات زمنية عمودية مفصلة
@@ -1830,7 +1830,7 @@
 
         const encoded = encodeURIComponent(msgLines);
         const waUrl = `https://wa.me/?text=${encoded}`;
-        window.open(waUrl, '_blank', 'noopener,noreferrer');
+        window.openSafeExternalUrl(waUrl, '_blank', 'noopener,noreferrer');
 
         if (typeof window.showToast === 'function') {
             window.showToast('📲 تم نسخ نص الإشعار الرسمي وفتح واتساب للمشاركة', 'success');

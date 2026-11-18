@@ -48,7 +48,6 @@ import {
   Target,
   Compass
 } from 'lucide-react';
-import html2canvas from 'html2canvas';
 
 // Types for student and grades structure
 interface Student {
@@ -1535,6 +1534,7 @@ export default function ReportsEvolutionChart() {
     if (!containerRef.current) return;
     setIsExporting(true);
     try {
+      const { default: html2canvas } = await import('html2canvas');
       const canvas = await html2canvas(containerRef.current, {
         scale: 2,
         useCORS: true,

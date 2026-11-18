@@ -185,7 +185,7 @@
     window.openSessionAbsenceSlipModal = function () {
         const data = getSessionAbsenceData();
         if (!data) {
-            alert('يرجى اختيار القسم وتحديد التاريخ والحصة أولاً لعرض ورقة الغياب.');
+            window.notifySafeToast('يرجى اختيار القسم وتحديد التاريخ والحصة أولاً لعرض ورقة الغياب.');
             return;
         }
 
@@ -536,7 +536,7 @@ _تقرير تلقائي من تطبيق الأستاذ للغياب والتن�
         navigator.clipboard.writeText(report).then(() => {
             showToastMessage('تم نسخ تقرير الحراسة العامة إلى الحافظة بنجاح ✓ يمكنك لصقه في واتساب فوراً');
         }).catch(() => {
-            alert('تعذر النسخ التلقائي، يمكنك نسخ النص يدوياً.');
+            window.notifySafeToast('تعذر النسخ التلقائي، يمكنك نسخ النص يدوياً.');
         });
     };
 
@@ -567,7 +567,7 @@ _تقرير تلقائي من تطبيق الأستاذ للغياب والتن�
 ❌ الغائبون (${data.absentCount}):
 ${absentText}`);
 
-        window.open('https://api.whatsapp.com/send?text=' + text, '_blank');
+        window.openSafeExternalUrl('https://api.whatsapp.com/send?text=' + text, '_blank');
     };
 
     // تنظيف تلقائي للقسم التجريبي إن وُجد سابقاً
@@ -731,12 +731,16 @@ ${sessionInfo.topic ? `• موضوع الحصة المنجز: ${sessionInfo.top
         const std = window.db.tutoring.students.find(s => s.id === studentId);
         if (!std) return;
 
-        const newPhone = prompt(`أدخل رقم هاتف ولي أمر التلميذ(ة) "${std.name}":`, std.phone || '');
-        if (newPhone !== null) {
-            std.phone = newPhone.trim();
-            if (typeof window.saveDB === 'function') window.saveDB();
-            if (typeof window.renderTutoringStudents === 'function') window.renderTutoringStudents();
-            showToastMessage('تم حفظ رقم الهاتف بنجاح.');
+        const savePhone = (newPhone) => {
+            if (newPhone !== null && newPhone !== undefined) {
+                std.phone = String(newPhone).trim();
+                if (typeof window.saveDB === 'function') window.saveDB();
+                if (typeof window.renderTutoringStudents === 'function') window.renderTutoringStudents();
+                showToastMessage('تم حفظ رقم الهاتف بنجاح.');
+            }
+        };
+        if (typeof window.showInputDialog === 'function') {
+            window.showInputDialog(`أدخل رقم هاتف ولي أمر التلميذ(ة) "${std.name}":`, std.phone || '', savePhone, { title: 'رقم هاتف ولي الأمر' });
         }
     };
 

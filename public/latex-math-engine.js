@@ -124,6 +124,7 @@
             { inputId: 'lessonLogHomework', previewId: 'lessonLogHomeworkMathPreview', title: 'معاينة الصيغ الرياضية في الواجب المنزلي:' }
         ];
 
+        let needsKatexLoad = false;
         fields.forEach(({ inputId, previewId, title }) => {
             const inputEl = document.getElementById(inputId);
             const previewEl = document.getElementById(previewId);
@@ -136,6 +137,9 @@
                 previewEl.innerHTML = '';
                 return;
             }
+            if (typeof window.katex === 'undefined' || typeof window.renderMathInElement !== 'function') {
+                needsKatexLoad = true;
+            }
 
             previewEl.style.display = 'block';
             previewEl.innerHTML = `
@@ -146,6 +150,16 @@
                 <div style="font-size:0.86rem;line-height:1.75;color:#0f172a;white-space:pre-wrap;background:#ffffff;padding:8px 10px;border-radius:8px;border:1px solid #e0e7ff;">${window.renderMathInText(val)}</div>
             `;
         });
+
+        if (needsKatexLoad && typeof window.ensureKatexLoaded === 'function' && !window._lessonLogKatexLoading) {
+            window._lessonLogKatexLoading = true;
+            window.ensureKatexLoaded().then((kx) => {
+                window._lessonLogKatexLoading = false;
+                if (kx && typeof window.updateLessonLogLiveMathPreview === 'function') {
+                    window.updateLessonLogLiveMathPreview();
+                }
+            });
+        }
     };
 
     // ------------------------------------------------------------------------
@@ -1020,6 +1034,14 @@
             rawArea.value = '\\forall x \\in ]0,+\\infty[, \\quad f\'(x) = \\dfrac{1 - \\ln(x)}{x^2}';
         }
         window.updateLiveLatexPreview();
+        if (typeof window.katex === 'undefined' && typeof window.ensureKatexLoaded === 'function') {
+            window.ensureKatexLoaded().then((kx) => {
+                if (kx) {
+                    if (typeof window.updateLiveLatexPreview === 'function') window.updateLiveLatexPreview();
+                    if (typeof window.renderMathInContainer === 'function') window.renderMathInContainer(modal);
+                }
+            });
+        }
     };
 
     window.closeLatexMathModal = function () {

@@ -1183,7 +1183,7 @@
         const text = ta.value;
         copyHeatmapPreventiveText();
         const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-        window.open(url, '_blank');
+        window.openSafeExternalUrl(url, '_blank');
     }
 
     /**
@@ -1293,7 +1293,7 @@
         const waUrl = cleanPhone
             ? `https://wa.me/${cleanPhone.replace(/^\+/, '')}?text=${encodeURIComponent(msg)}`
             : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-        window.open(waUrl, '_blank');
+        window.openSafeExternalUrl(waUrl, '_blank');
     }
 
     function copyAbsentStudentsWithResourceSummary(dateStr, className) {

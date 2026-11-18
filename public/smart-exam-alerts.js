@@ -1319,7 +1319,7 @@
 
         const exams = getRegisteredExams();
         if (exams.length === 0) {
-            alert('لا توجد فروض أو محطات امتحانات مسجلة في التقويم السنوي حالياً.');
+            window.notifySafeToast('لا توجد فروض أو محطات امتحانات مسجلة في التقويم السنوي حالياً.');
             return;
         }
 
@@ -1575,7 +1575,7 @@
             if (typeof window.showNotification === 'function') {
                 window.showNotification('التلميذ مسجل بالفعل في لائحة الدعم والاستدراك', 'info');
             } else {
-                alert('التلميذ مسجل بالفعل في لائحة الدعم والاستدراك');
+                window.notifySafeToast('التلميذ مسجل بالفعل في لائحة الدعم والاستدراك');
             }
             return;
         }
@@ -1599,7 +1599,7 @@
         if (typeof window.showNotification === 'function') {
             window.showNotification(`تم إدراج التلميذ "${name}" في لائحة الدعم والاستدراك بنجاح`, 'success');
         } else {
-            alert(`تم إدراج التلميذ "${name}" في لائحة الدعم والاستدراك بنجاح`);
+            window.notifySafeToast(`تم إدراج التلميذ "${name}" في لائحة الدعم والاستدراك بنجاح`);
         }
     }
     window.addStudentToTutoringDirect = addStudentToTutoringDirect;
@@ -1607,19 +1607,22 @@
     /**
      * تصدير لائحة التلاميذ المقترحين إلى ملف Excel
      */
-    function exportExamAlertStudentsToExcel(examId) {
+    async function exportExamAlertStudentsToExcel(examId) {
         const exams = getRegisteredExams();
         const exam = exams.find(e => e.id === examId) || exams[0];
         if (!exam) return;
 
         const students = getHighAbsenceStudentsForExam(exam);
         if (students.length === 0) {
-            alert('لا يوجد تلاميذ لتصديرهم في هذا الفرض.');
+            window.notifySafeToast('لا يوجد تلاميذ لتصديرهم في هذا الفرض.');
             return;
         }
 
+        if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+            await window.ensureXlsxLoaded();
+        }
         if (typeof XLSX === 'undefined') {
-            alert('مكتبة معالجة Excel غير متوفرة حالياً.');
+            window.notifySafeToast('مكتبة معالجة Excel غير متوفرة حالياً.');
             return;
         }
 

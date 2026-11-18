@@ -1007,7 +1007,7 @@
         const desc = descInput?.value?.trim() || '';
 
         if (!label) {
-            alert('يرجى كتابة اسم الفئة الجديدة.');
+            window.notifySafeToast('يرجى كتابة اسم الفئة الجديدة.');
             return;
         }
 
@@ -1323,6 +1323,167 @@
         renderPromptLiveVariablesSidebar();
     }
 
+    let _promptSyntaxHighlightEnabled = true;
+
+    /**
+     * تحليل صيغ المتغيرات {{...}} لاكتشاف المتغيرات الصالحة والأقواس غير المغلقة
+     */
+    function analyzePromptSyntaxDiagnostics(rawText) {
+        const text = String(rawText || '');
+        const knownKeys = new Set(COMMON_PROMPT_VARIABLES.map(v => v.key));
+        const validMatches = text.match(/\{\{\s*[a-zA-Z0-9_\u0600-\u06FF]+\s*\}\}/g) || [];
+        const uniqueVars = [];
+        let customCount = 0;
+        validMatches.forEach(m => {
+            const inner = m.slice(2, -2).trim();
+            if (inner && !uniqueVars.includes(inner)) {
+                uniqueVars.push(inner);
+                if (!knownKeys.has(inner)) customCount++;
+            }
+        });
+        // اكتشاف الأقواس غير المكتملة (بعد إزالة التوكنات السليمة)
+        const stripped = text.replace(/\{\{\s*[a-zA-Z0-9_\u0600-\u06FF]+\s*\}\}/g, '');
+        const brokenBraces = (stripped.match(/\{\{|\}\}/g) || []).length;
+        return {
+            totalTokens: validMatches.length,
+            uniqueCount: uniqueVars.length,
+            knownCount: uniqueVars.length - customCount,
+            customCount,
+            brokenBraces
+        };
+    }
+
+    /**
+     * بناء HTML مطابق لطبقة الخلفية (Backdrop) لإبراز الصيغ البرمجية لمتغيرات {{...}} داخل محرر النصوص
+     * يحافظ على نفس مقاييس المحارف 1:1 دون تغيير وزن الخط أو الهوامش لتفادي انزياح مؤشر الكتابة
+     */
+    function buildPromptEditorSyntaxHighlightHTML(rawText, spotlightKey = null) {
+        const text = String(rawText || '');
+        if (!text) return ' ';
+        const knownKeys = new Set(COMMON_PROMPT_VARIABLES.map(v => v.key));
+        // تقسيم النص إلى توكنات متغيرات {{...}} أو أقواس غير مكتملة أو أسطر عناوين أو نص عادي
+        const tokenRegex = /(\{\{\s*[a-zA-Z0-9_\u0600-\u06FF]+\s*\}\}|\{\{[^}\n]*|\}\})/g;
+        let result = '';
+        let lastIndex = 0;
+        let match;
+
+        while ((match = tokenRegex.exec(text)) !== null) {
+            if (match.index > lastIndex) {
+                result += escapeHtml(text.slice(lastIndex, match.index));
+            }
+            const token = match[0];
+            if (/^\{\{\s*[a-zA-Z0-9_\u0600-\u06FF]+\s*\}\}$/.test(token)) {
+                const openIdx = token.indexOf('{{');
+                const closeIdx = token.lastIndexOf('}}');
+                const innerRaw = token.slice(openIdx + 2, closeIdx);
+                const key = innerRaw.trim();
+                const isKnown = knownKeys.has(key);
+                const isSpot = Boolean(spotlightKey && spotlightKey === key);
+                const cls = `prompt-syn-token ${isKnown ? 'prompt-syn-known' : 'prompt-syn-custom'}${isSpot ? ' prompt-syn-spotlight' : ''}`;
+                result += `<span class="${cls}"><span class="prompt-syn-delim">{{</span>${escapeHtml(innerRaw)}<span class="prompt-syn-delim">}}</span></span>`;
+            } else {
+                // قوس غير مغلق أو متغير فارغ / خاطئ
+                result += `<span class="prompt-syn-error">${escapeHtml(token)}</span>`;
+            }
+            lastIndex = tokenRegex.lastIndex;
+        }
+        if (lastIndex < text.length) {
+            result += escapeHtml(text.slice(lastIndex));
+        }
+        // إضافة محرف مسافة أخير إذا انتهى النص بسطر جديد حتى لا يختلف ارتفاع الخلفية عن textarea
+        if (text.endsWith('\n')) {
+            result += ' ';
+        }
+        return result;
+    }
+
+    function syncSyntaxOverlay(textareaId, backdropId, codeId, statusBadgeId, spotlightKey = null) {
+        const textarea = document.getElementById(textareaId);
+        const backdrop = document.getElementById(backdropId);
+        const codeEl = document.getElementById(codeId);
+        if (codeEl && textarea) {
+            codeEl.innerHTML = buildPromptEditorSyntaxHighlightHTML(textarea.value, spotlightKey);
+        }
+        if (backdrop && textarea) {
+            backdrop.scrollTop = textarea.scrollTop;
+            backdrop.scrollLeft = textarea.scrollLeft;
+        }
+        if (statusBadgeId && textarea) {
+            const badge = document.getElementById(statusBadgeId);
+            if (badge) {
+                const diag = analyzePromptSyntaxDiagnostics(textarea.value);
+                if (diag.brokenBraces > 0) {
+                    badge.textContent = `⚠️ ${diag.brokenBraces} أقواس {{ غير مغلقة`;
+                    badge.style.background = '#fef2f2';
+                    badge.style.color = '#b91c1c';
+                    badge.style.borderColor = '#fecaca';
+                } else if (diag.uniqueCount > 0) {
+                    badge.textContent = `✓ ${diag.uniqueCount} متغيرات (${diag.totalTokens} موضع)`;
+                    badge.style.background = '#ecfdf5';
+                    badge.style.color = '#047857';
+                    badge.style.borderColor = '#a7f3d0';
+                } else {
+                    badge.textContent = '✓ صيغة سليمة';
+                    badge.style.background = '#f8fafc';
+                    badge.style.color = '#475569';
+                    badge.style.borderColor = '#cbd5e1';
+                }
+            }
+        }
+    }
+
+    function syncEditPromptSyntaxScroll() {
+        const textarea = document.getElementById('editPromptText');
+        const backdrop = document.getElementById('editPromptSyntaxBackdrop');
+        if (textarea && backdrop) {
+            backdrop.scrollTop = textarea.scrollTop;
+            backdrop.scrollLeft = textarea.scrollLeft;
+        }
+    }
+
+    function syncInlinePromptSyntaxScroll() {
+        const textarea = document.getElementById('promptInlineTemplateTextarea');
+        const backdrop = document.getElementById('promptInlineSyntaxBackdrop');
+        if (textarea && backdrop) {
+            backdrop.scrollTop = textarea.scrollTop;
+            backdrop.scrollLeft = textarea.scrollLeft;
+        }
+    }
+
+    function toggleEditPromptSyntaxHighlight() {
+        _promptSyntaxHighlightEnabled = !_promptSyntaxHighlightEnabled;
+        applySyntaxToggleState();
+    }
+
+    function toggleInlinePromptSyntaxHighlight() {
+        _promptSyntaxHighlightEnabled = !_promptSyntaxHighlightEnabled;
+        applySyntaxToggleState();
+    }
+
+    function applySyntaxToggleState() {
+        const wraps = [
+            document.getElementById('editPromptSyntaxWrap'),
+            document.getElementById('promptInlineSyntaxWrap')
+        ];
+        wraps.forEach(w => {
+            if (!w) return;
+            w.classList.toggle('syntax-disabled', !_promptSyntaxHighlightEnabled);
+        });
+        const btns = [
+            document.getElementById('btnToggleEditSyntaxHighlight'),
+            document.getElementById('btnToggleInlineSyntaxHighlight')
+        ];
+        btns.forEach(b => {
+            if (!b) return;
+            b.textContent = _promptSyntaxHighlightEnabled ? '🎨 إبراز {{...}} مفعل' : '📝 وضع النص العادي';
+            b.style.background = _promptSyntaxHighlightEnabled ? '#eff6ff' : '#f1f5f9';
+            b.style.color = _promptSyntaxHighlightEnabled ? '#1d4ed8' : '#475569';
+            b.style.borderColor = _promptSyntaxHighlightEnabled ? '#bfdbfe' : '#cbd5e1';
+        });
+        syncSyntaxOverlay('editPromptText', 'editPromptSyntaxBackdrop', 'editPromptSyntaxCode', 'editPromptSyntaxStatusBadge', null);
+        syncSyntaxOverlay('promptInlineTemplateTextarea', 'promptInlineSyntaxBackdrop', 'promptInlineSyntaxCode', 'promptInlineSyntaxStatusBadge', _spotlightVariableKey);
+    }
+
     /**
      * بناء معاينة HTML مسلطة الضوء على المتغيرات (مثل {{studentName}}، {{className}}، {{semester}})
      * لتسهيل فهم موقع ودور كل متغير داخل القالب قبل استخدامه
@@ -1493,14 +1654,18 @@
 
                 <!-- محرر القالب المباشر أثناء الكتابة + المعاينة المسلطة الضوء على المتغيرات -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; flex: 1; min-height: 210px;">
-                    <!-- كتابة وتعديل نص القالب مع رصد حي للمتغيرات في الشريط الجانبي -->
+                    <!-- كتابة وتعديل نص القالب مع إبراز حي للصيغ البرمجية للمتغيرات {{...}} -->
                     <div style="display: flex; flex-direction: column;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; gap: 6px; flex-wrap: wrap;">
                             <span style="font-weight: 800; font-size: 0.79rem; color: #1e293b; display: flex; align-items: center; gap: 5px;">
                                 <span data-lucide="edit-3" data-size="13" style="color: #2563eb;"></span>
-                                <span>كتابة / تخصيص نص القالب (اكتب {{اسم_المتغير}} للمعاينة الحية):</span>
+                                <span>كتابة / تخصيص نص القالب (إبراز {{...}} تلقائياً):</span>
                             </span>
-                            <div style="display: flex; align-items: center; gap: 4px;">
+                            <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                                <span id="promptInlineSyntaxStatusBadge" style="font-size: 0.67rem; font-weight: 800; padding: 2px 6px; border-radius: 5px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;">✓ صيغة سليمة</span>
+                                <button type="button" id="btnToggleInlineSyntaxHighlight" onclick="window.toggleInlinePromptSyntaxHighlight()" style="background: ${_promptSyntaxHighlightEnabled ? '#eff6ff' : '#f1f5f9'}; color: ${_promptSyntaxHighlightEnabled ? '#1d4ed8' : '#475569'}; border: 1px solid ${_promptSyntaxHighlightEnabled ? '#bfdbfe' : '#cbd5e1'}; border-radius: 5px; padding: 2px 6px; font-size: 0.66rem; font-weight: 800; cursor: pointer;">
+                                    ${_promptSyntaxHighlightEnabled ? '🎨 إبراز {{...}} مفعل' : '📝 وضع النص العادي'}
+                                </button>
                                 <button type="button" id="btnSaveInlineTemplateDraft" onclick="window.saveInlineTemplatePromptChanges()" style="display: ${isDraftModified ? 'inline-flex' : 'none'}; align-items: center; gap: 4px; background: #2563eb; color: #fff; border: none; border-radius: 5px; padding: 2px 8px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
                                     💾 حفظ تعديل القالب
                                 </button>
@@ -1509,10 +1674,14 @@
                                 </button>
                             </div>
                         </div>
-                        <textarea id="promptInlineTemplateTextarea"
-                            oninput="window.onInlineTemplatePromptInput(this.value)"
-                            placeholder="اكتب نص القالب هنا واستخدم {{studentName}} أو {{className}} أو {{semester}}..."
-                            style="width: 100%; flex: 1; min-height: 155px; padding: 10px 12px; border-radius: 8px; border: 1.5px solid #94a3b8; background: #ffffff; color: #0f172a; font-family: 'Cairo', system-ui, sans-serif; font-size: 0.82rem; line-height: 1.6; resize: vertical; box-sizing: border-box;">${escapeHtml(activePromptText)}</textarea>
+                        <div id="promptInlineSyntaxWrap" class="prompt-syntax-editor-wrap is-inline${_promptSyntaxHighlightEnabled ? '' : ' syntax-disabled'}" style="border-radius: 8px;">
+                            <pre id="promptInlineSyntaxBackdrop" class="prompt-syntax-backdrop" aria-hidden="true"><code id="promptInlineSyntaxCode">${buildPromptEditorSyntaxHighlightHTML(activePromptText, _spotlightVariableKey)}</code></pre>
+                            <textarea id="promptInlineTemplateTextarea"
+                                class="prompt-syntax-textarea"
+                                onscroll="window.syncInlinePromptSyntaxScroll()"
+                                oninput="window.onInlineTemplatePromptInput(this.value)"
+                                placeholder="اكتب نص القالب هنا واستخدم {{studentName}} أو {{className}} أو {{semester}}...">${escapeHtml(activePromptText)}</textarea>
+                        </div>
                     </div>
 
                     <!-- صندوق المعاينة الحية مع تسليط الضوء البصري على المتغيرات (Highlighted Live Preview) -->
@@ -1589,6 +1758,7 @@
         `;
 
         if (window.renderLucide) window.renderLucide(detailsContainer);
+        syncSyntaxOverlay('promptInlineTemplateTextarea', 'promptInlineSyntaxBackdrop', 'promptInlineSyntaxCode', 'promptInlineSyntaxStatusBadge', _spotlightVariableKey);
     }
 
     /**
@@ -1748,6 +1918,7 @@
         if (highlightedEl) {
             highlightedEl.innerHTML = buildHighlightedPromptPreviewHTML(activeText, _spotlightVariableKey);
         }
+        syncSyntaxOverlay('promptInlineTemplateTextarea', 'promptInlineSyntaxBackdrop', 'promptInlineSyntaxCode', 'promptInlineSyntaxStatusBadge', _spotlightVariableKey);
     }
 
     /**
@@ -1806,7 +1977,8 @@
             counterEl.innerHTML = `<span>${rendered.length} حرف</span><span aria-hidden="true">·</span><span>~${Math.round(rendered.length / 4)} رمز</span>`;
         }
 
-        // تحديث الشريط الجانبي للمتغيرات في الوقت الحقيقي أثناء كتابة القالب
+        // تحديث إبراز الصيغ البرمجية داخل المحرر المباشر + الشريط الجانبي للمتغيرات
+        syncSyntaxOverlay('promptInlineTemplateTextarea', 'promptInlineSyntaxBackdrop', 'promptInlineSyntaxCode', 'promptInlineSyntaxStatusBadge', _spotlightVariableKey);
         renderPromptLiveVariablesSidebar(newText);
     }
 
@@ -2312,7 +2484,7 @@
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('تم بنجاح نسخ الأمر النهائي وهو جاهز للصق في ChatGPT أو AI Studio 📋✨', 'success');
             } else {
-                alert('تم نسخ الأمر النهائي بنجاح!');
+                window.notifySafeToast('تم نسخ الأمر النهائي بنجاح!');
             }
         }).catch(() => {
             outputEl.select();
@@ -2541,7 +2713,7 @@
         const existingTags = tagsInput ? tagsInput.value.split(/[,،]/).map(t => t.trim()).filter(Boolean) : [];
 
         if (!title && !content) {
-            alert('يرجى كتابة عنوان القالب أو نص الأمر أولاً ليتمكن النظام من تحليله وتصنيفه تلقائياً.');
+            window.notifySafeToast('يرجى كتابة عنوان القالب أو نص الأمر أولاً ليتمكن النظام من تحليله وتصنيفه تلقائياً.');
             return;
         }
 
@@ -2567,7 +2739,7 @@
         if (typeof window.showAppToast === 'function') {
             window.showAppToast(`تم التصنيف التلقائي للقالب بنجاح كـ: "${classification.categoryLabel}" 🪄✨`, 'success');
         } else {
-            alert(`تم تصنيف القالب تلقائياً كـ: "${classification.categoryLabel}"`);
+            window.notifySafeToast(`تم تصنيف القالب تلقائياً كـ: "${classification.categoryLabel}"`);
         }
     }
 
@@ -2596,7 +2768,7 @@
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast(`تم بنجاح تصنيف وترتيب (${updatedCount}) قوالب وفق محتواها وكلماتها المفتاحية 🪄🚀`, 'success');
             } else {
-                alert(`تم تصنيف وترتيب (${updatedCount}) قوالب بنجاح!`);
+                window.notifySafeToast(`تم تصنيف وترتيب (${updatedCount}) قوالب بنجاح!`);
             }
         } else {
             if (typeof window.showAppToast === 'function') {
@@ -2749,6 +2921,9 @@
             _lastEditorDetectedVarsSignature = signature;
             renderEditorLivePreviewVariableInputs(detectedVars);
         }
+
+        // تحديث طبقة إبراز الصيغ البرمجية {{...}} في نافذة التحرير المتقدم
+        syncSyntaxOverlay('editPromptText', 'editPromptSyntaxBackdrop', 'editPromptSyntaxCode', 'editPromptSyntaxStatusBadge', null);
 
         // تحديث المعاينة النهائية للأمر بعد استبدال المتغيرات
         updateEditPromptLivePreviewOutput(promptText, systemText, detectedVars);
@@ -2950,31 +3125,40 @@
      * إضافة فئة مخصصة فورية من داخل نموذج التعديل
      */
     function promptNewCategoryForEditor() {
-        const catName = prompt('أدخل اسم الفئة المخصصة الجديدة (مثال: أولمبياد الرياضيات أو امتحانات إشهادية):');
-        if (!catName || !catName.trim()) return;
-        const trimmed = catName.trim();
-        const customCats = getCustomPromptCategories();
-        const id = 'cat_custom_' + Date.now();
-        customCats.push({
-            id,
-            label: trimmed,
-            icon: 'award',
-            desc: 'فئة مخصصة للأستاذ',
-            isCustom: true
-        });
-        saveCustomPromptCategories(customCats);
+        const applyCategory = (catName) => {
+            if (!catName || !catName.trim()) return;
+            const trimmed = catName.trim();
+            const customCats = getCustomPromptCategories();
+            const id = 'cat_custom_' + Date.now();
+            customCats.push({
+                id,
+                label: trimmed,
+                icon: 'award',
+                desc: 'فئة مخصصة للأستاذ',
+                isCustom: true
+            });
+            saveCustomPromptCategories(customCats);
 
-        const catSelect = document.getElementById('editPromptCategory');
-        if (catSelect) {
-            const opt = document.createElement('option');
-            opt.value = id;
-            opt.textContent = `⭐ [مخصصة] ${trimmed}`;
-            catSelect.appendChild(opt);
-            catSelect.value = id;
-        }
-        renderCategoryFilterButtons();
-        if (typeof window.showAppToast === 'function') {
-            window.showAppToast(`تمت إضافة واختيار فئة "${trimmed}" بنجاح ✨`, 'success');
+            const catSelect = document.getElementById('editPromptCategory');
+            if (catSelect) {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = `⭐ [مخصصة] ${trimmed}`;
+                catSelect.appendChild(opt);
+                catSelect.value = id;
+            }
+            renderCategoryFilterButtons();
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(`تمت إضافة واختيار فئة "${trimmed}" بنجاح ✨`, 'success');
+            }
+        };
+        if (typeof window.showInputDialog === 'function') {
+            window.showInputDialog(
+                'أدخل اسم الفئة المخصصة الجديدة (مثال: أولمبياد الرياضيات أو امتحانات إشهادية):',
+                '',
+                applyCategory,
+                { title: 'إضافة فئة قوالب جديدة' }
+            );
         }
     }
     window.promptNewCategoryForEditor = promptNewCategoryForEditor;
@@ -3039,12 +3223,12 @@
         const tagsRaw = document.getElementById('editPromptTags')?.value || '';
 
         if (!title) {
-            alert('يرجى كتابة عنوان القالب.');
+            window.notifySafeToast('يرجى كتابة عنوان القالب.');
             return;
         }
 
         if (!promptText) {
-            alert('يرجى كتابة نص الأمر (Prompt Template).');
+            window.notifySafeToast('يرجى كتابة نص الأمر (Prompt Template).');
             return;
         }
 
@@ -3119,7 +3303,7 @@
         if (!tpl) return;
 
         if (tpl.isBuiltIn) {
-            alert('لا يمكن حذف القوالب القياسية المدمجة.');
+            window.notifySafeToast('لا يمكن حذف القوالب القياسية المدمجة.');
             return;
         }
 
@@ -3217,10 +3401,10 @@
                 if (typeof window.showAppToast === 'function') {
                     window.showAppToast(`تم بنجاح استيراد وإضافة (${addedCount}) قوالب جديدة إلى مكتبتك 🚀`, 'success');
                 } else {
-                    alert(`تم بنجاح استيراد (${addedCount}) قوالب جديدة!`);
+                    window.notifySafeToast(`تم بنجاح استيراد (${addedCount}) قوالب جديدة!`);
                 }
             } catch (err) {
-                alert('فشل في قراءة ملف القوالب: ' + (err.message || 'تنسيق الملف غير صالح'));
+                window.notifySafeToast('فشل في قراءة ملف القوالب: ' + (err.message || 'تنسيق الملف غير صالح'));
             }
         };
         reader.readAsText(file);
@@ -3340,7 +3524,7 @@
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('متصفحك لا يدعم التعرف الصوتي المباشر. يرجى استخدام متصفح يدعم Web Speech API أو البحث الكتابي.', 'warning');
             } else {
-                alert('متصفحك لا يدعم التعرف الصوتي المباشر.');
+                window.notifySafeToast('متصفحك لا يدعم التعرف الصوتي المباشر.');
             }
             return;
         }
@@ -3705,5 +3889,13 @@
     window.insertVariableIntoInlineTemplate = insertVariableIntoInlineTemplate;
     window.saveInlineTemplatePromptChanges = saveInlineTemplatePromptChanges;
     window.resetInlineTemplatePromptDraft = resetInlineTemplatePromptDraft;
+
+    // دوال إبراز الصيغ البرمجية (Syntax Highlighting) في محرري القوالب
+    window.buildPromptEditorSyntaxHighlightHTML = buildPromptEditorSyntaxHighlightHTML;
+    window.analyzePromptSyntaxDiagnostics = analyzePromptSyntaxDiagnostics;
+    window.syncEditPromptSyntaxScroll = syncEditPromptSyntaxScroll;
+    window.syncInlinePromptSyntaxScroll = syncInlinePromptSyntaxScroll;
+    window.toggleEditPromptSyntaxHighlight = toggleEditPromptSyntaxHighlight;
+    window.toggleInlinePromptSyntaxHighlight = toggleInlinePromptSyntaxHighlight;
 
 })(window);

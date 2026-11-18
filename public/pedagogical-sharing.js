@@ -249,7 +249,7 @@
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('تعذر توليد رابط المشاركة: ' + error.message, 'error');
             } else {
-                alert('تعذر توليد رابط المشاركة: ' + error.message);
+                window.notifySafeToast('تعذر توليد رابط المشاركة: ' + error.message);
             }
         } finally {
             isGeneratingShare = false;
@@ -382,8 +382,19 @@
             msg += `\n\n— منظومة التدبير التربوي`;
         }
 
+        function openExternalShareLink(url) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
         const encodedMsg = encodeURIComponent(msg);
-        window.open(`https://api.whatsapp.com/send?text=${encodedMsg}`, '_blank');
+        openExternalShareLink(`https://api.whatsapp.com/send?text=${encodedMsg}`);
     };
 
     /**
@@ -391,7 +402,14 @@
      */
     window.previewSharedAsColleague = function () {
         if (!currentShareResult || !currentShareResult.shareUrl) return;
-        window.open(currentShareResult.shareUrl, '_blank');
+        const a = document.createElement('a');
+        a.href = currentShareResult.shareUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
     };
 
     /**
@@ -493,7 +511,7 @@
                     <!-- 2. Result QR & Link Card (Hidden initially, shown after generation) -->
                     <div id="shareModalQrResultContainer" style="display: none; background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border: 2px solid #cbd5e1; border-radius: 14px; padding: 18px; box-shadow: 0 4px 14px rgba(0,0,0,0.05);">
 
-                        <div style="display: flex; flex-direction: column; md:flex-row; gap: 18px; align-items: center; justify-content: center;">
+                        <div style="display: flex; flex-direction: column; gap: 18px; align-items: center; justify-content: center;">
 
                             <!-- QR Code Display Box -->
                             <div style="background: #ffffff; padding: 12px; border-radius: 12px; border: 1.5px solid #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display: flex; flex-direction: column; align-items: center; justify-content: center;">
@@ -704,21 +722,25 @@
                             </div>
                             <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px; text-align: center;">
                                 <div style="font-size: 0.72rem; color: #b45309; font-weight: 700;">الرتبة في القسم</div>
-                                <div style="font-size: 1.3rem; font-weight: 900; color: #92400e;">${metrics.rankInClass ? `${metrics.rankInClass} من ${metrics.classSize || '--'}` : '--'}</div>
+                                <div style="font-size: 1.3rem; font-weight: 900; color: #92400e;">${metrics.rankInClass ? `${escapeHtml(metrics.rankInClass)} من ${escapeHtml(metrics.classSize || '--')}` : '--'}</div>
                             </div>
                         </div>
 
-                        ${risk.riskScore ? `
-                            <div style="background: ${risk.riskColor === '#dc2626' ? '#fee2e2' : '#ecfdf5'}; border: 1.5px solid ${risk.riskColor}; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        ${risk.riskScore ? (() => {
+                            const safeRiskColor = /^#[0-9a-fA-F]{3,8}$/.test(String(risk.riskColor || '')) ? String(risk.riskColor) : '#15803d';
+                            const safeRiskBg = safeRiskColor.toLowerCase() === '#dc2626' ? '#fee2e2' : '#ecfdf5';
+                            return `
+                            <div style="background: ${safeRiskBg}; border: 1.5px solid ${safeRiskColor}; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <span style="font-size: 1.1rem;">📊</span>
                                     <div>
-                                        <div style="font-weight: 800; font-size: 0.86rem; color: ${risk.riskColor};">مؤشر احتمالية التعثر: ${risk.riskScore}% (${escapeHtml(risk.riskLabel || '')})</div>
+                                        <div style="font-weight: 800; font-size: 0.86rem; color: ${safeRiskColor};">مؤشر احتمالية التعثر: ${Number(risk.riskScore) || 0}% (${escapeHtml(risk.riskLabel || '')})</div>
                                         <div style="font-size: 0.74rem; color: #334155;">${escapeHtml(risk.diagnosticSummary || 'متابعة دورية منتظمة')}</div>
                                     </div>
                                 </div>
                             </div>
-                        ` : ''}
+                        `;
+                        })() : ''}
                     </div>
                 `;
             }
@@ -732,10 +754,10 @@
                             <span>سجل الغياب والتأخرات والمواظبة:</span>
                         </div>
                         <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
-                            <span style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;">إجمالي ساعات الغياب: <b style="color: #0f172a;">${absences.totalHours || 0} س</b></span>
-                            <span style="background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;">غياب غير مبرر: <b>${absences.unjustifiedHours || 0} س</b></span>
-                            <span style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;">غياب مبرر: <b>${absences.justifiedHours || 0} س</b></span>
-                            <span style="background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;">التأخرات: <b>${absences.lateCount || 0} مرة</b></span>
+                            <span style="background: #f1f5f9; border: 1px solid #cbd5e1; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;">إجمالي ساعات الغياب: <b style="color: #0f172a;">${Number(absences.totalHours) || 0} س</b></span>
+                            <span style="background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;">غياب غير مبرر: <b>${Number(absences.unjustifiedHours) || 0} س</b></span>
+                            <span style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;">غياب مبرر: <b>${Number(absences.justifiedHours) || 0} س</b></span>
+                            <span style="background: #fff7ed; border: 1px solid #fed7aa; color: #c2410c; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 0.82rem;">التأخرات: <b>${Number(absences.lateCount) || 0} مرة</b></span>
                         </div>
                     </div>
                 `;
@@ -810,6 +832,39 @@
                         <div>وثيقة رسمية مشفرة ومصادق عليها إلكترونياً ✔️</div>
                     </div>
 
+                </div>
+            `;
+
+        } else if ((d && d.kind === 'whiteboard_snapshot') || payload.type === 'whiteboard') {
+            const safeImg = (d && typeof d.imageDataUrl === 'string' && d.imageDataUrl.startsWith('data:image/')) ? d.imageDataUrl : '';
+            const safeClass = escapeHtml((d && d.className) || '');
+            const safePageTitle = escapeHtml((d && d.pageTitle) || payload.title || 'لقطة السبورة التفاعلية');
+            const safeDate = escapeHtml((d && d.createdAt) || new Date().toLocaleDateString('ar-MA'));
+            const safeTeacher = escapeHtml(payload.teacherName || 'الأستاذ(ة)');
+            const safeSchool = escapeHtml(payload.schoolName || '');
+
+            container.innerHTML = `
+                <div style="max-width: 920px; margin: 0 auto; background: #ffffff; border-radius: 16px; border: 1.5px solid #cbd5e1; padding: 22px; box-shadow: 0 12px 32px rgba(15,23,42,0.08); direction: rtl;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 14px; margin-bottom: 16px;">
+                        <div>
+                            <div style="font-size: 0.76rem; font-weight: 800; color: #0284c7;">📐 وثيقة السبورة التفاعلية المشتركة</div>
+                            <h2 style="margin: 3px 0 2px; color: #1e3a8a; font-size: 1.18rem; font-weight: 900;">${safePageTitle}</h2>
+                            <div style="font-size: 0.8rem; color: #475569; font-weight: 700;">
+                                ${safeSchool ? `🏫 ${safeSchool} &nbsp;|&nbsp; ` : ''}👤 الأستاذ(ة): ${safeTeacher}${safeClass ? ` &nbsp;|&nbsp; 📚 القسم: ${safeClass}` : ''} &nbsp;|&nbsp; 📅 ${safeDate}
+                            </div>
+                        </div>
+                        ${safeImg ? `
+                            <a href="${safeImg}" download="whiteboard_${safeDate.replace(/[^0-9a-zA-Z_-]/g, '') || 'snapshot'}.png" style="background: linear-gradient(135deg, #059669, #047857); color: #fff; text-decoration: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.84rem; display: inline-flex; align-items: center; gap: 6px;">
+                                ⬇️ تحميل اللوحة (PNG)
+                            </a>
+                        ` : ''}
+                    </div>
+                    <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 10px; text-align: center;">
+                        ${safeImg
+                            ? `<img src="${safeImg}" alt="لقطة السبورة التفاعلية" style="max-width: 100%; height: auto; border-radius: 8px; display: block; margin: 0 auto; box-shadow: 0 4px 14px rgba(0,0,0,0.08);">`
+                            : `<div style="padding: 40px; color: #64748b; font-weight: 700;">تعذر تحميل صورة السبورة المرفقة.</div>`
+                        }
+                    </div>
                 </div>
             `;
 

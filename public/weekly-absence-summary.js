@@ -1159,10 +1159,13 @@
     /**
      * تنزيل كملف PDF
      */
-    function downloadWeeklyAbsenceSummaryPdf() {
+    async function downloadWeeklyAbsenceSummaryPdf() {
         const container = document.getElementById('weeklyAbsenceSummaryPreviewContainer');
         if (!container) return;
 
+        if (typeof window.html2pdf !== 'function' && typeof window.ensureHtml2PdfLoaded === 'function') {
+            await window.ensureHtml2PdfLoaded();
+        }
         if (typeof window.html2pdf === 'function') {
             const data = getWeeklyAbsenceSummaryData();
             const opt = {
@@ -1231,7 +1234,7 @@
         const text = generateWeeklyAdminMemoText(data);
         const encoded = encodeURIComponent(text);
         const url = `https://api.whatsapp.com/send?text=${encoded}`;
-        window.open(url, '_blank');
+        window.openSafeExternalUrl(url, '_blank');
     }
     window.sendWeeklySummaryWhatsAppToAdmin = sendWeeklySummaryWhatsAppToAdmin;
 
@@ -1245,7 +1248,7 @@
 
         // محاولة الفتح المباشر عبر واجهة Gmail على الويب
         const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
-        const win = window.open(gmailUrl, '_blank');
+        const win = window.openSafeExternalUrl(gmailUrl, '_blank');
         if (!win || win.closed || typeof win.closed === 'undefined') {
             window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
         }
@@ -1282,7 +1285,7 @@
             document.execCommand('copy');
             showToast('✅ تم نسخ نص التقرير الأسبوعي بنجاح!');
         } catch (e) {
-            alert('يرجى نسخ النص يدوياً');
+            window.notifySafeToast('يرجى نسخ النص يدوياً');
         }
         document.body.removeChild(ta);
     }
@@ -1312,7 +1315,7 @@
         const phone = (student.phone || '').replace(/[^0-9]/g, '');
         const encoded = encodeURIComponent(msg);
         const url = phone ? `https://api.whatsapp.com/send?phone=${phone}&text=${encoded}` : `https://api.whatsapp.com/send?text=${encoded}`;
-        window.open(url, '_blank');
+        window.openSafeExternalUrl(url, '_blank');
     }
     window.notifyParentWeeklyAbsence = notifyParentWeeklyAbsence;
 
@@ -1841,7 +1844,7 @@
         renderWeeklyTrackingMatrixWidget();
     }
 
-    function exportWeeklyTrackingMatrixExcel() {
+    async function exportWeeklyTrackingMatrixExcel() {
         const data = getWeeklyTrackingMatrixData();
         const rowsToExport = data.rows;
         if (rowsToExport.length === 0) {
@@ -1891,6 +1894,9 @@
 
         const filename = `جدول_التتبع_الأسبوعي_للغياب_${data.startDate}_إلى_${data.endDate}`;
 
+        if (!window.XLSX && typeof window.ensureXlsxLoaded === 'function') {
+            await window.ensureXlsxLoaded();
+        }
         if (window.XLSX && window.XLSX.utils) {
             const ws = window.XLSX.utils.aoa_to_sheet(aoa);
             const wb = window.XLSX.utils.book_new();

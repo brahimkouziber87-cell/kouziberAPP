@@ -1,54 +1,75 @@
 // Service Worker for "الأستاذ الرقمي | منظومة التدبير التربوي"
-const CACHE_NAME = 'prof-digital-v3.7';
+const CACHE_NAME = 'prof-digital-v4.4.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css?v=3.7',
-  '/app.js?v=3.7',
+  '/modals-templates.js?v=4.4',
+  '/core/grades-calculator.js?v=4.4',
+  '/core/massar-io.js?v=4.4',
+  '/core/absence-manager.js?v=4.4',
+  '/core/lesson-log-engine.js?v=4.4',
+  '/core/print-preview-engine.js?v=4.4',
+  '/core/timetable-engine.js?v=4.4',
+  '/core/behavior-homework-engine.js?v=4.4',
+  '/core/archive-dedup-engine.js?v=4.4',
+  '/core/inspection-dossier-engine.js?v=4.4',
+  '/style.css?v=3.9',
+  '/app.js?v=4.4',
   '/manifest.json',
   '/logo.svg',
   '/logo.png',
+  '/institution-logo.svg',
+  '/promptcraft-ai-logo.svg',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
   '/pwa-maskable-512x512.png',
   '/apple-touch-icon.png',
   '/favicon.png',
   '/favicon.ico',
-  '/lucide-icons.js?v=3.7',
-  '/secondary-math-curriculum.js?v=3.7',
-  '/latex-math-engine.js?v=3.7',
-  '/attendance-slip.js?v=3.7',
-  '/resources.js?v=3.7',
-  '/tutoring-advanced.js?v=3.7',
-  '/timetable-sync.js?v=3.7',
-  '/annual-calendar.js?v=3.7',
-  '/pedagogical-roadmap.js?v=3.7',
-  '/google-calendar-sync.js?v=3.7',
-  '/math-remediation-ai.js?v=3.7',
-  '/ai-prompt-templates.js?v=3.7',
-  '/smart-exam-alerts.js?v=3.7',
-  '/student-portfolio.js?v=3.7',
-  '/admin-followup-alerts.js?v=3.7',
-  '/weekday-absence-plan.js?v=3.7',
-  '/weekly-absence-summary.js?v=3.7',
-  '/onboarding-guide.js?v=3.7',
-  '/absence-heatmap.js?v=3.7',
-  '/absence-periodic-analytics.js?v=3.7',
-  '/diagnostic-evaluation.js?v=3.7',
-  '/interactive-teaching.js?v=3.7',
-  '/distance-teaching.js?v=3.7',
-  '/pedagogical-sharing.js?v=3.7',
-  '/voice-search.js?v=3.7',
-  '/upcoming-exams-timeline.js?v=3.7',
-  '/exam-report.js?v=3.7',
-  '/academic-evolution-card.js?v=3.7',
-  '/grades-absence-impact-chart.js?v=3.7',
-  '/teacher-profile.js?v=3.7',
-  '/desktop-app.js?v=3.7',
-  '/chunked-pdf-engine.js?v=3.7',
-  '/pedagogical-council-pv.js?v=3.7',
-  '/value-added-analytics.js?v=3.7',
-  '/ministerial-decrees-library.js?v=3.7',
+  '/lazy-cdn-loader.js?v=3.9',
+  '/lucide-icons.js?v=3.9',
+  '/quick-grade-scanner.js?v=3.9',
+  '/secondary-math-curriculum.js?v=3.9',
+  '/latex-math-engine.js?v=3.9',
+  '/attendance-slip.js?v=3.9',
+  '/resources.js?v=3.9.10',
+  '/tutoring-advanced.js?v=3.9',
+  '/timetable-sync.js?v=3.9',
+  '/annual-calendar.js?v=3.9',
+  '/pedagogical-roadmap.js?v=3.9',
+  '/google-calendar-sync.js?v=3.9',
+  '/math-remediation-ai.js?v=3.9',
+  '/ai-prompt-templates.js?v=3.9',
+  '/smart-exam-alerts.js?v=3.9',
+  '/vendor-qrcode.js?v=3.9.5',
+  '/student-portfolio.js?v=3.9.7',
+  '/admin-followup-alerts.js?v=3.9',
+  '/weekday-absence-plan.js?v=3.9',
+  '/weekly-absence-summary.js?v=3.9',
+  '/onboarding-guide.js?v=3.9',
+  '/absence-heatmap.js?v=3.9',
+  '/absence-periodic-analytics.js?v=3.9',
+  '/collective-absence-evolution.js?v=3.9',
+  '/diagnostic-evaluation.js?v=3.9',
+  '/interactive-teaching.js?v=3.9',
+  '/whiteboard/wb-security-math.js?v=4.2',
+  '/whiteboard/wb-vector-engine.js?v=4.1',
+  '/whiteboard/wb-collab-sync.js?v=4.1',
+  '/whiteboard/wb-bridges.js?v=4.1',
+  '/distance-teaching.js?v=4.2',
+  '/pedagogical-sharing.js?v=3.9',
+  '/voice-search.js?v=3.9',
+  '/upcoming-exams-timeline.js?v=3.9',
+  '/exam-report.js?v=3.9',
+  '/academic-evolution-card.js?v=3.9',
+  '/grades-absence-impact-chart.js?v=3.9',
+  '/teacher-profile.js?v=3.9',
+  '/desktop-app.js?v=3.9',
+  '/chunked-pdf-engine.js?v=3.9.6',
+  '/pedagogical-council-pv.js?v=3.9',
+  '/value-added-analytics.js?v=3.9',
+  '/ministerial-decrees-library.js?v=3.9',
+  '/admin-comprehensive-pdf.js?v=3.9',
   '/firebase-setup.js'
 ];
 
@@ -89,12 +110,63 @@ self.addEventListener('message', (event) => {
   }
 });
 
+// Background Sync & Periodic Sync listeners: notify active clients to push hourly/pending Firestore backups when online
+function notifyClientsToRunFirestoreSync(messageType) {
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+    clients.forEach((client) => {
+      try {
+        client.postMessage({ type: messageType });
+      } catch (e) {}
+    });
+  });
+}
+
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'firestore-periodic-sync' || event.tag === 'firestore-hourly-backup') {
+    event.waitUntil(
+      notifyClientsToRunFirestoreSync(
+        event.tag === 'firestore-hourly-backup'
+          ? 'TRIGGER_FIRESTORE_HOURLY_BACKUP'
+          : 'TRIGGER_FIRESTORE_BACKGROUND_SYNC'
+      )
+    );
+  }
+});
+
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'firestore-hourly-backup') {
+    event.waitUntil(notifyClientsToRunFirestoreSync('TRIGGER_FIRESTORE_HOURLY_BACKUP'));
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  // Skip API proxy, Vite internal, and WebSocket requests
-  if (url.pathname.startsWith('/api/') || url.pathname.includes('@vite') || url.pathname.includes('node_modules')) {
+  // Skip cross-origin requests (Google OAuth/Firebase/CDNs), API proxy, Vite internal, and node_modules
+  if (
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname.includes('@vite') ||
+    url.pathname.includes('node_modules')
+  ) {
+    return;
+  }
+
+  // Cache-First fast-path for immutable static icons & vector assets
+  if (/\.(png|svg|ico|webp|woff2?)$/i.test(url.pathname)) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((res) => {
+          if (res && (res.status === 200 || res.type === 'opaque')) {
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return res;
+        });
+      })
+    );
     return;
   }
 
@@ -116,9 +188,9 @@ self.addEventListener('fetch', (event) => {
             return cachedResponse;
           }
           if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
+            return caches.match('/index.html').then((idx) => idx || new Response('Offline', { status: 503, statusText: 'Offline' }));
           }
-          return cachedResponse;
+          return new Response('Offline', { status: 503, statusText: 'Offline' });
         });
       })
   );

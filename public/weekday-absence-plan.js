@@ -11,6 +11,7 @@
     let _selectedWeekdayIdx = null;
     let _isPreventativePlanOpen = false;
     let _preventativePlanTargetDay = null; // dayIdx (0-6) or null for peak day
+    let _weekdayChartInstance = null;
 
     const WEEKDAY_NAMES_AR = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
     const SCHOOL_DAYS_ORDER = [1, 2, 3, 4, 5, 6, 0]; // الإثنين إلى الأحد
@@ -122,7 +123,9 @@
             if (!bucket.studentsMap[stdKey]) {
                 let stdName = stdId;
                 if (window.db && window.db.classes && window.db.classes[cls]) {
-                    const found = window.db.classes[cls].find(s => String(s.id) === String(stdId));
+                    const rawList = window.db.classes[cls];
+                    const clsList = Array.isArray(rawList) ? rawList : (rawList && Array.isArray(rawList.students) ? rawList.students : []);
+                    const found = clsList.find(s => String(s.id) === String(stdId));
                     if (found && found.name) stdName = found.name;
                 }
 
@@ -418,6 +421,9 @@
             grid.innerHTML = cardsHtml;
         }
 
+        // 5.5 رسم المبيان التفاعلي لأيام الذروة ومقارنة الأيام (Chart.js)
+        renderWeekdayInteractiveChart(stats);
+
         // 6. رسم تفاصيل اليوم المحدد (إذا تم اختياره)
         renderSelectedDayDetailContainer(stats);
 
@@ -432,6 +438,114 @@
         }
 
         if (window.renderLucide) window.renderLucide();
+    }
+
+    function renderWeekdayInteractiveChart(stats) {
+        const canvas = document.getElementById('dashWeekdayInteractiveChartCanvas');
+        if (!canvas || typeof window.Chart === 'undefined') return;
+
+        const daysToShow = stats.days.filter(d => d.dayIdx !== 0 || d.totalHours > 0);
+        const labels = daysToShow.map(d => d.dayName);
+        const unjustifiedData = daysToShow.map(d => d.unjustifiedHours);
+        const justifiedData = daysToShow.map(d => d.justifiedHours);
+        const pctData = daysToShow.map(d => d.percentOfTotal);
+
+        const bgColors = daysToShow.map(d => {
+            if (d.isPeak) return 'rgba(239, 68, 68, 0.88)';
+            if (d.rank === 2 && d.totalHours > 0) return 'rgba(249, 115, 22, 0.85)';
+            return 'rgba(71, 85, 105, 0.8)';
+        });
+
+        if (_weekdayChartInstance) {
+            try { _weekdayChartInstance.destroy(); } catch (e) {}
+            _weekdayChartInstance = null;
+        }
+
+        const ctx = canvas.getContext('2d');
+        _weekdayChartInstance = new window.Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'ساعات غياب غير مبرر',
+                        data: unjustifiedData,
+                        backgroundColor: bgColors,
+                        borderRadius: 6,
+                        stack: 'hours',
+                        yAxisID: 'yHours',
+                        barPercentage: 0.55
+                    },
+                    {
+                        label: 'ساعات غياب مبرر',
+                        data: justifiedData,
+                        backgroundColor: 'rgba(16, 185, 129, 0.78)',
+                        borderRadius: 6,
+                        stack: 'hours',
+                        yAxisID: 'yHours',
+                        barPercentage: 0.55
+                    },
+                    {
+                        type: 'line',
+                        label: 'نسبة التركز الأسبوعي (%)',
+                        data: pctData,
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.12)',
+                        borderWidth: 2.5,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#4f46e5',
+                        tension: 0.3,
+                        yAxisID: 'yPct'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                onClick: function (evt, elements) {
+                    if (elements && elements.length > 0) {
+                        const idx = elements[0].index;
+                        const dayObj = daysToShow[idx];
+                        if (dayObj) {
+                            selectWeekdayForDetails(dayObj.dayIdx);
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { font: { family: 'Cairo, sans-serif', size: 11, weight: 'bold' } }
+                    },
+                    tooltip: {
+                        rtl: true,
+                        bodyFont: { family: 'Cairo, sans-serif', size: 12 },
+                        titleFont: { family: 'Cairo, sans-serif', size: 12, weight: 'bold' }
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        ticks: { font: { family: 'Cairo, sans-serif', size: 11, weight: 'bold' } },
+                        grid: { display: false }
+                    },
+                    yHours: {
+                        type: 'linear',
+                        position: 'right',
+                        stacked: true,
+                        beginAtZero: true,
+                        title: { display: true, text: 'ساعات الغياب', font: { family: 'Cairo, sans-serif', size: 11, weight: 'bold' } }
+                    },
+                    yPct: {
+                        type: 'linear',
+                        position: 'left',
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { drawOnChartArea: false },
+                        ticks: { callback: function (val) { return val + '%'; } }
+                    }
+                }
+            }
+        });
     }
 
     /**
@@ -840,7 +954,7 @@
             navigator.clipboard.writeText(text).catch(() => {});
         }
 
-        window.open(url, '_blank');
+        window.openSafeExternalUrl(url, '_blank');
         if (typeof showNotification === 'function') {
             showNotification(`تم فتح واتساب ونسخ نص التنبيه الخاص بالتلميذ ${studentName}`, 'success');
         }
@@ -939,7 +1053,7 @@
         const text = ta.value;
         copyWeekdayWhatsAppBroadcastText();
         const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-        window.open(url, '_blank');
+        window.openSafeExternalUrl(url, '_blank');
         closeWeekdayWhatsAppBroadcastModal();
     }
 
@@ -1277,10 +1391,13 @@
     /**
      * طباعة الوثيقة الرسمية أو تصديرها كملف PDF
      */
-    function printPreventativePlanOfficialDoc() {
+    async function printPreventativePlanOfficialDoc() {
         const container = document.getElementById('preventativePlanPrintableArea');
         if (!container) return;
 
+        if (typeof window.html2pdf === 'undefined' && typeof window.ensureHtml2PdfLoaded === 'function') {
+            await window.ensureHtml2PdfLoaded();
+        }
         if (typeof window.html2pdf !== 'undefined') {
             const opt = {
                 margin: [8, 8, 8, 8],

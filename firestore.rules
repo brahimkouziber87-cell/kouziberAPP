@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // ---------------------------------------------------------------------------
-// Cloud backup rules.
+// Cloud backup & differential slice rules.
 //
 // Threat model: the Firebase web API key is public (it ships with the app), so
 // the rules are the only access boundary. Every read/write therefore requires a
@@ -37,7 +37,7 @@ service cloud.firestore {
 
     // The caller owns the document that lives at their own Firebase Auth uid.
     function isUidOwner(userId) {
-      return isSignedIn() && userId is string && request.auth.uid == userId;
+      return hasVerifiedEmail() && isValidId(userId) && request.auth.uid == userId;
     }
 
     // The caller owns an existing gmail_* slot: its stored email must equal the
@@ -66,11 +66,11 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(userId)).data;
     }
 
-    // Chunk writes are only allowed under a parent slot the caller owns.
+    // Subcollection writes are only allowed under a parent slot the caller owns.
     function canAccessChunks(userId) {
-      return isSignedIn() && (
+      return hasVerifiedEmail() && (
         isUidOwner(userId)
-        || (hasVerifiedEmail() && isGmailSlot(userId)
+        || (isGmailSlot(userId)
             && parentSlotData(userId).userEmail == request.auth.token.email)
       );
     }
@@ -89,7 +89,8 @@ service cloud.firestore {
           'compressedSize',
           'lastUpdated',
           'lastSavedTimestamp',
-          'userEmail'
+          'userEmail',
+          'syncMode'
         ])
         && data.keys().hasAll(['userEmail'])
         && data.userEmail is string && data.userEmail.size() > 0 && data.userEmail.size() <= 256
@@ -100,7 +101,8 @@ service cloud.firestore {
         && (!('totalRawSize' in data) || (data.totalRawSize is number && data.totalRawSize >= 0))
         && (!('compressedSize' in data) || (data.compressedSize is number && data.compressedSize >= 0))
         && (!('lastUpdated' in data) || (data.lastUpdated is string && data.lastUpdated.size() <= 64))
-        && (!('lastSavedTimestamp' in data) || (data.lastSavedTimestamp is number && data.lastSavedTimestamp >= 0));
+        && (!('lastSavedTimestamp' in data) || (data.lastSavedTimestamp is number && data.lastSavedTimestamp >= 0))
+        && (!('syncMode' in data) || (data.syncMode is string && data.syncMode.size() <= 32));
     }
 
     function isValidBackupChunk(data) {
@@ -112,8 +114,41 @@ service cloud.firestore {
         && data.lastUpdated is string && data.lastUpdated.size() <= 64;
     }
 
+    function isValidDifferentialSlice(data, sliceId) {
+      return data.keys().hasAll([
+          'sliceId',
+          'hash',
+          'payload',
+          'isCompressed',
+          'lastUpdated',
+          'lastSavedTimestamp',
+          'userEmail'
+        ])
+        && data.keys().hasOnly([
+          'sliceId',
+          'hash',
+          'payload',
+          'isCompressed',
+          'rawSize',
+          'compressedSize',
+          'lastUpdated',
+          'lastSavedTimestamp',
+          'userEmail'
+        ])
+        && isValidId(data.sliceId) && data.sliceId.size() <= 64 && data.sliceId == sliceId
+        && data.hash is string && data.hash.size() >= 1 && data.hash.size() <= 64
+        && data.payload is string && data.payload.size() <= 900000
+        && data.isCompressed is bool
+        && (!('rawSize' in data) || (data.rawSize is number && data.rawSize >= 0))
+        && (!('compressedSize' in data) || (data.compressedSize is number && data.compressedSize >= 0))
+        && data.lastUpdated is string && data.lastUpdated.size() <= 64
+        && data.lastSavedTimestamp is number && data.lastSavedTimestamp >= 0
+        && data.userEmail is string && data.userEmail.size() > 0 && data.userEmail.size() <= 256
+        && data.userEmail == request.auth.token.email;
+    }
+
     match /users/{userId} {
-      allow get, list: if canReadSlot(userId);
+      allow get: if canReadSlot(userId);
 
       allow create: if (isUidOwner(userId) || claimsGmailSlot(userId))
         && claimsOwnEmail()
@@ -126,9 +161,17 @@ service cloud.firestore {
       allow delete: if canReadSlot(userId);
 
       match /chunks/{chunkId} {
-        allow get, list: if canAccessChunks(userId) && isValidId(chunkId);
+        allow get: if canAccessChunks(userId) && isValidId(chunkId);
         allow create, update: if canAccessChunks(userId) && isValidId(chunkId) && isValidBackupChunk(incoming());
         allow delete: if canAccessChunks(userId) && isValidId(chunkId);
+      }
+
+      match /slices/{sliceId} {
+        allow get: if canAccessChunks(userId) && isValidId(sliceId);
+        allow create, update: if canAccessChunks(userId)
+          && isValidId(sliceId)
+          && isValidDifferentialSlice(incoming(), sliceId);
+        allow delete: if canAccessChunks(userId) && isValidId(sliceId);
       }
     }
   }

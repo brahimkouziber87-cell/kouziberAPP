@@ -212,13 +212,20 @@
             return null;
         }
 
-        const student = window.db.classes[className].find(s => s.id === studentId);
+        const rawCls = window.db.classes[className];
+        const clsList = Array.isArray(rawCls)
+            ? rawCls
+            : (rawCls && Array.isArray(rawCls.students) ? rawCls.students : []);
+        const student = clsList.find(s => String(s.id) === String(studentId));
         if (!student) return null;
 
         // 1. سجلات الحضور والغياب للتلميذ (باستخدام الفهرس السريع واستبعاد العطل الرسمية المحمية)
-        const rawRecords = (typeof window.getStudentClassRecordsFast === 'function')
+        let rawRecords = (typeof window.getStudentClassRecordsFast === 'function')
             ? window.getStudentClassRecordsFast(studentId, className)
-            : (Array.isArray(window.db.records) ? window.db.records.filter(r => r.studentId === studentId && r.className === className) : []);
+            : [];
+        if ((!Array.isArray(rawRecords) || rawRecords.length === 0) && Array.isArray(window.db.records)) {
+            rawRecords = window.db.records.filter(r => r && String(r.studentId) === String(studentId) && r.className === className);
+        }
         const isProtFn = (typeof window.isRecordProtectedHolidayOrLeave === 'function')
             ? window.isRecordProtectedHolidayOrLeave
             : null;
@@ -428,6 +435,9 @@
             homeworkRate,
             absencesTimeline,
             examsData,
+            examsCount,
+            s1Grades,
+            s2Grades,
             s1Avg,
             s2Avg,
             annualAvg: annualData.annualAvg,
@@ -450,7 +460,7 @@
 
         const data = buildStudentPortfolioData(className, studentId);
         if (!data) {
-            alert('تعذر تحميل بيانات التلميذ المحدد.');
+            window.notifySafeToast('تعذر تحميل بيانات التلميذ المحدد.');
             return;
         }
 
@@ -699,9 +709,106 @@
     }
 
     /**
-     * توليد مصفوفة SVG محلية عالية الدقة لترميز بيانات التلميذ (Deterministic Offline QR Matrix SVG)
+     * بناء نص عربي منظم ومباشر لمعلومات التلميذ داخل رمز QR ليظهر فوراً عند المسح عبر Google Lens
+     * يتضمن: الاسم، القسم، رقم مسار، نقط الفروض المحروسة، المعدل، وعدد ساعات الغياب وتفصيلها
+     */
+    function buildReadableStudentQrPayload(opts) {
+        const std = (opts && opts.std) || {};
+        const className = (opts && opts.className) || '';
+        const d = (opts && opts.d) || {};
+        const displayAvg = (opts && opts.displayAvg !== undefined) ? opts.displayAvg : d.annualAvg;
+        const studentName = String(
+            std.name || std.fullName || std.studentName ||
+            [std.firstName, std.lastName].filter(Boolean).join(' ') || 'تلميذ'
+        ).trim();
+        const massarCode = String(std.massar || std.id || '-').trim();
+
+        // استخراج نقط الفروض المحروسة للتلميذ (الدورة 1 والدورة 2)
+        const examsCount = d.examsCount || (typeof window.getExamsCountForClass === 'function' ? window.getExamsCountForClass(className) : 3);
+        const examKeys = examsCount === 2 ? ['f1', 'f2'] : (examsCount === 4 ? ['f1', 'f2', 'f3', 'f4'] : ['f1', 'f2', 'f3']);
+        const stdId = std.id !== undefined ? std.id : d.studentId;
+        const s1Grades = d.s1Grades || ((typeof window.getStudentGradesBySemester === 'function' && className && stdId !== undefined)
+            ? window.getStudentGradesBySemester(className, stdId, 's1')
+            : {});
+        const s2Grades = d.s2Grades || ((typeof window.getStudentGradesBySemester === 'function' && className && stdId !== undefined)
+            ? window.getStudentGradesBySemester(className, stdId, 's2')
+            : {});
+
+        const fmtMark = (val) => {
+            if (val === undefined || val === null || val === '') return '-';
+            const num = parseFloat(val);
+            return !isNaN(num) ? String(Number(num.toFixed(2))) : '-';
+        };
+        const hasMarksInObj = (gObj) => gObj && examKeys.some(k => fmtMark(gObj[k]) !== '-');
+        const formatMarksRow = (gObj) => examKeys.map((k, idx) => `ف${idx + 1}: ${fmtMark(gObj ? gObj[k] : undefined)}`).join(' | ');
+
+        const hasS1 = hasMarksInObj(s1Grades);
+        const hasS2 = hasMarksInObj(s2Grades);
+        const gradesLines = [];
+        if (hasS1 && hasS2) {
+            gradesLines.push(`نقط الفروض (د1): ${formatMarksRow(s1Grades)}`);
+            gradesLines.push(`نقط الفروض (د2): ${formatMarksRow(s2Grades)}`);
+        } else if (hasS2) {
+            gradesLines.push(`نقط الفروض (د2): ${formatMarksRow(s2Grades)}`);
+        } else if (hasS1) {
+            gradesLines.push(`نقط الفروض (د1): ${formatMarksRow(s1Grades)}`);
+        } else {
+            const activeSem = (typeof window.getActiveSemester === 'function' ? window.getActiveSemester() : window.activeSemester) || 's1';
+            const targetGrades = activeSem === 's2' ? s2Grades : s1Grades;
+            gradesLines.push(`نقط الفروض: ${formatMarksRow(targetGrades)}`);
+        }
+
+        const avgLabel = (displayAvg !== null && displayAvg !== undefined && !isNaN(displayAvg))
+            ? `${Number(displayAvg).toFixed(2)}/20`
+            : 'قيد الرصد';
+
+        // حساب وتنسيق عدد ساعات الغياب
+        const totalAbsent = d.totalAbsentHours !== undefined ? Number(d.totalAbsentHours) : 0;
+        const unjustHours = d.unjustifiedHours !== undefined ? Number(d.unjustifiedHours) : 0;
+        const justHours = d.justifiedHours !== undefined ? Number(d.justifiedHours) : 0;
+        const absenceHoursLine = totalAbsent > 0
+            ? `عدد ساعات الغياب: ${totalAbsent} س (غير مبرر: ${unjustHours}س | مبرر: ${justHours}س)`
+            : `عدد ساعات الغياب: 0 ساعة`;
+
+        const behaviorStatus = (d.behaviorRecord && d.behaviorRecord.status) ? d.behaviorRecord.status : 'منضبط';
+        const attRate = d.attendanceRate !== undefined ? d.attendanceRate : 100;
+
+        return [
+            `الاسم: ${studentName}`,
+            `القسم: ${className} | مسار: ${massarCode}`,
+            ...gradesLines,
+            `المعدل: ${avgLabel}`,
+            absenceHoursLine,
+            `المواظبة: ${attRate}% | السلوك: ${behaviorStatus}`
+        ].join('\n');
+    }
+
+    /**
+     * توليد رمز استجابة سريعة قياسي (ISO/IEC 18004 QR SVG) قابل للمسح مباشرة عبر Google Lens وكاميرا الهاتف
      */
     function generateDeterministicQrSvg(payloadText, sizePx = 150) {
+        if (window.QRCode && typeof window.QRCode.toString === 'function') {
+            try {
+                let realSvg = '';
+                window.QRCode.toString(String(payloadText || 'STUDENT-PORTFOLIO'), {
+                    type: 'svg',
+                    width: sizePx,
+                    margin: 2,
+                    errorCorrectionLevel: 'L',
+                    color: { dark: '#0f172a', light: '#ffffff' }
+                }, function (err, svg) {
+                    if (!err && svg) realSvg = svg;
+                });
+                if (realSvg) {
+                    return realSvg.replace(
+                        '<svg ',
+                        `<svg style="background:#ffffff; border-radius:4px; display:block; width:${sizePx}px; height:${sizePx}px;" `
+                    );
+                }
+            } catch (e) {
+                console.warn('[QRCode] SVG render fallback:', e);
+            }
+        }
         const gridSize = 25;
         const matrix = Array.from({ length: gridSize }, () => Array(gridSize).fill(0));
         const reserved = Array.from({ length: gridSize }, () => Array(gridSize).fill(false));
@@ -802,16 +909,12 @@
         const academicYear = profile.academicYear || '2026 / 2027';
         const fr = d.failureRiskData || { riskScore: 0, riskLevelAr: 'آمن', riskColor: '#10b981', riskBg: '#ecfdf5', riskBorder: '#a7f3d0' };
 
-        const qrPayload = JSON.stringify({
-            v: '3.6',
-            id: std.id,
-            massar: std.massar || '',
-            name: std.name,
-            cls: d.className,
-            avg: d.annualAvg !== null ? Number(d.annualAvg.toFixed(2)) : null,
-            abs: d.totalAbsentHours,
-            att: d.attendanceRate,
-            risk: fr.riskScore
+        const qrPayload = buildReadableStudentQrPayload({
+            std,
+            className: d.className,
+            d,
+            fr,
+            displayAvg: d.annualAvg
         });
 
         const qrSvgHtml = generateDeterministicQrSvg(qrPayload, 148);
@@ -870,15 +973,33 @@
 
                                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px;">
                                     <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 7px 10px;">
-                                        <div style="font-size: 0.7rem; color: #64748b; font-weight: 700;">المعدل العام للمراقبة</div>
-                                        <div style="font-size: 1.05rem; font-weight: 900; color: ${d.annualAvg !== null && d.annualAvg >= 10 ? '#15803d' : '#dc2626'};">
+                                        <div style="font-size: 0.7rem; color: #64748b; font-weight: 700;">نقط الفروض والمعدل العام</div>
+                                        <div style="font-size: 1.02rem; font-weight: 900; color: ${d.annualAvg !== null && d.annualAvg >= 10 ? '#15803d' : '#dc2626'};">
                                             ${d.annualAvg !== null ? d.annualAvg.toFixed(2) + ' / 20' : 'قيد الرصد'}
+                                        </div>
+                                        <div style="font-size: 0.68rem; color: #334155; font-weight: 800; margin-top: 2px;">
+                                            ${(() => {
+                                                const exCnt = d.examsCount || 3;
+                                                const keys = exCnt === 2 ? ['f1', 'f2'] : (exCnt === 4 ? ['f1', 'f2', 'f3', 'f4'] : ['f1', 'f2', 'f3']);
+                                                const activeSem = (typeof window.getActiveSemester === 'function' ? window.getActiveSemester() : window.activeSemester) || 's1';
+                                                const gObj = (activeSem === 's2' && d.s2Grades && keys.some(k => d.s2Grades[k] !== undefined && d.s2Grades[k] !== ''))
+                                                    ? d.s2Grades
+                                                    : (d.s1Grades || {});
+                                                return keys.map((k, i) => {
+                                                    const v = gObj[k];
+                                                    const num = (v !== undefined && v !== null && v !== '') ? parseFloat(v) : NaN;
+                                                    return `ف${i + 1}: ${!isNaN(num) ? Number(num.toFixed(2)) : '-'}`;
+                                                }).join(' | ');
+                                            })()}
                                         </div>
                                     </div>
                                     <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 7px 10px;">
-                                        <div style="font-size: 0.7rem; color: #64748b; font-weight: 700;">نسبة المواظبة والحضور</div>
-                                        <div style="font-size: 1.05rem; font-weight: 900; color: #1d4ed8;">
-                                            ${d.attendanceRate}% <span style="font-size: 0.72rem; color: #64748b;">(${d.totalAbsentHours}س غياب)</span>
+                                        <div style="font-size: 0.7rem; color: #64748b; font-weight: 700;">عدد ساعات الغياب والمواظبة</div>
+                                        <div style="font-size: 1.02rem; font-weight: 900; color: ${d.totalAbsentHours > 0 ? '#dc2626' : '#1d4ed8'};">
+                                            ${d.totalAbsentHours || 0} ساعة غياب <span style="font-size: 0.72rem; color: #1d4ed8;">(حضور: ${d.attendanceRate}%)</span>
+                                        </div>
+                                        <div style="font-size: 0.68rem; color: #475569; font-weight: 700; margin-top: 2px;">
+                                            غير مبرر: ${d.unjustifiedHours || 0}س | مبرر: ${d.justifiedHours || 0}س
                                         </div>
                                     </div>
                                     <div style="background: ${fr.riskBg}; border: 1px solid ${fr.riskBorder}; border-radius: 8px; padding: 7px 10px;">
@@ -931,6 +1052,213 @@
         }
     }
     window.printStudentQrPassCard = printStudentQrPassCard;
+
+    /**
+     * تصدير بطاقات التتبع الذكية (QR) لتلاميذ القسم كاملة في وثيقة PDF / طباعة موحدة
+     */
+    async function exportClassSmartQrCards(targetClassName) {
+        const btn = document.getElementById('btnExportClassSmartQr');
+        const origBtnHtml = btn ? btn.innerHTML : '';
+
+        try {
+            const classSelectEl = document.getElementById('classSelect');
+            const className = (targetClassName && String(targetClassName).trim())
+                || (classSelectEl && classSelectEl.value)
+                || window.activeClass
+                || (window.db && window.db.classes ? Object.keys(window.db.classes)[0] : '');
+
+            const rawList = (window.db && window.db.classes && className) ? window.db.classes[className] : null;
+            const studentsList = Array.isArray(rawList)
+                ? rawList.slice()
+                : (rawList && Array.isArray(rawList.students) ? rawList.students.slice() : []);
+
+            if (!className || studentsList.length === 0) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('⚠️ يرجى اختيار قسم يحتوي على تلاميذ أولاً لتصدير بطاقات QR.', 'warning');
+                } else if (typeof window.notifySafeToast === 'function') {
+                    window.notifySafeToast('يرجى اختيار قسم يحتوي على تلاميذ أولاً.');
+                }
+                return;
+            }
+
+            if (btn) {
+                btn.disabled = true;
+                btn.style.opacity = '0.75';
+                btn.innerHTML = '<span class="math-symbol-accent">⏳</span> <span>جاري تجهيز QR...</span>';
+            }
+
+            // ترتيب التلاميذ وفق الرقم الترتيبي إن وجد
+            studentsList.sort((a, b) => {
+                const oa = Number(a.orderNum || 0);
+                const ob = Number(b.orderNum || 0);
+                if (oa && ob && oa !== ob) return oa - ob;
+                return String(a.name || '').localeCompare(String(b.name || ''), 'ar');
+            });
+
+            const preparedCards = studentsList.map((std, idx) => {
+                const d = buildStudentPortfolioData(className, std.id) || {
+                    student: std,
+                    className,
+                    totalAbsentHours: 0,
+                    attendanceRate: 100,
+                    homeworkRate: 100,
+                    annualAvg: null,
+                    s1Avg: null,
+                    s2Avg: null,
+                    behaviorRecord: { status: 'منضبط' },
+                    failureRiskData: { riskScore: 5, riskLevelAr: 'آمن', riskColor: '#10b981', riskBg: '#ecfdf5', riskBorder: '#a7f3d0' }
+                };
+                const fr = d.failureRiskData || { riskScore: 0, riskLevelAr: 'آمن', riskColor: '#10b981', riskBg: '#ecfdf5', riskBorder: '#a7f3d0' };
+                const displayAvg = d.annualAvg !== null ? d.annualAvg : (d.s2Avg !== null ? d.s2Avg : d.s1Avg);
+                const qrPayload = buildReadableStudentQrPayload({
+                    std,
+                    className,
+                    d,
+                    fr,
+                    displayAvg
+                });
+                return {
+                    id: String(std.id || idx),
+                    orderNum: std.orderNum || (idx + 1),
+                    std,
+                    d,
+                    fr,
+                    displayAvg,
+                    qrPayload
+                };
+            });
+
+            // توليد رموز QR حقيقية قياسية قابلة للمسح عبر Google Lens محلياً بسرعة فائقة مع بديل الخادم عند الحاجة
+            const qrMap = {};
+            if (window.QRCode && typeof window.QRCode.toDataURL === 'function') {
+                preparedCards.forEach(c => {
+                    try {
+                        window.QRCode.toDataURL(c.qrPayload, {
+                            width: 280,
+                            margin: 2,
+                            errorCorrectionLevel: 'L',
+                            color: { dark: '#0f172a', light: '#ffffff' }
+                        }, function (err, dataUrl) {
+                            if (!err && dataUrl) qrMap[c.id] = dataUrl;
+                        });
+                    } catch (_) {}
+                });
+            }
+            const missingCards = preparedCards.filter(c => !qrMap[c.id]);
+            if (missingCards.length > 0) {
+                const batchSize = 100;
+                for (let i = 0; i < missingCards.length; i += batchSize) {
+                    const chunk = missingCards.slice(i, i + batchSize).map(c => ({ id: c.id, text: c.qrPayload }));
+                    try {
+                        const res = await fetch('/api/share/generate-qr-batch', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ items: chunk, width: 280 })
+                        });
+                        if (res.ok) {
+                            const json = await res.json();
+                            if (json && json.qrMap) {
+                                Object.assign(qrMap, json.qrMap);
+                            }
+                        }
+                    } catch (_) {
+                        // الاعتماد على التوليد القياسي SVG المحلي
+                    }
+                }
+            }
+
+            // تقسيم البطاقات إلى صفحات A4 (20 بطاقة في كل صفحة: 4 أعمدة × 5 صفوف مع رمز QR أكبر ومساحة قص مصغرة)
+            const CARDS_PER_PAGE = 20;
+            const totalPages = Math.ceil(preparedCards.length / CARDS_PER_PAGE);
+            const todayFormatted = new Date().toLocaleDateString('ar-MA');
+            let pagesHtml = '';
+
+            for (let p = 0; p < totalPages; p++) {
+                const pageCards = preparedCards.slice(p * CARDS_PER_PAGE, (p + 1) * CARDS_PER_PAGE);
+                const isLastPage = p === totalPages - 1;
+
+                const cardsGridHtml = pageCards.map((item, cIdx) => {
+                    const { std, id, qrPayload } = item;
+                    const qrVisualHtml = qrMap[id]
+                        ? `<img src="${qrMap[id]}" alt="QR" style="width: 114px; height: 114px; display: block; border-radius: 3px; background: #ffffff;" />`
+                        : generateDeterministicQrSvg(qrPayload, 114);
+
+                    const studentFullName = String(
+                        (std && (std.name || std.fullName || std.studentName)) ||
+                        [std && std.firstName, std && std.lastName].filter(Boolean).join(' ') ||
+                        `تلميذ #${p * CARDS_PER_PAGE + cIdx + 1}`
+                    ).trim();
+                    const displayId = String((std && (std.massar || std.id)) || '').slice(0, 14);
+
+                    return `
+                        <div class="smart-qr-batch-card" style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; background: #f8fafc; padding: 4px 4px; border-radius: 7px; border: 1px dashed #94a3b8; box-sizing: border-box; break-inside: avoid; page-break-inside: avoid; min-width: 0;">
+                            <div style="background: #ffffff; border-radius: 5px; border: 1px solid #cbd5e1; padding: 2px; display: inline-flex; align-items: center; justify-content: center;">
+                                ${qrVisualHtml}
+                            </div>
+                            <div class="qr-card-student-name" style="font-size: 0.76rem; font-weight: 900; color: #0f172a; margin-top: 3px; line-height: 1.18; width: 100%; text-align: center; white-space: normal; word-break: break-word; overflow: visible;">
+                                ${escapeHtml(studentFullName)}
+                            </div>
+                            <div style="font-size: 0.56rem; color: #64748b; font-family: monospace; margin-top: 1px; direction: ltr;">ID: ${escapeHtml(displayId)}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                pagesHtml += `
+                    <div class="report-page qr-batch-page" style="background: #ffffff; width: 100%; min-height: 278mm; padding: 3.5mm 4mm; margin: 0 auto 10px auto; box-sizing: border-box; direction: rtl; font-family: 'Cairo', sans-serif; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 8px 24px rgba(15,23,42,0.12); ${isLastPage ? '' : 'page-break-after: always; break-after: page;'}">
+                        <div>
+                            <!-- ترويسة مصغرة للصفحة -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; margin-bottom: 4px;">
+                                <div style="font-size: 0.82rem; font-weight: 900; color: #0f172a;">
+                                    بطاقات QR — قسم: <span style="color: #1e3a8a;">${escapeHtml(className)}</span>
+                                </div>
+                                <div style="font-size: 0.66rem; font-weight: 800; color: #475569;">
+                                    العدد: ${preparedCards.length} تلميذ(ة) • صفحة ${p + 1}/${totalPages} • ${todayFormatted}
+                                </div>
+                            </div>
+
+                            <!-- شبكة بطاقات QR (4 أعمدة × 5 صفوف = 20 بطاقة بالصفحة بمساحة قص مصغرة) -->
+                            <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.5mm;">
+                                ${cardsGridHtml}
+                            </div>
+                        </div>
+
+                        <!-- تذييل الصفحة الموحد -->
+                        <div class="print-official-footer-bar" style="margin-top: 4px; padding-top: 3px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; font-size: 0.64rem; font-weight: 800; color: #1e3a8a;">
+                            <span>✂️ قص على طول الخط المتقطع للإلصاق</span>
+                            <span>منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (typeof window.openCustomPrintPreviewModal === 'function') {
+                window.openCustomPrintPreviewModal(pagesHtml, {
+                    title: `بطاقات_QR_الذكية_${className}`,
+                    orientation: 'portrait',
+                    pageSize: 'A4',
+                    subtitle: `تم توليد ${preparedCards.length} بطاقة تتبع ذكية (QR) لقسم ${className} في ${totalPages} صفحة — جاهزة للطباعة أو التحميل PDF`
+                });
+            } else {
+                window.print();
+            }
+
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(`✅ تم تجهيز ${preparedCards.length} بطاقة QR ذكية لتلاميذ قسم (${className}) في ملف واحد.`, 'success');
+            }
+        } catch (err) {
+            console.error('[exportClassSmartQrCards] Error:', err);
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('حدث خطأ أثناء تجهيز بطاقات QR للقسم.', 'error');
+            }
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.innerHTML = origBtnHtml;
+            }
+        }
+    }
+    window.exportClassSmartQrCards = exportClassSmartQrCards;
 
     /**
      * تبويب 1: الرسوم البيانية وتطور النتائج
@@ -1117,7 +1445,10 @@
         const classAvgs = d.examsData.map(e => e.classAvg);
 
         if (typeof Chart === 'undefined') {
-            console.warn('Chart.js not loaded');
+            if (typeof window.ensureChartJsLoaded === 'function' && !canvas.dataset.chartLoading) {
+                canvas.dataset.chartLoading = '1';
+                window.ensureChartJsLoaded().then(c => { if (c) initPortfolioGradesChart(); });
+            }
             return;
         }
 
@@ -1369,7 +1700,10 @@
         const classAvgs = corr.map(c => c.classAvg);
 
         if (typeof Chart === 'undefined') {
-            console.warn('Chart.js not loaded');
+            if (typeof window.ensureChartJsLoaded === 'function' && !canvas.dataset.chartLoading) {
+                canvas.dataset.chartLoading = '1';
+                window.ensureChartJsLoaded().then(c => { if (c) initPortfolioFailureRiskChart(); });
+            }
             return;
         }
 
@@ -1527,7 +1861,7 @@
             `- التشخيص البيداغوجي: ${fr.diagnosticSummary}\n` +
             `يرجى الحضور إلى المؤسسة للتواصل مع أستاذ المادة والعمل على خطة استدراك عاجلة.\n- أستاذ مادة الرياضيات.`
         );
-        window.open(`https://wa.me/?text=${text}`, '_blank');
+        window.openSafeExternalUrl(`https://wa.me/?text=${text}`, '_blank');
     }
     window.shareStudentRiskWhatsApp = shareStudentRiskWhatsApp;
 
@@ -1540,7 +1874,7 @@
         if (typeof window.addStudentToTutoringDirect === 'function') {
             window.addStudentToTutoringDirect(d.className, d.studentId);
         } else {
-            alert(`تم تسجيل التلميذ "${d.student.name}" في لائحة الدعم والاستدراك بنجاح.`);
+            window.notifySafeToast(`تم تسجيل التلميذ "${d.student.name}" في لائحة الدعم والاستدراك بنجاح.`);
         }
     }
     window.enrollStudentInTutoringDirect = enrollStudentInTutoringDirect;
@@ -2069,7 +2403,7 @@
 
         syncStudentPortfolioToICalServer(d.studentId, d.className);
         const { googleCalUrl } = getPortfolioWebCalUrls(d.studentId);
-        window.open(googleCalUrl, '_blank');
+        window.openSafeExternalUrl(googleCalUrl, '_blank');
     }
     window.openPortfolioGoogleCalendarWeb = openPortfolioGoogleCalendarWeb;
 
@@ -2104,14 +2438,18 @@
         if (!d) return;
 
         const { httpFeedUrl } = getPortfolioWebCalUrls(d.studentId);
+        if (typeof window.safeCopyTextToClipboard === 'function') {
+            window.safeCopyTextToClipboard(httpFeedUrl, 'تم نسخ رابط تقويم iCal الحي إلى الحافظة بنجاح! 📋');
+            return;
+        }
         navigator.clipboard.writeText(httpFeedUrl).then(() => {
             if (typeof window.showNotification === 'function') {
                 window.showNotification('تم نسخ رابط تقويم iCal الحي إلى الحافظة بنجاح! 📋', 'success');
             } else {
-                alert('تم نسخ رابط تقويم iCal الحي إلى الحافظة بنجاح!');
+                window.notifySafeToast('تم نسخ رابط تقويم iCal الحي إلى الحافظة بنجاح!');
             }
         }).catch(() => {
-            prompt('انسخ رابط تقويم iCal من هنا:', httpFeedUrl);
+            window.notifySafeToast(`رابط تقويم iCal الحي: ${httpFeedUrl}`);
         });
     }
     window.copyPortfolioWebCalUrl = copyPortfolioWebCalUrl;
@@ -2138,7 +2476,7 @@
         const notes = notesInput ? notesInput.value.trim() : '';
 
         if (!title || !date) {
-            alert('يرجى تحديد عنوان المهمة وتاريخ الموعد.');
+            window.notifySafeToast('يرجى تحديد عنوان المهمة وتاريخ الموعد.');
             return;
         }
 
@@ -2601,7 +2939,7 @@
             `---\n` +
             `أستاذ مادة الرياضيات - الموسم الدراسي الحالي.`;
 
-        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+        window.openSafeExternalUrl(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
     }
     window.shareStudentPortfolioWhatsApp = shareStudentPortfolioWhatsApp;
 

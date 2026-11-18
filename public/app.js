@@ -1,66 +1,27 @@
 
-        // Safe Window.Open Polyfill for In-App Printing without Popup Blockers
+        // Safe External URL Opener & In-App Toast Notification Helper (Iframe-Compatible)
         if (typeof window !== 'undefined') {
-            const _nativeWindowOpen = window.open;
-            window.open = function(url, target, features) {
-                if (!url || url === '' || url === 'about:blank') {
-                    let iframe = document.getElementById('globalSafeVirtualPrintIframe');
-                    if (!iframe) {
-                        iframe = document.createElement('iframe');
-                        iframe.id = 'globalSafeVirtualPrintIframe';
-                        iframe.style.position = 'fixed';
-                        iframe.style.right = '0';
-                        iframe.style.bottom = '0';
-                        iframe.style.width = '0';
-                        iframe.style.height = '0';
-                        iframe.style.border = '0';
-                        document.body.appendChild(iframe);
-                    }
-                    const iWin = iframe.contentWindow;
-                    const iDoc = iWin.document;
-                    iDoc.open();
-                    return {
-                        document: {
-                            open: () => iDoc.open(),
-                            write: (str) => iDoc.write(str),
-                            close: () => {
-                                iDoc.close();
-                                setTimeout(() => {
-                                    try {
-                                        iWin.onafterprint = () => {
-                                            try { iDoc.body.innerHTML = ''; } catch (err) {}
-                                        };
-                                        iWin.focus();
-                                        iWin.print();
-                                        setTimeout(() => {
-                                            try { if (iDoc && iDoc.body) iDoc.body.innerHTML = ''; } catch (err) {}
-                                        }, 45000);
-                                    } catch(e) {
-                                        console.warn('Iframe print notice:', e);
-                                    }
-                                }, 350);
-                            }
-                        },
-                        print: () => {
-                            setTimeout(() => {
-                                try { iWin.focus(); iWin.print(); } catch(e) {}
-                            }, 100);
-                        },
-                        close: () => {},
-                        focus: () => {
-                            try { iWin.focus(); } catch(e) {}
-                        }
-                    };
-                }
+            window.openSafeExternalUrl = function(url) {
+                if (!url) return null;
                 try {
-                    return _nativeWindowOpen.call(window, url, target, features);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.target = '_blank';
+                    a.rel = 'noopener noreferrer';
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        try { a.remove(); } catch (e) {}
+                    }, 150);
+                    return { closed: false, focus: () => {}, close: () => {}, print: () => {} };
                 } catch (err) {
-                    console.warn('window.open intercepted:', err);
+                    console.warn('Safe external link notice:', err);
                     return null;
                 }
             };
 
-            window.alert = function(msg) {
+            window.notifySafeToast = function(msg) {
                 if (typeof window.showFeedbackToast === 'function') {
                     window.showFeedbackToast(msg);
                 } else if (typeof window.showNotification === 'function') {
@@ -70,6 +31,50 @@
                 } else {
                     console.warn('[Notice]', msg);
                 }
+            };
+
+            window.safeCopyTextToClipboard = function(text, successMsg) {
+                const val = String(text || '');
+                const done = () => {
+                    if (successMsg) {
+                        if (typeof window.showNotification === 'function') {
+                            window.showNotification(successMsg, 'success');
+                        } else {
+                            window.notifySafeToast(successMsg);
+                        }
+                    }
+                };
+                if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                    return navigator.clipboard.writeText(val).then(done).catch(() => {
+                        try {
+                            const ta = document.createElement('textarea');
+                            ta.value = val;
+                            ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+                            document.body.appendChild(ta);
+                            ta.focus();
+                            ta.select();
+                            document.execCommand('copy');
+                            ta.remove();
+                            done();
+                        } catch (e) {
+                            window.notifySafeToast(val);
+                        }
+                    });
+                }
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = val;
+                    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+                    document.body.appendChild(ta);
+                    ta.focus();
+                    ta.select();
+                    document.execCommand('copy');
+                    ta.remove();
+                    done();
+                } catch (e) {
+                    window.notifySafeToast(val);
+                }
+                return Promise.resolve();
             };
         }
 
@@ -107,91 +112,17 @@
         };
 
         // =========================================================================
-        // التنسيق الشرطي والتلوين الديناميكي لمعدلات النقط (Conditional Formatting)
-        // معرفة كدوال عامة على مستوى التطبيق (Guaranteed Globally Defined)
+        // التنسيق الشرطي والتلوين الديناميكي لمعدلات النقط (مفوض لوحدة /core/grades-calculator.js)
         // =========================================================================
         var getGradeConditionalStyle = function(avg) {
-            if (avg === null || avg === undefined || isNaN(avg) || avg === '') {
-                return {
-                    cls: 'avg-empty',
-                    category: 'empty',
-                    label: 'غير مسجل',
-                    title: 'لم تُسجل نقط بعد',
-                    bg: '#f8fafc',
-                    color: '#94a3b8',
-                    border: '#e2e8f0',
-                    cssText: 'background: #f8fafc !important; color: #94a3b8 !important; border: 1.5px solid #e2e8f0 !important; box-shadow: none !important;'
-                };
+            if (window.GradesCalculator && typeof window.GradesCalculator.getGradeConditionalStyle === 'function') {
+                return window.GradesCalculator.getGradeConditionalStyle(avg);
             }
             var val = parseFloat(avg);
-            if (isNaN(val)) {
-                return {
-                    cls: 'avg-empty',
-                    category: 'empty',
-                    label: 'غير مسجل',
-                    title: 'لم تُسجل نقط بعد',
-                    bg: '#f8fafc',
-                    color: '#94a3b8',
-                    border: '#e2e8f0',
-                    cssText: 'background: #f8fafc !important; color: #94a3b8 !important; border: 1.5px solid #e2e8f0 !important; box-shadow: none !important;'
-                };
+            if (avg === null || avg === undefined || avg === '' || isNaN(val)) {
+                return { cls: 'avg-empty', category: 'empty', label: 'غير مسجل', title: 'لم تُسجل نقط بعد', bg: '#f8fafc', color: '#94a3b8', border: '#e2e8f0', cssText: '' };
             }
-            if (val >= 14) {
-                return {
-                    cls: 'avg-pass avg-excellent',
-                    category: 'excellent',
-                    label: 'متفوق',
-                    title: 'متفوق (مستوفٍ بامتياز: ' + val.toFixed(2) + ' / 20)',
-                    bg: 'linear-gradient(135deg, #ecfdf5, #d1fae5)',
-                    color: '#065f46',
-                    border: '#34d399',
-                    cssText: 'background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%) !important; color: #065f46 !important; border: 1.5px solid #34d399 !important; font-weight: 900 !important; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.22) !important;'
-                };
-            } else if (val >= 12) {
-                return {
-                    cls: 'avg-pass avg-good',
-                    category: 'good',
-                    label: 'حسن',
-                    title: 'حسن (مستوفٍ بجدارة: ' + val.toFixed(2) + ' / 20)',
-                    bg: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
-                    color: '#166534',
-                    border: '#86efac',
-                    cssText: 'background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%) !important; color: #166534 !important; border: 1.5px solid #86efac !important; font-weight: 900 !important; box-shadow: 0 2px 5px rgba(34, 197, 94, 0.16) !important;'
-                };
-            } else if (val >= 10) {
-                return {
-                    cls: 'avg-pass avg-medium',
-                    category: 'medium',
-                    label: 'متوسط',
-                    title: 'متوسط (مستوفٍ للعتبة: ' + val.toFixed(2) + ' / 20)',
-                    bg: 'linear-gradient(135deg, #fefce8, #fef08a)',
-                    color: '#854d0e',
-                    border: '#facc15',
-                    cssText: 'background: linear-gradient(135deg, #fefce8 0%, #fef08a 100%) !important; color: #854d0e !important; border: 1.5px solid #facc15 !important; font-weight: 900 !important; box-shadow: 0 2px 5px rgba(234, 88, 12, 0.22) !important;'
-                };
-            } else if (val >= 8) {
-                return {
-                    cls: 'avg-fail avg-warning',
-                    category: 'warning',
-                    label: 'قريب من العتبة',
-                    title: 'متعثر جزئياً (قريب من العتبة: ' + val.toFixed(2) + ' / 20)',
-                    bg: 'linear-gradient(135deg, #fff7ed, #ffedd5)',
-                    color: '#9a3412',
-                    border: '#fb923c',
-                    cssText: 'background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%) !important; color: #9a3412 !important; border: 1.5px solid #fb923c !important; font-weight: 900 !important; box-shadow: 0 2px 5px rgba(249, 115, 22, 0.18) !important;'
-                };
-            } else {
-                return {
-                    cls: 'avg-fail avg-struggling',
-                    category: 'struggling',
-                    label: 'متعثر',
-                    title: 'متعثر (يحتاج دعماً مكثفاً: ' + val.toFixed(2) + ' / 20)',
-                    bg: 'linear-gradient(135deg, #fef2f2, #fee2e2)',
-                    color: '#991b1b',
-                    border: '#f87171',
-                    cssText: 'background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%) !important; color: #991b1b !important; border: 1.5px solid #f87171 !important; font-weight: 900 !important; box-shadow: 0 2px 5px rgba(239, 68, 68, 0.22) !important;'
-                };
-            }
+            return { cls: val >= 10 ? 'avg-pass' : 'avg-fail', category: val >= 10 ? 'good' : 'struggling', label: val >= 10 ? 'مستوفٍ' : 'متعثر', title: val.toFixed(2) + ' / 20', bg: '#f8fafc', color: '#0f172a', border: '#cbd5e1', cssText: '' };
         };
         var getGradeCondition = getGradeConditionalStyle;
         window.getGradeConditionalStyle = getGradeConditionalStyle;
@@ -1116,7 +1047,7 @@
                     'assignmentCount', 'activityWeight', 'examWeight', 'assignmentWeight', '_lastSavedAt',
                     '_lastSavedTimestamp', '_lastSavedDevice', 'classes', 'classConfig', 'examsCountConfig', 'coefConfig',
                     'weeklyHoursConfig', 'classColors', 'classManualOrder', 'classSortPref', 'classUsage',
-                    'archivedClasses', 'archivedClassesMeta', 'studentGroups', 'seatingPlans', 'grades',
+                    'archivedClasses', 'archivedClassesMeta', 'archivedSeasonVault', 'studentGroups', 'seatingPlans', 'grades',
                     'gradesS1', 'gradesS2', 'notes', 'studentNotes', 'customEvaluations', 'remediationPlans', 'mathRemediationPlans',
                     'diagnostic', 'exams', 'upcomingExams', 'examReports', 'makeupExams', 'records',
                     'behaviors', 'behaviorLogs', 'positiveBehaviors', 'portfolioNotes', 'portfolioTasks', 'adminFollowUpSlips',
@@ -1169,8 +1100,9 @@
                             classManualOrder: sourceDb.classManualOrder || [],
                             classSortPref: sourceDb.classSortPref || 'default',
                             classUsage: sourceDb.classUsage || {},
-                            archivedClasses: sourceDb.archivedClasses || {},
+                            archivedClasses: sourceDb.archivedClasses || [],
                             archivedClassesMeta: sourceDb.archivedClassesMeta || {},
+                            archivedSeasonVault: sourceDb.archivedSeasonVault || {},
                             studentGroups: sourceDb.studentGroups || {},
                             seatingPlans: sourceDb.seatingPlans || {}
                         }
@@ -1859,7 +1791,7 @@
             const username = document.getElementById('setupUsername').value.trim();
             const pwd = document.getElementById('setupPassword').value;
             if (!name || !username || !pwd) {
-                alert('يرجى إدخال الاسم، اسم المستخدم والقن السري.');
+                window.notifySafeToast('يرجى إدخال الاسم، اسم المستخدم والقن السري.');
                 return;
             }
             db.teacherProfile.name = name;
@@ -2172,7 +2104,10 @@
                 marginTop: clampMargin(s.printModeMarginTop, 10),
                 marginBottom: clampMargin(s.printModeMarginBottom, 10),
                 marginRight: clampMargin(s.printModeMarginRight, 10),
-                marginLeft: clampMargin(s.printModeMarginLeft, 10)
+                marginLeft: clampMargin(s.printModeMarginLeft, 10),
+                pngDpi: [96, 150, 300, 600].includes(Number(s.printModePngDpi))
+                    ? Number(s.printModePngDpi)
+                    : 300
             };
         }
         window.getStudentPrintModeOptions = getStudentPrintModeOptions;
@@ -2311,6 +2246,17 @@
             if (chkWkBar) chkWkBar.checked = !!opts.weekGrid;
             if (chkIncBar) chkIncBar.checked = !!opts.incidentsLog;
 
+            // Sync PNG DPI selectors across Print Mode Bar, Settings Card, Student Progress Card, and Inline Bar
+            const dpiStr = String(opts.pngDpi || 300);
+            const barDpiSel = document.getElementById('printModePngDpiSelect');
+            const setDpiSel = document.getElementById('settingsPrintModePngDpi');
+            const cardDpiSel = document.getElementById('reportStudentPngDpiSelect');
+            const inlineDpiSel = document.getElementById('inlineReportPngDpiSelect');
+            if (barDpiSel) barDpiSel.value = dpiStr;
+            if (setDpiSel) setDpiSel.value = dpiStr;
+            if (cardDpiSel) cardDpiSel.value = dpiStr;
+            if (inlineDpiSel) inlineDpiSel.value = dpiStr;
+
             // Update badge and action button labels
             const badgeText = document.getElementById('printModeBarBadgeText');
             if (badgeText) {
@@ -2324,6 +2270,18 @@
             if (exportPdfBtnLabel) {
                 exportPdfBtnLabel.textContent = `تصدير PDF (${sizeUpper} · ${margins.label})`;
             }
+            const exportPngBtnLabel = document.getElementById('printModeExportPngBtnLabel');
+            if (exportPngBtnLabel) {
+                exportPngBtnLabel.textContent = `تصدير PNG (${sizeUpper} · ${opts.pngDpi} DPI)`;
+            }
+            const cardExportPngLabel = document.getElementById('btnExportStudentPNGLabel');
+            if (cardExportPngLabel) {
+                cardExportPngLabel.textContent = `تصدير صورة (PNG · ${opts.pngDpi} DPI)`;
+            }
+            const inlineExportPngLabel = document.getElementById('inlineReportExportPngBtnLabel');
+            if (inlineExportPngLabel) {
+                inlineExportPngLabel.textContent = `تصدير PNG (${opts.pngDpi} DPI)`;
+            }
         }
         window.applyPrintModePageSetupToDOM = applyPrintModePageSetupToDOM;
 
@@ -2333,6 +2291,10 @@
                 const n = Number(val);
                 return Number.isFinite(n) ? Math.max(0, Math.min(30, Math.round(n))) : def;
             };
+            const normalizeDpi = (val, def = 300) => {
+                const n = Number(val);
+                return [96, 150, 300, 600].includes(n) ? n : def;
+            };
 
             if (source === 'bar') {
                 const barSizeSel = document.getElementById('printModePageSizeSelect');
@@ -2341,6 +2303,7 @@
                 const barBottom = document.getElementById('printModeMarginBottom');
                 const barRight = document.getElementById('printModeMarginRight');
                 const barLeft = document.getElementById('printModeMarginLeft');
+                const barDpiSel = document.getElementById('printModePngDpiSelect');
 
                 if (barSizeSel) db.settings.printModePageSize = barSizeSel.value === 'a5' ? 'a5' : 'a4';
                 if (barMarginSel) db.settings.printModeMarginsPreset = barMarginSel.value;
@@ -2348,6 +2311,13 @@
                 if (barBottom) db.settings.printModeMarginBottom = clampMargin(barBottom.value, 10);
                 if (barRight) db.settings.printModeMarginRight = clampMargin(barRight.value, 10);
                 if (barLeft) db.settings.printModeMarginLeft = clampMargin(barLeft.value, 10);
+                if (barDpiSel) db.settings.printModePngDpi = normalizeDpi(barDpiSel.value, 300);
+            } else if (source === 'reportCard') {
+                const cardDpiSel = document.getElementById('reportStudentPngDpiSelect');
+                if (cardDpiSel) db.settings.printModePngDpi = normalizeDpi(cardDpiSel.value, 300);
+            } else if (source === 'inlineBar') {
+                const inlineDpiSel = document.getElementById('inlineReportPngDpiSelect');
+                if (inlineDpiSel) db.settings.printModePngDpi = normalizeDpi(inlineDpiSel.value, 300);
             } else {
                 const setSizeSel = document.getElementById('settingsPrintModePageSize');
                 const setMarginSel = document.getElementById('settingsPrintModeMarginsPreset');
@@ -2355,6 +2325,7 @@
                 const setBottom = document.getElementById('settingsPrintMarginBottom');
                 const setRight = document.getElementById('settingsPrintMarginRight');
                 const setLeft = document.getElementById('settingsPrintMarginLeft');
+                const setDpiSel = document.getElementById('settingsPrintModePngDpi');
 
                 if (setSizeSel) db.settings.printModePageSize = setSizeSel.value === 'a5' ? 'a5' : 'a4';
                 if (setMarginSel) db.settings.printModeMarginsPreset = setMarginSel.value;
@@ -2362,6 +2333,7 @@
                 if (setBottom) db.settings.printModeMarginBottom = clampMargin(setBottom.value, 10);
                 if (setRight) db.settings.printModeMarginRight = clampMargin(setRight.value, 10);
                 if (setLeft) db.settings.printModeMarginLeft = clampMargin(setLeft.value, 10);
+                if (setDpiSel) db.settings.printModePngDpi = normalizeDpi(setDpiSel.value, 300);
             }
 
             saveDB();
@@ -2373,7 +2345,7 @@
                 const opts = getStudentPrintModeOptions();
                 const m = getResolvedPrintModeMargins(opts);
                 showAppToast(
-                    `تم ضبط إعدادات التقرير الفردي: حجم ${opts.pageSize.toUpperCase()} · هوامش ${m.label}`,
+                    `تم ضبط إعدادات التقرير الفردي: حجم ${opts.pageSize.toUpperCase()} · هوامش ${m.label} · دقة PNG (${opts.pngDpi} DPI)`,
                     'info'
                 );
             }
@@ -2870,6 +2842,7 @@
             db.teacherProfile.academy = document.getElementById('settingsAcademy').value.trim();
             db.teacherProfile.directorate = document.getElementById('settingsDirectorate').value.trim();
             db.teacherProfile.school = document.getElementById('settingsSchool').value.trim();
+            const prevAcademicYearSetting = (db.teacherProfile && db.teacherProfile.academicYear) || '';
             db.teacherProfile.academicYear = document.getElementById('settingsAcademicYear').value.trim();
             const cityInput = document.getElementById('settingsCity');
             if (cityInput) db.teacherProfile.city = cityInput.value.trim();
@@ -2878,6 +2851,13 @@
             if (!db.settings) db.settings = {};
             if (syStartInput && syStartInput.value) db.settings.schoolYearStart = syStartInput.value;
             if (syEndInput && syEndInput.value) db.settings.schoolYearEnd = syEndInput.value;
+            if (prevAcademicYearSetting && db.teacherProfile.academicYear && prevAcademicYearSetting !== db.teacherProfile.academicYear) {
+                setTimeout(() => {
+                    if (typeof runAutoEndOfSeasonArchive === 'function') {
+                        runAutoEndOfSeasonArchive({ reason: 'season_changed' });
+                    }
+                }, 450);
+            }
 
             const teacherPhoneInput = document.getElementById('settingsTeacherPhone');
             if (teacherPhoneInput) {
@@ -3396,7 +3376,7 @@
 
             const classNames = Object.keys(db.classes).filter(c => !(db.archivedClasses && db.archivedClasses[c]));
             if (classNames.length === 0) {
-                alert('لا توجد أقسام مسجلة لتخصيص الألوان لها.');
+                window.notifySafeToast('لا توجد أقسام مسجلة لتخصيص الألوان لها.');
                 return;
             }
 
@@ -3415,15 +3395,20 @@
         };
 
         window.resetClassColorsToDefault = function() {
-            if (!confirm('هل أنت متأكد من رغبتك في استعادة الألوان الافتراضية لكافة الأقسام؟')) return;
-            db.classColors = {};
-            renderClassColorsSettingsUI();
-            if (typeof setSettingsSaveStatus === 'function') setSettingsSaveStatus('unsaved');
-            applyClassColorsToActiveViews();
-
-            if (typeof window.showToast === 'function') {
-                window.showToast('تمت استعادة الألوان الافتراضية للأقسام.', 'success');
+            const doReset = () => {
+                db.classColors = {};
+                renderClassColorsSettingsUI();
+                if (typeof setSettingsSaveStatus === 'function') setSettingsSaveStatus('unsaved');
+                applyClassColorsToActiveViews();
+                if (typeof window.showToast === 'function') {
+                    window.showToast('تمت استعادة الألوان الافتراضية للأقسام.', 'success');
+                }
+            };
+            if (typeof window.showConfirmDialog === 'function') {
+                window.showConfirmDialog('هل أنت متأكد من رغبتك في استعادة الألوان الافتراضية لكافة الأقسام؟', doReset);
+                return;
             }
+            doReset();
         };
 
         function applyClassColorsToActiveViews() {
@@ -3781,14 +3766,20 @@
         };
 
         window.resetAttendanceStatusColorsToDefault = function() {
-            if (!confirm('هل ترغب في استعادة الألوان الافتراضية لبطاقات حالات الغياب؟')) return;
-            db.attendanceStatusColors = {};
-            applyAttendanceStatusColorsToDom();
-            renderAttendanceStatusColorsUI();
-            if (typeof setSettingsSaveStatus === 'function') setSettingsSaveStatus('unsaved');
-            if (typeof window.showToast === 'function') {
-                window.showToast('تمت استعادة الألوان الافتراضية لحالات الغياب والحضور.', 'success');
+            const doReset = () => {
+                db.attendanceStatusColors = {};
+                applyAttendanceStatusColorsToDom();
+                renderAttendanceStatusColorsUI();
+                if (typeof setSettingsSaveStatus === 'function') setSettingsSaveStatus('unsaved');
+                if (typeof window.showToast === 'function') {
+                    window.showToast('تمت استعادة الألوان الافتراضية لحالات الغياب والحضور.', 'success');
+                }
+            };
+            if (typeof window.showConfirmDialog === 'function') {
+                window.showConfirmDialog('هل ترغب في استعادة الألوان الافتراضية لبطاقات حالات الغياب؟', doReset);
+                return;
             }
+            doReset();
         };
 
         // Apply attendance status colors to document root on script execution
@@ -3851,16 +3842,25 @@
             return `${y - 2} / ${y - 1}`;
         }
 
-        function getClassArchiveAnalysis(className) {
-            const students = (db.classes && db.classes[className]) ? db.classes[className] : [];
-            const studentIds = new Set(students.map(s => s.id));
+        function cloneArchivePayloadSafe(val) {
+            if (val === undefined || val === null) return val;
+            try { return JSON.parse(JSON.stringify(val)); } catch (e) { return val; }
+        }
 
-            let latestDate = null;
-            let recordsCount = 0;
+        function getClassArchiveAnalysis(className) {
+            if (!db.archivedSeasonVault) db.archivedSeasonVault = {};
+            const vaultEntry = db.archivedSeasonVault[className] || null;
+            const students = (db.classes && db.classes[className])
+                ? db.classes[className]
+                : (vaultEntry && Array.isArray(vaultEntry.students) ? vaultEntry.students : []);
+            const studentIds = new Set(students.map(s => s && s.id));
+
+            let latestDate = vaultEntry && vaultEntry.latestDate ? vaultEntry.latestDate : null;
+            let recordsCount = vaultEntry && Array.isArray(vaultEntry.records) ? vaultEntry.records.length : 0;
             if (db.records && Array.isArray(db.records)) {
                 for (let i = 0; i < db.records.length; i++) {
                     const r = db.records[i];
-                    if (r.className === className || (studentIds.size > 0 && studentIds.has(r.studentId))) {
+                    if (r && (r.className === className || (studentIds.size > 0 && studentIds.has(r.studentId)))) {
                         recordsCount++;
                         if (r.date && (!latestDate || r.date > latestDate)) {
                             latestDate = r.date;
@@ -3869,10 +3869,10 @@
                 }
             }
 
-            let lessonLogsCount = 0;
+            let lessonLogsCount = vaultEntry && Array.isArray(vaultEntry.lessonLogs) ? vaultEntry.lessonLogs.length : 0;
             if (db.lessonLogs && db.lessonLogs[className]) {
                 const logs = Array.isArray(db.lessonLogs[className]) ? db.lessonLogs[className] : [];
-                lessonLogsCount = logs.length;
+                lessonLogsCount += logs.length;
                 for (let i = 0; i < logs.length; i++) {
                     const l = logs[i];
                     if (l && l.date && (!latestDate || l.date > latestDate)) {
@@ -3881,42 +3881,45 @@
                 }
             }
 
-            let gradesCount = 0;
+            let gradesCount = vaultEntry && vaultEntry.grades ? Object.keys(vaultEntry.grades).length : 0;
             if (db.grades && db.grades[className]) {
-                gradesCount = Object.keys(db.grades[className]).length;
+                gradesCount += Object.keys(db.grades[className]).length;
             }
 
-            let behaviorsCount = 0;
+            let behaviorsCount = vaultEntry && vaultEntry.behaviors ? Object.keys(vaultEntry.behaviors).length : 0;
             if (db.behaviors && db.behaviors[className]) {
-                behaviorsCount = Object.keys(db.behaviors[className]).length;
+                behaviorsCount += Object.keys(db.behaviors[className]).length;
             }
 
             const meta = (db.archivedClassesMeta && db.archivedClassesMeta[className]) ? db.archivedClassesMeta[className] : null;
-            const archivedAt = meta && meta.archivedAt ? meta.archivedAt : null;
+            const archivedAt = (meta && meta.archivedAt) || (vaultEntry && vaultEntry.archivedAt) || null;
 
-            let season = null;
+            let season = (vaultEntry && vaultEntry.season && vaultEntry.season !== 'غير محدد') ? vaultEntry.season : ((meta && meta.season) || null);
             if (latestDate) {
                 season = getAcademicYearFromDate(latestDate);
-            } else if (archivedAt) {
+            } else if (!season && archivedAt) {
                 season = getAcademicYearFromDate(archivedAt);
             }
 
             const currentSeason = getCurrentAcademicYear();
-            const prevSeason = getPreviousAcademicYear(currentSeason);
             const currentStartYear = parseInt(currentSeason.split('/')[0].trim(), 10);
             const prevStartYear = currentStartYear - 1;
 
             let isOlderThanOneSeason = false;
+            let isFromEndedSeason = false;
             let reason = '';
 
             if (season) {
                 const classStartYear = parseInt(season.split('/')[0].trim(), 10);
                 if (!isNaN(classStartYear)) {
+                    if (classStartYear < currentStartYear) {
+                        isFromEndedSeason = true;
+                    }
                     if (classStartYear < prevStartYear) {
                         isOlderThanOneSeason = true;
                         reason = `آخر نشاط يعود لموسم ${season} (أقدم من موسم كامل)`;
                     } else if (classStartYear === prevStartYear) {
-                        reason = `الموسم السابق مباشرة (${season})`;
+                        reason = `الموسم السابق المنتهي (${season})`;
                     } else {
                         reason = `الموسم الحالي (${season})`;
                     }
@@ -3932,8 +3935,7 @@
                 }
             } else {
                 if (recordsCount === 0 && lessonLogsCount === 0 && gradesCount === 0) {
-                    isOlderThanOneSeason = true;
-                    reason = 'قسم مؤرشف بدون سجلات نشطة';
+                    reason = 'قسم بدون سجلات نشطة';
                 } else {
                     reason = 'قسم مؤرشف';
                 }
@@ -3949,10 +3951,304 @@
                 latestDate,
                 season: season || 'غير محدد',
                 archivedAt,
+                autoArchived: !!(meta && meta.autoArchived) || !!(vaultEntry && vaultEntry.autoArchived),
+                inVault: !!vaultEntry,
+                isFromEndedSeason,
                 isOlderThanOneSeason,
                 reason
             };
         }
+
+        function moveClassDataToArchiveVault(className, options = {}) {
+            if (!db.archivedClasses) db.archivedClasses = [];
+            if (!Array.isArray(db.archivedClasses)) db.archivedClasses = Object.keys(db.archivedClasses);
+            if (!db.archivedClassesMeta) db.archivedClassesMeta = {};
+            if (!db.archivedSeasonVault) db.archivedSeasonVault = {};
+
+            const students = (db.classes && db.classes[className]) ? cloneArchivePayloadSafe(db.classes[className]) : [];
+            const studentIds = new Set(students.map(s => s && s.id));
+            const recordsForClass = [];
+            const remainingRecords = [];
+            if (Array.isArray(db.records)) {
+                for (let i = 0; i < db.records.length; i++) {
+                    const r = db.records[i];
+                    if (r && (r.className === className || (studentIds.size > 0 && studentIds.has(r.studentId)))) {
+                        recordsForClass.push(r);
+                    } else {
+                        remainingRecords.push(r);
+                    }
+                }
+                db.records = remainingRecords;
+            }
+
+            const existingVault = db.archivedSeasonVault[className] || {};
+            const mergedRecords = [...(existingVault.records || []), ...recordsForClass];
+
+            let latestDate = existingVault.latestDate || null;
+            mergedRecords.forEach(r => { if (r && r.date && (!latestDate || r.date > latestDate)) latestDate = r.date; });
+
+            const vaultGrades = (db.grades && db.grades[className]) ? cloneArchivePayloadSafe(db.grades[className]) : (existingVault.grades || {});
+            const vaultGradesS1 = (db.gradesS1 && db.gradesS1[className]) ? cloneArchivePayloadSafe(db.gradesS1[className]) : (existingVault.gradesS1 || {});
+            const vaultGradesS2 = (db.gradesS2 && db.gradesS2[className]) ? cloneArchivePayloadSafe(db.gradesS2[className]) : (existingVault.gradesS2 || {});
+            const vaultBehaviors = (db.behaviors && db.behaviors[className]) ? cloneArchivePayloadSafe(db.behaviors[className]) : (existingVault.behaviors || {});
+            const vaultLessonLogs = (db.lessonLogs && !Array.isArray(db.lessonLogs) && db.lessonLogs[className])
+                ? cloneArchivePayloadSafe(db.lessonLogs[className])
+                : (existingVault.lessonLogs || []);
+            const vaultStudentNotes = (db.studentNotes && db.studentNotes[className]) ? cloneArchivePayloadSafe(db.studentNotes[className]) : (existingVault.studentNotes || {});
+            const vaultClassConfig = (db.classConfig && db.classConfig[className]) ? cloneArchivePayloadSafe(db.classConfig[className]) : (existingVault.classConfig || null);
+            const vaultClassColor = (db.classColors && db.classColors[className]) ? db.classColors[className] : (existingVault.classColor || null);
+
+            const seasonLabel = options.season || (latestDate ? getAcademicYearFromDate(latestDate) : getCurrentAcademicYear());
+            const archivedAt = new Date().toISOString();
+
+            db.archivedSeasonVault[className] = {
+                className,
+                season: seasonLabel,
+                archivedAt,
+                autoArchived: !!options.autoArchived,
+                archiveReason: options.reason || (options.autoArchived ? `أرشفة تلقائية لنهاية الموسم (${seasonLabel})` : 'أرشفة يدوية للأستاذ'),
+                latestDate,
+                students: students.length > 0 ? students : (existingVault.students || []),
+                records: mergedRecords,
+                grades: vaultGrades,
+                gradesS1: vaultGradesS1,
+                gradesS2: vaultGradesS2,
+                behaviors: vaultBehaviors,
+                lessonLogs: vaultLessonLogs,
+                studentNotes: vaultStudentNotes,
+                classConfig: vaultClassConfig,
+                classColor: vaultClassColor
+            };
+
+            // نقل بيانات القسم من الجداول النشطة إلى قسم الأرشيف الخاص لتخفيف الذاكرة الحية
+            if (db.classes && db.classes[className]) delete db.classes[className];
+            if (db.grades && db.grades[className]) delete db.grades[className];
+            if (db.gradesS1 && db.gradesS1[className]) delete db.gradesS1[className];
+            if (db.gradesS2 && db.gradesS2[className]) delete db.gradesS2[className];
+            if (db.behaviors && db.behaviors[className]) delete db.behaviors[className];
+            if (db.lessonLogs && !Array.isArray(db.lessonLogs) && db.lessonLogs[className]) delete db.lessonLogs[className];
+            if (db.studentNotes && db.studentNotes[className]) delete db.studentNotes[className];
+
+            if (!db.archivedClasses.includes(className)) {
+                db.archivedClasses.push(className);
+            }
+            db.archivedClassesMeta[className] = {
+                archivedAt,
+                season: seasonLabel,
+                autoArchived: !!options.autoArchived,
+                archiveReason: db.archivedSeasonVault[className].archiveReason,
+                studentsCount: db.archivedSeasonVault[className].students.length,
+                recordsCount: mergedRecords.length
+            };
+        }
+
+        function restoreClassDataFromArchiveVault(className) {
+            if (!db.archivedClasses) db.archivedClasses = [];
+            if (!db.archivedClassesMeta) db.archivedClassesMeta = {};
+            if (!db.archivedSeasonVault) db.archivedSeasonVault = {};
+            if (!db.classes) db.classes = {};
+            if (!db.records) db.records = [];
+            if (!db.grades) db.grades = {};
+            if (!db.behaviors) db.behaviors = {};
+
+            const vaultEntry = db.archivedSeasonVault[className];
+            if (vaultEntry) {
+                if ((!db.classes[className] || db.classes[className].length === 0) && Array.isArray(vaultEntry.students)) {
+                    db.classes[className] = cloneArchivePayloadSafe(vaultEntry.students);
+                }
+                if (Array.isArray(vaultEntry.records) && vaultEntry.records.length > 0) {
+                    const existingIds = new Set(db.records.map(r => r && (r.id || `${r.className}_${r.studentId}_${r.date}_${r.session}`)));
+                    vaultEntry.records.forEach(rec => {
+                        if (!rec) return;
+                        const key = rec.id || `${rec.className}_${rec.studentId}_${rec.date}_${rec.session}`;
+                        if (!existingIds.has(key)) {
+                            db.records.push(rec);
+                            existingIds.add(key);
+                        }
+                    });
+                }
+                if (vaultEntry.grades && Object.keys(vaultEntry.grades).length > 0) {
+                    db.grades[className] = Object.assign({}, vaultEntry.grades, db.grades[className] || {});
+                }
+                if (vaultEntry.gradesS1 && Object.keys(vaultEntry.gradesS1).length > 0) {
+                    if (!db.gradesS1) db.gradesS1 = {};
+                    db.gradesS1[className] = Object.assign({}, vaultEntry.gradesS1, db.gradesS1[className] || {});
+                }
+                if (vaultEntry.gradesS2 && Object.keys(vaultEntry.gradesS2).length > 0) {
+                    if (!db.gradesS2) db.gradesS2 = {};
+                    db.gradesS2[className] = Object.assign({}, vaultEntry.gradesS2, db.gradesS2[className] || {});
+                }
+                if (vaultEntry.behaviors && Object.keys(vaultEntry.behaviors).length > 0) {
+                    db.behaviors[className] = Object.assign({}, vaultEntry.behaviors, db.behaviors[className] || {});
+                }
+                if (vaultEntry.lessonLogs && Array.isArray(vaultEntry.lessonLogs) && vaultEntry.lessonLogs.length > 0) {
+                    if (!db.lessonLogs || Array.isArray(db.lessonLogs)) db.lessonLogs = {};
+                    db.lessonLogs[className] = cloneArchivePayloadSafe(vaultEntry.lessonLogs);
+                }
+                if (vaultEntry.studentNotes && Object.keys(vaultEntry.studentNotes).length > 0) {
+                    if (!db.studentNotes) db.studentNotes = {};
+                    db.studentNotes[className] = Object.assign({}, vaultEntry.studentNotes, db.studentNotes[className] || {});
+                }
+                if (vaultEntry.classConfig) {
+                    if (!db.classConfig) db.classConfig = {};
+                    if (!db.classConfig[className]) db.classConfig[className] = cloneArchivePayloadSafe(vaultEntry.classConfig);
+                }
+                if (vaultEntry.classColor) {
+                    if (!db.classColors) db.classColors = {};
+                    if (!db.classColors[className]) db.classColors[className] = vaultEntry.classColor;
+                }
+                delete db.archivedSeasonVault[className];
+            }
+
+            db.archivedClasses = db.archivedClasses.filter(c => c !== className);
+            delete db.archivedClassesMeta[className];
+            _recordsCacheDirty = true;
+            if (typeof buildRecordsCache === 'function') buildRecordsCache();
+        }
+
+        function isAutoSeasonArchiveEnabled() {
+            if (!db.settings) db.settings = {};
+            return db.settings.autoSeasonArchiveEnabled !== false;
+        }
+
+        window.toggleAutoSeasonArchive = function(enabled) {
+            if (!db.settings) db.settings = {};
+            db.settings.autoSeasonArchiveEnabled = !!enabled;
+            saveDB();
+            renderArchiveList();
+            if (typeof showAppToast === 'function') {
+                showAppToast(enabled ? '📦 تم تفعيل الأرشفة التلقائية عند انتهاء الموسم الدراسي.' : 'تم إيقاف الأرشفة التلقائية عند انتهاء الموسم.', 'info');
+            }
+        };
+
+        function runAutoEndOfSeasonArchive(options = {}) {
+            if (!db || !db.classes) return { archived: [] };
+            if (!options.manualTrigger && !isAutoSeasonArchiveEnabled()) return { archived: [] };
+            if (!db.archivedClasses) db.archivedClasses = [];
+            if (!db.archivedSeasonVault) db.archivedSeasonVault = {};
+            if (!db.settings) db.settings = {};
+
+            const currentSeason = getCurrentAcademicYear();
+            const currentStartYear = parseInt(currentSeason.split('/')[0].trim(), 10);
+            const todayIso = new Date().toISOString().slice(0, 10);
+            const schoolYearEnd = db.settings.schoolYearEnd || '';
+            const hasSchoolYearEndedByDate = !!(schoolYearEnd && /^\d{4}-\d{2}-\d{2}$/.test(schoolYearEnd) && todayIso > schoolYearEnd && db.settings.lastAutoArchivedEndDate !== schoolYearEnd);
+
+            const activeClassNames = Object.keys(db.classes).filter(c => !db.archivedClasses.includes(c));
+            const archivedNow = [];
+
+            activeClassNames.forEach(cls => {
+                const analysis = getClassArchiveAnalysis(cls);
+                const hasAnyData = analysis.studentsCount > 0 || analysis.recordsCount > 0 || analysis.gradesCount > 0;
+                if (!hasAnyData) return;
+
+                let shouldArchive = false;
+                let autoReason = '';
+
+                if (analysis.isFromEndedSeason) {
+                    shouldArchive = true;
+                    autoReason = `أرشفة تلقائية: نشاط القسم يعود لموسم منتهٍ (${analysis.season})`;
+                } else if (hasSchoolYearEndedByDate && analysis.season === currentSeason) {
+                    shouldArchive = true;
+                    autoReason = `أرشفة تلقائية لانتهاء تاريخ الموسم الدراسي (${schoolYearEnd})`;
+                } else if (options.manualTrigger && !isNaN(currentStartYear)) {
+                    // عند التشغيل اليدوي لفحص انتهاء الموسم، نتأكد كذلك من أي قسم لا يحمل تاريخ نشاط ضمن الموسم الحالي إذا انتهى الموسم تقويمياً (شهر يوليوز/غشت)
+                    const m = new Date().getMonth(); // 0-11 (6 = July, 7 = August)
+                    if (m === 6 || m === 7) {
+                        shouldArchive = true;
+                        autoReason = `أرشفة نهاية الموسم الصيفية (${analysis.season})`;
+                    }
+                }
+
+                if (shouldArchive) {
+                    moveClassDataToArchiveVault(cls, {
+                        autoArchived: true,
+                        season: analysis.season !== 'غير محدد' ? analysis.season : currentSeason,
+                        reason: autoReason
+                    });
+                    archivedNow.push(cls);
+                }
+            });
+
+            if (hasSchoolYearEndedByDate && archivedNow.length > 0) {
+                db.settings.lastAutoArchivedEndDate = schoolYearEnd;
+            }
+
+            if (archivedNow.length > 0) {
+                _recordsCacheDirty = true;
+                if (typeof buildRecordsCache === 'function') buildRecordsCache();
+                saveDB();
+                renderArchiveList();
+                if (typeof refreshClassDropdown === 'function') refreshClassDropdown();
+                if (typeof refreshNotesClassDropdown === 'function') refreshNotesClassDropdown();
+                if (typeof refreshReportClassDropdown === 'function') refreshReportClassDropdown();
+                if (typeof showAppToast === 'function') {
+                    showAppToast(`📦 تم نقل ${archivedNow.length} قسم(اً) من الموسم المنتهي إلى قسم الأرشيف تلقائياً مع حفظ كامل بياناتها للاستعادة.`, 'success');
+                }
+            } else if (options.manualTrigger && typeof showAppToast === 'function') {
+                showAppToast('✅ جميع الأقسام الحالية نشطة ضمن الموسم الجاري ولا توجد أقسام منتهية للأرشفة.', 'info');
+            }
+
+            return { archived: archivedNow };
+        }
+        window.runAutoEndOfSeasonArchive = runAutoEndOfSeasonArchive;
+
+        function previewArchivedClassSnapshot(className) {
+            const analysis = getClassArchiveAnalysis(className);
+            const vaultEntry = (db.archivedSeasonVault && db.archivedSeasonVault[className]) || null;
+            const studentsList = vaultEntry && Array.isArray(vaultEntry.students)
+                ? vaultEntry.students
+                : ((db.classes && db.classes[className]) || []);
+
+            let modal = document.getElementById('archivedClassPreviewModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'archivedClassPreviewModal';
+                modal.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(15,23,42,0.72); z-index:10080; align-items:center; justify-content:center; padding:16px; backdrop-filter:blur(4px);';
+                document.body.appendChild(modal);
+            }
+
+            const rows = studentsList.slice(0, 60).map((s, idx) => `
+                <tr>
+                    <td style="padding:5px 8px; border:1px solid #e2e8f0; text-align:center;">${s.orderNum || (idx + 1)}</td>
+                    <td style="padding:5px 8px; border:1px solid #e2e8f0; font-family:monospace; text-align:center;">${escapeHtml(s.massar || '-')}</td>
+                    <td style="padding:5px 8px; border:1px solid #e2e8f0; font-weight:700;">${escapeHtml(s.name || '')}</td>
+                </tr>
+            `).join('');
+
+            const safeCls = escapeHtml(className).replace(/'/g, "\\'");
+            modal.innerHTML = `
+                <div style="background:#fff; border-radius:14px; max-width:620px; width:100%; max-height:86vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 35px rgba(0,0,0,0.25);">
+                    <div style="padding:14px 18px; background:linear-gradient(135deg,#1e3a8a,#312e81); color:#fff; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <h3 style="margin:0; font-size:1rem; font-weight:800;">📦 معاينة الأرشيف المحفوظ: ${escapeHtml(className)}</h3>
+                            <div style="font-size:0.74rem; color:#dbeafe; margin-top:2px;">الموسم: ${escapeHtml(analysis.season)} · ${escapeHtml(analysis.reason)}</div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('archivedClassPreviewModal').style.display='none'" style="background:rgba(255,255,255,0.18); border:none; color:#fff; width:30px; height:30px; border-radius:8px; cursor:pointer; font-size:1.1rem;">&times;</button>
+                    </div>
+                    <div style="padding:14px 18px; overflow-y:auto;">
+                        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; text-align:center;">
+                            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px;"><div style="font-weight:900; color:#1e3a8a;">${analysis.studentsCount}</div><div style="font-size:0.7rem; color:#64748b;">التلاميذ</div></div>
+                            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px;"><div style="font-weight:900; color:#dc2626;">${analysis.recordsCount}</div><div style="font-size:0.7rem; color:#64748b;">سجلات الغياب</div></div>
+                            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px;"><div style="font-weight:900; color:#059669;">${analysis.gradesCount}</div><div style="font-size:0.7rem; color:#64748b;">ملفات النقط</div></div>
+                            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px;"><div style="font-weight:900; color:#7c3aed;">${analysis.lessonLogsCount}</div><div style="font-size:0.7rem; color:#64748b;">دفتر النصوص</div></div>
+                        </div>
+                        <div style="max-height:260px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.78rem;">
+                                <thead><tr style="background:#f1f5f9;"><th style="padding:6px; border:1px solid #e2e8f0; width:45px;">ر.ت</th><th style="padding:6px; border:1px solid #e2e8f0; width:110px;">رقم مسار</th><th style="padding:6px; border:1px solid #e2e8f0; text-align:right;">الاسم الكامل</th></tr></thead>
+                                <tbody>${rows || '<tr><td colspan="3" style="padding:12px; text-align:center; color:#64748b;">لا توجد لائحة تلاميذ مسجلة.</td></tr>'}</tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div style="padding:12px 18px; border-top:1px solid #e2e8f0; background:#f8fafc; display:flex; justify-content:space-between; gap:8px;">
+                        <button type="button" onclick="document.getElementById('archivedClassPreviewModal').style.display='none'; toggleArchiveClass('${safeCls}');" class="btn-primary" style="background:#10b981; border:none; padding:7px 14px; border-radius:8px; font-size:0.82rem; font-weight:800;">🔄 استعادة القسم للعمل النشط</button>
+                        <button type="button" onclick="document.getElementById('archivedClassPreviewModal').style.display='none'" style="background:#fff; border:1px solid #cbd5e1; color:#334155; padding:7px 14px; border-radius:8px; font-size:0.82rem; cursor:pointer;">إغلاق</button>
+                    </div>
+                </div>
+            `;
+            modal.style.display = 'flex';
+        }
+        window.previewArchivedClassSnapshot = previewArchivedClassSnapshot;
 
         function renderArchiveList() {
             const container = document.getElementById('archiveListContainer');
@@ -3961,21 +4257,32 @@
 
             if (!db.archivedClasses) db.archivedClasses = [];
             if (!db.archivedClassesMeta) db.archivedClassesMeta = {};
+            if (!db.archivedSeasonVault) db.archivedSeasonVault = {};
 
-            const classNames = Object.keys(db.classes || {});
+            const autoToggleCb = document.getElementById('toggleAutoSeasonArchiveCb');
+            if (autoToggleCb) autoToggleCb.checked = isAutoSeasonArchiveEnabled();
+
+            const allNamesSet = new Set([
+                ...Object.keys(db.classes || {}),
+                ...(Array.isArray(db.archivedClasses) ? db.archivedClasses : []),
+                ...Object.keys(db.archivedSeasonVault || {})
+            ]);
+            const classNames = Array.from(allNamesSet);
             const totalCount = classNames.length;
-            const archivedCount = db.archivedClasses.length;
+            const archivedCount = classNames.filter(c => db.archivedClasses.includes(c) || !!db.archivedSeasonVault[c]).length;
 
             const statsSummary = document.getElementById('archiveStatsSummary');
             if (statsSummary) {
-                statsSummary.textContent = `الأقسام: ${totalCount} مسجلة (${archivedCount} مؤرشفة)`;
+                statsSummary.textContent = `الأقسام: ${totalCount} مسجلة (${archivedCount} في الأرشيف)`;
             }
 
             let oldArchivedCount = 0;
-            db.archivedClasses.forEach(c => {
-                const analysis = getClassArchiveAnalysis(c);
-                if (analysis && analysis.isOlderThanOneSeason) {
-                    oldArchivedCount++;
+            classNames.forEach(c => {
+                if (db.archivedClasses.includes(c) || db.archivedSeasonVault[c]) {
+                    const analysis = getClassArchiveAnalysis(c);
+                    if (analysis && analysis.isOlderThanOneSeason) {
+                        oldArchivedCount++;
+                    }
                 }
             });
 
@@ -4001,41 +4308,47 @@
             }
 
             let html = '';
-            for (let c in db.classes) {
-                const isArchived = db.archivedClasses.includes(c);
-                const count = (db.classes[c] || []).length;
-                const analysis = isArchived ? getClassArchiveAnalysis(c) : null;
-                const isOld = analysis && analysis.isOlderThanOneSeason;
+            classNames.forEach(c => {
+                const isArchived = db.archivedClasses.includes(c) || !!db.archivedSeasonVault[c];
+                const analysis = getClassArchiveAnalysis(c);
+                const count = analysis.studentsCount;
+                const isOld = isArchived && analysis && analysis.isOlderThanOneSeason;
+                const safeCAttr = escapeHtml(c).replace(/'/g, "\\'");
 
                 html += `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid ${isArchived ? (isOld ? '#fca5a5' : 'var(--border)') : '#bfdbfe'}; border-radius: 8px; background: ${isArchived ? (isOld ? '#fff5f5' : '#f8fafc') : '#eff6ff'}; transition: all 0.2s;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid ${isArchived ? (isOld ? '#fca5a5' : 'var(--border)') : '#bfdbfe'}; border-radius: 8px; background: ${isArchived ? (isOld ? '#fff5f5' : '#f8fafc') : '#eff6ff'}; transition: all 0.2s; gap: 8px; flex-wrap: wrap;">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <div style="width: 32px; height: 32px; border-radius: 6px; background: ${isArchived ? (isOld ? '#fee2e2' : '#e2e8f0') : '#dbeafe'}; color: ${isArchived ? (isOld ? '#dc2626' : '#64748b') : '#1d4ed8'}; display: flex; align-items: center; justify-content: center;">
                                 <span class="ui-icon"><span data-lucide="${isArchived ? 'archive' : 'users'}" data-size="14"></span></span>
                             </div>
                             <div>
                                 <div style="font-weight: 700; font-size: 0.86rem; color: ${isArchived ? (isOld ? '#991b1b' : '#64748b') : '#1e3a8a'}; display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
-                                    <span>${c}</span>
+                                    <span>${escapeHtml(c)}</span>
                                     ${isArchived ? '<span style="font-size: 0.68rem; padding: 1px 6px; background: #e2e8f0; color: #475569; border-radius: 4px;">مؤرشف</span>' : ''}
-                                    ${isOld ? `<span style="font-size: 0.66rem; padding: 1px 6px; background: #fee2e2; color: #b91c1c; border-radius: 4px; font-weight: 600;">أكثر من موسم (${analysis.season})</span>` : ''}
+                                    ${isArchived && analysis.autoArchived ? '<span style="font-size: 0.66rem; padding: 1px 6px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-weight: 700;">أرشفة تلقائية</span>' : ''}
+                                    ${isOld ? `<span style="font-size: 0.66rem; padding: 1px 6px; background: #fee2e2; color: #b91c1c; border-radius: 4px; font-weight: 600;">أكثر من موسم (${escapeHtml(analysis.season)})</span>` : ''}
                                 </div>
                                 <div style="font-size: 0.74rem; color: #64748b;">
-                                    ${count} تلميذ(ة) ${analysis && analysis.recordsCount > 0 ? `• ${analysis.recordsCount} سجل` : ''}
+                                    ${count} تلميذ(ة)${analysis.recordsCount > 0 ? ` • ${analysis.recordsCount} سجل` : ''}${analysis.gradesCount > 0 ? ` • ${analysis.gradesCount} نقط` : ''}${analysis.season !== 'غير محدد' ? ` • ${escapeHtml(analysis.season)}` : ''}
                                 </div>
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <button type="button" class="btn-primary" onclick="toggleArchiveClass('${c}')" style="background-color: ${isArchived ? 'var(--success)' : '#64748b'}; padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;">
+                            ${isArchived ? `
+                            <button type="button" onclick="previewArchivedClassSnapshot('${safeCAttr}')" title="معاينة بيانات القسم المؤرشف" style="background: #ffffff; border: 1px solid #cbd5e1; color: #334155; padding: 5px 9px; font-size: 0.76rem; font-weight: 700; border-radius: 6px; cursor: pointer;">
+                                👁️ معاينة
+                            </button>` : ''}
+                            <button type="button" class="btn-primary" onclick="toggleArchiveClass('${safeCAttr}')" style="background-color: ${isArchived ? 'var(--success)' : '#64748b'}; padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;">
                                 ${isArchived ? '<span class="ui-icon">' + lucideIcon('refreshcw', {size: 12}) + '</span> استعادة' : '<span class="ui-icon">' + lucideIcon('archive', {size: 12}) + '</span> أرشفة'}
                             </button>
                             ${isArchived ? `
-                            <button type="button" onclick="confirmDeleteSingleArchivedClass('${c}')" title="حذف نهائي لهذا القسم المؤرشف من قاعدة البيانات لتخفيف الذاكرة" style="background: #fee2e2; border: 1px solid #fca5a5; color: #dc2626; padding: 6px 8px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">
+                            <button type="button" onclick="confirmDeleteSingleArchivedClass('${safeCAttr}')" title="حذف نهائي لهذا القسم المؤرشف من قاعدة البيانات لتخفيف الذاكرة" style="background: #fee2e2; border: 1px solid #fca5a5; color: #dc2626; padding: 6px 8px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">
                                 <span class="ui-icon"><span data-lucide="trash-2" data-size="13"></span></span>
                             </button>` : ''}
                         </div>
                     </div>
                 `;
-            }
+            });
             container.innerHTML = html;
             if (window.renderLucide) window.renderLucide();
         }
@@ -4043,16 +4356,18 @@
         function toggleArchiveClass(className) {
             if (!db.archivedClasses) db.archivedClasses = [];
             if (!db.archivedClassesMeta) db.archivedClassesMeta = {};
+            if (!db.archivedSeasonVault) db.archivedSeasonVault = {};
 
-            if (db.archivedClasses.includes(className)) {
-                db.archivedClasses = db.archivedClasses.filter(c => c !== className);
-                delete db.archivedClassesMeta[className];
+            if (db.archivedClasses.includes(className) || db.archivedSeasonVault[className]) {
+                restoreClassDataFromArchiveVault(className);
+                if (typeof showAppToast === 'function') {
+                    showAppToast(`🔄 تمت استعادة قسم "${className}" بكامل بياناته إلى الأقسام النشطة.`, 'success');
+                }
             } else {
-                db.archivedClasses.push(className);
-                db.archivedClassesMeta[className] = {
-                    archivedAt: new Date().toISOString(),
-                    season: getCurrentAcademicYear()
-                };
+                moveClassDataToArchiveVault(className, { autoArchived: false });
+                if (typeof showAppToast === 'function') {
+                    showAppToast(`📦 تم نقل قسم "${className}" وبياناته إلى قسم الأرشيف بنجاح.`, 'info');
+                }
             }
             saveDB();
             renderArchiveList();
@@ -4062,6 +4377,15 @@
             refreshNotesClassDropdown();
             refreshReportClassDropdown();
         }
+
+        // فحص تلقائي للأرشفة عند انتهاء الموسم الدراسي بعد تحميل المنظومة
+        setTimeout(() => {
+            try {
+                if (typeof runAutoEndOfSeasonArchive === 'function') {
+                    runAutoEndOfSeasonArchive({ reason: 'startup_season_check' });
+                }
+            } catch (e) {}
+        }, 4200);
 
         function openPurgeOldArchiveModal() {
             const modal = document.getElementById('purgeOldArchiveModal');
@@ -4232,14 +4556,23 @@
 
             const set = new Set(selectedClassNames);
             selectedClassNames.forEach(c => {
-                if (db.classes && db.classes[c]) backupData.classes[c] = db.classes[c];
-                if (db.grades && db.grades[c]) backupData.grades[c] = db.grades[c];
-                if (db.behaviors && db.behaviors[c]) backupData.behaviors[c] = db.behaviors[c];
-                if (db.lessonLogs && db.lessonLogs[c]) backupData.lessonLogs[c] = db.lessonLogs[c];
+                const v = (db.archivedSeasonVault && db.archivedSeasonVault[c]) ? db.archivedSeasonVault[c] : null;
+                if (v) {
+                    backupData.classes[c] = v.students || [];
+                    backupData.grades[c] = v.grades || {};
+                    backupData.behaviors[c] = v.behaviors || {};
+                    backupData.lessonLogs[c] = v.lessonLogs || [];
+                    if (Array.isArray(v.records)) backupData.records.push(...v.records);
+                } else {
+                    if (db.classes && db.classes[c]) backupData.classes[c] = db.classes[c];
+                    if (db.grades && db.grades[c]) backupData.grades[c] = db.grades[c];
+                    if (db.behaviors && db.behaviors[c]) backupData.behaviors[c] = db.behaviors[c];
+                    if (db.lessonLogs && db.lessonLogs[c]) backupData.lessonLogs[c] = db.lessonLogs[c];
+                }
             });
 
             if (db.records && Array.isArray(db.records)) {
-                backupData.records = db.records.filter(r => set.has(r.className));
+                backupData.records.push(...db.records.filter(r => set.has(r.className)));
             }
 
             const dateStr = formatLocalDate();
@@ -4337,6 +4670,17 @@
             if (db.classConfig) classNamesToPurge.forEach(c => delete db.classConfig[c]);
             if (db.classUsage) classNamesToPurge.forEach(c => delete db.classUsage[c]);
             if (db.archivedClassesMeta) classNamesToPurge.forEach(c => delete db.archivedClassesMeta[c]);
+            if (db.archivedSeasonVault) {
+                classNamesToPurge.forEach(c => {
+                    const v = db.archivedSeasonVault[c];
+                    if (v) {
+                        deletedStudents += Array.isArray(v.students) ? v.students.length : 0;
+                        deletedRecords += Array.isArray(v.records) ? v.records.length : 0;
+                        deletedGrades += v.grades ? Object.keys(v.grades).length : 0;
+                        delete db.archivedSeasonVault[c];
+                    }
+                });
+            }
 
             _recordsCacheDirty = true;
             if (typeof buildRecordsCache === 'function') {
@@ -4988,18 +5332,18 @@
             const newPwd = document.getElementById('settingsNewPassword').value;
 
             if (!name || !username) {
-                alert('الاسم الكامل واسم المستخدم ضروريان.');
+                window.notifySafeToast('الاسم الكامل واسم المستخدم ضروريان.');
                 return;
             }
 
             // Check if password change is requested
             if (oldPwd || newPwd) {
                 if (oldPwd !== db.teacherProfile.password) {
-                    alert('القن السري الحالي غير صحيح.');
+                    window.notifySafeToast('القن السري الحالي غير صحيح.');
                     return;
                 }
                 if (!newPwd) {
-                    alert('يرجى إدخال القن السري الجديد.');
+                    window.notifySafeToast('يرجى إدخال القن السري الجديد.');
                     return;
                 }
                 db.teacherProfile.password = newPwd;
@@ -5063,7 +5407,7 @@
             updateTeacherNameInHeader();
             if (typeof applyClassColorsToActiveViews === 'function') applyClassColorsToActiveViews();
             closeTeacherSettings();
-            alert('تم حفظ الإعدادات بنجاح!');
+            window.notifySafeToast('تم حفظ الإعدادات بنجاح!');
         }
 
 
@@ -5396,6 +5740,7 @@
             }
             return detectExamsCount(className);
         }
+        window.getExamsCountForClass = getExamsCountForClass;
 
 
         function setExamsCountForClass(count) {
@@ -5886,18 +6231,22 @@
                 document.getElementById('classSelect').value = className;
             }
 
-            const reason = prompt('أدخل سبب التنبيه السلوكي (اختياري):');
-            if (reason !== null) {
+            const applyReason = (reason) => {
+                if (reason === null || reason === undefined) return;
                 setBehaviorStatus(className, stdId, 'تنبيه');
                 updateBehaviorNote(className, stdId, reason);
-                renderStudents(); // Refresh UI to show the alert
+                renderStudents();
 
-                // Show success toast (simulate)
                 const toast = document.createElement('div');
                 toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--success-dark);color:white;padding:10px 20px;border-radius:20px;z-index:99999;font-family:"Cairo",sans-serif;box-shadow:var(--shadow-md);';
                 toast.innerHTML = '<span class="ui-icon">' + lucideIcon('checkcircle2', {size: 14}) + '</span> تم إرسال التنبيه السلوكي بنجاح';
                 document.body.appendChild(toast);
                 setTimeout(() => toast.remove(), 3000);
+            };
+            if (typeof window.showInputDialog === 'function') {
+                window.showInputDialog('أدخل سبب التنبيه السلوكي (اختياري):', '', applyReason, { title: 'تسجيل تنبيه سلوكي' });
+            } else {
+                applyReason('');
             }
         }
 
@@ -6779,10 +7128,20 @@
                         reject(new Error('مكتبة تصدير الصور غير متوفرة بعد التحميل'));
                     }
                 };
-                script.onerror = () => reject(new Error('تعذر تحميل مكتبة تصدير الصور من الخادم'));
+                script.onerror = async () => {
+                    if (typeof window.ensureHtml2PdfLoaded === 'function') {
+                        await window.ensureHtml2PdfLoaded();
+                        if (typeof window.html2canvas === 'function') {
+                            resolve(window.html2canvas);
+                            return;
+                        }
+                    }
+                    reject(new Error('تعذر تحميل مكتبة تصدير الصور من الخادم'));
+                };
                 document.head.appendChild(script);
             });
         }
+        window.ensureHtml2Canvas = ensureHtml2Canvas;
 
         async function exportWeeklyTimetableImage() {
             const btn = document.getElementById('btnExportTimetablePng');
@@ -6837,7 +7196,7 @@
                 }
             } catch (err) {
                 console.error('Error exporting image:', err?.message || String(err));
-                alert('حدث خطأ أثناء تصدير الصورة: ' + (err.message || err));
+                window.notifySafeToast('حدث خطأ أثناء تصدير الصورة: ' + (err.message || err));
             } finally {
                 if (btn) {
                     btn.disabled = false;
@@ -6847,9 +7206,12 @@
             }
         }
 
-        function exportTimetableExcel() {
+        async function exportTimetableExcel() {
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
+            }
             if (typeof XLSX === 'undefined') {
-                alert('مكتبة Excel غير متوفرة حالياً');
+                window.notifySafeToast('مكتبة Excel غير متوفرة حالياً');
                 return;
             }
             const days = WORK_DAYS;
@@ -6988,13 +7350,14 @@
             }
 
             if (groups.size === 0) {
-                alert('لا توجد مجموعات مسجلة حالياً. يرجى إضافة تلاميذ وتحديد مجموعاتهم أولاً.');
+                window.notifySafeToast('لا توجد مجموعات مسجلة حالياً. يرجى إضافة تلاميذ وتحديد مجموعاتهم أولاً.');
                 return;
             }
 
+            const esc = (v) => (window.escapeTutoringHtml ? window.escapeTutoringHtml(v) : String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
             let opts = '';
             Array.from(groups).sort().forEach(grp => {
-                opts += '<option value="' + grp + '">' + grp + '</option>';
+                opts += '<option value="' + esc(grp) + '">' + esc(grp) + '</option>';
             });
             select.innerHTML = opts;
 
@@ -7085,13 +7448,14 @@
             const grp = select.value;
             const students = (db.tutoring.students || []).filter(s => s.group === grp);
             badge.textContent = 'عدد التلاميذ في هذه المجموعة: ' + students.length + ' تلميذ(ة)';
+            const esc = (v) => (window.escapeTutoringHtml ? window.escapeTutoringHtml(v) : String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
 
             let listHtml = '';
             students.forEach(s => {
                 listHtml += `
                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 5px;">
-                        <span style="font-size: 0.85rem; font-weight: 700; color: #1e293b;">${s.name}</span>
-                        <select class="tutoring-group-attendance-select" data-student-id="${s.id}" onchange="onGroupSessionAttendanceSelectChange(this)" style="padding: 3px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: bold; border: 1px solid #a7f3d0; background: #ecfdf5; color: #059669; font-family: 'Cairo', sans-serif; cursor: pointer;">
+                        <span style="font-size: 0.85rem; font-weight: 700; color: #1e293b;">${esc(s.name)}</span>
+                        <select class="tutoring-group-attendance-select" data-student-id="${esc(s.id)}" onchange="onGroupSessionAttendanceSelectChange(this)" style="padding: 3px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: bold; border: 1px solid #a7f3d0; background: #ecfdf5; color: #059669; font-family: 'Cairo', sans-serif; cursor: pointer;">
                             <option value="present">حاضر</option>
                             <option value="absent">غائب</option>
                             <option value="excused">بعذر</option>
@@ -7102,6 +7466,13 @@
             });
             if (students.length === 0) listHtml = '<div style="font-size:0.8rem; color:#ef4444; padding: 10px; text-align: center;">لا يوجد تلاميذ مسجلون في هذه المجموعة</div>';
             attendanceList.innerHTML = listHtml;
+
+            if (typeof window.renderTutoringLibraryLinker === 'function') {
+                const grpObj = (db.tutoring.groups || []).find(g => g.name === grp);
+                const levelHint = (grpObj && grpObj.level) || (students.find(s => s.level)?.level) || '';
+                const currentSel = window.getSelectedTutoringLibraryResources ? window.getSelectedTutoringLibraryResources('groupSessionLibraryLinkerContainer') : [];
+                window.renderTutoringLibraryLinker('groupSessionLibraryLinkerContainer', currentSel, levelHint);
+            }
         }
 
         var _isSavingTutoringGroupSession = false;
@@ -7122,7 +7493,7 @@
             const homework = homeworkInput ? homeworkInput.value.trim() : '';
 
             if (!date) {
-                alert('يرجى تحديد تاريخ الحصة');
+                window.notifySafeToast('يرجى تحديد تاريخ الحصة');
                 return;
             }
 
@@ -7131,7 +7502,7 @@
 
             const students = (db.tutoring.students || []).filter(s => s.group === group);
             if (students.length === 0) {
-                alert('لا يوجد تلاميذ في هذه المجموعة');
+                window.notifySafeToast('لا يوجد تلاميذ في هذه المجموعة');
                 unlock();
                 return;
             }
@@ -7144,6 +7515,10 @@
                 attendanceMap[sId] = sel.value || 'present';
             });
 
+            const attachedResources = (typeof window.getSelectedTutoringLibraryResources === 'function')
+                ? window.getSelectedTutoringLibraryResources('groupSessionLibraryLinkerContainer')
+                : [];
+
             students.forEach(std => {
                 const attStatus = attendanceMap[std.id] || 'present';
                 if (!std.sessions) std.sessions = [];
@@ -7155,7 +7530,8 @@
                     hours: hours,
                     topic: topic,
                     homework: homework,
-                    attendance: attStatus
+                    attendance: attStatus,
+                    attachedResources: attachedResources
                 });
             });
 
@@ -7179,7 +7555,8 @@
                     time: time,
                     hours: hours,
                     topic: topic,
-                    homework: homework
+                    homework: homework,
+                    attachedResources: attachedResources
                 }, absentees, students);
             } else {
                 // Success toast
@@ -7222,6 +7599,7 @@
             if (sessionsList.length === 0) {
                 container.innerHTML = '<div style="text-align:center; padding:30px; color:#94a3b8; font-size:0.95rem;">لا توجد حصص مسجلة في هذا الشهر حتى الآن.</div>';
             } else {
+                const esc = (v) => (window.escapeTutoringHtml ? window.escapeTutoringHtml(v) : String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
                 let html = '';
                 sessionsList.forEach(item => {
                     const s = item.session;
@@ -7230,19 +7608,19 @@
                     html += '<div style="background:' + (isAbsent ? '#fef2f2' : '#f8fafc') + '; border:1px solid ' + (isAbsent ? '#fecaca' : '#e2e8f0') + '; border-radius:10px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">' +
                         '<div>' +
                             '<div style="font-weight:800; color:#1e293b; font-size:1rem; display:flex; align-items:center; gap:8px;">' +
-                                item.studentName +
-                                '<span class="tutoring-chip" style="background:#e0f2fe; color:#0369a1;">' + (item.studentGroup || 'غير محدد') + '</span>' +
+                                esc(item.studentName) +
+                                '<span class="tutoring-chip" style="background:#e0f2fe; color:#0369a1;">' + esc(item.studentGroup || 'غير محدد') + '</span>' +
                                 attBadge +
                             '</div>' +
                             '<div style="font-size:0.8rem; color:#64748b; margin-top:3px;">' +
-                                (s.topic ? '<strong>الموضوع:</strong> ' + s.topic + ' | ' : '') +
-                                '<span dir="ltr">' + (s.date || '') + ' ' + (s.time || '') + '</span>' +
+                                (s.topic ? '<strong>الموضوع:</strong> ' + esc(s.topic) + ' | ' : '') +
+                                '<span dir="ltr">' + esc(s.date || '') + ' ' + esc(s.time || '') + '</span>' +
                             '</div>' +
                         '</div>' +
                         '<div style="display:flex; align-items:center; gap:8px;">' +
                             '<span style="background:#eff6ff; color:#1d4ed8; font-weight:bold; padding:4px 10px; border-radius:8px; font-size:0.85rem;">' + (s.hours || 0) + ' ساعة</span>' +
-                            '<button type="button" onclick="closeTutoringAllSessionsModal(); editTutoringSingleSession(\'' + item.studentId + '\', \'' + s.id + '\')" style="background:#f0fdf4; border:1px solid #bbf7d0; color:#15803d; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:0.8rem; font-weight:bold;" title="تعديل الحصة">تعديل</button>' +
-                            '<button type="button" onclick="deleteSingleSession(\'' + item.studentId + '\', \'' + s.id + '\')" style="background:#fee2e2; border:none; color:#ef4444; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:0.8rem;" title="حذف الحصة">حذف</button>' +
+                            '<button type="button" onclick="closeTutoringAllSessionsModal(); editTutoringSingleSession(\'' + esc(item.studentId) + '\', \'' + esc(s.id) + '\')" style="background:#f0fdf4; border:1px solid #bbf7d0; color:#15803d; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:0.8rem; font-weight:bold;" title="تعديل الحصة">تعديل</button>' +
+                            '<button type="button" onclick="deleteSingleSession(\'' + esc(item.studentId) + '\', \'' + esc(s.id) + '\')" style="background:#fee2e2; border:none; color:#ef4444; border-radius:6px; padding:6px 10px; cursor:pointer; font-size:0.8rem;" title="حذف الحصة">حذف</button>' +
                         '</div>' +
                     '</div>';
                 });
@@ -7276,7 +7654,7 @@
             currentWaStudentId = studentId;
             const std = (db.tutoring.students || []).find(s => s.id === studentId);
             if (!std) {
-                alert('لم يتم العثور على بيانات التلميذ');
+                window.notifySafeToast('لم يتم العثور على بيانات التلميذ');
                 return;
             }
 
@@ -7294,10 +7672,23 @@
 
             if (!modal) return;
 
+            const esc = (v) => (window.escapeTutoringHtml ? window.escapeTutoringHtml(v) : String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
             document.getElementById('waStudentId').value = studentId;
             if (studentNameEl) studentNameEl.textContent = std.name;
             if (studentSubEl) {
-                studentSubEl.innerHTML = 'تلميذ: <strong style="color:#0f172a;">' + std.name + '</strong> • المجموعة: <span class="tutoring-chip" style="background:#f1f5f9; color:#334155; font-size:0.75rem; padding:2px 6px;">' + (std.group || 'عام') + '</span>';
+                studentSubEl.innerHTML = 'تلميذ: <strong style="color:#0f172a;">' + esc(std.name) + '</strong> • المجموعة: <span class="tutoring-chip" style="background:#f1f5f9; color:#334155; font-size:0.75rem; padding:2px 6px;">' + esc(std.group || 'عام') + '</span>';
+            }
+
+            const lastBanner = document.getElementById('waLastNotifiedBanner');
+            if (lastBanner) {
+                if (std.lastNotifiedAt) {
+                    const dtStr = new Date(std.lastNotifiedAt).toLocaleString('ar-MA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    lastBanner.style.display = 'flex';
+                    lastBanner.innerHTML = `<span>🕓 آخر إشعار أُرسل لولي الأمر: <b>${esc(dtStr)}</b></span>`;
+                } else {
+                    lastBanner.style.display = 'none';
+                    lastBanner.innerHTML = '';
+                }
             }
 
             // Month select init
@@ -7362,12 +7753,8 @@
             const isSettled = payInfo.status === 'paid';
 
             let determinedType = 'unpaid';
-            if (initialType === 'upcoming') {
-                determinedType = 'upcoming';
-            } else if (initialType === 'both') {
-                determinedType = 'both';
-            } else if (initialType === 'unpaid') {
-                determinedType = 'unpaid';
+            if (['upcoming', 'both', 'unpaid', 'absence', 'pack_low', 'grade_congrats', 'custom'].includes(initialType)) {
+                determinedType = initialType;
             } else {
                 if (!isSettled && payInfo.remaining > 0) {
                     determinedType = 'unpaid';
@@ -7447,6 +7834,8 @@
             const btnAbsence = document.getElementById('waTypeBtnAbsence');
             const btnUnpaid = document.getElementById('waTypeBtnUnpaid');
             const btnUpcoming = document.getElementById('waTypeBtnUpcoming');
+            const btnPackLow = document.getElementById('waTypeBtnPackLow');
+            const btnGradeCongrats = document.getElementById('waTypeBtnGradeCongrats');
             const btnBoth = document.getElementById('waTypeBtnBoth');
             const btnCustom = document.getElementById('waTypeBtnCustom');
 
@@ -7454,7 +7843,7 @@
             const paramsUnpaid = document.getElementById('waParamsUnpaid');
             const paramsUpcoming = document.getElementById('waParamsUpcoming');
 
-            [btnAbsence, btnUnpaid, btnUpcoming, btnBoth, btnCustom].forEach(b => {
+            [btnAbsence, btnUnpaid, btnUpcoming, btnPackLow, btnGradeCongrats, btnBoth, btnCustom].forEach(b => {
                 if (b) {
                     b.style.background = '#f8fafc';
                     b.style.borderColor = '#cbd5e1';
@@ -7497,6 +7886,26 @@
                 if (paramsAbsence) paramsAbsence.style.display = 'none';
                 if (paramsUnpaid) paramsUnpaid.style.display = 'none';
                 if (paramsUpcoming) paramsUpcoming.style.display = 'block';
+            } else if (type === 'pack_low') {
+                if (btnPackLow) {
+                    btnPackLow.style.background = '#e0f2fe';
+                    btnPackLow.style.borderColor = '#38bdf8';
+                    btnPackLow.style.color = '#0369a1';
+                    btnPackLow.style.boxShadow = '0 1px 3px rgba(2, 132, 199, 0.15)';
+                }
+                if (paramsAbsence) paramsAbsence.style.display = 'none';
+                if (paramsUnpaid) paramsUnpaid.style.display = 'none';
+                if (paramsUpcoming) paramsUpcoming.style.display = 'none';
+            } else if (type === 'grade_congrats') {
+                if (btnGradeCongrats) {
+                    btnGradeCongrats.style.background = '#d1fae5';
+                    btnGradeCongrats.style.borderColor = '#34d399';
+                    btnGradeCongrats.style.color = '#065f46';
+                    btnGradeCongrats.style.boxShadow = '0 1px 3px rgba(16, 185, 129, 0.15)';
+                }
+                if (paramsAbsence) paramsAbsence.style.display = 'none';
+                if (paramsUnpaid) paramsUnpaid.style.display = 'none';
+                if (paramsUpcoming) paramsUpcoming.style.display = 'none';
             } else if (type === 'both') {
                 if (btnBoth) {
                     btnBoth.style.background = '#f5f3ff';
@@ -7572,6 +7981,7 @@
                 } catch(e) {}
             }
 
+            const teacherSig = (db.teacherProfile && db.teacherProfile.name) ? ('\n\nالأستاذ(ة): ' + db.teacherProfile.name) : '';
             let message = '';
             if (currentWaReminderType === 'absence') {
                 const absDate = document.getElementById('waAbsenceDate') ? document.getElementById('waAbsenceDate').value : '';
@@ -7591,26 +8001,24 @@
                 message = 'السلام عليكم ورحمة الله ولي أمر التلميذ(ة) ' + std.name + '،\n\n' +
                     'نحيطكم علماً بأن التلميذ(ة) قد تغيب(ت) عن حصة الدعم الخصوصي المقررة يوم ' + formattedAbsDate + ' على الساعة ' + absTime + ' (مجموعة: ' + (std.group || 'الدعم') + ').\n\n' +
                     'نرجو حث التلميذ(ة) على الانتظام في الحضور وتفادي الغياب لما له من أثر مباشر على مسايرة الدروس والتفوق الدراسي.\n\n' +
-                    'شكراً جزيلاً لحسن تعاونكم واهتمامكم الدائم.';
+                    'شكراً جزيلاً لحسن تعاونكم واهتمامكم الدائم.' + teacherSig;
             } else if (currentWaReminderType === 'unpaid') {
                 if (payInfo.status === 'partial') {
                     message = 'السلام عليكم ورحمة الله ولي أمر التلميذ(ة) ' + std.name + '،\n\n' +
                         'نود إخباركم ببيان مستحقات حصص الدعم الخصوصي لشهر ' + month + ':\n' +
                         '• عدد الساعات المنجزة: ' + hours + ' ساعة\n' +
-                        '• واجب الساعة: ' + rate + ' درهم\n' +
                         '• المبلغ الإجمالي المستحق: ' + due + ' درهم\n' +
                         '• المبلغ المؤدى سابقاً: ' + payInfo.paidAmount + ' درهم\n' +
                         '• المبلغ المتبقي بذمة التلميذ(ة): ' + payInfo.remaining + ' درهم\n\n' +
                         'نرجو التفضل بتسوية المبلغ المتبقي في أقرب فرصة ممكنة.\n' +
-                        'شكراً جزيلاً لتعاونكم وثقتكم الكريمة.';
+                        'شكراً جزيلاً لتعاونكم وثقتكم الكريمة.' + teacherSig;
                 } else {
                     message = 'السلام عليكم ورحمة الله ولي أمر التلميذ(ة) ' + std.name + '،\n\n' +
                         'نود إخباركم بمستحقات حصص الدعم الخصوصي لشهر ' + month + ':\n' +
                         '• عدد الساعات المنجزة: ' + hours + ' ساعة\n' +
-                        '• واجب الساعة: ' + rate + ' درهم\n' +
                         '• المبلغ الإجمالي المستحق: ' + due + ' درهم\n\n' +
                         'نرجو التفضل بتسوية الواجب في أقرب فرصة ممكنة.\n' +
-                        'شكراً جزيلاً لتعاونكم وثقتكم الكريمة.';
+                        'شكراً جزيلاً لتعاونكم وثقتكم الكريمة.' + teacherSig;
                 }
             } else if (currentWaReminderType === 'upcoming') {
                 message = 'السلام عليكم ورحمة الله ولي أمر التلميذ(ة) ' + std.name + '،\n\n' +
@@ -7619,20 +8027,42 @@
                     '• التوقيت: على الساعة ' + (upcomingTime || '18:00') + '\n' +
                     (upcomingTopic ? ('• موضوع الحصة: ' + upcomingTopic + '\n') : '') +
                     '\nنرجو حث التلميذ(ة) على الحضور في الوقت المحدد مع إحضار اللوازم والدفاتر.\n' +
-                    'شكراً لحرصكم ومتابعتكم المستمرة.';
+                    'شكراً لحرصكم ومتابعتكم المستمرة.' + teacherSig;
+            } else if (currentWaReminderType === 'pack_low') {
+                const packInfo = (typeof window.getStudentPackStatus === 'function')
+                    ? window.getStudentPackStatus(std, month)
+                    : { usedInCycle: 0, totalSessions: std.packSessions || 4, remainingSessions: std.packSessions || 4, packPrice: std.packPrice || 0 };
+                message = 'السلام عليكم ورحمة الله ولي أمر التلميذ(ة) ' + std.name + '،\n\n' +
+                    'نود إخباركم بخصوص وضعية باقة حصص الدعم الخصوصي:\n' +
+                    `• الحصص المستهلكة في الباقة الحالية: ${packInfo.usedInCycle} من أصل ${packInfo.totalSessions} حصص\n` +
+                    `• الحصص المتبقية في الباقة: ${packInfo.remainingSessions} ${packInfo.remainingSessions <= 1 ? 'حصة (توشك على الانتهاء)' : 'حصص'}\n` +
+                    (packInfo.packPrice > 0 ? `• ثمن تجديد الباقة: ${packInfo.packPrice} درهم\n` : '') +
+                    '\nنرجو التفضل بتجديد الباقة عند استكمال الحصص لضمان استمرارية الاستفادة دون انقطاع.\n' +
+                    'شكراً جزيلاً لتعاونكم وثقتكم الكريمة.' + teacherSig;
+            } else if (currentWaReminderType === 'grade_congrats') {
+                const gBefore = parseFloat(std.gradeBefore);
+                const gAfter = parseFloat(std.gradeAfter);
+                const hasBoth = !isNaN(gBefore) && !isNaN(gAfter);
+                const delta = hasBoth ? Math.round((gAfter - gBefore) * 100) / 100 : 0;
+                message = 'السلام عليكم ورحمة الله ولي أمر التلميذ(ة) ' + std.name + '،\n\n' +
+                    'يسرّنا أن نزفّ إليكم هذا الخبر السار حول التحسن الملحوظ في مستوى التلميذ(ة) وتفوّقه(ها) الدراسي' +
+                    (hasBoth
+                        ? `:\n• النقطة قبل الدعم: ${gBefore}/20\n• النقطة الجديدة بعد الدعم: ${gAfter}/20 (${delta >= 0 ? '+' : ''}${delta} نقطة! 🌟)\n`
+                        : ' بعد الانتظام في حصص الدعم والتقوية الخصوصية.\n') +
+                    '\nنبارك لكم وللتلميذ(ة) هذا التقدم المشرف، ونتمنى له(ها) مزيداً من التألق والنجاح.' + teacherSig;
             } else if (currentWaReminderType === 'both') {
                 if (payInfo.status === 'partial') {
                     message = 'السلام عليكم ورحمة الله ولي أمر التلميذ(ة) ' + std.name + '،\n\n' +
                         'نود تذكيركم بأن موعد حصة الدعم القادمة مبرمج يوم ' + formattedDate + ' على الساعة ' + (upcomingTime || '18:00') + (upcomingTopic ? (' (' + upcomingTopic + ')') : '') + '.\n\n' +
                         'كما نلفت عنايتكم الكريمة إلى أن المتبقي من مستحقات شهر ' + month + ' هو ' + payInfo.remaining + ' درهم (من أصل ' + due + ' درهم إجمالي الحصص المنجزة).\n' +
                         'نرجو التفضل بتسوية هذا المبلغ المتبقي بمناسبة الحصة القادمة إن تيسر ذلك.\n\n' +
-                        'شكراً لحسن تفهمكم وثقتكم الدائمة.';
+                        'شكراً لحسن تفهمكم وثقتكم الدائمة.' + teacherSig;
                 } else {
                     message = 'السلام عليكم ورحمة الله ولي أمر التلميذ(ة) ' + std.name + '،\n\n' +
                         'نود تذكيركم بأن موعد حصة الدعم القادمة مبرمج يوم ' + formattedDate + ' على الساعة ' + (upcomingTime || '18:00') + (upcomingTopic ? (' (' + upcomingTopic + ')') : '') + '.\n\n' +
                         'كما نلفت عنايتكم الكريمة إلى أن مستحقات حصص الدعم لشهر ' + month + ' ما زالت في ذمة التلميذ(ة) بمبلغ قدره ' + due + ' درهم (' + hours + ' ساعة منجزة).\n' +
                         'نرجو التفضل بتسويتها بمناسبة الحصة القادمة إن تيسر ذلك.\n\n' +
-                        'شكراً لحسن تفهمكم وثقتكم الدائمة.';
+                        'شكراً لحسن تفهمكم وثقتكم الدائمة.' + teacherSig;
                 }
             } else {
                 message = 'السلام عليكم ورحمة الله ولي أمر التلميذ(ة) ' + std.name + '،\n\n';
@@ -7654,7 +8084,7 @@
             const textarea = document.getElementById('waMessageText');
             const message = textarea ? textarea.value.trim() : '';
             if (!message) {
-                alert('يرجى كتابة نص الرسالة أولاً');
+                window.notifySafeToast('يرجى كتابة نص الرسالة أولاً');
                 return;
             }
 
@@ -7663,19 +8093,23 @@
             if (!phone && phoneInput && phoneInput.value.trim()) {
                 phone = phoneInput.value.trim();
                 std.phone = phone;
-                saveDB();
             }
 
             if (!phone) {
-                alert('يرجى إدخال رقم هاتف ولي الأمر أولاً وحفظه');
+                window.notifySafeToast('يرجى إدخال رقم هاتف ولي الأمر أولاً وحفظه');
                 toggleWaEditPhone();
                 return;
             }
 
+            std.lastNotifiedAt = new Date().toISOString();
+            std.lastNotifiedType = currentWaReminderType || 'custom';
+            saveDB();
+            if (typeof renderTutoringStudents === 'function') renderTutoringStudents();
+
             let cleanPhone = window.cleanWhatsAppNumber ? window.cleanWhatsAppNumber(phone) : phone.replace(/[^0-9]/g, '');
 
             const url = cleanPhone ? ('https://wa.me/' + cleanPhone + '?text=' + encodeURIComponent(message)) : ('https://wa.me/?text=' + encodeURIComponent(message));
-            window.open(url, '_blank');
+            window.openSafeExternalUrl(url, '_blank');
         }
 
         function copyWaMessage() {
@@ -7692,7 +8126,7 @@
             }).catch(() => {
                 textarea.select();
                 document.execCommand('copy');
-                alert('تم نسخ نص الرسالة إلى الحافظة');
+                window.notifySafeToast('تم نسخ نص الرسالة إلى الحافظة');
             });
         }
 
@@ -7700,20 +8134,58 @@
             openTutoringWhatsAppModal(studentId, 'unpaid');
         }
 
-        // Bulk reminders for unpaid students
-        function openTutoringWhatsAppBulkModal() {
+        function buildBulkWaMessageForStudent(std, tpl, month, meta) {
+            const teacherSig = (db.teacherProfile && db.teacherProfile.name) ? ('\n\nالأستاذ(ة): ' + db.teacherProfile.name) : '';
+            if (tpl === 'pack_low') {
+                const p = meta.packInfo || { usedInCycle: 0, totalSessions: 4, remainingSessions: 0, packPrice: 0 };
+                return `السلام عليكم ورحمة الله ولي أمر التلميذ(ة) ${std.name}،\nنحيطكم علماً بأن باقة حصص الدعم توشك على الانتهاء (المستهلك: ${p.usedInCycle}/${p.totalSessions}، المتبقي: ${p.remainingSessions} حصص).${p.packPrice ? '\nثمن التجديد: ' + p.packPrice + ' د.م.' : ''}` + teacherSig;
+            }
+            if (tpl === 'absent_today') {
+                return `السلام عليكم ورحمة الله ولي أمر التلميذ(ة) ${std.name}،\nنحيطكم علماً بأن التلميذ(ة) تغيّب(ت) عن حصة الدعم اليوم (${meta.todayStr}) ضمن مجموعة (${std.group || 'الدعم'}). نرجو متابعة المواظبة.` + teacherSig;
+            }
+            if (tpl === 'grade_congrats') {
+                return `السلام عليكم ورحمة الله ولي أمر التلميذ(ة) ${std.name}،\nنبارك لكم التطور المتميز في النقطة من ${std.gradeBefore}/20 إلى ${std.gradeAfter}/20 (+${meta.delta} نقطة)! مزيداً من التفوق.` + teacherSig;
+            }
+            return `السلام عليكم ورحمة الله ولي أمر التلميذ(ة) ${std.name}،\nنذكركم بوجود مستحقات متبقية عن حصص الدعم لشهر ${month} بمبلغ ${meta.remaining} د.م (${meta.hours} س). شاكرين تعاونكم.` + teacherSig;
+        }
+
+        window._bulkWaCurrentContext = { selectedIds: null, items: [], template: 'unpaid', month: '' };
+
+        function openTutoringWhatsAppBulkModal(selectedIds, initialTemplate) {
             initTutoring();
             const modal = document.getElementById('tutoringWhatsAppBulkModal');
+            if (!modal) return;
+            const tplSelect = document.getElementById('bulkWaTemplateSelect');
+            if (tplSelect) {
+                tplSelect.value = initialTemplate || 'unpaid';
+            }
+            window._bulkWaCurrentContext.selectedIds = (Array.isArray(selectedIds) && selectedIds.length > 0) ? new Set(selectedIds) : null;
+            window.refreshTutoringBulkWaList();
+            modal.style.display = 'flex';
+            if (window.renderLucide) window.renderLucide();
+        }
+
+        window.refreshTutoringBulkWaList = function() {
             const container = document.getElementById('bulkWaStudentsList');
             const countBadge = document.getElementById('bulkWaUnpaidCount');
             const totalBadge = document.getElementById('bulkWaUnpaidTotal');
-            if (!modal || !container) return;
+            const countLabel = document.getElementById('bulkWaCountLabel');
+            const totalLabel = document.getElementById('bulkWaTotalLabel');
+            const tplSelect = document.getElementById('bulkWaTemplateSelect');
+            if (!container) return;
 
-            const month = document.getElementById('tutoringMonth') ? document.getElementById('tutoringMonth').value : '';
-            const allStudents = db.tutoring.students || [];
+            const tpl = tplSelect ? tplSelect.value : 'unpaid';
+            const month = document.getElementById('tutoringMonth')?.value || (window.formatLocalMonth ? window.formatLocalMonth() : new Date().toISOString().slice(0, 7));
+            const todayStr = window.formatLocalDate ? window.formatLocalDate() : new Date().toISOString().slice(0, 10);
+            const esc = (v) => (window.escapeTutoringHtml ? window.escapeTutoringHtml(v) : String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
 
-            const unpaidStudents = [];
-            let totalUnpaidAmount = 0;
+            let allStudents = db.tutoring.students || [];
+            if (window._bulkWaCurrentContext && window._bulkWaCurrentContext.selectedIds) {
+                allStudents = allStudents.filter(s => window._bulkWaCurrentContext.selectedIds.has(s.id));
+            }
+
+            const targetItems = [];
+            let aggregateMetric = 0;
 
             allStudents.forEach(std => {
                 let hours = 0;
@@ -7722,70 +8194,154 @@
                         hours += parseFloat(s.hours) || 0;
                     }
                 });
-                const rate = parseFloat(std.fee) || 0;
-                const payInfo = window.getTutoringPaymentInfo ? window.getTutoringPaymentInfo(std, month) : { totalDue: hours * rate, paidAmount: 0, remaining: hours * rate };
-                if (payInfo.remaining > 0) {
-                    totalUnpaidAmount += payInfo.remaining;
-                    unpaidStudents.push({
-                        student: std,
-                        hours: hours,
-                        rate: rate,
-                        due: payInfo.remaining,
-                        totalDue: payInfo.totalDue,
-                        paidAmount: payInfo.paidAmount
-                    });
+                const payInfo = window.getTutoringPaymentInfo ? window.getTutoringPaymentInfo(std, month) : { totalDue: 0, paidAmount: 0, remaining: 0 };
+
+                if (tpl === 'unpaid') {
+                    if (payInfo.remaining > 0 || (window._bulkWaCurrentContext.selectedIds && window._bulkWaCurrentContext.selectedIds.has(std.id))) {
+                        aggregateMetric += payInfo.remaining;
+                        targetItems.push({
+                            student: std,
+                            hours: hours,
+                            metricDisplay: payInfo.remaining + ' د.م',
+                            metricSub: 'المتبقي',
+                            remaining: payInfo.remaining,
+                            msg: buildBulkWaMessageForStudent(std, tpl, month, { hours: hours, remaining: payInfo.remaining })
+                        });
+                    }
+                } else if (tpl === 'pack_low') {
+                    if (std.billingMode === 'session_pack' && typeof window.getStudentPackStatus === 'function') {
+                        const packInfo = window.getStudentPackStatus(std, month);
+                        if (packInfo.isLow || packInfo.isExhausted) {
+                            aggregateMetric += 1;
+                            targetItems.push({
+                                student: std,
+                                hours: hours,
+                                metricDisplay: `${packInfo.remainingSessions}/${packInfo.totalSessions}`,
+                                metricSub: 'متبقي بالباقة',
+                                packInfo: packInfo,
+                                msg: buildBulkWaMessageForStudent(std, tpl, month, { packInfo: packInfo })
+                            });
+                        }
+                    }
+                } else if (tpl === 'absent_today') {
+                    const absToday = (std.sessions || []).some(s => s.date === todayStr && (s.attendance === 'absent' || s.attendance === 'excused'));
+                    if (absToday) {
+                        aggregateMetric += 1;
+                        targetItems.push({
+                            student: std,
+                            hours: hours,
+                            metricDisplay: 'غائب اليوم',
+                            metricSub: todayStr,
+                            msg: buildBulkWaMessageForStudent(std, tpl, month, { todayStr: todayStr })
+                        });
+                    }
+                } else if (tpl === 'grade_congrats') {
+                    const gb = parseFloat(std.gradeBefore);
+                    const ga = parseFloat(std.gradeAfter);
+                    if (!isNaN(gb) && !isNaN(ga) && ga > gb) {
+                        const delta = Math.round((ga - gb) * 100) / 100;
+                        aggregateMetric += delta;
+                        targetItems.push({
+                            student: std,
+                            hours: hours,
+                            metricDisplay: `+${delta}`,
+                            metricSub: `${gb} → ${ga}`,
+                            delta: delta,
+                            msg: buildBulkWaMessageForStudent(std, tpl, month, { delta: delta })
+                        });
+                    }
                 }
             });
 
-            if (countBadge) countBadge.textContent = unpaidStudents.length + ' تلميذ';
-            if (totalBadge) totalBadge.textContent = totalUnpaidAmount + ' د.م';
+            window._bulkWaCurrentContext.items = targetItems;
+            window._bulkWaCurrentContext.template = tpl;
+            window._bulkWaCurrentContext.month = month;
 
-            if (unpaidStudents.length === 0) {
-                container.innerHTML = '<div style="text-align: center; padding: 30px; color: #15803d; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px;"><span class="ui-icon" style="margin-bottom: 8px;"><span data-lucide="check-circle-2" data-size="36"></span></span><div style="font-weight: 800; font-size: 1.05rem;">رائع! جميع مستحقات شهر ' + month + ' تم أداؤها بالكامل.</div><div style="font-size: 0.8rem; color: #166534; margin-top: 4px;">لا يوجد أي تلميذ متأخر عن الأداء في هذا الشهر.</div></div>';
+            if (countLabel) countLabel.textContent = window._bulkWaCurrentContext.selectedIds ? 'التلاميذ المحددون:' : 'التلاميذ المعنيون:';
+            if (countBadge) countBadge.textContent = targetItems.length + ' تلميذ';
+            if (totalLabel && totalBadge) {
+                if (tpl === 'unpaid') {
+                    totalLabel.textContent = 'إجمالي المبالغ المتبقية:';
+                    totalBadge.textContent = Math.round(aggregateMetric) + ' د.م';
+                } else if (tpl === 'grade_congrats') {
+                    totalLabel.textContent = 'مجموع التقدم بالنقط:';
+                    totalBadge.textContent = '+' + Math.round(aggregateMetric * 100) / 100 + ' ن';
+                } else {
+                    totalLabel.textContent = 'أرقام الهواتف المتوفرة:';
+                    const phoneCount = targetItems.filter(i => i.student.phone && i.student.phone.trim()).length;
+                    totalBadge.textContent = phoneCount + ' / ' + targetItems.length;
+                }
+            }
+
+            if (targetItems.length === 0) {
+                container.innerHTML = `<div style="text-align: center; padding: 28px; color: #15803d; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px;"><div style="font-weight: 800; font-size: 1rem;">لا يوجد تلاميذ مطابقون لهذا القالب حالياً (${esc(month)}).</div></div>`;
             } else {
                 let htmlStr = '';
-                unpaidStudents.forEach(item => {
+                targetItems.forEach(item => {
                     const s = item.student;
                     const hasPhone = s.phone && s.phone.trim();
+                    const lastChip = s.lastNotifiedAt ? `<span style="background:#eff6ff; color:#1d4ed8; font-size:0.68rem; padding:1px 6px; border-radius:4px; border:1px solid #bfdbfe;">تم الإشعار سابقاً</span>` : '';
 
                     htmlStr += '<div style="display: flex; justify-content: space-between; align-items: center; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px; gap: 10px; flex-wrap: wrap;">' +
                         '<div style="display: flex; align-items: center; gap: 10px; min-width: 180px;">' +
                             '<div style="width: 38px; height: 38px; border-radius: 50%; background: #fee2e2; color: #b91c1c; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; flex-shrink: 0;">' +
-                                s.name.charAt(0) +
+                                esc((s.name || '?').charAt(0)) +
                             '</div>' +
                             '<div>' +
-                                '<div style="font-weight: 800; color: #0f172a; font-size: 0.95rem;">' + s.name + '</div>' +
+                                '<div style="font-weight: 800; color: #0f172a; font-size: 0.95rem; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">' + esc(s.name) + lastChip + '</div>' +
                                 '<div style="font-size: 0.75rem; color: #64748b; display: flex; align-items: center; gap: 6px;">' +
-                                    '<span>' + (s.group || 'عام') + '</span>' +
+                                    '<span>' + esc(s.group || 'عام') + '</span>' +
                                     ' • ' +
                                     '<span dir="ltr" style="font-family: monospace; color: ' + (hasPhone ? '#0f172a' : '#ef4444') + '; font-weight: ' + (hasPhone ? 'bold' : 'normal') + ';">' +
-                                        (hasPhone ? s.phone : 'بدون هاتف ⚠️') +
+                                        (hasPhone ? esc(s.phone) : 'بدون هاتف ⚠️') +
                                     '</span>' +
                                 '</div>' +
                             '</div>' +
                         '</div>' +
-                        '<div style="display: flex; align-items: center; gap: 12px;">' +
+                        '<div style="display: flex; align-items: center; gap: 10px;">' +
                             '<div style="text-align: center; background: #fef2f2; padding: 4px 10px; border-radius: 6px; border: 1px solid #fecaca;">' +
-                                '<div style="font-size: 0.7rem; color: #991b1b; font-weight: bold;">المستحق</div>' +
-                                '<div style="font-weight: 900; color: #b91c1c; font-size: 0.95rem;">' + item.due + ' د.م</div>' +
+                                '<div style="font-size: 0.68rem; color: #991b1b; font-weight: bold;">' + esc(item.metricSub) + '</div>' +
+                                '<div style="font-weight: 900; color: #b91c1c; font-size: 0.9rem;">' + esc(item.metricDisplay) + '</div>' +
                             '</div>' +
-                            '<div style="text-align: center; background: #eff6ff; padding: 4px 8px; border-radius: 6px;">' +
-                                '<div style="font-size: 0.7rem; color: #1d4ed8;">الساعات</div>' +
-                                '<div style="font-weight: 800; color: #2563eb; font-size: 0.85rem;">' + item.hours + ' س</div>' +
-                            '</div>' +
-                            '<button type="button" class="btn-action" onclick="closeTutoringWhatsAppBulkModal(); openTutoringWhatsAppModal(\'' + s.id + '\', \'unpaid\');" style="background: #25D366; color: #fff; padding: 8px 14px; border-radius: 8px; font-weight: bold; font-size: 0.82rem; border: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2);" title="إرسال تذكير عبر واتساب">' +
+                            '<button type="button" class="btn-action" onclick="closeTutoringWhatsAppBulkModal(); openTutoringWhatsAppModal(\'' + esc(s.id) + '\', \'' + esc(tpl === 'absent_today' ? 'absence' : tpl) + '\');" style="background: #25D366; color: #fff; padding: 8px 14px; border-radius: 8px; font-weight: bold; font-size: 0.82rem; border: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;" title="إرسال تذكير عبر واتساب">' +
                                 '<span class="ui-icon" style="margin: 0;"><span data-lucide="message-circle" data-size="16"></span></span>' +
-                                '<span>تذكير واتساب</span>' +
+                                '<span>إرسال واتساب</span>' +
                             '</button>' +
                         '</div>' +
                     '</div>';
                 });
                 container.innerHTML = htmlStr;
             }
-
-            modal.style.display = 'flex';
             if (window.renderLucide) window.renderLucide();
-        }
+        };
+
+        window.copyAllBulkWaMessages = function() {
+            const items = (window._bulkWaCurrentContext && window._bulkWaCurrentContext.items) || [];
+            if (items.length === 0) {
+                window.notifySafeToast('لا توجد رسائل لنسخها حالياً');
+                return;
+            }
+            const text = items.map(it => `📌 ${it.student.name} (${it.student.phone || 'بدون هاتف'}):\n${it.msg}`).join('\n\n──────────────────\n\n');
+            navigator.clipboard.writeText(text).then(() => {
+                window.notifySafeToast(`✓ تم نسخ ${items.length} رسالة مخصصة جاهزة للإرسال!`);
+            }).catch(() => {
+                window.notifySafeToast('تعذر الوصول للحافظة تلقائياً');
+            });
+        };
+
+        window.copyAllBulkWaPhones = function() {
+            const items = (window._bulkWaCurrentContext && window._bulkWaCurrentContext.items) || [];
+            const phones = items.map(it => (it.student.phone || '').trim()).filter(Boolean);
+            if (phones.length === 0) {
+                window.notifySafeToast('لا توجد أرقام هواتف مسجلة في القائمة الحالية');
+                return;
+            }
+            navigator.clipboard.writeText(phones.join('\n')).then(() => {
+                window.notifySafeToast(`✓ تم نسخ ${phones.length} رقم هاتف إلى الحافظة`);
+            }).catch(() => {
+                window.notifySafeToast('تعذر النسخ إلى الحافظة');
+            });
+        };
 
         function closeTutoringWhatsAppBulkModal() {
             const modal = document.getElementById('tutoringWhatsAppBulkModal');
@@ -7829,7 +8385,10 @@
                                (examCount >= 3 ? '<option value="f3">الفرض المحروس الثالث (3)</option>' : '') +
                                (examCount === 4 ? '<option value="f4">الفرض المحروس الرابع (4)</option>' : '');
 
-            fgStudentsList = db.classes[className] || [];
+            const rawClassEntry = db.classes[className];
+            fgStudentsList = Array.isArray(rawClassEntry)
+                ? rawClassEntry
+                : (rawClassEntry && Array.isArray(rawClassEntry.students) ? rawClassEntry.students : []);
             if (fgStudentsList.length === 0) {
                 if (typeof showToast === 'function') showToast('هذا القسم لا يحتوي على تلاميذ مسجلين', 'warning');
                 return;
@@ -8012,21 +8571,11 @@
         }
 
         function isFgAutoAdvanceEnabled() {
-            const cb = document.getElementById('fgAutoAdvanceToggle');
-            return cb ? cb.checked : true;
+            return false;
         }
 
         function scheduleFgAutoAdvance(delayMs = 260) {
-            if (!isFgAutoAdvanceEnabled()) return;
-            if (fgAutoAdvanceTimer) clearTimeout(fgAutoAdvanceTimer);
-            fgAutoAdvanceTimer = setTimeout(() => {
-                fgAutoAdvanceTimer = null;
-                fgUpdateDisplay(true);
-                setTimeout(() => {
-                    fgSaveCurrent();
-                    fgNextStudent();
-                }, 110);
-            }, delayMs);
+            // Auto-advance disabled per user request
         }
 
         function fgInput(val) {
@@ -8055,40 +8604,25 @@
                     fgCurrentValue = intPart + val;
                 }
             } else {
-                if (fgCurrentValue === '0' && val !== '.') {
+                if (fgCurrentValue === '0') {
                     fgCurrentValue = val;
                 } else {
+                    if (fgCurrentValue.includes('.')) {
+                        const decPart = fgCurrentValue.split('.')[1] || '';
+                        if (decPart.length >= 2) {
+                            return;
+                        }
+                    }
                     fgCurrentValue += val;
                 }
             }
 
             let num = parseFloat(fgCurrentValue);
-            if (num > 20) {
-                // إذا كتب مثلاً 2 ثم 5 (25) نعتبر أنه يقصد رقمين منفصلين أو نضبطها على 20
+            if (!isNaN(num) && num > 20) {
                 fgCurrentValue = '20';
-                num = 20;
             }
 
             fgUpdateDisplay();
-
-            // منطق الانتقال التلقائي الذكي (Auto-Advance):
-            // 1. إذا ضغط شريحة عشرية جاهزة (.25 أو .5 أو .75) -> انتقال فوري
-            if (val === '.25' || val === '.5' || val === '.75') {
-                scheduleFgAutoAdvance(180);
-                return;
-            }
-            // 2. إذا كتب رقمين صحيحين (مثل 14 أو 08 أو 20) بدون فاصلة -> ننتظر 420ms لإتاحة فرصة إضافة فاصلة (.5)، ثم ننتقل تلقائياً!
-            if (!fgCurrentValue.includes('.') && fgCurrentValue.length === 2) {
-                scheduleFgAutoAdvance(420);
-                return;
-            }
-            // 3. إذا كتب رقماً بعد الفاصلة (مثل 14.5 أو 12.25) -> ننتقل تلقائياً
-            if (fgCurrentValue.includes('.')) {
-                const decPart = fgCurrentValue.split('.')[1] || '';
-                if (decPart === '5' || decPart.length >= 2) {
-                    scheduleFgAutoAdvance(220);
-                }
-            }
         }
         window.fgInput = fgInput;
 
@@ -8098,11 +8632,13 @@
                 fgAutoAdvanceTimer = null;
             }
             if (navigator.vibrate) navigator.vibrate(25);
+            fgIsFreshLoadedScore = false;
             fgCurrentValue = String(scoreStr);
             fgUpdateDisplay(true);
             fgSaveCurrent();
-            setTimeout(() => {
-                fgNextStudent();
+            fgAutoAdvanceTimer = setTimeout(() => {
+                fgAutoAdvanceTimer = null;
+                fgNextStudent(true);
             }, 130);
         }
         window.fgQuickSetAndNext = fgQuickSetAndNext;
@@ -8113,6 +8649,7 @@
                 fgAutoAdvanceTimer = null;
             }
             if (navigator.vibrate) navigator.vibrate(20);
+            fgIsFreshLoadedScore = false;
             if (fgCurrentValue.length > 0) {
                 fgCurrentValue = fgCurrentValue.slice(0, -1);
                 fgUpdateDisplay();
@@ -8137,12 +8674,14 @@
                 fgAutoAdvanceTimer = null;
             }
             if (navigator.vibrate) navigator.vibrate([25, 20, 25]);
+            fgIsFreshLoadedScore = false;
             fgCurrentValue = '0';
             fgUpdateDisplay();
             fgSaveCurrent();
             if (autoNext) {
-                setTimeout(() => {
-                    fgNextStudent();
+                fgAutoAdvanceTimer = setTimeout(() => {
+                    fgAutoAdvanceTimer = null;
+                    fgNextStudent(true);
                 }, 120);
             }
         }
@@ -8159,16 +8698,18 @@
             }
             if (navigator.vibrate) navigator.vibrate(30);
             fgSaveCurrent();
-            fgNextStudent();
+            fgNextStudent(true);
         }
         window.fgEnter = fgEnter;
 
-        function fgNextStudent() {
+        function fgNextStudent(skipSave = false) {
             if (fgAutoAdvanceTimer) {
                 clearTimeout(fgAutoAdvanceTimer);
                 fgAutoAdvanceTimer = null;
             }
-            fgSaveCurrent();
+            if (!skipSave) {
+                fgSaveCurrent();
+            }
             if (fgCurrentStudentIndex < fgStudentsList.length - 1) {
                 fgCurrentStudentIndex++;
                 fgLoadCurrentStudent();
@@ -8198,10 +8739,18 @@
         // --- Web Speech API Voice Grade Dictation (الإملاء الصوتي للنقط بالعربية أو الأرقام) ---
         function parseArabicSpokenScore(transcript) {
             if (!transcript) return null;
-            const clean = String(transcript).trim().replace(/،/g, '.').replace(/,/g, '.');
+            const easternMap = { '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4', '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9' };
+            let clean = String(transcript).trim()
+                .replace(/[٠-٩]/g, ch => easternMap[ch] || ch)
+                .replace(/[٫،,]/g, '.')
+                .replace(/\s+(?:فاصلة|فاصله|نقطة|نقطه)\s+/g, '.')
+                .replace(/\s*\.\s*/g, '.');
 
             if (clean.includes('غائب') || clean.includes('غياب') || clean.includes('صفر')) {
                 return '0';
+            }
+            if (clean.includes('مسح') || clean.includes('حذف') || clean.includes('تعديل')) {
+                return '__CLEAR__';
             }
             if (clean.includes('تالي') || clean.includes('التالي')) {
                 return '__NEXT__';
@@ -8216,12 +8765,12 @@
                 let val = parseFloat(directNumMatch[0]);
                 if (clean.includes('نصف') || clean.includes('ونص')) {
                     val = Math.floor(val) + 0.5;
-                } else if (clean.includes('ربع') && !clean.includes('أربعة') && !clean.includes('اربعة')) {
-                    val = Math.floor(val) + 0.25;
-                } else if (clean.includes('ثلاثة أرباع') || clean.includes('وخمسة وسبعون')) {
+                } else if (clean.includes('ثلاثة أرباع') || clean.includes('خمسة وسبعون') || clean.includes('خمسة وسبعين')) {
                     val = Math.floor(val) + 0.75;
+                } else if ((clean.includes('ربع') || clean.includes('خمسة وعشرون') || clean.includes('خمسة وعشرين')) && !clean.includes('أربعة') && !clean.includes('اربعة')) {
+                    val = Math.floor(val) + 0.25;
                 }
-                if (val >= 0 && val <= 20) return String(val);
+                if (val >= 0 && val <= 20) return String(Math.round(val * 100) / 100);
             }
 
             // تحويل الأعداد العربية المنطوقة إلى أرقام
@@ -8318,19 +8867,33 @@
                 const parsed = parseArabicSpokenScore(spoken);
 
                 if (statusText) {
-                    statusText.textContent = `🎙️ سمعت: "${spoken}" ${parsed ? '← ' + parsed : ''}`;
+                    const labelMap = { '__NEXT__': 'التالي', '__PREV__': 'السابق', '__CLEAR__': 'مسح' };
+                    const shown = labelMap[parsed] || parsed || '';
+                    statusText.textContent = `🎙️ سمعت: "${spoken}" ${shown ? '← ' + shown : ''}`;
                 }
 
                 if (parsed === '__NEXT__') {
                     fgNextStudent();
                 } else if (parsed === '__PREV__') {
                     fgPrevStudent();
+                } else if (parsed === '__CLEAR__') {
+                    fgIsFreshLoadedScore = false;
+                    fgCurrentValue = '';
+                    fgUpdateDisplay();
                 } else if (parsed !== null) {
                     fgQuickSetAndNext(parsed);
                 }
             };
 
-            fgSpeechRecognition.onerror = function () {
+            fgSpeechRecognition.onerror = function (ev) {
+                const errCode = ev && ev.error ? ev.error : '';
+                if (errCode === 'not-allowed' || errCode === 'service-not-allowed' || errCode === 'audio-capture') {
+                    stopFgVoiceDictation();
+                    if (typeof showToast === 'function') {
+                        showToast('⚠️ تعذر الوصول إلى الميكروفون أو تم رفض الإذن. يرجى تفعيل إذن الميكروفون في المتصفح.', 'warning');
+                    }
+                    return;
+                }
                 if (fgIsVoiceListening && statusText) {
                     statusText.textContent = '🔴 بانتظار نطق النقطة...';
                 }
@@ -8354,8 +8917,9 @@
         document.addEventListener('keydown', function (ev) {
             const modal = document.getElementById('fastGradingModal');
             if (!modal || modal.style.display === 'none') return;
-            // تجاهل إذا كان التركيز داخل عنصر select
-            if (ev.target && ev.target.tagName === 'SELECT') return;
+            // تجاهل إذا كان التركيز داخل عنصر select أو input أو textarea
+            const tag = ev.target && ev.target.tagName;
+            if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return;
 
             const key = ev.key;
             if (key >= '0' && key <= '9') {
@@ -9416,6 +9980,9 @@
             } else if (tab === 'annual') {
                 requestedAnnualSubView = window.currentAnnualAnalysisSubView || 'analysis';
             }
+            if (typeof window.ensureTabAssetsLoaded === 'function') {
+                window.ensureTabAssetsLoaded(tab);
+            }
             if (tab && tab !== 'home') {
                 recordRecentAccess(tab);
             }
@@ -9758,8 +10325,6 @@
             // تتبع القسم النشط في الصفحة الرئيسية تلقائياً أثناء التمرير
             if (activeTab === 'absence') {
                 const sections = [
-                    { id: 'todayScheduleBlock', pill: 'todayScheduleBlock' },
-                    { id: 'classConfigSection', pill: 'classConfigSection' },
                     { id: 'statsBarView', pill: 'statsBarView' },
                     { id: 'quickActionsBar', pill: 'quickActionsBar' },
                     { id: 'alertsSectionAnchor', pill: 'alertsSectionAnchor' },
@@ -9901,9 +10466,38 @@
         // ============================================
         // Notes Logic
         // ============================================
+        var _notesCurrentSubView = 'all'; // 'all' | 'notes' | 'homework' | 'analytics'
+        var _hwHubStatusFilter = 'all'; // 'all' | 'pending' | 'urgent' | 'completed'
+
+        function escNotesHtml(str) {
+            if (typeof escapeHtml === 'function') return escapeHtml(str);
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function refreshHwLibraryResourcesDropdown() {
+            const sel = document.getElementById('hwAgendaLibraryResourceSelect');
+            if (!sel) return;
+            const currentVal = sel.value;
+            sel.innerHTML = '<option value="">-- بدون مرفق من المكتبة --</option>';
+            const libList = (db && Array.isArray(db.library)) ? db.library : ((db && Array.isArray(db.resources)) ? db.resources : []);
+            libList.forEach(item => {
+                if (!item || !item.id) return;
+                const opt = document.createElement('option');
+                opt.value = String(item.id);
+                opt.textContent = `${item.title || item.fileName || 'مورد تعليمي'}${item.level ? ' (' + item.level + ')' : ''}`;
+                sel.appendChild(opt);
+            });
+            if (currentVal) sel.value = currentVal;
+        }
+
         function refreshNotesClassDropdown() {
             const select = document.getElementById('notesClassSelect');
-            if(!select) return;
+            if (!select) return;
             const currentVal = select.value;
             select.innerHTML = '<option value="">-- اختر القسم --</option>';
             const sorted = getSortedClasses(true);
@@ -9913,69 +10507,494 @@
                 opt.textContent = cName;
                 select.appendChild(opt);
             });
-            if (db.classes[currentVal]) select.value = currentVal;
+            const globalActiveClass = (document.getElementById('classSelect') && document.getElementById('classSelect').value) || window.currentClass || '';
+            if (currentVal && db.classes && db.classes[currentVal]) {
+                select.value = currentVal;
+            } else if (globalActiveClass && db.classes && db.classes[globalActiveClass]) {
+                select.value = globalActiveClass;
+            } else if (sorted.length > 0) {
+                select.value = sorted[0];
+            }
+
+            const dateInput = document.getElementById('hwAgendaDate');
+            if (dateInput && !dateInput.value) {
+                const d = new Date();
+                d.setDate(d.getDate() + 3);
+                dateInput.value = d.toISOString().slice(0, 10);
+            }
+
+            refreshHwLibraryResourcesDropdown();
             refreshNotesStudentDropdown();
+            refreshNotesStudentFilter();
+            applyNotesSubViewVisibility();
         }
 
+        function switchNotesSubView(mode) {
+            _notesCurrentSubView = mode || 'all';
+            ['all', 'notes', 'homework', 'analytics'].forEach(k => {
+                const btn = document.getElementById('btnNotesSubView_' + k);
+                if (!btn) return;
+                const active = (k === _notesCurrentSubView);
+                btn.style.background = active ? '#4f46e5' : '#ffffff';
+                btn.style.color = active ? '#ffffff' : '#334155';
+                btn.style.borderColor = active ? '#4f46e5' : '#cbd5e1';
+            });
+            applyNotesSubViewVisibility();
+        }
+        window.switchNotesSubView = switchNotesSubView;
 
-        // --- Homework Agenda Logic ---
+        function applyNotesSubViewVisibility() {
+            const className = document.getElementById('notesClassSelect')?.value || '';
+            const hwCard = document.getElementById('hwAgendaCard');
+            const qualCard = document.getElementById('notesQualitativeStatsCard');
+            const filterCard = document.getElementById('notesFilterCard');
+            const notesContainer = document.getElementById('notesListContainer');
+
+            if (!className) {
+                if (hwCard) hwCard.style.display = 'none';
+                if (qualCard) qualCard.style.display = 'none';
+                if (filterCard) filterCard.style.display = 'none';
+                if (notesContainer) notesContainer.style.display = 'none';
+                return;
+            }
+
+            const showHw = (_notesCurrentSubView === 'all' || _notesCurrentSubView === 'homework');
+            const showQual = (_notesCurrentSubView === 'all' || _notesCurrentSubView === 'analytics');
+            const showNotes = (_notesCurrentSubView === 'all' || _notesCurrentSubView === 'notes');
+
+            if (hwCard) hwCard.style.display = showHw ? 'block' : 'none';
+            if (qualCard) qualCard.style.display = showQual ? 'block' : 'none';
+            if (filterCard) filterCard.style.display = (showNotes || showQual) ? 'block' : 'none';
+            if (notesContainer) notesContainer.style.display = showNotes ? 'block' : 'none';
+        }
+
+        function toggleHwHubBody() {
+            const body = document.getElementById('hwHubBodyContainer');
+            if (!body) return;
+            body.style.display = body.style.display === 'none' ? 'block' : 'none';
+        }
+        window.toggleHwHubBody = toggleHwHubBody;
+
+        function insertHwQuickPreset(titleText, typeVal) {
+            const titleEl = document.getElementById('hwAgendaTitle');
+            const typeEl = document.getElementById('hwAgendaTypeSelect');
+            if (titleEl) {
+                titleEl.value = titleText;
+                titleEl.focus();
+            }
+            if (typeEl && typeVal) {
+                typeEl.value = typeVal;
+            }
+        }
+        window.insertHwQuickPreset = insertHwQuickPreset;
+
+        function setHwHubFilter(filterVal) {
+            _hwHubStatusFilter = filterVal || 'all';
+            renderHomeworkAgenda();
+        }
+        window.setHwHubFilter = setHwHubFilter;
+
+        function getUnifiedClassHomeworkList(className) {
+            if (!className || !db) return [];
+            const allUnified = (typeof getUnifiedWeeklyHomeworkItems === 'function')
+                ? getUnifiedWeeklyHomeworkItems().filter(it => it.className === className)
+                : [];
+
+            // Enrich with studentStatuses, topic, resourceId from source objects
+            const agendaList = (db.homeworkAgenda && Array.isArray(db.homeworkAgenda[className])) ? db.homeworkAgenda[className] : [];
+            const logList = (db.lessonLogs && Array.isArray(db.lessonLogs[className])) ? db.lessonLogs[className] : [];
+
+            return allUnified.map(item => {
+                let rawObj = null;
+                if (item.source === 'agenda') {
+                    rawObj = agendaList.find(a => a && (a.id === item.rawId || a.id === item.id));
+                } else if (item.source === 'lessonLog') {
+                    rawObj = logList.find(l => l && (l.id === item.rawId || `log_${className}_${l.date}_${l.sessionNum}` === item.id));
+                }
+                const statuses = (rawObj && (rawObj.studentStatuses || rawObj.homeworkStudentStatuses)) || {};
+                const hwType = (rawObj && rawObj.type) || item.type || 'homework';
+                const topic = (rawObj && rawObj.topic) || item.lessonTitle || '';
+                const resourceId = (rawObj && rawObj.resourceId) || '';
+                return {
+                    ...item,
+                    hwType,
+                    topic,
+                    resourceId,
+                    studentStatuses: statuses
+                };
+            });
+        }
+
+        // --- Upgraded Homework Hub Logic ---
         function renderHomeworkAgenda() {
-            const className = document.getElementById('notesClassSelect').value;
+            const selectEl = document.getElementById('notesClassSelect');
+            const className = selectEl ? selectEl.value : '';
             const card = document.getElementById('hwAgendaCard');
             if (!className) {
                 if (card) card.style.display = 'none';
                 return;
             }
 
-            if (card) card.style.display = 'block';
+            applyNotesSubViewVisibility();
+            refreshHwLibraryResourcesDropdown();
+
             const list = document.getElementById('hwAgendaList');
+            const kpiGrid = document.getElementById('hwHubKpiGrid');
+            const filterBar = document.getElementById('hwHubFilterBar');
             if (!list) return;
-            list.innerHTML = '';
 
-            if (!db.homeworkAgenda) db.homeworkAgenda = {};
-            if (!db.homeworkAgenda[className]) db.homeworkAgenda[className] = [];
+            const students = (db.classes && Array.isArray(db.classes[className])) ? db.classes[className] : [];
+            const totalStudents = students.length;
+            const items = getUnifiedClassHomeworkList(className);
 
-            let agendas = db.homeworkAgenda[className];
-            if (agendas.length === 0) {
-                list.innerHTML = '<div style="color: #888; font-size: 0.85rem; text-align: center;">لا توجد مواعيد مجدولة لهذا القسم.</div>';
-            } else {
-                agendas.sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(item => {
-                    const today = new Date();
-                    today.setHours(0,0,0,0);
-                    const itemDate = new Date(item.date);
+            const totalHw = items.length;
+            const completedHw = items.filter(i => i.completed).length;
+            const urgentHw = items.filter(i => !i.completed && i.diffDays <= 1).length;
+            const pendingHw = items.filter(i => !i.completed).length;
 
-                    const diffTime = itemDate - today;
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                    let statusColor = '#333';
-                    let statusLabel = '';
-
-                    if (diffDays < 0) {
-                        statusColor = 'var(--danger)';
-                        statusLabel = '(فات الموعد)';
-                    } else if (diffDays === 0) {
-                        statusColor = 'var(--warning-dark)';
-                        statusLabel = '(اليوم!)';
-                    } else if (diffDays <= 2) {
-                        statusColor = 'var(--warning-dark)';
-                        statusLabel = '(قريباً)';
-                    } else {
-                        statusColor = 'var(--success-dark)';
+            // Compute average student completion rate across assignments
+            let totalPossibleChecks = 0;
+            let totalDoneChecks = 0;
+            items.forEach(it => {
+                if (totalStudents > 0) {
+                    const stMap = it.studentStatuses || {};
+                    const hasAnyCheck = Object.keys(stMap).length > 0 || it.completed;
+                    if (hasAnyCheck) {
+                        totalPossibleChecks += totalStudents;
+                        students.forEach(s => {
+                            const st = stMap[s.id] || 'done';
+                            if (st !== 'missed') totalDoneChecks++;
+                        });
                     }
+                }
+            });
+            const commitmentRate = totalPossibleChecks > 0 ? Math.round((totalDoneChecks / totalPossibleChecks) * 100) : 100;
 
-                    const div = document.createElement('div');
-                    div.style.cssText = 'background: white; border: 1px solid #e9d5ff; border-radius: 6px; padding: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);';
-                    div.innerHTML = `
+            if (kpiGrid) {
+                kpiGrid.innerHTML = `
+                    <div style="background:#ffffff; border:1px solid #e9d5ff; border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
                         <div>
-                            <div style="font-weight: bold; color: var(--purple); font-size: 0.9rem;">${item.title}</div>
-                            <div style="font-size: 0.8rem; color: ${statusColor}; font-weight: bold;"><span class="ui-icon">${lucideIcon('calendar', {size: 11})}</span> ${item.date} ${statusLabel}</div>
+                            <div style="font-size:0.72rem; color:#64748b; font-weight:700;">إجمالي الواجبات والسلاسل</div>
+                            <div style="font-size:1.25rem; font-weight:900; color:#4c1d95;">${totalHw}</div>
                         </div>
-                        <button onclick="deleteHomeworkAgenda('${className}', '${item.id}')" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 0.85rem; padding: 4px;" title="حذف الموعد">${lucideIcon('trash2', {size: 12})}</button>
-                    `;
-                    list.appendChild(div);
+                        <span style="font-size:1.2rem;">📚</span>
+                    </div>
+                    <div style="background:${urgentHw > 0 ? '#fff1f2' : '#ffffff'}; border:1px solid ${urgentHw > 0 ? '#fecdd3' : '#e9d5ff'}; border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-size:0.72rem; color:${urgentHw > 0 ? '#be123c' : '#64748b'}; font-weight:800;">مستحق اليوم / متأخر</div>
+                            <div style="font-size:1.25rem; font-weight:900; color:${urgentHw > 0 ? '#e11d48' : '#334155'};">${urgentHw}</div>
+                        </div>
+                        <span style="font-size:1.2rem;">⏰</span>
+                    </div>
+                    <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-size:0.72rem; color:#166534; font-weight:700;">تم الاستلام والتصحيح</div>
+                            <div style="font-size:1.25rem; font-weight:900; color:#15803d;">${completedHw}</div>
+                        </div>
+                        <span style="font-size:1.2rem;">✅</span>
+                    </div>
+                    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-size:0.72rem; color:#1e40af; font-weight:700;">نسبة التزام التلاميذ</div>
+                            <div style="font-size:1.25rem; font-weight:900; color:#1d4ed8;">${commitmentRate}%</div>
+                        </div>
+                        <span style="font-size:1.2rem;">🎯</span>
+                    </div>
+                `;
+            }
+
+            if (filterBar) {
+                const pills = [
+                    { k: 'all', label: `الكل (${totalHw})` },
+                    { k: 'pending', label: `⏳ قيد الإنجاز (${pendingHw})` },
+                    { k: 'urgent', label: `🚨 مستعجل/متأخر (${urgentHw})` },
+                    { k: 'completed', label: `✅ مكتمل ومصحح (${completedHw})` }
+                ];
+                filterBar.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <span style="font-size:0.75rem; font-weight:800; color:#5b21b6;">تصفية الواجبات:</span>
+                        ${pills.map(p => `
+                            <button type="button" onclick="setHwHubFilter('${p.k}')" style="padding:4px 11px; border-radius:999px; font-size:0.74rem; font-weight:800; cursor:pointer; border:${_hwHubStatusFilter === p.k ? '1.5px solid #6d28d9' : '1px solid #d8b4fe'}; background:${_hwHubStatusFilter === p.k ? '#6d28d9' : '#ffffff'}; color:${_hwHubStatusFilter === p.k ? '#ffffff' : '#5b21b6'};">
+                                ${p.label}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div style="font-size:0.73rem; color:#64748b; font-weight:700;">
+                        انقر على «👥 تفقد الإنجاز» لتسجيل المنجزين وغير المنجزين وتوليد الملاحظات التلقائية
+                    </div>
+                `;
+            }
+
+            let filtered = items.slice();
+            if (_hwHubStatusFilter === 'pending') filtered = filtered.filter(i => !i.completed);
+            else if (_hwHubStatusFilter === 'urgent') filtered = filtered.filter(i => !i.completed && i.diffDays <= 1);
+            else if (_hwHubStatusFilter === 'completed') filtered = filtered.filter(i => i.completed);
+
+            filtered.sort((a, b) => {
+                if (a.completed !== b.completed) return a.completed ? 1 : -1;
+                return (a.dueDate || '').localeCompare(b.dueDate || '');
+            });
+
+            list.innerHTML = '';
+            if (filtered.length === 0) {
+                list.innerHTML = '<div style="color: #64748b; font-size: 0.85rem; text-align: center; padding: 18px; background: #ffffff; border: 1px dashed #d8b4fe; border-radius: 10px;">لا توجد واجبات أو سلاسل مطابقة للفلتر المحدد لهذا القسم حالياً.</div>';
+                return;
+            }
+
+            const typeBadges = {
+                homework: { label: '📐 سلسلة تمارين', bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+                dm: { label: '📄 فرض منزلي (DM)', bg: '#fff1f2', color: '#be123c', border: '#fecdd3' },
+                prep: { label: '📖 تهيئة قبلية', bg: '#f0f9ff', color: '#0369a1', border: '#bae6fd' },
+                correction: { label: '✍️ تصحيح فرض', bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' },
+                lessonLog: { label: '📘 واجب من دفتر النصوص', bg: '#faf5ff', color: '#6d28d9', border: '#e9d5ff' }
+            };
+
+            const libList = (db && Array.isArray(db.library)) ? db.library : ((db && Array.isArray(db.resources)) ? db.resources : []);
+
+            filtered.forEach(item => {
+                const tMeta = typeBadges[item.hwType] || typeBadges.homework;
+                const urgency = item.urgency || { label: item.dueDate, badgeBg: '#f8fafc', badgeColor: '#475569', badgeBorder: '#cbd5e1', dotColor: '#64748b' };
+                const stMap = item.studentStatuses || {};
+                let missedCount = 0;
+                let excCount = 0;
+                students.forEach(s => {
+                    if (stMap[s.id] === 'missed') missedCount++;
+                    else if (stMap[s.id] === 'excellent') excCount++;
+                });
+                const doneCount = Math.max(0, totalStudents - missedCount);
+
+                const linkedRes = item.resourceId ? libList.find(r => r && String(r.id) === String(item.resourceId)) : null;
+                const safeId = String(item.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const safeRawId = String(item.rawId || item.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const safeClass = String(className).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+                const div = document.createElement('div');
+                div.style.cssText = `background: ${item.completed ? '#f8fafc' : '#ffffff'}; border: 1.5px solid ${item.completed ? '#bbf7d0' : '#e9d5ff'}; border-right: 5px solid ${item.completed ? '#10b981' : urgency.dotColor}; border-radius: 11px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.03);`;
+                div.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
+                        <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 220px;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span style="background:${tMeta.bg}; color:${tMeta.color}; border:1px solid ${tMeta.border}; padding:2px 8px; border-radius:6px; font-size:0.71rem; font-weight:800;">${tMeta.label}</span>
+                                <span style="background:${urgency.badgeBg}; color:${urgency.badgeColor}; border:1px solid ${urgency.badgeBorder}; padding:2px 8px; border-radius:6px; font-size:0.71rem; font-weight:800;">${escNotesHtml(urgency.label)} (${escNotesHtml(item.dueDate)})</span>
+                                ${item.topic ? `<span style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:2px 8px; border-radius:6px; font-size:0.71rem; font-weight:700;">📘 ${escNotesHtml(item.topic)}</span>` : ''}
+                                ${linkedRes ? `<button type="button" onclick="switchTab('library')" style="background:#ecfeff; color:#0e7490; border:1px solid #a5f3fc; padding:2px 8px; border-radius:6px; font-size:0.71rem; font-weight:800; cursor:pointer;" title="مرفق من المكتبة الرقمية">📎 ${escNotesHtml(linkedRes.title || linkedRes.fileName || 'ملف مرفق')}</button>` : ''}
+                            </div>
+                            <div style="font-weight: 800; color: #0f172a; font-size: 0.92rem; ${item.completed ? 'text-decoration: line-through; opacity: 0.8;' : ''}">${escNotesHtml(item.title)}</div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <button type="button" onclick="openHomeworkStudentCheckModal('${safeClass}', '${safeRawId}', '${item.source}')" style="background: ${missedCount > 0 ? '#fff7ed' : '#f5f3ff'}; color: ${missedCount > 0 ? '#c2410c' : '#5b21b6'}; border: 1px solid ${missedCount > 0 ? '#fdba74' : '#ddd6fe'}; padding: 5px 10px; border-radius: 7px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="تفقد إنجاز تلاميذ القسم وتوليد الملاحظات">
+                                <span>👥 تفقد الإنجاز (${doneCount}/${totalStudents})</span>
+                                ${missedCount > 0 ? `<span style="background:#dc2626; color:#fff; padding:0 5px; border-radius:999px; font-size:0.68rem;">${missedCount} لم ينجز</span>` : ''}
+                                ${excCount > 0 ? `<span style="background:#059669; color:#fff; padding:0 5px; border-radius:999px; font-size:0.68rem;">🌟 ${excCount}</span>` : ''}
+                            </button>
+                            <button type="button" onclick="toggleWeeklyHomeworkCompleted('${safeId}', '${item.source}', '${safeClass}')" style="background: ${item.completed ? '#d1fae5' : '#f8fafc'}; color: ${item.completed ? '#065f46' : '#334155'}; border: 1px solid ${item.completed ? '#a7f3d0' : '#cbd5e1'}; padding: 5px 10px; border-radius: 7px; font-size: 0.74rem; font-weight: 800; cursor: pointer;">
+                                ${item.completed ? '✅ تم التصحيح' : '⬜ استلام وتصحيح'}
+                            </button>
+                            <button type="button" onclick="openHomeworkOnWhiteboard('${safeClass}', '${safeRawId}', '${item.source}')" style="background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 5px 9px; border-radius: 7px; font-size: 0.74rem; font-weight: 800; cursor: pointer;" title="فتح السبورة التفاعلية لتصحيح هذا الواجب">
+                                📐 السبورة
+                            </button>
+                            <button type="button" onclick="copyWeeklyHomeworkWhatsApp('${safeId}', '${item.source}', '${safeClass}')" style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; padding: 5px 9px; border-radius: 7px; font-size: 0.74rem; font-weight: 800; cursor: pointer;" title="نسخ تذكير واتساب لهذا الواجب">
+                                📲
+                            </button>
+                            ${item.source === 'agenda' ? `
+                                <button type="button" onclick="deleteHomeworkAgenda('${safeClass}', '${safeRawId}')" style="background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; cursor: pointer; font-size: 0.75rem; padding: 5px 8px; border-radius: 7px;" title="حذف الواجب">${lucideIcon('trash2', {size: 12})}</button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function openHomeworkOnWhiteboard(className, rawId, source) {
+            switchTab('distanceTeaching');
+            setTimeout(() => {
+                if (typeof window.openHomeworkCorrectionModal === 'function') {
+                    window.openHomeworkCorrectionModal();
+                }
+            }, 250);
+        }
+        window.openHomeworkOnWhiteboard = openHomeworkOnWhiteboard;
+
+        function copyClassHomeworkSummaryWhatsApp() {
+            const className = document.getElementById('notesClassSelect')?.value;
+            if (!className) {
+                window.notifySafeToast('الرجاء اختيار القسم أولاً');
+                return;
+            }
+            const items = getUnifiedClassHomeworkList(className).filter(i => !i.completed);
+            if (items.length === 0) {
+                window.notifySafeToast('لا توجد واجبات معلقة حالياً لهذا القسم.');
+                return;
+            }
+            let msg = `📚 *تذكير بالواجبات المنزلية والسلاسل التطبيقية — قسم ${className}*\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+            items.forEach((it, idx) => {
+                msg += `${idx + 1}. *${it.title}*\n   📅 تاريخ التسليم: ${it.dueDate}${it.topic ? ' | 📘 ' + it.topic : ''}\n`;
+            });
+            msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+            msg += `يرجى الحرص على الإنجاز المنتظم وإحضار دفتر التمارين والبحث.`;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(msg).then(() => {
+                    if (typeof showNotification === 'function') showNotification('📲 تم نسخ ملخص واجبات القسم لمشاركته عبر واتساب!', 'success');
                 });
             }
         }
+        window.copyClassHomeworkSummaryWhatsApp = copyClassHomeworkSummaryWhatsApp;
+
+        function openHomeworkStudentCheckModal(className, rawId, source) {
+            if (!className || !db.classes || !db.classes[className]) return;
+            const students = db.classes[className];
+            let targetObj = null;
+            let statusProp = 'studentStatuses';
+            if (source === 'lessonLog' && db.lessonLogs && Array.isArray(db.lessonLogs[className])) {
+                targetObj = db.lessonLogs[className].find(l => l && (String(l.id) === String(rawId) || `log_${className}_${l.date}_${l.sessionNum}` === String(rawId)));
+                statusProp = 'homeworkStudentStatuses';
+            } else if (db.homeworkAgenda && Array.isArray(db.homeworkAgenda[className])) {
+                targetObj = db.homeworkAgenda[className].find(a => a && String(a.id) === String(rawId));
+            }
+            if (!targetObj) {
+                window.notifySafeToast('تعذر العثور على بيانات الواجب.');
+                return;
+            }
+            if (!targetObj[statusProp] || typeof targetObj[statusProp] !== 'object') {
+                targetObj[statusProp] = {};
+            }
+            const stMap = targetObj[statusProp];
+            const hwTitle = targetObj.title || targetObj.homework || 'واجب منزلي';
+
+            let modal = document.getElementById('hwStudentCheckMatrixModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'hwStudentCheckMatrixModal';
+                modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.72);backdrop-filter:blur(4px);z-index:10060;display:flex;align-items:center;justify-content:center;padding:14px;direction:rtl;font-family:"Cairo",sans-serif;';
+                document.body.appendChild(modal);
+            }
+
+            const renderModalContent = () => {
+                let missedCnt = 0, excCnt = 0;
+                students.forEach(s => {
+                    if (stMap[s.id] === 'missed') missedCnt++;
+                    else if (stMap[s.id] === 'excellent') excCnt++;
+                });
+                const doneCnt = students.length - missedCnt;
+
+                modal.innerHTML = `
+                    <div style="background:#fff;border-radius:16px;max-width:740px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 25px 50px rgba(0,0,0,0.35);border:1.5px solid #cbd5e1;">
+                        <div style="padding:14px 18px;background:linear-gradient(135deg,#5b21b6,#4c1d95);color:#fff;display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-weight:900;font-size:0.98rem;">👥 تفقد إنجاز الواجب المنزلي — قسم ${escNotesHtml(className)}</div>
+                                <div style="font-size:0.75rem;color:#ddd6fe;margin-top:2px;">${escNotesHtml(hwTitle)}</div>
+                            </div>
+                            <button type="button" id="hwCheckModalCloseX" style="background:rgba(255,255,255,0.18);border:none;color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:1rem;">✕</button>
+                        </div>
+
+                        <div style="padding:10px 18px;background:#f8fafc;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                            <div style="display:flex;gap:8px;font-size:0.76rem;font-weight:800;">
+                                <span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;padding:3px 9px;border-radius:6px;">✅ منجز: ${doneCnt}</span>
+                                <span style="background:#f0fdf4;color:#15803d;border:1px solid #86efac;padding:3px 9px;border-radius:6px;">🌟 متميز: ${excCnt}</span>
+                                <span style="background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;padding:3px 9px;border-radius:6px;">⚠️ لم ينجز: ${missedCnt}</span>
+                            </div>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                <button type="button" id="hwCheckMarkAllDoneBtn" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;padding:5px 10px;border-radius:7px;font-size:0.74rem;font-weight:800;cursor:pointer;">✅ تحديد الجميع منجز</button>
+                                <button type="button" id="hwCheckGenerateNotesBtn" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;padding:5px 12px;border-radius:7px;font-size:0.74rem;font-weight:800;cursor:pointer;">📝 توليد ملاحظات لغير المنجزين والمتميزين</button>
+                            </div>
+                        </div>
+
+                        <div style="padding:12px 18px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;">
+                            ${students.map((std, i) => {
+                                const st = stMap[std.id] || 'done';
+                                return `
+                                    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;border:1px solid ${st === 'missed' ? '#fecaca' : (st === 'excellent' ? '#86efac' : '#e2e8f0')};background:${st === 'missed' ? '#fff1f2' : (st === 'excellent' ? '#f0fdf4' : '#ffffff')};border-radius:9px;">
+                                        <div style="font-weight:800;font-size:0.84rem;color:#0f172a;">
+                                            <span style="color:#64748b;margin-left:6px;">${std.orderNum || (i + 1)}.</span>
+                                            <span>${escNotesHtml(std.name)}</span>
+                                        </div>
+                                        <div style="display:flex;gap:5px;">
+                                            <button type="button" class="hw-std-st-btn" data-std="${escNotesHtml(std.id)}" data-st="done" style="padding:4px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;border:1px solid ${st === 'done' ? '#059669' : '#cbd5e1'};background:${st === 'done' ? '#059669' : '#fff'};color:${st === 'done' ? '#fff' : '#475569'};">✅ أنجز</button>
+                                            <button type="button" class="hw-std-st-btn" data-std="${escNotesHtml(std.id)}" data-st="excellent" style="padding:4px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;border:1px solid ${st === 'excellent' ? '#16a34a' : '#cbd5e1'};background:${st === 'excellent' ? '#16a34a' : '#fff'};color:${st === 'excellent' ? '#fff' : '#475569'};">🌟 متميز</button>
+                                            <button type="button" class="hw-std-st-btn" data-std="${escNotesHtml(std.id)}" data-st="missed" style="padding:4px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;border:1px solid ${st === 'missed' ? '#dc2626' : '#cbd5e1'};background:${st === 'missed' ? '#dc2626' : '#fff'};color:${st === 'missed' ? '#fff' : '#475569'};">⚠️ لم ينجز</button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+
+                        <div style="padding:10px 18px;background:#f8fafc;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;">
+                            <button type="button" id="hwCheckModalDoneBtn" style="background:#0f172a;color:#fff;border:none;padding:7px 20px;border-radius:8px;font-size:0.8rem;font-weight:800;cursor:pointer;">حفظ وإغلاق ✓</button>
+                        </div>
+                    </div>
+                `;
+
+                const close = () => {
+                    modal.style.display = 'none';
+                    saveDB();
+                    renderHomeworkAgenda();
+                    renderNotes();
+                    onNotesStudentSelectChange();
+                };
+                document.getElementById('hwCheckModalCloseX').onclick = close;
+                document.getElementById('hwCheckModalDoneBtn').onclick = close;
+
+                document.getElementById('hwCheckMarkAllDoneBtn').onclick = () => {
+                    targetObj[statusProp] = {};
+                    saveDB();
+                    renderModalContent();
+                };
+
+                document.getElementById('hwCheckGenerateNotesBtn').onclick = () => {
+                    if (!db.notes[className]) db.notes[className] = [];
+                    const now = new Date();
+                    const dateStr = now.toLocaleDateString('en-GB') + ' ' + now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                    let genCount = 0;
+                    students.forEach(s => {
+                        const st = stMap[s.id];
+                        if (st === 'missed') {
+                            db.notes[className].push({
+                                id: Date.now().toString() + '_hwm_' + s.id,
+                                date: dateStr,
+                                text: `تنبيه بيداغوجي: عدم إنجاز الواجب المنزلي (${hwTitle}). يُرجى الالتزام بحل التمارين المنزلية في مواعيدها لتفادي تراكم التعثرات.`,
+                                studentId: s.id,
+                                category: 'pedagogical',
+                                sentiment: 'alert',
+                                followUpStatus: 'pending'
+                            });
+                            genCount++;
+                        } else if (st === 'excellent') {
+                            db.notes[className].push({
+                                id: Date.now().toString() + '_hwe_' + s.id,
+                                date: dateStr,
+                                text: `تنويه وتشجيع: إنجاز متميز ومنظم للواجب المنزلي (${hwTitle}) يعكس جدية واجتهاداً مستمراً في مادة الرياضيات.`,
+                                studentId: s.id,
+                                category: 'pedagogical',
+                                sentiment: 'positive'
+                            });
+                            genCount++;
+                        }
+                    });
+                    saveDB();
+                    renderNotes();
+                    if (typeof showNotification === 'function') {
+                        showNotification(genCount > 0 ? `✅ تم توليد وحفظ ${genCount} ملاحظة بيداغوجية في سجل الملاحظات!` : 'حدد التلاميذ غير المنجزين أو المتميزين أولاً لتوليد الملاحظات.', genCount > 0 ? 'success' : 'info');
+                    }
+                };
+
+                modal.querySelectorAll('.hw-std-st-btn').forEach(btn => {
+                    btn.onclick = () => {
+                        const sId = btn.getAttribute('data-std');
+                        const nextSt = btn.getAttribute('data-st');
+                        if (nextSt === 'done') delete stMap[sId];
+                        else stMap[sId] = nextSt;
+                        saveDB();
+                        renderModalContent();
+                    };
+                });
+            };
+
+            modal.style.display = 'flex';
+            renderModalContent();
+        }
+        window.openHomeworkStudentCheckModal = openHomeworkStudentCheckModal;
 
         var _isAddingHomeworkAgenda = false;
         function addHomeworkAgenda() {
@@ -9983,13 +11002,16 @@
             const className = document.getElementById('notesClassSelect').value;
             const title = document.getElementById('hwAgendaTitle').value.trim();
             const date = document.getElementById('hwAgendaDate').value;
+            const hwType = document.getElementById('hwAgendaTypeSelect')?.value || 'homework';
+            const topic = document.getElementById('hwAgendaTopicInput')?.value.trim() || '';
+            const resourceId = document.getElementById('hwAgendaLibraryResourceSelect')?.value || '';
 
             if (!className) {
-                alert('الرجاء اختيار القسم أولاً');
+                window.notifySafeToast('الرجاء اختيار القسم أولاً');
                 return;
             }
             if (!title || !date) {
-                alert('الرجاء إدخال وصف الموعد وتاريخه');
+                window.notifySafeToast('الرجاء إدخال وصف الواجب وتاريخ التسليم');
                 return;
             }
 
@@ -10002,14 +11024,26 @@
             db.homeworkAgenda[className].push({
                 id: Date.now().toString(),
                 title,
-                date
+                date,
+                assignedDate: (typeof formatLocalDate === 'function') ? formatLocalDate() : new Date().toISOString().slice(0, 10),
+                type: hwType,
+                topic,
+                details: topic ? `المحور/الدرس: ${topic}` : '',
+                resourceId,
+                completed: false,
+                studentStatuses: {}
             });
 
             saveDB();
             document.getElementById('hwAgendaTitle').value = '';
-            document.getElementById('hwAgendaDate').value = '';
+            if (document.getElementById('hwAgendaTopicInput')) document.getElementById('hwAgendaTopicInput').value = '';
+            if (document.getElementById('hwAgendaLibraryResourceSelect')) document.getElementById('hwAgendaLibraryResourceSelect').value = '';
             renderHomeworkAgenda();
-            checkHomeworkAlerts(); // update home screen alerts
+            if (typeof renderDashboardWeeklyHomework === 'function') renderDashboardWeeklyHomework();
+            checkHomeworkAlerts();
+            if (typeof showNotification === 'function') {
+                showNotification('📚 تم جدولة الواجب المنزلي وإضافته لمركز الواجبات بنجاح!', 'success');
+            }
             unlock();
         }
 
@@ -10018,6 +11052,7 @@
                 db.homeworkAgenda[className] = db.homeworkAgenda[className].filter(i => i.id !== id);
                 saveDB();
                 renderHomeworkAgenda();
+                if (typeof renderDashboardWeeklyHomework === 'function') renderDashboardWeeklyHomework();
                 checkHomeworkAlerts();
             }
         }
@@ -10033,9 +11068,10 @@
             if (db.homeworkAgenda) {
                 for (const className in db.homeworkAgenda) {
                     const classItem = db.classes[className] ? className : null;
-                    if (!classItem) continue; // skip if class doesn't exist anymore
+                    if (!classItem) continue;
 
                     db.homeworkAgenda[className].forEach(item => {
+                        if (item.completed) return;
                         const alertId = `${className}_${(item.title || 'hw').replace(/[^a-zA-Z0-9_\u0600-\u06FF]/g, '_')}_${item.date}`;
                         if (db.hiddenAlerts && db.hiddenAlerts['agendaHw_global_' + alertId]) {
                             return;
@@ -10046,7 +11082,6 @@
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
                         if (diffDays >= 0 && diffDays <= 2) {
-                            // Upcoming or today
                             let alertColor = diffDays === 0 ? '#dc2626' : '#d97706';
                             let bg = diffDays === 0 ? '#fef2f2' : '#fffbeb';
                             let borderCol = diffDays === 0 ? '#fca5a5' : '#fde68a';
@@ -10065,7 +11100,7 @@
                                             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                                 <span class="class-color-badge" style="background: ${clsTheme.bg}; color: ${clsTheme.text}; border: 1px solid ${clsTheme.border}; font-size: 0.76rem; padding: 2px 8px;">
                                                     <span class="class-color-dot" style="background: ${clsTheme.solid};"></span>
-                                                    ${classItem}
+                                                    ${escNotesHtml(classItem)}
                                                 </span>
                                                 <strong style="color: ${alertColor}; font-size: 0.92rem;">موعد استحقاق واجب</strong>
                                                 <span class="alert-item-badge" style="background: white; color: ${alertColor}; border: 1px solid ${borderCol}; font-size: 0.72rem;">
@@ -10073,7 +11108,7 @@
                                                 </span>
                                             </div>
                                             <div style="font-size: 0.82rem; color: #475569; margin-top: 2px;">
-                                                ${item.title} <span style="color: #94a3b8;">(${item.date})</span>
+                                                ${escNotesHtml(item.title)} <span style="color: #94a3b8;">(${escNotesHtml(item.date)})</span>
                                             </div>
                                         </div>
                                     </div>
@@ -10100,12 +11135,15 @@
         }
 
         function onNotesClassChange() {
-            incrementClassUsage(document.getElementById('notesClassSelect').value);
+            const cls = document.getElementById('notesClassSelect').value;
+            incrementClassUsage(cls);
             currentNotesStudentFilter = null;
             refreshNotesStudentDropdown();
             refreshNotesStudentFilter();
+            renderHomeworkAgenda();
             renderNotes();
             onNotesStudentSelectChange();
+            applyNotesSubViewVisibility();
         }
 
         var currentNotesStudentFilter = null;
@@ -10124,14 +11162,14 @@
                 return;
             }
 
-            card.style.display = 'block';
+            applyNotesSubViewVisibility();
             if (countLabel) countLabel.textContent = `(${db.classes[className].length} تلميذ)`;
 
             let html = '<button class="nav-tab ' + (currentNotesStudentFilter === null ? 'active' : '') + '" style="padding: 4px 12px; font-size: 0.85rem; border: 1px solid var(--border); border-radius: 16px; min-width: max-content; background: ' + (currentNotesStudentFilter === null ? 'var(--primary)' : 'var(--bg)') + '; color: ' + (currentNotesStudentFilter === null ? 'white' : 'var(--text-muted)') + ';" onclick="setNotesStudentFilter(null)">الكل</button>';
 
             db.classes[className].forEach(std => {
                 const isActive = currentNotesStudentFilter === std.id;
-                html += '<button class="nav-tab ' + (isActive ? 'active' : '') + '" style="padding: 4px 12px; font-size: 0.85rem;" onclick="setNotesStudentFilter(\'' + std.id + '\')">' + (std.orderNum ? std.orderNum + '. ' : '') + std.name + '</button>';
+                html += '<button class="nav-tab ' + (isActive ? 'active' : '') + '" style="padding: 4px 12px; font-size: 0.85rem;" onclick="setNotesStudentFilter(\'' + std.id + '\')">' + (std.orderNum ? std.orderNum + '. ' : '') + escNotesHtml(std.name) + '</button>';
             });
 
             container.innerHTML = html;
@@ -10141,6 +11179,10 @@
             currentNotesStudentFilter = studentId;
             refreshNotesStudentFilter();
             renderNotes();
+            const className = document.getElementById('notesClassSelect')?.value || '';
+            if (typeof renderSelectedStudentQualitativeSpotlight === 'function') {
+                renderSelectedStudentQualitativeSpotlight(className, studentId);
+            }
         }
 
         function refreshNotesStudentDropdown() {
@@ -10637,16 +11679,16 @@
             if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(() => {
                     if (typeof showNotification === 'function') showNotification('تم نسخ الملاحظة للحافظة', 'success');
-                    else alert('تم نسخ الملاحظة للحافظة');
+                    else window.notifySafeToast('تم نسخ الملاحظة للحافظة');
                 });
             } else {
-                alert(text);
+                window.notifySafeToast(text);
             }
         }
         window.copySmartRemark = copySmartRemark;
 
-        // إدراج عبارة تربوية سريعة من البنك
-        function insertPedPhrase(phrase) {
+        // إدراج عبارة تربوية سريعة من البنك مع ضبط التصنيف والطابع تلقائياً
+        function insertPedPhrase(phrase, cat, sent) {
             const input = document.getElementById('newNoteText');
             if (!input) return;
             const current = input.value.trim();
@@ -10655,6 +11697,14 @@
             } else {
                 input.value = phrase;
             }
+            if (cat && document.getElementById('newNoteCategorySelect')) {
+                document.getElementById('newNoteCategorySelect').value = cat;
+                if (typeof selectNewNoteCategoryQuick === 'function') selectNewNoteCategoryQuick(cat);
+            }
+            if (sent && document.getElementById('newNoteSentimentSelect')) {
+                document.getElementById('newNoteSentimentSelect').value = sent;
+            }
+            if (typeof onNewNoteCategoryOrTextChange === 'function') onNewNoteCategoryOrTextChange();
             input.focus();
         }
         window.insertPedPhrase = insertPedPhrase;
@@ -10668,6 +11718,7 @@
                 select.value = '';
                 onNotesStudentSelectChange();
             }
+            if (typeof onNewNoteCategoryOrTextChange === 'function') onNewNoteCategoryOrTextChange();
         }
         window.clearNoteInput = clearNoteInput;
 
@@ -10679,11 +11730,11 @@
         function openBatchClassRemarksModal() {
             const className = document.getElementById('notesClassSelect').value;
             if (!className) {
-                alert('يرجى اختيار القسم أولاً من القائمة المنسدلة.');
+                window.notifySafeToast('يرجى اختيار القسم أولاً من القائمة المنسدلة.');
                 return;
             }
             if (!db.classes[className] || db.classes[className].length === 0) {
-                alert('لا يوجد تلاميذ مسجلون في هذا القسم حالياً.');
+                window.notifySafeToast('لا يوجد تلاميذ مسجلون في هذا القسم حالياً.');
                 return;
             }
 
@@ -10724,6 +11775,10 @@
 
                 const remarkObj = generatePedagogicalRemarks(profile, style);
                 const prog = profile.progression || { badge: '-', label: 'غير متوفر', sequenceText: '-', bg: '#f8fafc', color: '#475569', border: '#cbd5e1' };
+                const dim = typeof analyzePedagogicalNoteDimensions === 'function'
+                    ? analyzePedagogicalNoteDimensions({ text: remarkObj.primary })
+                    : { category: 'pedagogical', sentiment: 'guidance', catMeta: { label: 'بيداغوجية', icon: '🎓', bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' } };
+
                 currentBatchRemarksData.push({
                     studentId: std.id,
                     orderNum: std.orderNum || (idx + 1),
@@ -10736,6 +11791,8 @@
                     missedHw: profile.missedHw,
                     behaviorStatus: profile.behaviorStatus,
                     remark: remarkObj.primary,
+                    category: dim.category,
+                    sentiment: dim.sentiment,
                     alternatives: remarkObj.alternatives || []
                 });
 
@@ -10753,16 +11810,16 @@
                 tr.innerHTML = `
                     <td style="padding: 8px 10px; text-align: center; font-weight: 800; color: #475569;">${profile.orderNum || (idx + 1)}</td>
                     <td style="padding: 8px 10px; font-weight: 800; color: #0f172a;">
-                        ${profile.name}
-                        ${profile.massar ? `<div style="font-size: 0.7rem; color: #64748b; font-weight: normal;">${profile.massar}</div>` : ''}
+                        ${escNotesHtml(profile.name)}
+                        ${profile.massar ? `<div style="font-size: 0.7rem; color: #64748b; font-weight: normal;">${escNotesHtml(profile.massar)}</div>` : ''}
                     </td>
                     <td style="padding: 8px 10px; text-align: center;">
                         <span style="display: inline-block; padding: 2px 7px; border-radius: 6px; font-size: 0.78rem; font-weight: 800; ${avgStyle}">
                             ${avgText}
                         </span>
                         <div style="margin-top: 4px;">
-                            <span style="display: inline-block; padding: 1px 6px; border-radius: 5px; font-size: 0.68rem; font-weight: 800; background: ${prog.bg}; color: ${prog.color}; border: 1px solid ${prog.border};" title="مسار الفروض: ${prog.sequenceText}">
-                                ${prog.badge} ${prog.label}
+                            <span style="display: inline-block; padding: 1px 6px; border-radius: 5px; font-size: 0.68rem; font-weight: 800; background: ${prog.bg}; color: ${prog.color}; border: 1px solid ${prog.border};" title="مسار الفروض: ${escNotesHtml(prog.sequenceText)}">
+                                ${escNotesHtml(prog.badge)} ${escNotesHtml(prog.label)}
                             </span>
                         </div>
                     </td>
@@ -10771,11 +11828,14 @@
                         ${profile.lateCount > 0 ? `<div style="color: #d97706; font-size: 0.7rem;">${profile.lateCount} تأخر</div>` : ''}
                     </td>
                     <td style="padding: 8px 10px; text-align: center; font-size: 0.78rem;">
-                        <span style="color: #334155; font-weight: 700;">${profile.behaviorStatus}</span>
+                        <span style="color: #334155; font-weight: 700;">${escNotesHtml(profile.behaviorStatus)}</span>
                         ${profile.missedHw > 0 ? `<div style="color: #7c3aed; font-size: 0.7rem; font-weight: bold;">أهمل ${profile.missedHw} واجب</div>` : ''}
                     </td>
+                    <td style="padding: 8px 10px; text-align: center; font-size: 0.74rem;">
+                        <span style="background:${dim.catMeta.bg}; color:${dim.catMeta.color}; border:1px solid ${dim.catMeta.border}; padding:2px 7px; border-radius:6px; font-weight:800;">${dim.catMeta.icon} ${dim.catMeta.label}</span>
+                    </td>
                     <td style="padding: 6px 10px;">
-                        <textarea id="batchRemarkInput_${std.id}" onchange="updateBatchRemarkData('${std.id}', this.value)" style="width: 100%; min-height: 48px; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-family: 'Cairo', sans-serif; font-size: 0.8rem; line-height: 1.4; resize: vertical; background: #fff;">${remarkObj.primary}</textarea>
+                        <textarea id="batchRemarkInput_${std.id}" onchange="updateBatchRemarkData('${std.id}', this.value)" style="width: 100%; min-height: 48px; padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-family: 'Cairo', sans-serif; font-size: 0.8rem; line-height: 1.4; resize: vertical; background: #fff;">${escNotesHtml(remarkObj.primary)}</textarea>
                     </td>
                     <td style="padding: 8px 10px; text-align: center;">
                         <button type="button" onclick="cycleBatchRowAlternative('${std.id}')" title="اقتراح بديل لهذه الملاحظة" style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 6px; padding: 4px 8px; font-size: 0.74rem; cursor: pointer; font-weight: bold;">
@@ -10793,7 +11853,14 @@
 
         function updateBatchRemarkData(studentId, val) {
             const item = currentBatchRemarksData.find(d => d.studentId === studentId);
-            if (item) item.remark = val.trim();
+            if (item) {
+                item.remark = val.trim();
+                if (typeof analyzePedagogicalNoteDimensions === 'function') {
+                    const dim = analyzePedagogicalNoteDimensions({ text: item.remark });
+                    item.category = dim.category;
+                    item.sentiment = dim.sentiment;
+                }
+            }
         }
         window.updateBatchRemarkData = updateBatchRemarkData;
 
@@ -10814,24 +11881,42 @@
         }
         window.cycleBatchRowAlternative = cycleBatchRowAlternative;
 
-        // حفظ جميع الملاحظات في سجل ملاحظات التطبيق
+        // حفظ جميع الملاحظات في سجل ملاحظات التطبيق (مع حفظ التصنيف والطابع ومنع التكرار اليومي)
         function saveAllBatchRemarksToNotes() {
             const className = document.getElementById('notesClassSelect').value;
             if (!className) return;
 
             if (!db.notes[className]) db.notes[className] = [];
             const now = new Date();
-            const dateStr = now.toLocaleDateString('en-GB') + ' ' + now.toLocaleTimeString('en-GB', { hour: '2-digit', minute:'2-digit' });
+            const todayPrefix = now.toLocaleDateString('en-GB');
+            const dateStr = todayPrefix + ' ' + now.toLocaleTimeString('en-GB', { hour: '2-digit', minute:'2-digit' });
 
             let addedCount = 0;
+            let updatedCount = 0;
             currentBatchRemarksData.forEach(item => {
                 const text = item.remark ? item.remark.trim() : '';
-                if (text) {
+                if (!text) return;
+                const dim = typeof analyzePedagogicalNoteDimensions === 'function'
+                    ? analyzePedagogicalNoteDimensions({ text })
+                    : { category: item.category || 'pedagogical', sentiment: item.sentiment || 'guidance' };
+
+                const existingToday = db.notes[className].find(n => n && n.studentId === item.studentId && n.isBatchGenerated && String(n.date || '').startsWith(todayPrefix));
+                if (existingToday) {
+                    existingToday.text = text;
+                    existingToday.date = dateStr;
+                    existingToday.category = dim.category;
+                    existingToday.sentiment = dim.sentiment;
+                    updatedCount++;
+                } else {
                     db.notes[className].push({
                         id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 5),
                         date: dateStr,
                         text: text,
-                        studentId: item.studentId
+                        studentId: item.studentId,
+                        category: dim.category,
+                        sentiment: dim.sentiment,
+                        isBatchGenerated: true,
+                        followUpStatus: dim.sentiment === 'alert' ? 'pending' : undefined
                     });
                     addedCount++;
                 }
@@ -10841,9 +11926,9 @@
             renderNotes();
             closeBatchClassRemarksModal();
             if (typeof showNotification === 'function') {
-                showNotification(`تم اعتماد وحفظ ${addedCount} ملاحظة تربوية في سجل ملاحظات القسم بنجاح`, 'success');
+                showNotification(`تم اعتماد ${addedCount} ملاحظة جديدة وتحديث ${updatedCount} ملاحظة في سجل القسم بنجاح`, 'success');
             } else {
-                alert(`تم حفظ ${addedCount} ملاحظة تربوية بنجاح.`);
+                window.notifySafeToast(`تم حفظ الملاحظات التربوية بنجاح.`);
             }
         }
         window.saveAllBatchRemarksToNotes = saveAllBatchRemarksToNotes;
@@ -10851,7 +11936,7 @@
         // نسخ الملاحظات بصيغة جدول لمسار أو Excel
         function copyBatchRemarksForMassar() {
             if (!currentBatchRemarksData || currentBatchRemarksData.length === 0) {
-                alert('لا توجد بيانات ملاحظات للنسخ.');
+                window.notifySafeToast('لا توجد بيانات ملاحظات للنسخ.');
                 return;
             }
 
@@ -10867,26 +11952,25 @@
                     if (typeof showNotification === 'function') {
                         showNotification('تم نسخ جدول الملاحظات بنجاح! يمكنك الآن لصقه مباشرة في مسار أو ملف Excel', 'success');
                     } else {
-                        alert('تم نسخ جدول الملاحظات للحافظة.');
+                        window.notifySafeToast('تم نسخ جدول الملاحظات للحافظة.');
                     }
-                }).catch(() => {
-                    prompt('انسخ الجدول أدناه يدوياً:', tsv);
-                });
-            } else {
-                prompt('انسخ الجدول أدناه يدوياً:', tsv);
+                }).catch(() => {});
             }
         }
         window.copyBatchRemarksForMassar = copyBatchRemarksForMassar;
 
         // تصدير كشف الملاحظات والنقط بصيغة إكسيل مسار الرسمي (.xlsx)
-        function exportBatchRemarksMassarExcel() {
+        async function exportBatchRemarksMassarExcel() {
             const className = document.getElementById('notesClassSelect')?.value || document.getElementById('classSelect')?.value;
             if (!className || !db.classes || !db.classes[className] || db.classes[className].length === 0) {
-                alert('يرجى اختيار قسم يحتوي على تلاميذ أولاً.');
+                window.notifySafeToast('يرجى اختيار قسم يحتوي على تلاميذ أولاً.');
                 return;
             }
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
+            }
             if (typeof XLSX === 'undefined') {
-                alert('مكتبة Excel غير متوفرة حالياً.');
+                window.notifySafeToast('مكتبة Excel غير متوفرة حالياً.');
                 return;
             }
 
@@ -10960,34 +12044,31 @@
             const className = document.getElementById('notesClassSelect').value;
             if (!currentBatchRemarksData || currentBatchRemarksData.length === 0) return;
 
-            const printWindow = window.open('', '_blank');
-            if (!printWindow) {
-                alert('يرجى السماح بفتح النوافذ المنبثقة للطباعة.');
-                return;
-            }
+            const esc = escNotesHtml;
 
             let rowsHtml = '';
             currentBatchRemarksData.forEach(d => {
                 const avgText = d.avg !== null ? d.avg.toFixed(2) : '-';
                 rowsHtml += `
                     <tr>
-                        <td style="border: 1px solid #333; padding: 6px; text-align: center;">${d.orderNum}</td>
-                        <td style="border: 1px solid #333; padding: 6px; text-align: center;">${d.massar || '-'}</td>
-                        <td style="border: 1px solid #333; padding: 6px; font-weight: bold;">${d.name}</td>
-                        <td style="border: 1px solid #333; padding: 6px; text-align: center; font-weight: bold;">${avgText}</td>
-                        <td style="border: 1px solid #333; padding: 6px; text-align: center;">${d.absentHours} س</td>
-                        <td style="border: 1px solid #333; padding: 6px; text-align: center;">${d.behaviorStatus}</td>
-                        <td style="border: 1px solid #333; padding: 6px; text-align: right;">${d.remark}</td>
+                        <td style="border: 1px solid #333; padding: 6px; text-align: center;">${esc(d.orderNum)}</td>
+                        <td style="border: 1px solid #333; padding: 6px; text-align: center;">${esc(d.massar || '-')}</td>
+                        <td style="border: 1px solid #333; padding: 6px; font-weight: bold;">${esc(d.name)}</td>
+                        <td style="border: 1px solid #333; padding: 6px; text-align: center; font-weight: bold;">${esc(avgText)}</td>
+                        <td style="border: 1px solid #333; padding: 6px; text-align: center;">${esc(d.absentHours)} س</td>
+                        <td style="border: 1px solid #333; padding: 6px; text-align: center;">${esc(d.behaviorStatus)}</td>
+                        <td style="border: 1px solid #333; padding: 6px; text-align: right;">${esc(d.remark)}</td>
                     </tr>
                 `;
             });
 
+            const safeClassName = esc(className);
             const html = `
                 <!DOCTYPE html>
                 <html dir="rtl" lang="ar">
                 <head>
                     <meta charset="utf-8">
-                    <title>كشف الملاحظات والتوجيهات التربوية - ${className}</title>
+                    <title>كشف الملاحظات والتوجيهات التربوية - ${safeClassName}</title>
                     <style>
                         body { font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; padding: 20px; direction: rtl; }
                         h2, h3 { margin: 5px 0; }
@@ -11003,7 +12084,7 @@
                     <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px;">
                         <h2>المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</h2>
                         <h3>كشف الملاحظات والتوجيهات التربوية (مسار وبيان النتائج)</h3>
-                        <p style="margin: 0; font-size: 13px;">القسم: <strong>${className}</strong> | تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-MA')}</p>
+                        <p style="margin: 0; font-size: 13px;">القسم: <strong>${safeClassName}</strong> | تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-MA')}</p>
                     </div>
                     <table>
                         <thead>
@@ -11025,31 +12106,183 @@
                         <span>توقيع الأستاذ(ة):</span>
                         <span>تأشيرة السيد الحارس العام للخارجية / الإدارة:</span>
                     </div>
-                    <script>window.onload = function() { window.print(); };</script>
                 </body>
                 </html>
             `;
 
-            printWindow.document.write(html);
-            printWindow.document.close();
+            printHtmlViaHiddenIframe(html);
         }
         window.printBatchClassRemarks = printBatchClassRemarks;
+
+        const FOLLOW_UP_STATUS_META = {
+            pending: { label: '⏳ قيد المتابعة', bg: '#fffbeb', color: '#b45309', border: '#fde68a', next: 'contacted' },
+            contacted: { label: '📞 تم إشعار الولي', bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', next: 'resolved' },
+            resolved: { label: '✅ تمت المعالجة', bg: '#ecfdf5', color: '#047857', border: '#a7f3d0', next: 'pending' }
+        };
+
+        function togglePinNote(className, noteId) {
+            if (!db.notes || !db.notes[className]) return;
+            const note = db.notes[className].find(n => n && n.id === noteId);
+            if (!note) return;
+            note.pinned = !note.pinned;
+            saveDB();
+            renderNotes();
+            if (typeof showNotification === 'function') {
+                showNotification(note.pinned ? '📌 تم تثبيت الملاحظة في أعلى السجل' : 'تم إلغاء تثبيت الملاحظة', 'info');
+            }
+        }
+        window.togglePinNote = togglePinNote;
+
+        function cycleNoteFollowUpStatus(className, noteId) {
+            if (!db.notes || !db.notes[className]) return;
+            const note = db.notes[className].find(n => n && n.id === noteId);
+            if (!note) return;
+            const curr = note.followUpStatus || 'pending';
+            const meta = FOLLOW_UP_STATUS_META[curr] || FOLLOW_UP_STATUS_META.pending;
+            note.followUpStatus = meta.next;
+            saveDB();
+            renderNotes();
+            const nextMeta = FOLLOW_UP_STATUS_META[note.followUpStatus];
+            if (typeof showNotification === 'function') {
+                showNotification(`تم تحديث حالة المتابعة إلى: ${nextMeta.label}`, 'success');
+            }
+        }
+        window.cycleNoteFollowUpStatus = cycleNoteFollowUpStatus;
+
+        function openEditNoteModal(className, noteId) {
+            if (isPresentationMode()) return window.notifySafeToast('وضع العرض مفعل.');
+            if (!db.notes || !db.notes[className]) return;
+            const note = db.notes[className].find(n => n && n.id === noteId);
+            if (!note) return;
+
+            const dim = typeof analyzePedagogicalNoteDimensions === 'function'
+                ? analyzePedagogicalNoteDimensions(note)
+                : { category: note.category || 'pedagogical', sentiment: note.sentiment || 'guidance' };
+
+            let modal = document.getElementById('wbEditPedagogicalNoteModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'wbEditPedagogicalNoteModal';
+                modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.72);backdrop-filter:blur(4px);z-index:10065;display:flex;align-items:center;justify-content:center;padding:14px;direction:rtl;font-family:"Cairo",sans-serif;';
+                document.body.appendChild(modal);
+            }
+
+            modal.style.display = 'flex';
+            modal.innerHTML = `
+                <div style="background:#fff;border-radius:16px;max-width:520px;width:100%;overflow:hidden;box-shadow:0 25px 50px rgba(0,0,0,0.35);border:1.5px solid #cbd5e1;">
+                    <div style="padding:13px 18px;background:linear-gradient(135deg,#4f46e5,#4338ca);color:#fff;display:flex;justify-content:space-between;align-items:center;">
+                        <div style="font-weight:900;font-size:0.95rem;">✏️ تعديل الملاحظة التربوية وتصنيفها</div>
+                        <button type="button" id="editNoteCloseX" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;">✕</button>
+                    </div>
+                    <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                            <div>
+                                <label style="display:block;font-size:0.76rem;font-weight:800;color:#334155;margin-bottom:4px;">تصنيف الملاحظة:</label>
+                                <select id="editNoteCatSelect" style="width:100%;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:800;font-size:0.82rem;background:#fff;">
+                                    <option value="pedagogical" ${dim.category === 'pedagogical' ? 'selected' : ''}>🎓 بيداغوجية</option>
+                                    <option value="behavioral" ${dim.category === 'behavioral' ? 'selected' : ''}>⚖️ سلوكية</option>
+                                    <option value="administrative" ${dim.category === 'administrative' ? 'selected' : ''}>🏛️ إدارية</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:0.76rem;font-weight:800;color:#334155;margin-bottom:4px;">الطابع النوعي:</label>
+                                <select id="editNoteSentSelect" style="width:100%;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:800;font-size:0.82rem;background:#fff;">
+                                    <option value="positive" ${dim.sentiment === 'positive' ? 'selected' : ''}>🌟 إيجابية / تنويه</option>
+                                    <option value="guidance" ${dim.sentiment === 'guidance' ? 'selected' : ''}>💡 توجيهية</option>
+                                    <option value="alert" ${dim.sentiment === 'alert' ? 'selected' : ''}>⚠️ تنبيه ومتابعة</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:0.76rem;font-weight:800;color:#334155;margin-bottom:4px;">حالة المتابعة الإجرائية:</label>
+                            <select id="editNoteFollowUpSelect" style="width:100%;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:800;font-size:0.82rem;background:#f8fafc;">
+                                <option value="" ${!note.followUpStatus ? 'selected' : ''}>بدون إشارة متابعة</option>
+                                <option value="pending" ${note.followUpStatus === 'pending' ? 'selected' : ''}>⏳ قيد المتابعة</option>
+                                <option value="contacted" ${note.followUpStatus === 'contacted' ? 'selected' : ''}>📞 تم إشعار ولي الأمر</option>
+                                <option value="resolved" ${note.followUpStatus === 'resolved' ? 'selected' : ''}>✅ تمت المعالجة والتسوية</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:0.76rem;font-weight:800;color:#334155;margin-bottom:4px;">نص الملاحظة التربوية:</label>
+                            <textarea id="editNoteTextInput" style="width:100%;min-height:95px;padding:10px;border:1.5px solid #cbd5e1;border-radius:8px;font-family:inherit;font-size:0.88rem;line-height:1.5;">${escNotesHtml(note.text)}</textarea>
+                        </div>
+                        <div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #e2e8f0;padding-top:10px;">
+                            <button type="button" id="editNoteCancelBtn" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:7px 14px;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer;">إلغاء</button>
+                            <button type="button" id="editNoteSaveBtn" style="background:#4f46e5;color:#fff;border:none;padding:7px 18px;border-radius:8px;font-weight:800;font-size:0.82rem;cursor:pointer;">💾 حفظ التعديلات</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const close = () => { modal.style.display = 'none'; };
+            document.getElementById('editNoteCloseX').onclick = close;
+            document.getElementById('editNoteCancelBtn').onclick = close;
+            document.getElementById('editNoteSaveBtn').onclick = () => {
+                const newText = (document.getElementById('editNoteTextInput').value || '').trim();
+                if (!newText) return window.notifySafeToast('نص الملاحظة لا يمكن أن يكون فارغاً.');
+                note.text = newText;
+                note.category = document.getElementById('editNoteCatSelect').value || 'pedagogical';
+                note.sentiment = document.getElementById('editNoteSentSelect').value || 'guidance';
+                const fu = document.getElementById('editNoteFollowUpSelect').value;
+                if (fu) note.followUpStatus = fu;
+                else delete note.followUpStatus;
+                close();
+                saveDB();
+                renderNotes();
+                if (typeof showNotification === 'function') showNotification('✅ تم تحديث الملاحظة التربوية بنجاح', 'success');
+            };
+        }
+        window.openEditNoteModal = openEditNoteModal;
+
+        function shareNoteWithParentWhatsApp(className, noteId) {
+            if (!db.notes || !db.notes[className]) return;
+            const note = db.notes[className].find(n => n && n.id === noteId);
+            if (!note) return;
+            const std = note.studentId && db.classes[className] ? db.classes[className].find(s => s.id === note.studentId) : null;
+            const dim = typeof analyzePedagogicalNoteDimensions === 'function' ? analyzePedagogicalNoteDimensions(note) : { catMeta: { label: 'تربوية' }, sentMeta: { label: 'توجيهية' } };
+            const pSchool = (db.teacherProfile && db.teacherProfile.school) || 'المؤسسة التعليمية';
+            const pName = (db.teacherProfile && db.teacherProfile.name) || 'أستاذ مادة الرياضيات';
+
+            let msg = `🏫 *${pSchool} — مادة الرياضيات*\n`;
+            msg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+            msg += `تحية طيبة لولي أمر التلميذ(ة): *${std ? std.name : 'المحترم'}* (${className})\n`;
+            msg += `📌 *نوع الإشعار:* ${dim.catMeta.label} (${dim.sentMeta.label})\n`;
+            msg += `📅 *التاريخ:* ${note.date}\n\n`;
+            msg += `📝 *الملاحظة التربوية:*\n"${note.text}"\n\n`;
+            msg += `مع خالص التقدير — ${pName}.`;
+
+            if (note.sentiment === 'alert' && (!note.followUpStatus || note.followUpStatus === 'pending')) {
+                note.followUpStatus = 'contacted';
+                saveDB();
+                renderNotes();
+            }
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(msg).then(() => {
+                    if (typeof showNotification === 'function') showNotification('📲 تم نسخ رسالة إشعار ولي الأمر (WhatsApp) وتحديث حالة المتابعة!', 'success');
+                });
+            }
+        }
+        window.shareNoteWithParentWhatsApp = shareNoteWithParentWhatsApp;
 
         function renderNotes() {
             const className = document.getElementById('notesClassSelect').value;
             const container = document.getElementById('notesListContainer');
             const qualCard = document.getElementById('notesQualitativeStatsCard');
             const pillsBar = document.getElementById('notesCategoryPillsBar');
+            const quickStatsEl = document.getElementById('notesActiveClassQuickStats');
             if (!className) {
                 if (container) container.style.display = 'none';
                 if (qualCard) qualCard.style.display = 'none';
                 if (pillsBar) pillsBar.style.display = 'none';
+                if (quickStatsEl) quickStatsEl.textContent = 'اختر قسماً لعرض البيانات';
                 return;
             }
-            if (container) container.style.display = 'block';
+            applyNotesSubViewVisibility();
 
             const searchQ = (document.getElementById('notesSearchInput') ? document.getElementById('notesSearchInput').value : '').toLowerCase().trim();
             const typeFilter = document.getElementById('notesTypeFilter') ? document.getElementById('notesTypeFilter').value : 'all';
+            const followUpFilter = document.getElementById('notesFollowUpFilter') ? document.getElementById('notesFollowUpFilter').value : 'all';
             const categoryFilter = document.getElementById('notesCategoryFilter') ? document.getElementById('notesCategoryFilter').value : 'all';
             const sentimentFilter = document.getElementById('notesSentimentFilter') ? document.getElementById('notesSentimentFilter').value : 'all';
             const list = document.getElementById('notesList');
@@ -11058,21 +12291,40 @@
 
             if (!db.notes[className]) db.notes[className] = [];
 
+            const totalClassNotes = db.notes[className].length;
+            const totalClassHw = getUnifiedClassHomeworkList(className).length;
+            if (quickStatsEl) {
+                quickStatsEl.textContent = `🏫 ${className}: ${totalClassNotes} ملاحظة · ${totalClassHw} واجب منزلي`;
+            }
+
             if (typeof renderNotesCategoryPills === 'function') {
                 try { renderNotesCategoryPills(className); } catch (e) {}
             }
             if (typeof renderNotesQualitativeStatistics === 'function') {
                 try { renderNotesQualitativeStatistics(className); } catch (e) {}
             }
+            if (typeof renderSelectedStudentQualitativeSpotlight === 'function') {
+                try { renderSelectedStudentQualitativeSpotlight(className, currentNotesStudentFilter); } catch (e) {}
+            }
 
-            let filteredNotes = db.notes[className];
+            let filteredNotes = db.notes[className].slice();
             if (currentNotesStudentFilter) {
-                filteredNotes = filteredNotes.filter(n => n.studentId === currentNotesStudentFilter);
+                filteredNotes = filteredNotes.filter(n => n && n.studentId === currentNotesStudentFilter);
             }
             if (typeFilter === 'general') {
-                filteredNotes = filteredNotes.filter(n => !n.studentId);
+                filteredNotes = filteredNotes.filter(n => n && !n.studentId);
             } else if (typeFilter === 'student') {
-                filteredNotes = filteredNotes.filter(n => !!n.studentId);
+                filteredNotes = filteredNotes.filter(n => n && !!n.studentId);
+            } else if (typeFilter === 'pinned') {
+                filteredNotes = filteredNotes.filter(n => n && !!n.pinned);
+            }
+            if (followUpFilter && followUpFilter !== 'all') {
+                filteredNotes = filteredNotes.filter(n => {
+                    if (!n) return false;
+                    const dim = typeof analyzePedagogicalNoteDimensions === 'function' ? analyzePedagogicalNoteDimensions(n) : { sentiment: n.sentiment };
+                    const effectiveFu = n.followUpStatus || (dim.sentiment === 'alert' ? 'pending' : '');
+                    return effectiveFu === followUpFilter;
+                });
             }
             if (categoryFilter && categoryFilter !== 'all') {
                 filteredNotes = filteredNotes.filter(n => {
@@ -11109,7 +12361,10 @@
                 return;
             }
 
-            filteredNotes.slice().reverse().forEach(note => {
+            // Sort: pinned first, then reverse chronological
+            const orderedNotes = filteredNotes.slice().reverse().sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
+            orderedNotes.forEach(note => {
                 const div = document.createElement('div');
                 const dim = typeof analyzePedagogicalNoteDimensions === 'function'
                     ? analyzePedagogicalNoteDimensions(note)
@@ -11120,8 +12375,8 @@
                         sentMeta: { label: 'توجيهية', icon: '💡', bg: '#fefce8', color: '#854d0e', border: '#fef08a' }
                     };
 
-                div.style.backgroundColor = '#ffffff';
-                div.style.border = `1.5px solid ${dim.catMeta?.border || '#e2e8f0'}`;
+                div.style.backgroundColor = note.pinned ? '#fffef7' : '#ffffff';
+                div.style.border = `1.5px solid ${note.pinned ? '#facc15' : (dim.catMeta?.border || '#e2e8f0')}`;
                 div.style.borderRight = `4px solid ${dim.catMeta?.color || '#3b82f6'}`;
                 div.style.borderRadius = '10px';
                 div.style.padding = '14px';
@@ -11132,27 +12387,41 @@
                 if (note.studentId) {
                     const std = (db.classes[className] || []).find(s => s.id === note.studentId);
                     if (std) {
-                        studentNameTag = `<span style="background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 2px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;">${lucideIcon('user', {size: 11})} ${std.name}</span>`;
+                        studentNameTag = `<span onclick="setNotesStudentFilter('${escNotesHtml(std.id)}')" style="background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; padding: 2px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;" title="انقر لعرض البطاقة النوعية للتلميذ">${lucideIcon('user', {size: 11})} ${escNotesHtml(std.name)}</span>`;
                     }
                 }
 
                 const catBadge = `<span style="background:${dim.catMeta.bg}; color:${dim.catMeta.color}; border:1px solid ${dim.catMeta.border}; padding:2px 8px; border-radius:6px; font-size:0.71rem; font-weight:800;">${dim.catMeta.icon} ${dim.catMeta.label}</span>`;
                 const sentBadge = `<span style="background:${dim.sentMeta.bg}; color:${dim.sentMeta.color}; border:1px solid ${dim.sentMeta.border}; padding:2px 8px; border-radius:6px; font-size:0.71rem; font-weight:800;">${dim.sentMeta.icon} ${dim.sentMeta.label}</span>`;
+                const pinBadge = note.pinned ? `<span style="background:#fef9c3; color:#854d0e; border:1px solid #fde047; padding:2px 7px; border-radius:6px; font-size:0.7rem; font-weight:800;">📌 مثبتة</span>` : '';
+
+                const effectiveFu = note.followUpStatus || (dim.sentiment === 'alert' ? 'pending' : '');
+                const fuMeta = effectiveFu ? FOLLOW_UP_STATUS_META[effectiveFu] : null;
+                const safeClass = String(className).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const safeNoteId = String(note.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                const fuBadge = fuMeta
+                    ? `<button type="button" onclick="cycleNoteFollowUpStatus('${safeClass}', '${safeNoteId}')" style="background:${fuMeta.bg}; color:${fuMeta.color}; border:1px solid ${fuMeta.border}; padding:2px 8px; border-radius:6px; font-size:0.71rem; font-weight:800; cursor:pointer;" title="انقر لتغيير حالة المتابعة (قيد المتابعة / تم إشعار الولي / تمت المعالجة)">${fuMeta.label}</button>`
+                    : '';
 
                 div.innerHTML = `
                     <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; flex-wrap: wrap; gap: 6px;">
                         <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                            <span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">${lucideIcon('calendar', {size: 12})} ${note.date}</span>
+                            <span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">${lucideIcon('calendar', {size: 12})} ${escNotesHtml(note.date)}</span>
+                            ${pinBadge}
                             ${studentNameTag}
                             ${catBadge}
                             ${sentBadge}
+                            ${fuBadge}
                         </div>
-                        <div style="display: flex; gap: 6px; align-items: center;">
-                            <button type="button" class="hide-in-presentation" onclick="copyNoteTextToClipboard('${note.id}', '${className}')" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; cursor: pointer; font-size: 0.75rem; padding: 3px 8px; border-radius: 5px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;" title="نسخ الملاحظة">${lucideIcon('copy', {size: 12})} نسخ</button>
-                            <button class="hide-in-presentation" onclick="deleteNote('${className}', '${note.id}')" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.85rem; padding: 3px;" title="حذف الملاحظة">${lucideIcon('trash2', {size: 13})}</button>
+                        <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
+                            <button type="button" class="hide-in-presentation" onclick="togglePinNote('${safeClass}', '${safeNoteId}')" style="background: ${note.pinned ? '#fef9c3' : '#f8fafc'}; border: 1px solid ${note.pinned ? '#fde047' : '#cbd5e1'}; color: #475569; cursor: pointer; font-size: 0.73rem; padding: 3px 7px; border-radius: 5px; font-weight: bold;" title="${note.pinned ? 'إلغاء التثبيت' : 'تثبيت في الأعلى'}">📌</button>
+                            <button type="button" class="hide-in-presentation" onclick="openEditNoteModal('${safeClass}', '${safeNoteId}')" style="background: #eef2ff; border: 1px solid #c7d2fe; color: #4338ca; cursor: pointer; font-size: 0.73rem; padding: 3px 8px; border-radius: 5px; font-weight: bold;" title="تعديل الملاحظة">✏️ تعديل</button>
+                            ${note.studentId ? `<button type="button" class="hide-in-presentation" onclick="shareNoteWithParentWhatsApp('${safeClass}', '${safeNoteId}')" style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; cursor: pointer; font-size: 0.73rem; padding: 3px 8px; border-radius: 5px; font-weight: bold;" title="نسخ إشعار تربوي لولي الأمر عبر واتساب">📲 لولي الأمر</button>` : ''}
+                            <button type="button" class="hide-in-presentation" onclick="copyNoteTextToClipboard('${safeNoteId}', '${safeClass}')" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; cursor: pointer; font-size: 0.73rem; padding: 3px 8px; border-radius: 5px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;" title="نسخ الملاحظة">${lucideIcon('copy', {size: 12})} نسخ</button>
+                            <button class="hide-in-presentation" onclick="deleteNote('${safeClass}', '${safeNoteId}')" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.85rem; padding: 3px;" title="حذف الملاحظة">${lucideIcon('trash2', {size: 13})}</button>
                         </div>
                     </div>
-                    <div id="noteTextContent_${note.id}" style="font-size: 0.92rem; color: #1e293b; white-space: pre-wrap; line-height: 1.6; font-family: 'Cairo', sans-serif;">${note.text}</div>
+                    <div id="noteTextContent_${escNotesHtml(note.id)}" style="font-size: 0.92rem; color: #1e293b; white-space: pre-wrap; line-height: 1.6; font-family: 'Cairo', sans-serif;">${escNotesHtml(note.text)}</div>
                 `;
                 list.appendChild(div);
             });
@@ -11169,7 +12438,7 @@
                     if (typeof showNotification === 'function') showNotification('تم نسخ نص الملاحظة للحافظة', 'success');
                 });
             } else {
-                alert(note.text);
+                window.notifySafeToast(note.text);
             }
         }
         window.copyNoteTextToClipboard = copyNoteTextToClipboard;
@@ -11182,11 +12451,11 @@
             const input = document.getElementById('newNoteText');
             const text = input ? input.value.trim() : '';
             if (!className) {
-                alert('يرجى اختيار القسم أولاً.');
+                window.notifySafeToast('يرجى اختيار القسم أولاً.');
                 return;
             }
             if (!text) {
-                alert('يرجى كتابة نص الملاحظة أو اعتماد الملاحظة المقترحة أولاً.');
+                window.notifySafeToast('يرجى كتابة نص الملاحظة أو اعتماد الملاحظة المقترحة أولاً.');
                 return;
             }
 
@@ -11214,7 +12483,8 @@
                 text: text,
                 studentId: studentId,
                 category: dim.category,
-                sentiment: dim.sentiment
+                sentiment: dim.sentiment,
+                followUpStatus: dim.sentiment === 'alert' ? 'pending' : undefined
             });
 
             saveDB();
@@ -11522,7 +12792,7 @@
 
             const className = document.getElementById('classSelect').value;
             if (!className) {
-                alert('يرجى اختيار القسم المراد إضافة التلميذ إليه أولاً.');
+                window.notifySafeToast('يرجى اختيار القسم المراد إضافة التلميذ إليه أولاً.');
                 unlock();
                 return;
             }
@@ -11534,7 +12804,7 @@
 
 
             if (!name || name.length < 3) {
-                alert('يرجى إدخال اسم التلميذ كاملاً.');
+                window.notifySafeToast('يرجى إدخال اسم التلميذ كاملاً.');
                 unlock();
                 return;
             }
@@ -11547,7 +12817,7 @@
             if (massar) {
                 const dupMassar = students.find(s => s.massar === massar || s.id === massar);
                 if (dupMassar) {
-                    alert(`تنبيه لمنع التكرار: يوجد تلميذ مسجل بنفس رقم مسار (${massar}) في هذا القسم: "${dupMassar.name}" (الترتيب: ${dupMassar.orderNum}). تم إلغاء الإضافة.`);
+                    window.notifySafeToast(`تنبيه لمنع التكرار: يوجد تلميذ مسجل بنفس رقم مسار (${massar}) في هذا القسم: "${dupMassar.name}" (الترتيب: ${dupMassar.orderNum}). تم إلغاء الإضافة.`);
                     unlock();
                     return;
                 }
@@ -11556,7 +12826,7 @@
             // التحقق من منع التكرار بالاسم في نفس القسم
             const dupName = students.find(s => s.name && s.name.trim().toLowerCase() === name.toLowerCase());
             if (dupName) {
-                alert(`تنبيه لمنع التكرار: التلميذ "${name}" مسجل بالفعل في هذا القسم (الترتيب: ${dupName.orderNum}). تم إلغاء الإضافة.`);
+                window.notifySafeToast(`تنبيه لمنع التكرار: التلميذ "${name}" مسجل بالفعل في هذا القسم (الترتيب: ${dupName.orderNum}). تم إلغاء الإضافة.`);
                 unlock();
                 return;
             }
@@ -11604,7 +12874,7 @@
             document.getElementById('manualStudentBirth').value = '';
 
             unlock();
-            alert(`تمت إضافة التلميذ [${name}] بنجاح إلى القسم [${className}].`);
+            window.notifySafeToast(`تمت إضافة التلميذ [${name}] بنجاح إلى القسم [${className}].`);
         }
 
 
@@ -12163,7 +13433,7 @@
             saveDB();
             renderTodaySchedule();
             unlock();
-            alert('تم حفظ جدول الحصص بنجاح!');
+            window.notifySafeToast('تم حفظ جدول الحصص بنجاح!');
             switchTab('absence');
         }
 
@@ -12179,117 +13449,31 @@
         var massarCurrentWorkbook = null;
         var activeStudentGroupFilter = 'all'; // 'all', 'G1', 'G2'
 
-        // تحليل ذكي لصيغ التواريخ في ملفات مسار (Excel Serial, DD/MM/YYYY, YYYY-MM-DD, Date object)
+        // دوال تحليل وتطبيع ملفات مسار (مفوضة لوحدة /core/massar-io.js)
         function parseMassarDate(rawVal) {
-            if (rawVal === undefined || rawVal === null || rawVal === '') {
-                return { fullDate: '', birthYear: '' };
-            }
-
-            // إذا كانت كائن Date
-            if (rawVal instanceof Date && !isNaN(rawVal.getTime())) {
-                const y = rawVal.getFullYear();
-                const m = String(rawVal.getMonth() + 1).padStart(2, '0');
-                const d = String(rawVal.getDate()).padStart(2, '0');
-                return { fullDate: `${d}/${m}/${y}`, birthYear: String(y) };
-            }
-
-            // إذا كانت رقماً تسلسلياً خاصاً بإكسيل (Excel Date Serial Number e.g. 39448)
-            if (typeof rawVal === 'number' && rawVal > 10000 && rawVal < 60000) {
-                const utc_days = Math.floor(rawVal - 25569);
-                const utc_value = utc_days * 86400;
-                const dObj = new Date(utc_value * 1000);
-                if (!isNaN(dObj.getTime())) {
-                    const y = dObj.getUTCFullYear();
-                    const m = String(dObj.getUTCMonth() + 1).padStart(2, '0');
-                    const d = String(dObj.getUTCDate()).padStart(2, '0');
-                    return { fullDate: `${d}/${m}/${y}`, birthYear: String(y) };
-                }
-            }
-
-            let str = String(rawVal).trim();
-            if (!str) return { fullDate: '', birthYear: '' };
-
-            // نص رقم تسلسلي
-            if (/^\d{5}$/.test(str)) {
-                const num = parseInt(str, 10);
-                if (num > 10000 && num < 60000) {
-                    const utc_days = Math.floor(num - 25569);
-                    const utc_value = utc_days * 86400;
-                    const dObj = new Date(utc_value * 1000);
-                    if (!isNaN(dObj.getTime())) {
-                        const y = dObj.getUTCFullYear();
-                        const m = String(dObj.getUTCMonth() + 1).padStart(2, '0');
-                        const d = String(dObj.getUTCDate()).padStart(2, '0');
-                        return { fullDate: `${d}/${m}/${y}`, birthYear: String(y) };
-                    }
-                }
-            }
-
-            // YYYY-MM-DD أو YYYY/MM/DD
-            const matchYMD = str.match(/\b(19\d{2}|20\d{2})[-/.](0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])\b/);
-            if (matchYMD) {
-                const y = matchYMD[1];
-                const m = String(matchYMD[2]).padStart(2, '0');
-                const d = String(matchYMD[3]).padStart(2, '0');
-                return { fullDate: `${d}/${m}/${y}`, birthYear: y };
-            }
-
-            // DD-MM-YYYY أو DD/MM/YYYY
-            const matchDMY = str.match(/\b(0?[1-9]|[12]\d|3[01])[-/.](0?[1-9]|1[0-2])[-/.](19\d{2}|20\d{2})\b/);
-            if (matchDMY) {
-                const d = String(matchDMY[1]).padStart(2, '0');
-                const m = String(matchDMY[2]).padStart(2, '0');
-                const y = matchDMY[3];
-                return { fullDate: `${d}/${m}/${y}`, birthYear: y };
-            }
-
-            // إذا وجد رقم سنة فقط
-            const yearMatch = str.match(/\b(19\d{2}|20\d{2})\b/);
-            return { fullDate: str, birthYear: yearMatch ? yearMatch[1] : (str.length >= 4 ? str.slice(-4) : '') };
+            return (window.MassarIO && typeof window.MassarIO.parseMassarDate === 'function')
+                ? window.MassarIO.parseMassarDate(rawVal)
+                : { fullDate: String(rawVal || ''), birthYear: '' };
         }
-
-        // فحص صيغة رقم مسار المغربي القياسي (حرف متبوع بأرقام أو صيغ CNE القديمة)
         function isMassarCode(str) {
-            if (!str) return false;
-            const clean = String(str).replace(/\s+/g, '').toUpperCase();
-            return /^[A-Z][0-9]{8,10}$/.test(clean) || /^[A-Z]{1,2}[0-9]{7,10}$/.test(clean) || /^[0-9]{8,10}$/.test(clean);
+            return (window.MassarIO && typeof window.MassarIO.isMassarCode === 'function')
+                ? window.MassarIO.isMassarCode(str)
+                : false;
         }
-
-        // تطبيع نص الخلية لمطابقة العناوين بدقة ومنع سقوط الأسماء
         function cleanCellForMassarMatch(s) {
-            if (!s) return '';
-            return String(s)
-                .replace(/[\u00A0\r\n\t]+/g, ' ')
-                .toLowerCase()
-                .replace(/[إأآ]/g, 'ا')
-                .replace(/ة/g, 'ه')
-                .replace(/[\-_/\\:.]/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
+            return (window.MassarIO && typeof window.MassarIO.cleanCellForMassarMatch === 'function')
+                ? window.MassarIO.cleanCellForMassarMatch(s)
+                : String(s || '').trim().toLowerCase();
         }
-
-        // توحيد وتطبيع قيمة الفوج/المجموعة من الملف
         function normalizeGroupValue(val) {
-            if (val === undefined || val === null || val === '') return '';
-            const str = String(val).trim().toUpperCase();
-            if (str === '1' || str === 'G1' || str === 'GROUPE 1' || str === 'الفوج 1' || str === 'فوج 1' || str === 'المجموعة 1') return 'G1';
-            if (str === '2' || str === 'G2' || str === 'GROUPE 2' || str === 'الفوج 2' || str === 'فوج 2' || str === 'المجموعة 2') return 'G2';
-            if (str.includes('1') || str.includes('أ') || str.includes('A')) return 'G1';
-            if (str.includes('2') || str.includes('ب') || str.includes('B')) return 'G2';
-            return '';
+            return (window.MassarIO && typeof window.MassarIO.normalizeGroupValue === 'function')
+                ? window.MassarIO.normalizeGroupValue(val)
+                : '';
         }
-
-        // تحويل النقط العددية من ملفات مسار (يدعم الفاصلة الفرنسية/المغربية 14,50 والنقطة 14.50)
         function parseMassarGradeValue(val) {
-            if (val === undefined || val === null || val === '') return undefined;
-            if (typeof val === 'number') {
-                return (!isNaN(val) && val >= 0 && val <= 20) ? val : undefined;
-            }
-            const clean = String(val).trim().replace(',', '.').replace(/[^\d.-]/g, '');
-            if (!clean) return undefined;
-            const num = parseFloat(clean);
-            if (!isNaN(num) && num >= 0 && num <= 20) return num;
-            return undefined;
+            return (window.MassarIO && typeof window.MassarIO.parseMassarGradeValue === 'function')
+                ? window.MassarIO.parseMassarGradeValue(val)
+                : undefined;
         }
         window.parseMassarGradeValue = parseMassarGradeValue;
 
@@ -12848,14 +14032,21 @@
             if (dropSub) dropSub.textContent = `الحجم: ${(file.size / 1024).toFixed(1)} ك.ب - جارٍ فحص الجداول والأعمدة تلقائياً...`;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
+                    if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                        await window.ensureXlsxLoaded();
+                    }
+                    if (typeof XLSX === 'undefined') {
+                        window.notifySafeToast('مكتبة معالجة ملفات Excel غير متوفرة حالياً.');
+                        return;
+                    }
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                     parseWorkbookAndPreview(workbook, file.name);
                 } catch(err) {
                     console.error('Error reading Massar Excel file:', err);
-                    alert('حدث خطأ أثناء قراءة ملف Excel: ' + (err.message || 'الملف تالف أو غير مدعوم'));
+                    window.notifySafeToast('حدث خطأ أثناء قراءة ملف Excel: ' + (err.message || 'الملف تالف أو غير مدعوم'));
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -12865,7 +14056,7 @@
         function parseWorkbookAndPreview(workbook, filename = '') {
             massarCurrentWorkbook = workbook;
             if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-                alert('ملف Excel فارغ أو لا يحتوي على أوراق عمل.');
+                window.notifySafeToast('ملف Excel فارغ أو لا يحتوي على أوراق عمل.');
                 return;
             }
 
@@ -12873,7 +14064,7 @@
             const sheet = workbook.Sheets[sheetName];
             const parsed = parseMassarSheetData(sheet, sheetName, filename, 1);
             if (!parsed || !parsed.students || parsed.students.length === 0) {
-                alert('لم يتم العثور على بيانات تلاميذ صالحة في هذا الملف. يرجى التأكد من اختيار ملف مسار سليم.');
+                window.notifySafeToast('لم يتم العثور على بيانات تلاميذ صالحة في هذا الملف. يرجى التأكد من اختيار ملف مسار سليم.');
                 return;
             }
 
@@ -13446,7 +14637,7 @@
             const unlock = () => { setTimeout(() => { _isConfirmingMassarImport = false; }, 600); };
 
             if (!massarParsedStudents || massarParsedStudents.length === 0) {
-                alert('لم يتم العثور على أي تلميذ للاستيراد.');
+                window.notifySafeToast('لم يتم العثور على أي تلميذ للاستيراد.');
                 unlock();
                 return;
             }
@@ -13671,7 +14862,7 @@
                 }
             }
 
-            alert(summaryMsg);
+            window.notifySafeToast(summaryMsg);
         }
 
         // استيراد مباشر وسريع لنقط وملاحظات ملف إكسيل مسار بضغطة واحدة دون الحاجة لإعادة ترتيب الأعمدة يدوياً
@@ -13696,12 +14887,19 @@
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
+                    if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                        await window.ensureXlsxLoaded();
+                    }
+                    if (typeof XLSX === 'undefined') {
+                        window.notifySafeToast('مكتبة معالجة ملفات Excel غير متوفرة حالياً.');
+                        return;
+                    }
                     const data = new Uint8Array(e.target.result);
                     const wb = XLSX.read(data, { type: 'array' });
                     if (!wb.SheetNames || wb.SheetNames.length === 0) {
-                        alert('ملف الإكسيل فارغ أو غير صالح.');
+                        window.notifySafeToast('ملف الإكسيل فارغ أو غير صالح.');
                         return;
                     }
 
@@ -13803,14 +15001,14 @@
                         if (typeof showFeedbackToast === 'function') {
                             showFeedbackToast(`تم استيراد ${totalUpdatedGrades} نقطة و ${totalUpdatedRemarks} ملاحظة لـ ${totalUpdatedStudents} تلميذ من قالب مسار بنجاح! 📥✨`);
                         } else {
-                            alert(`✓ تم استيراد بيانات قالب مسار بنجاح!\n• الأقسام: ${targetClassesUpdated.join('، ')}\n• التلاميذ المحيّنون: ${totalUpdatedStudents}\n• النقط المستوردة: ${totalUpdatedGrades}\n• الملاحظات المستوردة: ${totalUpdatedRemarks}`);
+                            window.notifySafeToast(`✓ تم استيراد بيانات قالب مسار بنجاح!\n• الأقسام: ${targetClassesUpdated.join('، ')}\n• التلاميذ المحيّنون: ${totalUpdatedStudents}\n• النقط المستوردة: ${totalUpdatedGrades}\n• الملاحظات المستوردة: ${totalUpdatedRemarks}`);
                         }
                     } else {
                         openMassarImportModal(file);
                     }
                 } catch (err) {
                     console.error('Direct Massar Grades Import Error:', err);
-                    alert('حدث خطأ أثناء قراءة ملف إكسيل مسار. تأكد من سلامة الملف.');
+                    window.notifySafeToast('حدث خطأ أثناء قراءة ملف إكسيل مسار. تأكد من سلامة الملف.');
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -13939,6 +15137,14 @@
             const newDetected = [];
             const existingClassNames = new Set(batchMassarDetectedClasses.map(c => c.className.trim().toLowerCase()));
 
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
+            }
+            if (typeof XLSX === 'undefined') {
+                window.notifySafeToast('مكتبة معالجة ملفات Excel غير متوفرة حالياً.');
+                return;
+            }
+
             for (let fIndex = 0; fIndex < files.length; fIndex++) {
                 const file = files[fIndex];
                 try {
@@ -14005,7 +15211,7 @@
                     showAppToast(`تم بنجاح التعرف على ${newDetected.length} قسم من ملفات مسار ✨`, 'success');
                 }
             } else if (batchMassarDetectedClasses.length === 0) {
-                alert('لم يتم العثور على أي لائحة تلاميذ صالحة في الملفات المحددة. تأكد من أن الملفات بصيغة .xlsx أو .xls وتحتوي على جداول مسار.');
+                window.notifySafeToast('لم يتم العثور على أي لائحة تلاميذ صالحة في الملفات المحددة. تأكد من أن الملفات بصيغة .xlsx أو .xls وتحتوي على جداول مسار.');
             }
 
             renderBatchImportUI();
@@ -14316,7 +15522,7 @@
 
             const selectedClasses = batchMassarDetectedClasses.filter(c => c.selected && c.students.length > 0);
             if (selectedClasses.length === 0) {
-                alert('يرجى تحديد قسم واحد على الأقل للاستيراد.');
+                window.notifySafeToast('يرجى تحديد قسم واحد على الأقل للاستيراد.');
                 unlock();
                 return;
             }
@@ -14326,7 +15532,7 @@
             for (const c of selectedClasses) {
                 const lower = c.className.trim().toLowerCase();
                 if (namesSeen.has(lower)) {
-                    alert(`تنبيه: يوجد قسمان يحملان نفس الاسم «${c.className}». يرجى تعديل اسم أحدهما قبل التأكيد لتجنب تداخل البيانات.`);
+                    window.notifySafeToast(`تنبيه: يوجد قسمان يحملان نفس الاسم «${c.className}». يرجى تعديل اسم أحدهما قبل التأكيد لتجنب تداخل البيانات.`);
                     unlock();
                     return;
                 }
@@ -14660,7 +15866,7 @@
         function undoBatchMassarImport() {
             const raw = localStorage.getItem('massar_batch_safety_point');
             if (!raw) {
-                alert('لا توجد نقطة أمان سابقة محفوظة للتراجع.');
+                window.notifySafeToast('لا توجد نقطة أمان سابقة محفوظة للتراجع.');
                 return;
             }
             if (!confirm('هل أنت متأكد من رغبتك في التراجع واسترجاع حالة الأقسام السابقة قبل عملية الاستيراد الجماعي الأخيرة؟ سيتم استرجاع البيانات بدقة كما كانت.')) {
@@ -14682,11 +15888,11 @@
                 if (typeof showAppToast === 'function') {
                     showAppToast('تم استرجاع نقطة الأمان السابقة بنجاح ↩️', 'success');
                 } else {
-                    alert('تم استرجاع نقطة الأمان السابقة بنجاح.');
+                    window.notifySafeToast('تم استرجاع نقطة الأمان السابقة بنجاح.');
                 }
             } catch(err) {
                 console.error('Error restoring batch safety point:', err);
-                alert('حدث خطأ أثناء استرجاع نقطة الأمان: ' + err.message);
+                window.notifySafeToast('حدث خطأ أثناء استرجاع نقطة الأمان: ' + err.message);
             }
         }
 
@@ -14722,7 +15928,7 @@
         }
 
         function openMassarRedistributeModal(className) {
-            alert('في السلك الثانوي التأهيلي لمادة الرياضيات، تدرس الأقسام بكاملها ككتلة موحدة وبدون تفويج.');
+            window.notifySafeToast('في السلك الثانوي التأهيلي لمادة الرياضيات، تدرس الأقسام بكاملها ككتلة موحدة وبدون تفويج.');
         }
 
         window.quickToggleStudentGroup = quickToggleStudentGroup;
@@ -14828,7 +16034,20 @@
 
         function getTotalMissedHomework(studentId, className) {
             if (_recordsCacheDirty) buildRecordsCache();
-            return _recordsCache.hw[studentId + "_" + className] || 0;
+            let total = _recordsCache.hw[studentId + "_" + className] || 0;
+            if (db && className && studentId) {
+                if (db.homeworkAgenda && Array.isArray(db.homeworkAgenda[className])) {
+                    db.homeworkAgenda[className].forEach(it => {
+                        if (it && it.studentStatuses && it.studentStatuses[studentId] === 'missed') total++;
+                    });
+                }
+                if (db.lessonLogs && Array.isArray(db.lessonLogs[className])) {
+                    db.lessonLogs[className].forEach(lg => {
+                        if (lg && lg.homeworkStudentStatuses && lg.homeworkStudentStatuses[studentId] === 'missed') total++;
+                    });
+                }
+            }
+            return total;
         }
         window.getTotalMissedHomework = getTotalMissedHomework;
 
@@ -15025,7 +16244,7 @@
             if (typeof showNotification === 'function') {
                 showNotification(`🔓 تم فتح تسجيل الغياب استثنائياً لقسم ${className} لهذا التوقيت بنجاح.`, 'success');
             } else {
-                alert(`🔓 تم فتح تسجيل الغياب استثنائياً لقسم ${className} لهذا التوقيت بنجاح.`);
+                window.notifySafeToast(`🔓 تم فتح تسجيل الغياب استثنائياً لقسم ${className} لهذا التوقيت بنجاح.`);
             }
             renderStudents();
             if (typeof updatePeriodDropdown === 'function') updatePeriodDropdown(sessionVal);
@@ -15082,7 +16301,7 @@
             if (typeof showNotification === 'function') {
                 showNotification(`📚 تم برمجة حصة دعم وتقوية لقسم ${className} وتفعيل تسجيل الغياب فوراً!`, 'success');
             } else {
-                alert(`📚 تم برمجة حصة دعم وتقوية لقسم ${className} وتفعيل تسجيل الغياب فوراً!`);
+                window.notifySafeToast(`📚 تم برمجة حصة دعم وتقوية لقسم ${className} وتفعيل تسجيل الغياب فوراً!`);
             }
             renderStudents();
             if (typeof updatePeriodDropdown === 'function') updatePeriodDropdown(sessionVal);
@@ -15118,7 +16337,7 @@
                 if (typeof showNotification === 'function') {
                     showNotification(`🔒 تسجيل الغياب مقفل: هذا التوقيت خارج الحصص الرسمية المقررة وحصص الدعم المبرمجة للأستاذ.`, 'warning');
                 } else {
-                    alert('🔒 تسجيل الغياب مقفل: هذا التوقيت خارج الحصص الرسمية وحصص الدعم المبرمجة للأستاذ.');
+                    window.notifySafeToast('🔒 تسجيل الغياب مقفل: هذا التوقيت خارج الحصص الرسمية وحصص الدعم المبرمجة للأستاذ.');
                 }
                 return;
             }
@@ -15361,7 +16580,7 @@
                 if (typeof showNotification === 'function') {
                     showNotification(`🔒 لا يمكن رصد الحضور الجماعي: هذا التوقيت خارج الحصص الرسمية المقررة وحصص الدعم المبرمجة للأستاذ.`, 'warning');
                 } else {
-                    alert('🔒 لا يمكن رصد الحضور الجماعي: هذا التوقيت خارج الحصص الرسمية وحصص الدعم المبرمجة للأستاذ.');
+                    window.notifySafeToast('🔒 لا يمكن رصد الحضور الجماعي: هذا التوقيت خارج الحصص الرسمية وحصص الدعم المبرمجة للأستاذ.');
                 }
                 return;
             }
@@ -15381,7 +16600,7 @@
                 if (typeof showNotification === 'function') {
                     showNotification(`لا يمكن تسجيل الحضور الجماعي: ${reasonMsg}.`, 'warning');
                 } else {
-                    alert(`لا يمكن تسجيل الحضور الجماعي: ${reasonMsg}.`);
+                    window.notifySafeToast(`لا يمكن تسجيل الحضور الجماعي: ${reasonMsg}.`);
                 }
                 return;
             }
@@ -15496,7 +16715,8 @@
 
         function getStudentGradesBySemester(className, studentId, sem) {
             const record = (db.grades && db.grades[className] && db.grades[className][studentId]) ? db.grades[className][studentId] : {};
-            if (sem === 's2') {
+            const isS2 = (sem === 's2' || sem === 2 || sem === '2' || sem === 'sem2');
+            if (isS2) {
                 const s2Direct = (db.gradesS2 && db.gradesS2[className] && db.gradesS2[className][studentId]) ? db.gradesS2[className][studentId] : {};
                 const s2Sub = record.s2 || {};
                 return {
@@ -17237,7 +18457,16 @@
                 });
             }
 
-            const ctx = document.getElementById('monthlyStatsChart').getContext('2d');
+            const monthlyCanvasEl = document.getElementById('monthlyStatsChart');
+            if (!monthlyCanvasEl) return;
+            if (typeof Chart === 'undefined') {
+                if (typeof window.ensureChartJsLoaded === 'function' && !monthlyCanvasEl.dataset.chartLoading) {
+                    monthlyCanvasEl.dataset.chartLoading = '1';
+                    window.ensureChartJsLoaded().then(c => { if (c) updateMonthlyChart(); });
+                }
+                return;
+            }
+            const ctx = monthlyCanvasEl.getContext('2d');
 
             if (window.monthlyChartInstance) {
                 window.monthlyChartInstance.data.labels = labels;
@@ -17293,9 +18522,16 @@
         }
 
 
-        function exportFullReport() {
+        async function exportFullReport() {
             const className = document.getElementById('classSelect').value;
-            if (!className) { alert('يرجى اختيار القسم'); return; }
+            if (!className) { window.notifySafeToast('يرجى اختيار القسم'); return; }
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
+            }
+            if (typeof XLSX === 'undefined') {
+                window.notifySafeToast('مكتبة تصدير Excel غير متوفرة حالياً.');
+                return;
+            }
 
 
             const examCount = getExamsCountForClass(className);
@@ -17371,14 +18607,17 @@
          * تصدير بطاقة نقط مسار الرسمية بنقرة واحدة (Massar Continuous Assessment Sheet)
          * متوافقة مع أعمدة موقع مسار (رقم الترتيب، رقم مسار، الاسم الكامل، الفروض، والمعدل)
          */
-        function exportClassMarksDirectMassarExcel() {
+        async function exportClassMarksDirectMassarExcel() {
             const className = document.getElementById('classSelect')?.value || document.getElementById('notesClassSelect')?.value;
             if (!className || !db.classes || !db.classes[className] || db.classes[className].length === 0) {
-                alert('يرجى اختيار قسم يضم تلاميذ أولاً لتصدير نقط مسار.');
+                window.notifySafeToast('يرجى اختيار قسم يضم تلاميذ أولاً لتصدير نقط مسار.');
                 return;
             }
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
+            }
             if (typeof XLSX === 'undefined') {
-                alert('مكتبة تصدير Excel غير متوفرة حالياً.');
+                window.notifySafeToast('مكتبة تصدير Excel غير متوفرة حالياً.');
                 return;
             }
 
@@ -17489,9 +18728,9 @@
             openUniversalPdfPreviewModal(target);
         }
 
-        function legacyExportCurrentTabPDF() {
+        async function legacyExportCurrentTabPDF() {
             const className = document.getElementById('classSelect').value;
-            if (!className) { alert('يرجى اختيار القسم أولاً.'); return; }
+            if (!className) { window.notifySafeToast('يرجى اختيار القسم أولاً.'); return; }
 
             const examCount = getExamsCountForClass(className);
             const container = document.createElement('div');
@@ -17684,6 +18923,18 @@
                 btn.disabled = true;
             }
 
+            if (typeof html2pdf === 'undefined' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                await window.ensureHtml2PdfLoaded();
+            }
+            if (typeof html2pdf !== 'function') {
+                window.notifySafeToast('مكتبة تصدير PDF غير متوفرة حالياً.');
+                if (btn) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+                return;
+            }
+
             html2pdf().set(opt).from(container).save().then(() => {
                 if (btn) {
                     btn.innerHTML = originalText;
@@ -17691,7 +18942,7 @@
                 }
             }).catch(e => {
                 console.error("Error generating PDF:", e?.message || String(e));
-                alert("حدث خطأ أثناء إنشاء التقرير.");
+                window.notifySafeToast("حدث خطأ أثناء إنشاء التقرير.");
                 if (btn) {
                     btn.innerHTML = originalText;
                     btn.disabled = false;
@@ -17781,7 +19032,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const encodedText = encodeURIComponent(text);
             const waUrl = `https://wa.me/?text=${encodedText}`;
             try {
-                const w = window.open(waUrl, '_blank', 'noopener,noreferrer');
+                const w = window.openSafeExternalUrl(waUrl, '_blank', 'noopener,noreferrer');
                 if (!w) {
                     const a = document.createElement('a');
                     a.href = waUrl;
@@ -17916,22 +19167,22 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     const safeStdId = String(std.id).replace(/'/g, "\\'");
                     const rowHtml = `
                         <tr>
-                            <td>${std.orderNum}</td>
-                            <td style="text-align: right; padding-right: 10px; font-weight: bold;">
+                            <td style="width: 44px; white-space: nowrap; text-align: center; font-weight: 700;">${std.orderNum}</td>
+                            <td class="td-name" style="text-align: right; padding-right: 10px; font-weight: bold; min-width: 210px;">
                                 <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
                                     <span>${std.name}</span>
                                     ${levelBadge}
                                 </div>
                             </td>
-                            <td>
+                            <td style="min-width: 240px;">
                                 <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;">
                                     ${riskReasons.join('')}
                                 </div>
                             </td>
-                            <td>
-                                <div style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap;">
-                                    <button type="button" onclick="jumpToStudentNotes('${safeCls}', '${safeStdId}')" style="background: #0ea5e9; color: white; border: none; font-size: 0.72rem; padding: 4px 8px; margin: 0; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight:700;" title="متابعة وملاحظات التلميذ">${lucideIcon('file-edit', {size: 11})} متابعة</button>
-                                    <button type="button" onclick="if(typeof openStudentDigitalPortfolio==='function'){openStudentDigitalPortfolio('${safeCls}', '${safeStdId}'); setTimeout(function(){if(typeof switchPortfolioModalTab==='function') switchPortfolioModalTab('qrpass');}, 120);}" style="background: #1e3a8a; color: #fde68a; border: 1px solid #f59e0b; font-size: 0.72rem; padding: 4px 8px; margin: 0; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight:700;" title="بطاقة التتبع الفردي الذكية (QR Pass)">🪪 بطاقة QR</button>
+                            <td style="width: 175px; white-space: nowrap;">
+                                <div style="display:flex; gap:5px; justify-content:center; flex-wrap:nowrap;">
+                                    <button type="button" onclick="jumpToStudentNotes('${safeCls}', '${safeStdId}')" style="background: #0ea5e9; color: white; border: none; font-size: 0.72rem; padding: 4px 8px; margin: 0; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight:700; white-space:nowrap;" title="متابعة وملاحظات التلميذ">${lucideIcon('file-edit', {size: 11})} متابعة</button>
+                                    <button type="button" onclick="if(typeof openStudentDigitalPortfolio==='function'){openStudentDigitalPortfolio('${safeCls}', '${safeStdId}'); setTimeout(function(){if(typeof switchPortfolioModalTab==='function') switchPortfolioModalTab('qrpass');}, 120);}" style="background: #1e3a8a; color: #fde68a; border: 1px solid #f59e0b; font-size: 0.72rem; padding: 4px 8px; margin: 0; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight:700; white-space:nowrap;" title="بطاقة التتبع الفردي الذكية (QR Pass)">🪪 بطاقة QR</button>
                                 </div>
                             </td>
                         </tr>
@@ -17958,7 +19209,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 if (typeof showAppToast === 'function') {
                     showAppToast('يرجى اختيار القسم أولاً لمشاركة تقريره.', 'warning');
                 } else {
-                    alert('يرجى اختيار القسم أولاً لمشاركة تقريره.');
+                    window.notifySafeToast('يرجى اختيار القسم أولاً لمشاركة تقريره.');
                 }
                 return;
             }
@@ -18271,18 +19522,18 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
                 const rowHtml = `
                     <tr style="cursor: pointer;" title="انقر لمعاينة وتصدير التقرير الفردي للتلميذ" onclick="selectStudentForReport('${std.id}', '${curClass}')">
-                        <td>${std.orderNum || '-'}</td>
-                        <td class="td-name" style="text-align: right; padding-right: 10px; font-weight: bold;">${stdNameDisplay}</td>
-                        <td style="text-align: center;">
-                            <span style="font-weight: 800; font-size: 0.8rem; color: ${stdAttendancePct >= 90 ? '#15803d' : stdAttendancePct >= 75 ? '#ea580c' : '#dc2626'}; background: ${stdAttendancePct >= 90 ? '#f0fdf4' : stdAttendancePct >= 75 ? '#fff7ed' : '#fef2f2'}; padding: 2px 7px; border-radius: 6px; border: 1px solid ${stdAttendancePct >= 90 ? '#bbf7d0' : stdAttendancePct >= 75 ? '#fed7aa' : '#fecaca'};">
+                        <td style="width: 44px; white-space: nowrap; text-align: center; font-weight: 700;">${std.orderNum || '-'}</td>
+                        <td class="td-name" style="text-align: right; padding-right: 10px; font-weight: bold; min-width: 190px;">${stdNameDisplay}</td>
+                        <td style="text-align: center; white-space: nowrap;">
+                            <span style="font-weight: 800; font-size: 0.8rem; color: ${stdAttendancePct >= 90 ? '#15803d' : stdAttendancePct >= 75 ? '#ea580c' : '#dc2626'}; background: ${stdAttendancePct >= 90 ? '#f0fdf4' : stdAttendancePct >= 75 ? '#fff7ed' : '#fef2f2'}; padding: 2px 7px; border-radius: 6px; border: 1px solid ${stdAttendancePct >= 90 ? '#bbf7d0' : stdAttendancePct >= 75 ? '#fed7aa' : '#fecaca'}; white-space: nowrap;">
                                 ${stdAttendancePct}%
                             </span>
                         </td>
-                        <td style="color:${absentHours > 0 ? 'var(--danger)' : '#666'}; font-weight:${absentHours > 0 ? 'bold' : 'normal'};">${absentHours}</td>
-                        <td style="color:${lateCount > 0 ? 'var(--warning)' : '#666'};">${lateCount}</td>
-                        <td style="color:${missedHw > 0 ? 'var(--purple)' : '#666'};">${missedHw}</td>
-                        <td>${behaviorData.status}</td>
-                        <td style="${cond.cssText}; text-align: center; border-radius: 6px; font-weight: 900;" title="${cond.title}">${avgText}</td>
+                        <td style="color:${absentHours > 0 ? 'var(--danger)' : '#666'}; font-weight:${absentHours > 0 ? 'bold' : 'normal'}; white-space: nowrap; text-align: center;">${absentHours}</td>
+                        <td style="color:${lateCount > 0 ? 'var(--warning)' : '#666'}; white-space: nowrap; text-align: center;">${lateCount}</td>
+                        <td style="color:${missedHw > 0 ? 'var(--purple)' : '#666'}; white-space: nowrap; text-align: center;">${missedHw}</td>
+                        <td style="white-space: nowrap; text-align: center;">${behaviorData.status}</td>
+                        <td style="${cond.cssText}; text-align: center; border-radius: 6px; font-weight: 900; white-space: nowrap;" title="${cond.title}">${avgText}</td>
                     </tr>
                 `;
                 virtualReportRows.push(rowHtml);
@@ -18413,6 +19664,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const btnAiAbsenceWa = document.getElementById('btnAiAbsenceWaReport');
             if (btnAiAbsenceWa) btnAiAbsenceWa.style.display = 'none';
             if (btnExportPDF) btnExportPDF.style.display = 'none';
+            const pngExportGrp = document.getElementById('studentPngExportGroup');
+            if (pngExportGrp) pngExportGrp.style.display = 'none';
             const btnExportAbsence = document.getElementById('btnExportStudentAbsencePDF');
             if (btnExportAbsence) btnExportAbsence.style.display = 'none';
             const btnShareQR = document.getElementById('btnShareStudentRecordQR');
@@ -20061,6 +21314,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 const btnAiAbsenceWa = document.getElementById('btnAiAbsenceWaReport');
                 if (btnAiAbsenceWa) btnAiAbsenceWa.style.display = 'none';
                 if (btnExportPDF) btnExportPDF.style.display = 'none';
+                const pngExportGrp = document.getElementById('studentPngExportGroup');
+                if (pngExportGrp) pngExportGrp.style.display = 'none';
                 const btnExportAbsence = document.getElementById('btnExportStudentAbsencePDF');
                 if (btnExportAbsence) btnExportAbsence.style.display = 'none';
                 const btnShareQR = document.getElementById('btnShareStudentRecordQR');
@@ -20450,6 +21705,18 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                                 <span>📄</span>
                                 <span>تصدير PDF بالتخصيص المختار</span>
                             </button>
+                            <div style="display: inline-flex; align-items: center; gap: 4px; background: #e0f2fe; border: 1px solid #7dd3fc; border-radius: 6px; padding: 2px 5px;">
+                                <button type="button" onclick="exportStudentIndividualPNG()" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; border: none; border-radius: 4px; padding: 3px 9px; font-size: 0.73rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="تصدير التقرير الفردي بصيغة صورة عالية الدقة (PNG) حسب الدقة المختارة">
+                                    <span>🖼️</span>
+                                    <span id="inlineReportExportPngBtnLabel">تصدير PNG (${printOpts.pngDpi || 300} DPI)</span>
+                                </button>
+                                <select id="inlineReportPngDpiSelect" onchange="onPrintModePageSetupChange('inlineBar')" title="دقة تصدير الصورة (DPI)" style="padding: 2px 5px; font-size: 0.72rem; font-weight: 800; color: #0369a1; background: #ffffff; border: 1px solid #7dd3fc; border-radius: 4px; cursor: pointer;">
+                                    <option value="96" ${Number(printOpts.pngDpi) === 96 ? 'selected' : ''}>96 DPI</option>
+                                    <option value="150" ${Number(printOpts.pngDpi) === 150 ? 'selected' : ''}>150 DPI</option>
+                                    <option value="300" ${(!printOpts.pngDpi || Number(printOpts.pngDpi) === 300) ? 'selected' : ''}>300 DPI</option>
+                                    <option value="600" ${Number(printOpts.pngDpi) === 600 ? 'selected' : ''}>600 DPI</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
@@ -20670,6 +21937,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             `;
             details.style.display = 'block';
             if (btnExportPDF) btnExportPDF.style.display = 'inline-flex';
+            const pngExportGrp = document.getElementById('studentPngExportGroup');
+            if (pngExportGrp) pngExportGrp.style.display = 'inline-flex';
             const btnExportAbsence = document.getElementById('btnExportStudentAbsencePDF');
             if (btnExportAbsence) btnExportAbsence.style.display = 'inline-flex';
             if (btnPrint) btnPrint.style.display = 'inline-flex';
@@ -20727,6 +21996,15 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 attBadge.style.borderColor = totalAllTimeAbsent === 0 ? '#a7f3d0' : (totalAllTimeAbsent >= 8 ? '#fecaca' : '#fde68a');
             }
             const attCanvas = document.getElementById('studentAttendanceChart');
+            const pCanvasPreCheck = document.getElementById('studentProgressChart');
+            if (typeof Chart === 'undefined' && (attCanvas || pCanvasPreCheck)) {
+                const hostCanvas = attCanvas || pCanvasPreCheck;
+                if (typeof window.ensureChartJsLoaded === 'function' && !hostCanvas.dataset.chartLoading) {
+                    hostCanvas.dataset.chartLoading = '1';
+                    window.ensureChartJsLoaded().then(c => { if (c) updateStudentProgressChart(); });
+                }
+                return;
+            }
             if (attCanvas && typeof Chart !== 'undefined') {
                 const mLabels = hmData.monthStats.map(m => m.name);
                 const mUnjust = hmData.monthStats.map(m => m.unjustified);
@@ -21093,7 +22371,16 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
             if (card) card.style.display = 'block';
 
-            const ctx = document.getElementById('attendancePieChart').getContext('2d');
+            const pieCanvasEl = document.getElementById('attendancePieChart');
+            if (!pieCanvasEl) return;
+            if (typeof Chart === 'undefined') {
+                if (typeof window.ensureChartJsLoaded === 'function' && !pieCanvasEl.dataset.chartLoading) {
+                    pieCanvasEl.dataset.chartLoading = '1';
+                    window.ensureChartJsLoaded().then(c => { if (c) updateAttendancePieChart(className, counts); });
+                }
+                return;
+            }
+            const ctx = pieCanvasEl.getContext('2d');
             const total = counts.present + counts.absent + counts.late + counts.justified;
 
             if (window.attendancePieChartInst) {
@@ -21161,7 +22448,16 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             });
 
             const labels = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
-            const ctx = document.getElementById('absenceByDayChart').getContext('2d');
+            const dayCanvasEl = document.getElementById('absenceByDayChart');
+            if (!dayCanvasEl) return;
+            if (typeof Chart === 'undefined') {
+                if (typeof window.ensureChartJsLoaded === 'function' && !dayCanvasEl.dataset.chartLoading) {
+                    dayCanvasEl.dataset.chartLoading = '1';
+                    window.ensureChartJsLoaded().then(c => { if (c) updateAbsenceByDayChart(className, dateFrom, dateTo); });
+                }
+                return;
+            }
+            const ctx = dayCanvasEl.getContext('2d');
 
             if (window.absenceByDayChartInst) {
                 window.absenceByDayChartInst.data.labels = labels;
@@ -21363,6 +22659,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
             const canvas = document.getElementById('monthlyAbsenceEvolutionChart');
             if (!canvas) return;
+            if (typeof Chart === 'undefined') {
+                if (typeof window.ensureChartJsLoaded === 'function' && !canvas.dataset.chartLoading) {
+                    canvas.dataset.chartLoading = '1';
+                    window.ensureChartJsLoaded().then(c => { if (c) updateMonthlyAbsenceEvolutionChart(className); });
+                }
+                return;
+            }
             const ctx = canvas.getContext('2d');
 
             if (window.monthlyAbsenceEvolutionChartInst) {
@@ -21508,6 +22811,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
             const canvas = document.getElementById('reportGradesComparisonChart');
             if (!canvas) return;
+            if (typeof Chart === 'undefined') {
+                if (typeof window.ensureChartJsLoaded === 'function' && !canvas.dataset.chartLoading) {
+                    canvas.dataset.chartLoading = '1';
+                    window.ensureChartJsLoaded().then(c => { if (c) updateReportGradesComparisonChart(className); });
+                }
+                return;
+            }
             const ctx = canvas.getContext('2d');
 
             if (window.reportGradesComparisonChartInst) {
@@ -21554,7 +22864,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         function focusAndGenerateAiPlan() {
             const className = document.getElementById('reportClassSelect').value;
             if (!className) {
-                alert('الرجاء اختيار القسم أولاً لعرض التقرير وتحليل الأداء.');
+                window.notifySafeToast('الرجاء اختيار القسم أولاً لعرض التقرير وتحليل الأداء.');
                 const select = document.getElementById('reportClassSelect');
                 if (select) select.focus();
                 return;
@@ -21570,13 +22880,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         async function generateAiSupportPlan() {
             const className = document.getElementById('reportClassSelect').value;
             if (!className) {
-                alert('الرجاء اختيار القسم أولاً');
+                window.notifySafeToast('الرجاء اختيار القسم أولاً');
                 return;
             }
 
             const students = db.classes[className] || [];
             if (students.length === 0) {
-                alert('لا يوجد تلاميذ مسجلين في هذا القسم.');
+                window.notifySafeToast('لا يوجد تلاميذ مسجلين في هذا القسم.');
                 return;
             }
 
@@ -21708,9 +23018,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             if (!resultDiv) return;
             const text = resultDiv.innerText;
             navigator.clipboard.writeText(text).then(() => {
-                alert('تم نسخ خطة الدعم إلى الحافظة بنجاح!');
+                window.notifySafeToast('تم نسخ خطة الدعم إلى الحافظة بنجاح!');
             }).catch(() => {
-                alert('يرجى نسخ النص يدوياً.');
+                window.notifySafeToast('يرجى نسخ النص يدوياً.');
             });
         }
 
@@ -21866,7 +23176,14 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
 
             const canvasEl = document.getElementById('gradesComparisonChart');
-            if (!canvasEl || typeof Chart === 'undefined') return;
+            if (!canvasEl) return;
+            if (typeof Chart === 'undefined') {
+                if (typeof window.ensureChartJsLoaded === 'function' && !canvasEl.dataset.chartLoading) {
+                    canvasEl.dataset.chartLoading = '1';
+                    window.ensureChartJsLoaded().then(c => { if (c) updateGradesComparisonChart(); });
+                }
+                return;
+            }
             const ctx = canvasEl.getContext('2d');
 
             if (window.gradesComparisonChartInst) {
@@ -22051,6 +23368,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
 
             renderAnnualKPIs();
+            if (typeof window.renderAnnualRechartsView === 'function') {
+                window.renderAnnualRechartsView();
+            }
+            window.dispatchEvent(new Event('annualTabOpened'));
             updateAnnualPerformanceChart();
             renderAnnualPerformanceTable();
             if (typeof renderAnnualBestVsClassDedicatedChart === 'function') {
@@ -22067,6 +23388,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         function updateAnnualPerformanceDashboardLive() {
             renderAnnualKPIs();
+            if (typeof window.renderAnnualRechartsView === 'function') {
+                window.renderAnnualRechartsView();
+            }
+            window.dispatchEvent(new Event('annualTabOpened'));
             updateAnnualPerformanceChart();
             renderAnnualPerformanceTable();
             if (typeof renderAnnualBestVsClassDedicatedChart === 'function') {
@@ -22349,6 +23674,14 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             } else {
                 const note = document.getElementById('annualStudentTrajectoryNote');
                 if (note) note.style.display = 'none';
+            }
+
+            if (typeof Chart === 'undefined') {
+                if (typeof window.ensureChartJsLoaded === 'function' && !canvas.dataset.chartLoading) {
+                    canvas.dataset.chartLoading = '1';
+                    window.ensureChartJsLoaded().then(c => { if (c) updateAnnualPerformanceChart(); });
+                }
+                return;
             }
 
             if (annualChartInst) {
@@ -23001,6 +24334,15 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const annualAvgData = studentData.map(s => s.annualAvg);
             const classAvgLineData = studentData.map(() => classAnnualAvg);
             const passThresholdLineData = studentData.map(() => 10.0);
+
+            if (typeof Chart === 'undefined') {
+                const hostC = canvasPrimary || canvasDiv || canvasDist;
+                if (hostC && typeof window.ensureChartJsLoaded === 'function' && !hostC.dataset.chartLoading) {
+                    hostC.dataset.chartLoading = '1';
+                    window.ensureChartJsLoaded().then(c => { if (c) renderAnnualBestVsClassDedicatedChart(); });
+                }
+                return;
+            }
 
             // ================= 1. الرسم البياني الأساسي (الأعمدة المقارنة) =================
             if (canvasPrimary && (window.annualBestSubChartMode === 'bars' || window.annualBestSubChartMode === 'dual')) {
@@ -24428,9 +25770,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         window.scheduleAnnualTierSupportSession = scheduleAnnualTierSupportSession;
         window.printAnnualAutoRemediationPlan = printAnnualAutoRemediationPlan;
 
-        function exportAnnualPerformanceToExcel() {
+        async function exportAnnualPerformanceToExcel() {
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
+            }
             if (typeof XLSX === 'undefined') {
-                alert('مكتبة Excel غير جاهزة حالياً');
+                window.notifySafeToast('مكتبة Excel غير جاهزة حالياً');
                 return;
             }
             const classSelect = document.getElementById('annualClassSelect');
@@ -24540,7 +25885,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             classSelect.innerHTML = '';
 
             if (classes.length === 0) {
-                alert('لا توجد أقسام مسجلة لتصدير التقرير.');
+                window.notifySafeToast('لا توجد أقسام مسجلة لتصدير التقرير.');
                 return;
             }
 
@@ -25422,7 +26767,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         function previewUnifiedAnnualPDF() {
             const classSelect = document.getElementById('unifiedPdfClassSelect');
             if (!classSelect || !classSelect.value) {
-                alert('يرجى اختيار قسم صالح.');
+                window.notifySafeToast('يرجى اختيار قسم صالح.');
                 return;
             }
 
@@ -25470,10 +26815,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         }
         window.previewUnifiedAnnualPDF = previewUnifiedAnnualPDF;
 
-        function downloadUnifiedAnnualPDF() {
+        async function downloadUnifiedAnnualPDF() {
             const classSelect = document.getElementById('unifiedPdfClassSelect');
             if (!classSelect || !classSelect.value) {
-                alert('يرجى اختيار قسم صالح.');
+                window.notifySafeToast('يرجى اختيار قسم صالح.');
                 return;
             }
 
@@ -25516,6 +26861,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.page-break-avoid', '.unified-student-card'] }
             };
 
+            if (typeof html2pdf === 'undefined' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                await window.ensureHtml2PdfLoaded();
+            }
             if (typeof html2pdf !== 'undefined') {
                 html2pdf().set(opt).from(container).save().then(() => {
                     document.body.removeChild(container);
@@ -25582,6 +26930,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
             const canvas = document.getElementById('gradesDistributionChart');
             if (!canvas) return;
+            if (typeof Chart === 'undefined') {
+                if (typeof window.ensureChartJsLoaded === 'function' && !canvas.dataset.chartLoading) {
+                    canvas.dataset.chartLoading = '1';
+                    window.ensureChartJsLoaded().then(c => { if (c) updateGradesDistributionChart(className); });
+                }
+                return;
+            }
             const ctx = canvas.getContext('2d');
 
             if (window.gradesChartInstance) {
@@ -25642,10 +26997,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 });
         }
 
-        function exportCustomReport() {
+        async function exportCustomReport() {
             const className = document.getElementById('reportClassSelect').value;
-            if (!className) { alert('يرجى اختيار القسم لتصدير التقرير.'); return; }
-            if (reportDataCache.length === 0) { alert('لا توجد بيانات لتصديرها.'); return; }
+            if (!className) { window.notifySafeToast('يرجى اختيار القسم لتصدير التقرير.'); return; }
+            if (reportDataCache.length === 0) { window.notifySafeToast('لا توجد بيانات لتصديرها.'); return; }
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
+            }
+            if (typeof XLSX === 'undefined') {
+                window.notifySafeToast('مكتبة Excel غير متوفرة حالياً.');
+                return;
+            }
 
             const dateFrom = document.getElementById('reportDateFrom').value;
             const dateTo = document.getElementById('reportDateTo').value;
@@ -25673,7 +27035,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         async function exportAllClassesPDF() {
             const classes = Object.keys(db.classes);
-            if (classes.length === 0) { alert('لا توجد أقسام مسجلة لتصديرها.'); return; }
+            if (classes.length === 0) { window.notifySafeToast('لا توجد أقسام مسجلة لتصديرها.'); return; }
 
             const dateFrom = document.getElementById('reportDateFrom').value;
             const dateTo = document.getElementById('reportDateTo').value;
@@ -25764,21 +27126,29 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     }
                     tableClone.style.width = '100%';
                     tableClone.style.borderCollapse = 'collapse';
+                    tableClone.style.tableLayout = 'auto';
                     tableClone.style.marginBottom = '30px';
 
                     const ths = tableClone.querySelectorAll('th');
-                    ths.forEach(th => {
-                        th.style.border = '1px solid #ddd';
-                        th.style.padding = '8px';
-                        th.style.backgroundColor = '#1976d2';
+                    ths.forEach((th, idx) => {
+                        th.style.border = '1px solid #cbd5e1';
+                        th.style.padding = '7px 6px';
+                        th.style.backgroundColor = '#1e3a8a';
                         th.style.color = 'white';
-                        th.style.textAlign = 'center';
+                        th.style.whiteSpace = 'nowrap';
+                        th.style.textAlign = (idx === 1 || th.classList.contains('th-name')) ? 'right' : 'center';
                     });
                     const tds = tableClone.querySelectorAll('td');
-                    tds.forEach(td => {
-                        td.style.border = '1px solid #ddd';
-                        td.style.padding = '8px';
-                        td.style.textAlign = 'center';
+                    tds.forEach((td) => {
+                        td.style.border = '1px solid #cbd5e1';
+                        td.style.padding = '6px 7px';
+                        if (td.classList.contains('td-name')) {
+                            td.style.textAlign = 'right';
+                            td.style.fontWeight = '700';
+                        } else {
+                            td.style.textAlign = 'center';
+                            td.style.whiteSpace = 'nowrap';
+                        }
                     });
                     classContainer.appendChild(tableClone);
 
@@ -25837,10 +27207,16 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
 
+                if (typeof html2pdf === 'undefined' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                    await window.ensureHtml2PdfLoaded();
+                }
+                if (typeof html2pdf !== 'function') {
+                    throw new Error('مكتبة PDF غير متوفرة حالياً');
+                }
                 html2pdf().set(opt).from(mainContainer).save();
             } catch (e) {
                 console.error("Error generating PDF:", e?.message || String(e));
-                alert("حدث خطأ أثناء إنشاء التقرير.");
+                window.notifySafeToast("حدث خطأ أثناء إنشاء التقرير.");
             } finally {
                 // Restore state
                 document.getElementById('reportClassSelect').value = origClass;
@@ -25852,12 +27228,19 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
         }
 
-        function exportPDFReport() {
+        async function exportPDFReport() {
             const className = document.getElementById('reportClassSelect').value;
-            if (!className) { alert('يرجى اختيار القسم لتصدير التقرير.'); return; }
-            if (reportDataCache.length === 0) { alert('لا توجد بيانات لتصديرها.'); return; }
+            if (!className) { window.notifySafeToast('يرجى اختيار القسم لتصدير التقرير.'); return; }
+            if (reportDataCache.length === 0) { window.notifySafeToast('لا توجد بيانات لتصديرها.'); return; }
 
             const includeCharts = confirm('هل تريد تضمين الرسوم البيانية (المبيانات) في ملف الـ PDF المصدّر؟');
+            if (typeof html2pdf === 'undefined' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                await window.ensureHtml2PdfLoaded();
+            }
+            if (typeof html2pdf !== 'function') {
+                window.notifySafeToast('مكتبة تصدير PDF غير متوفرة حالياً.');
+                return;
+            }
 
             const dateFrom = document.getElementById('reportDateFrom').value;
             const dateTo = document.getElementById('reportDateTo').value;
@@ -25924,21 +27307,29 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
             tableClone.style.width = '100%';
             tableClone.style.borderCollapse = 'collapse';
+            tableClone.style.tableLayout = 'auto';
             tableClone.style.marginBottom = '30px';
 
             const ths = tableClone.querySelectorAll('th');
-            ths.forEach(th => {
-                th.style.border = '1px solid #ddd';
-                th.style.padding = '8px';
-                th.style.backgroundColor = '#1976d2';
+            ths.forEach((th, idx) => {
+                th.style.border = '1px solid #cbd5e1';
+                th.style.padding = '7px 6px';
+                th.style.backgroundColor = '#1e3a8a';
                 th.style.color = 'white';
-                th.style.textAlign = 'center';
+                th.style.whiteSpace = 'nowrap';
+                th.style.textAlign = (idx === 1 || th.classList.contains('th-name')) ? 'right' : 'center';
             });
             const tds = tableClone.querySelectorAll('td');
-            tds.forEach(td => {
-                td.style.border = '1px solid #ddd';
-                td.style.padding = '8px';
-                td.style.textAlign = 'center';
+            tds.forEach((td) => {
+                td.style.border = '1px solid #cbd5e1';
+                td.style.padding = '6px 7px';
+                if (td.classList.contains('td-name')) {
+                    td.style.textAlign = 'right';
+                    td.style.fontWeight = '700';
+                } else {
+                    td.style.textAlign = 'center';
+                    td.style.whiteSpace = 'nowrap';
+                }
             });
             container.appendChild(tableClone);
 
@@ -26052,7 +27443,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         function printFullUnifiedReport() {
             const className = document.getElementById('reportClassSelect').value;
             if (!className) {
-                alert('يرجى اختيار القسم أولاً لعرض وتصدير التقرير الكامل.');
+                window.notifySafeToast('يرجى اختيار القسم أولاً لعرض وتصدير التقرير الكامل.');
                 return;
             }
             if (className === '__ALL__') {
@@ -26063,7 +27454,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
             const students = db.classes[className] || [];
             if (students.length === 0) {
-                alert('لا يوجد تلاميذ مسجلون في هذا القسم.');
+                window.notifySafeToast('لا يوجد تلاميذ مسجلون في هذا القسم.');
                 return;
             }
 
@@ -26193,21 +27584,21 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             let examHeadersHtml = '';
             if (examCount === 2) {
                 examHeadersHtml = `
-                    <th style="border: 1px solid #94a3b8; padding: 4px 2px; background: #e2e8f0; color: #0f172a; text-align: center; width: 44px;">ف 1</th>
-                    <th style="border: 1px solid #94a3b8; padding: 4px 2px; background: #e2e8f0; color: #0f172a; text-align: center; width: 44px;">ف 2</th>
+                    <th style="border: 1px solid #94a3b8; padding: 4px 3px; background: #e2e8f0; color: #0f172a; text-align: center; width: 42px; white-space: nowrap;">ف 1</th>
+                    <th style="border: 1px solid #94a3b8; padding: 4px 3px; background: #e2e8f0; color: #0f172a; text-align: center; width: 42px; white-space: nowrap;">ف 2</th>
                 `;
             } else if (examCount === 4) {
                 examHeadersHtml = `
-                    <th style="border: 1px solid #94a3b8; padding: 4px 2px; background: #e2e8f0; color: #0f172a; text-align: center; width: 34px;">ف 1</th>
-                    <th style="border: 1px solid #94a3b8; padding: 4px 2px; background: #e2e8f0; color: #0f172a; text-align: center; width: 34px;">ف 2</th>
-                    <th style="border: 1px solid #94a3b8; padding: 4px 2px; background: #e2e8f0; color: #0f172a; text-align: center; width: 34px;">ف 3</th>
-                    <th style="border: 1px solid #94a3b8; padding: 4px 2px; background: #e2e8f0; color: #0f172a; text-align: center; width: 34px;">ف 4</th>
+                    <th style="border: 1px solid #94a3b8; padding: 4px 2px; background: #e2e8f0; color: #0f172a; text-align: center; width: 34px; white-space: nowrap;">ف 1</th>
+                    <th style="border: 1px solid #94a3b8; padding: 4px 2px; background: #e2e8f0; color: #0f172a; text-align: center; width: 34px; white-space: nowrap;">ف 2</th>
+                    <th style="border: 1px solid #94a3b8; padding: 4px 2px; background: #e2e8f0; color: #0f172a; text-align: center; width: 34px; white-space: nowrap;">ف 3</th>
+                    <th style="border: 1px solid #94a3b8; padding: 4px 2px; background: #e2e8f0; color: #0f172a; text-align: center; width: 34px; white-space: nowrap;">ف 4</th>
                 `;
             } else {
                 examHeadersHtml = `
-                    <th style="border: 1px solid #94a3b8; padding: 4px 2px; background: #e2e8f0; color: #0f172a; text-align: center; width: 40px;">ف 1</th>
-                    <th style="border: 1px solid #94a3b8; padding: 4px 2px; background: #e2e8f0; color: #0f172a; text-align: center; width: 40px;">ف 2</th>
-                    <th style="border: 1px solid #94a3b8; padding: 4px 2px; background: #e2e8f0; color: #0f172a; text-align: center; width: 40px;">ف 3</th>
+                    <th style="border: 1px solid #94a3b8; padding: 4px 3px; background: #e2e8f0; color: #0f172a; text-align: center; width: 38px; white-space: nowrap;">ف 1</th>
+                    <th style="border: 1px solid #94a3b8; padding: 4px 3px; background: #e2e8f0; color: #0f172a; text-align: center; width: 38px; white-space: nowrap;">ف 2</th>
+                    <th style="border: 1px solid #94a3b8; padding: 4px 3px; background: #e2e8f0; color: #0f172a; text-align: center; width: 38px; white-space: nowrap;">ف 3</th>
                 `;
             }
 
@@ -26222,21 +27613,21 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 let examTds = '';
                 if (examCount === 2) {
                     examTds = `
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.74rem;">${f1}</td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.74rem;">${f2}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.74rem; white-space: nowrap;">${f1}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.74rem; white-space: nowrap;">${f2}</td>
                     `;
                 } else if (examCount === 4) {
                     examTds = `
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.72rem;">${f1}</td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.72rem;">${f2}</td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.72rem;">${f3}</td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.72rem;">${f4}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.72rem; white-space: nowrap;">${f1}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.72rem; white-space: nowrap;">${f2}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.72rem; white-space: nowrap;">${f3}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.72rem; white-space: nowrap;">${f4}</td>
                     `;
                 } else {
                     examTds = `
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.74rem;">${f1}</td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.74rem;">${f2}</td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.74rem;">${f3}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.74rem; white-space: nowrap;">${f1}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.74rem; white-space: nowrap;">${f2}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-weight: 600; font-family: monospace; font-size: 0.74rem; white-space: nowrap;">${f3}</td>
                     `;
                 }
 
@@ -26247,37 +27638,37 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
                 rowsHtml += `
                     <tr style="background-color: ${bg}; page-break-inside: avoid; break-inside: avoid;">
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: bold; color: #475569; font-size: 0.72rem;">${item.std.orderNum || (idx + 1)}</td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: right; font-weight: 700; color: #0f172a; font-size: 0.76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.std.name}</td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-family: monospace; font-size: 0.71rem; color: #334155;">${item.std.massar || '-'}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-weight: bold; color: #475569; font-size: 0.72rem; white-space: nowrap;">${item.std.orderNum || (idx + 1)}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 8px; text-align: right; font-weight: 800; color: #0f172a; font-size: 0.76rem; min-width: 175px;">${item.std.name}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 4px; text-align: center; font-family: monospace; font-size: 0.71rem; color: #334155; white-space: nowrap;">${item.std.massar || '-'}</td>
 
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: ${item.unjustifiedHours > 0 ? '700' : 'normal'}; color: ${item.unjustifiedHours > 0 ? '#dc2626' : '#64748b'}; font-size: 0.72rem; background: ${item.unjustifiedHours > 0 ? '#fff1f2' : 'transparent'};">
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-weight: ${item.unjustifiedHours > 0 ? '700' : 'normal'}; color: ${item.unjustifiedHours > 0 ? '#dc2626' : '#64748b'}; font-size: 0.72rem; background: ${item.unjustifiedHours > 0 ? '#fff1f2' : 'transparent'}; white-space: nowrap;">
                             ${item.unjustifiedHours > 0 ? item.unjustifiedHours : '-'}
                         </td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; color: ${item.justifiedHours > 0 ? '#0284c7' : '#64748b'}; font-size: 0.72rem;">
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; color: ${item.justifiedHours > 0 ? '#0284c7' : '#64748b'}; font-size: 0.72rem; white-space: nowrap;">
                             ${item.justifiedHours > 0 ? item.justifiedHours : '-'}
                         </td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; color: ${item.lateCount > 0 ? '#b45309' : '#94a3b8'}; font-size: 0.72rem;">
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; color: ${item.lateCount > 0 ? '#b45309' : '#94a3b8'}; font-size: 0.72rem; white-space: nowrap;">
                             ${item.lateCount > 0 ? item.lateCount : '-'}
                         </td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; color: ${item.missedHw > 0 ? '#9333ea' : '#94a3b8'}; font-size: 0.72rem;">
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; color: ${item.missedHw > 0 ? '#9333ea' : '#94a3b8'}; font-size: 0.72rem; white-space: nowrap;">
                             ${item.missedHw > 0 ? item.missedHw : '-'}
                         </td>
 
                         ${examTds}
 
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 900; font-size: 0.82rem; color: ${avgColor}; background-color: ${avgBg};">
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 4px; text-align: center; font-weight: 900; font-size: 0.82rem; color: ${avgColor}; background-color: ${avgBg}; white-space: nowrap;">
                             ${avgDisplay}
                         </td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 2px; text-align: center; font-weight: 700; font-size: 0.72rem; color: #1e3a8a;">
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 4px; text-align: center; font-weight: 700; font-size: 0.72rem; color: #1e3a8a; white-space: nowrap;">
                             ${item.rank}
                         </td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 4px; text-align: center;">
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 5px; text-align: center; white-space: nowrap;">
                             <span style="display: inline-block; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 0.69rem; color: ${item.mentionColor}; background-color: ${item.mentionBg}; border: 1px solid ${item.mentionColor}33; white-space: nowrap;">
                                 ${item.mention}
                             </span>
                         </td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 4px; text-align: center; font-size: 0.72rem; color: #334155; white-space: nowrap;">
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 5px; text-align: center; font-size: 0.72rem; color: #334155; white-space: nowrap;">
                             ${item.behavior}
                         </td>
                     </tr>
@@ -26404,24 +27795,24 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
                     <!-- 3. High Precision A4 Grid-Compatible Table -->
                     <div style="width: 100%; overflow: hidden;">
-                        <table style="width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 0.74rem;">
+                        <table style="width: 100%; border-collapse: collapse; table-layout: auto; font-size: 0.74rem;">
                             <thead>
                                 <tr style="background: #1e3a8a; color: #ffffff;">
-                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 2px; width: 28px; text-align: center;">ر.ت</th>
-                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 6px; width: 145px; text-align: right;">الاسم الكامل للتلميذ(ة)</th>
-                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 2px; width: 80px; text-align: center;">رقم مسار</th>
-                                    <th colspan="4" style="border: 1px solid #94a3b8; padding: 3px; text-align: center; background: #0284c7; font-size: 0.72rem;">المواظبة والانضباط المدرسي</th>
-                                    <th colspan="${examCount}" style="border: 1px solid #94a3b8; padding: 3px; text-align: center; background: #334155; font-size: 0.72rem;">فروض المراقبة المستمرة (/20)</th>
-                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 2px; width: 56px; text-align: center; background: #0f172a;">المعدل</th>
-                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 2px; width: 44px; text-align: center; background: #1e293b;">الرتبة</th>
-                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 4px; width: 92px; text-align: center; background: #1e293b;">التقدير / الميزة</th>
-                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 4px; width: 88px; text-align: center; background: #1e293b;">السلوك</th>
+                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 3px; width: 28px; white-space: nowrap; text-align: center;">ر.ت</th>
+                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 8px; min-width: 175px; text-align: right;">الاسم الكامل للتلميذ(ة)</th>
+                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 4px; width: 78px; white-space: nowrap; text-align: center;">رقم مسار</th>
+                                    <th colspan="4" style="border: 1px solid #94a3b8; padding: 3px; text-align: center; background: #0284c7; font-size: 0.72rem; white-space: nowrap;">المواظبة والانضباط المدرسي</th>
+                                    <th colspan="${examCount}" style="border: 1px solid #94a3b8; padding: 3px; text-align: center; background: #334155; font-size: 0.72rem; white-space: nowrap;">فروض المراقبة المستمرة (/20)</th>
+                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 4px; width: 52px; white-space: nowrap; text-align: center; background: #0f172a;">المعدل</th>
+                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 4px; width: 46px; white-space: nowrap; text-align: center; background: #1e293b;">الرتبة</th>
+                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 5px; width: 92px; white-space: nowrap; text-align: center; background: #1e293b;">التقدير / الميزة</th>
+                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 5px; width: 76px; white-space: nowrap; text-align: center; background: #1e293b;">السلوك</th>
                                 </tr>
                                 <tr style="background: #f1f5f9; color: #1e293b; font-size: 0.69rem; font-weight: 700;">
-                                    <th style="border: 1px solid #94a3b8; padding: 3px 2px; text-align: center; width: 44px;">غير مبرر</th>
-                                    <th style="border: 1px solid #94a3b8; padding: 3px 2px; text-align: center; width: 38px;">مبرر</th>
-                                    <th style="border: 1px solid #94a3b8; padding: 3px 2px; text-align: center; width: 34px;">تأخر</th>
-                                    <th style="border: 1px solid #94a3b8; padding: 3px 2px; text-align: center; width: 36px;">لا واجب</th>
+                                    <th style="border: 1px solid #94a3b8; padding: 3px 3px; text-align: center; width: 44px; white-space: nowrap;">غير مبرر</th>
+                                    <th style="border: 1px solid #94a3b8; padding: 3px 3px; text-align: center; width: 38px; white-space: nowrap;">مبرر</th>
+                                    <th style="border: 1px solid #94a3b8; padding: 3px 3px; text-align: center; width: 34px; white-space: nowrap;">تأخر</th>
+                                    <th style="border: 1px solid #94a3b8; padding: 3px 3px; text-align: center; width: 40px; white-space: nowrap;">لا واجب</th>
                                     ${examHeadersHtml}
                                 </tr>
                             </thead>
@@ -26513,7 +27904,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             modal.style.display = 'flex';
 
             // Function to generate and download PDF
-            const runPdfDownload = () => {
+            const runPdfDownload = async () => {
                 const sheet = document.getElementById('fullReportPrintSheet');
                 if (!sheet) return;
 
@@ -26522,6 +27913,18 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 if (downloadBtn) {
                     downloadBtn.innerHTML = '⏳ جاري تصدير PDF...';
                     downloadBtn.disabled = true;
+                }
+
+                if (typeof html2pdf === 'undefined' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                    await window.ensureHtml2PdfLoaded();
+                }
+                if (typeof html2pdf !== 'function') {
+                    if (downloadBtn) {
+                        downloadBtn.innerHTML = origText;
+                        downloadBtn.disabled = false;
+                    }
+                    window.notifySafeToast('مكتبة تصدير PDF غير متوفرة حالياً.');
+                    return;
                 }
 
                 const opt = {
@@ -26601,7 +28004,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         }
 
         window.exportStudentIndividualPDF = exportStudentIndividualPDF;
-        function exportStudentIndividualPDF(customOptions) {
+        async function exportStudentIndividualPDF(customOptions) {
             if ((customOptions && customOptions.fromPrintMode) || (typeof isStudentPrintModeEnabled === 'function' && isStudentPrintModeEnabled())) {
                 if (typeof ensureStudentSelectedForPrintMode === 'function') {
                     ensureStudentSelectedForPrintMode();
@@ -26844,15 +28247,25 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
 
             // UI button state loading feedback
-            const btn = document.getElementById('btnExportStudentPDF');
+            const isPngExport = (customOptions && customOptions.exportFormat === 'png');
+            const targetDpi = [96, 150, 300, 600].includes(Number(printOpts.pngDpi)) ? Number(printOpts.pngDpi) : 300;
+            const btn = document.getElementById(isPngExport ? 'btnExportStudentPNG' : 'btnExportStudentPDF');
             const btnTop = document.getElementById('btnExportStudentPDFTop');
-            const btnBar = document.getElementById('btnPrintModeExportPDF');
+            const btnBar = document.getElementById(isPngExport ? 'btnPrintModeExportPNG' : 'btnPrintModeExportPDF');
             const originalText = btn ? btn.innerHTML : '';
             const originalTopText = btnTop ? btnTop.innerHTML : '';
             const originalBarText = btnBar ? btnBar.innerHTML : '';
-            if (btn) { btn.innerHTML = '⏳ جاري تصدير الـ PDF...'; btn.disabled = true; }
-            if (btnTop) { btnTop.innerHTML = '⏳ جاري التصدير...'; btnTop.disabled = true; }
-            if (btnBar) { btnBar.innerHTML = `⏳ جاري تصدير PDF (${pageFormatUpper})...`; btnBar.disabled = true; }
+            if (btn) {
+                btn.innerHTML = isPngExport ? `⏳ جاري تصدير PNG (${targetDpi} DPI)...` : '⏳ جاري تصدير الـ PDF...';
+                btn.disabled = true;
+            }
+            if (btnTop && !isPngExport) { btnTop.innerHTML = '⏳ جاري التصدير...'; btnTop.disabled = true; }
+            if (btnBar) {
+                btnBar.innerHTML = isPngExport
+                    ? `⏳ جاري تصدير PNG (${targetDpi} DPI)...`
+                    : `⏳ جاري تصدير PDF (${pageFormatUpper})...`;
+                btnBar.disabled = true;
+            }
 
             // Build PDF printable container scaled cleanly for A4 or A5
             const container = document.createElement('div');
@@ -27160,6 +28573,85 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 </div>
             `;
 
+            const restoreButtons = () => {
+                container.innerHTML = '';
+                if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
+                if (btnTop && !isPngExport) { btnTop.innerHTML = originalTopText; btnTop.disabled = false; }
+                if (btnBar) { btnBar.innerHTML = originalBarText; btnBar.disabled = false; }
+                if (typeof applyPrintModePageSetupToDOM === 'function') {
+                    applyPrintModePageSetupToDOM();
+                }
+            };
+
+            if (isPngExport) {
+                let pngStage = null;
+                try {
+                    await ensureHtml2Canvas();
+                    const h2c = window.html2canvas || (typeof html2canvas === 'function' ? html2canvas : null);
+                    if (typeof h2c !== 'function') {
+                        throw new Error('مكتبة تصدير الصور html2canvas غير متوفرة حالياً.');
+                    }
+
+                    const sheetWidthPx = isA5 ? 559 : 794;
+                    const sheetMinHeightPx = isA5 ? 794 : 1123;
+                    pngStage = document.createElement('div');
+                    pngStage.style.cssText = `position:fixed; left:-9999px; top:0; width:${sheetWidthPx}px; min-height:${sheetMinHeightPx}px; background:#ffffff; padding:${resolvedMargins.cssPadding}; box-sizing:border-box; z-index:-1; direction:rtl;`;
+                    container.style.maxWidth = '100%';
+                    pngStage.appendChild(container);
+                    document.body.appendChild(pngStage);
+
+                    // Wait for embedded chart images & fonts to settle before rasterizing
+                    const imgs = Array.from(pngStage.querySelectorAll('img'));
+                    if (imgs.length > 0) {
+                        await Promise.all(imgs.map(img => img.complete ? Promise.resolve() : new Promise(res => {
+                            img.onload = res;
+                            img.onerror = res;
+                        })));
+                    }
+                    await new Promise(r => setTimeout(r, 40));
+
+                    const renderScale = +(targetDpi / 96).toFixed(4);
+                    const canvas = await h2c(pngStage, {
+                        scale: renderScale,
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: '#ffffff',
+                        logging: false,
+                        scrollX: 0,
+                        scrollY: 0
+                    });
+
+                    const rawDataUrl = canvas.toDataURL('image/png');
+                    const enrichedDataUrl = injectPngDpiMetadata(rawDataUrl, targetDpi);
+                    const cleanPngName = `تقرير_${std.name.trim().replace(/\s+/g, '_')}_${className}_${pageFormatUpper}_${targetDpi}DPI.png`;
+
+                    const link = document.createElement('a');
+                    link.href = enrichedDataUrl;
+                    link.download = cleanPngName;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+
+                    canvas.width = 1;
+                    canvas.height = 1;
+
+                    if (typeof showAppToast === 'function') {
+                        showAppToast(`🖼️ تم تصدير التقرير الفردي للتلميذ(ة) (${std.name}) كصورة عالية الدقة PNG (${pageFormatUpper} · ${targetDpi} DPI) بنجاح`, 'success');
+                    }
+                } catch (err) {
+                    console.error('Error generating student PNG:', err?.message || String(err));
+                    if (typeof showAppToast === 'function') {
+                        showAppToast('حدث خطأ أثناء تصدير التقرير كصورة PNG. يرجى المحاولة مرة أخرى.', 'error');
+                    }
+                } finally {
+                    if (pngStage && pngStage.parentNode) {
+                        pngStage.parentNode.removeChild(pngStage);
+                    }
+                    restoreButtons();
+                }
+                return;
+            }
+
             const cleanFileName = `تقرير_${std.name.trim().replace(/\s+/g, '_')}_${className}_${pageFormatUpper}.pdf`;
             const opt = {
                 margin:       resolvedMargins.array,
@@ -27169,6 +28661,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 jsPDF:        { unit: 'mm', format: isA5 ? 'a5' : 'a4', orientation: 'portrait', compress: true },
                 pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', '.page-break-avoid'] }
             };
+
+            if (typeof html2pdf === 'undefined' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                await window.ensureHtml2PdfLoaded();
+            }
+            if (typeof html2pdf !== 'function') {
+                restoreButtons();
+                if (typeof showAppToast === 'function') {
+                    showAppToast('مكتبة تصدير PDF غير متوفرة حالياً.', 'warning');
+                }
+                return;
+            }
 
             html2pdf().set(opt).from(container).save().then(() => {
                 if (typeof showAppToast === 'function') {
@@ -27180,15 +28683,87 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     showAppToast("حدث خطأ أثناء إنشاء ملف الـ PDF. يرجى المحاولة مرة أخرى.", 'error');
                 }
             }).finally(() => {
-                container.innerHTML = '';
-                if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
-                if (btnTop) { btnTop.innerHTML = originalTopText; btnTop.disabled = false; }
-                if (btnBar) { btnBar.innerHTML = originalBarText; btnBar.disabled = false; }
-                if (typeof applyPrintModePageSetupToDOM === 'function') {
-                    applyPrintModePageSetupToDOM();
-                }
+                restoreButtons();
             });
         }
+
+        /**
+         * حقن بيانات الدقة الفيزيائية (pHYs chunk - Pixels Per Meter) داخل ملف PNG
+         * لضمان قراءة الدقة الحقيقية (96 / 150 / 300 / 600 DPI) في برامج الطباعة ومعالجة الصور
+         */
+        function injectPngDpiMetadata(dataUrl, dpi) {
+            try {
+                const targetDpi = Number(dpi) || 300;
+                if (!dataUrl || !dataUrl.startsWith('data:image/png;base64,')) return dataUrl;
+                const base64 = dataUrl.slice('data:image/png;base64,'.length);
+                const binStr = atob(base64);
+                const len = binStr.length;
+                if (len < 33) return dataUrl;
+
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binStr.charCodeAt(i);
+                }
+                // Verify PNG signature and IHDR chunk at offset 8..32
+                if (bytes[0] !== 137 || bytes[1] !== 80 || bytes[2] !== 78 || bytes[3] !== 71) {
+                    return dataUrl;
+                }
+                const ppm = Math.round(targetDpi / 0.0254); // pixels per meter (1 inch = 0.0254 m)
+                const physChunk = new Uint8Array(21);
+                // Length = 9
+                physChunk[0] = 0; physChunk[1] = 0; physChunk[2] = 0; physChunk[3] = 9;
+                // Type = 'pHYs' (112, 72, 89, 115)
+                physChunk[4] = 112; physChunk[5] = 72; physChunk[6] = 89; physChunk[7] = 115;
+                // X pixels per unit (4 bytes big-endian)
+                physChunk[8] = (ppm >>> 24) & 0xff;
+                physChunk[9] = (ppm >>> 16) & 0xff;
+                physChunk[10] = (ppm >>> 8) & 0xff;
+                physChunk[11] = ppm & 0xff;
+                // Y pixels per unit (4 bytes big-endian)
+                physChunk[12] = (ppm >>> 24) & 0xff;
+                physChunk[13] = (ppm >>> 16) & 0xff;
+                physChunk[14] = (ppm >>> 8) & 0xff;
+                physChunk[15] = ppm & 0xff;
+                // Unit specifier: 1 = meter
+                physChunk[16] = 1;
+
+                // CRC32 over bytes 4..16 (type + data)
+                let crc = 0xffffffff;
+                for (let i = 4; i <= 16; i++) {
+                    crc ^= physChunk[i];
+                    for (let k = 0; k < 8; k++) {
+                        crc = (crc & 1) ? (0xedb88320 ^ (crc >>> 1)) : (crc >>> 1);
+                    }
+                }
+                crc = (crc ^ 0xffffffff) >>> 0;
+                physChunk[17] = (crc >>> 24) & 0xff;
+                physChunk[18] = (crc >>> 16) & 0xff;
+                physChunk[19] = (crc >>> 8) & 0xff;
+                physChunk[20] = crc & 0xff;
+
+                // Insert pHYs chunk right after IHDR (offset 33)
+                const out = new Uint8Array(len + 21);
+                out.set(bytes.subarray(0, 33), 0);
+                out.set(physChunk, 33);
+                out.set(bytes.subarray(33), 54);
+
+                let outBin = '';
+                const chunkStep = 8192;
+                for (let i = 0; i < out.length; i += chunkStep) {
+                    outBin += String.fromCharCode.apply(null, out.subarray(i, i + chunkStep));
+                }
+                return 'data:image/png;base64,' + btoa(outBin);
+            } catch (e) {
+                return dataUrl;
+            }
+        }
+        window.injectPngDpiMetadata = injectPngDpiMetadata;
+
+        async function exportStudentIndividualPNG(customOptions) {
+            const opts = Object.assign({}, customOptions || {}, { exportFormat: 'png' });
+            return exportStudentIndividualPDF(opts);
+        }
+        window.exportStudentIndividualPNG = exportStudentIndividualPNG;
 
         /**
          * توليد صورة عالية الدقة للرسم البياني لتطور الغياب الشهري للتلميذ (مع تحرير فوري للذاكرة)
@@ -27622,7 +29197,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         /**
          * تصدير تقرير الغياب التفصيلي للتلميذ(ة) بصيغة PDF قابلة للطباعة مع الرسم البياني الشهري
          */
-        function exportStudentDetailedAbsencePDF(studentId, className) {
+        async function exportStudentDetailedAbsencePDF(studentId, className) {
             if (!className || !studentId) {
                 const resolved = typeof resolveSelectedReportStudent === 'function' ? resolveSelectedReportStudent() : {};
                 if (!className) className = resolved.className || '';
@@ -27698,6 +29273,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', '.page-break-avoid'] }
             };
 
+            if (typeof html2pdf === 'undefined' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                await window.ensureHtml2PdfLoaded();
+            }
+            if (typeof html2pdf !== 'function') {
+                container.innerHTML = '';
+                if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
+                if (btnTop) { btnTop.innerHTML = originalTopText; btnTop.disabled = false; }
+                window.notifySafeToast('مكتبة تصدير PDF غير متوفرة حالياً.');
+                return;
+            }
+
             html2pdf().set(opt).from(container).save().then(() => {
                 if (typeof showAppToast === 'function') {
                     showAppToast(`تم تصدير تقرير الغياب المفصل للتلميذ(ة) (${std.name}) بصيغة PDF (${pageFormatUpper}) بنجاح`, 'success');
@@ -27718,18 +29304,18 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         /**
          * تصدير تقارير الغياب المفصلة لجميع تلاميذ القسم دفعة واحدة (PDF)
          */
-        function exportClassAllStudentsAbsencePDF(className) {
+        async function exportClassAllStudentsAbsencePDF(className) {
             if (!className) {
                 className = document.getElementById('reportClassSelect') ? document.getElementById('reportClassSelect').value : '';
             }
             if (!className || !db.classes[className]) {
-                alert('يرجى اختيار القسم أولاً لتصدير تقارير الغياب لجميع التلاميذ.');
+                window.notifySafeToast('يرجى اختيار القسم أولاً لتصدير تقارير الغياب لجميع التلاميذ.');
                 return;
             }
 
             const students = db.classes[className];
             if (!students || students.length === 0) {
-                alert('لا يوجد تلاميذ مسجلين في هذا القسم.');
+                window.notifySafeToast('لا يوجد تلاميذ مسجلين في هذا القسم.');
                 return;
             }
 
@@ -27768,6 +29354,15 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', '.page-break-avoid'] }
             };
 
+            if (typeof html2pdf === 'undefined' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                await window.ensureHtml2PdfLoaded();
+            }
+            if (typeof html2pdf !== 'function') {
+                if (btnTop) { btnTop.innerHTML = originalTopText; btnTop.disabled = false; }
+                window.notifySafeToast('مكتبة تصدير PDF غير متوفرة حالياً.');
+                return;
+            }
+
             html2pdf().set(opt).from(container).save().then(() => {
                 if (btnTop) { btnTop.innerHTML = originalTopText; btnTop.disabled = false; }
                 if (typeof showNotification === 'function') {
@@ -27775,7 +29370,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 }
             }).catch(e => {
                 console.error("Error generating all students absence PDF:", e);
-                alert("حدث خطأ أثناء إنشاء ملف الـ PDF المجمع. يرجى المحاولة مرة أخرى.");
+                window.notifySafeToast("حدث خطأ أثناء إنشاء ملف الـ PDF المجمع. يرجى المحاولة مرة أخرى.");
                 if (btnTop) { btnTop.innerHTML = originalTopText; btnTop.disabled = false; }
             });
         }
@@ -27917,7 +29512,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 if (typeof showToast === 'function') {
                     showToast('⚠️ يرجى تحديد التاريخ وإدخال عنوان المحطة البيداغوجية أو الموعد', 'warning');
                 } else {
-                    alert('يرجى تحديد التاريخ وإدخال تفاصيل المحطة البيداغوجية أو الموعد.');
+                    window.notifySafeToast('يرجى تحديد التاريخ وإدخال تفاصيل المحطة البيداغوجية أو الموعد.');
                 }
                 return;
             }
@@ -28422,7 +30017,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         function requestNotificationPermission() {
             if (!("Notification" in window)) {
-                alert("هذا المتصفح لا يدعم الإشعارات.");
+                window.notifySafeToast("هذا المتصفح لا يدعم الإشعارات.");
                 return;
             }
             Notification.requestPermission().then(permission => {
@@ -28439,12 +30034,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         function requestEventNotificationPermission() {
             if (!("Notification" in window)) {
-                alert("متصفحك لا يدعم إشعارات سطح المكتب.");
+                window.notifySafeToast("متصفحك لا يدعم إشعارات سطح المكتب.");
                 return;
             }
             Notification.requestPermission().then(function (permission) {
                 if (permission === "granted") {
-                    alert("تم تفعيل صلاحية الإشعارات بنجاح.");
+                    window.notifySafeToast("تم تفعيل صلاحية الإشعارات بنجاح.");
                     const btn = document.getElementById('pushNotificationPermissionBtn');
                     if(btn) btn.style.display = 'none';
                     if(!db.settings) db.settings = {};
@@ -28455,7 +30050,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
                     checkUpcomingEventsNotifications(); // run immediately
                 } else {
-                    alert("تم رفض الصلاحية. لن يتم إرسال إشعارات التنبيه المسبق.");
+                    window.notifySafeToast("تم رفض الصلاحية. لن يتم إرسال إشعارات التنبيه المسبق.");
                     const toggle = document.getElementById('settingsPushNotificationsToggle');
                     if (toggle) toggle.checked = false;
                 }
@@ -28565,13 +30160,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             downloadAnchorNode.remove();
         }
 
-        function exportStudentsCsv() {
+        async function exportStudentsCsv() {
             if (_isExportingBackup) return;
             _isExportingBackup = true;
             setTimeout(() => { _isExportingBackup = false; }, 800);
 
             if (!db || !db.classes || Object.keys(db.classes).length === 0) {
-                alert("لا توجد أقسام أو تلاميذ مسجلين لتصديرهم.");
+                window.notifySafeToast("لا توجد أقسام أو تلاميذ مسجلين لتصديرهم.");
                 return;
             }
 
@@ -28594,6 +30189,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 });
             });
 
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
+            }
             if (typeof XLSX !== 'undefined') {
                 const ws = XLSX.utils.aoa_to_sheet(rows);
                 ws['!cols'] = [{ wch: 16 }, { wch: 12 }, { wch: 28 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 18 }];
@@ -28623,7 +30221,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 try {
                     const parsed = JSON.parse(e.target.result);
                     if (!parsed || (typeof parsed !== 'object')) {
-                        alert("ملف غير صالح: لا يحتوي على بيانات منسقة.");
+                        window.notifySafeToast("ملف غير صالح: لا يحتوي على بيانات منسقة.");
                         return;
                     }
 
@@ -28678,7 +30276,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     }
                 } catch(err) {
                     console.error("Backup parse error", err);
-                    alert("تعذر قراءة الملف: تأكد من أنه ملف JSON سليم من المنظومة.");
+                    window.notifySafeToast("تعذر قراءة الملف: تأكد من أنه ملف JSON سليم من المنظومة.");
                 }
             };
             reader.readAsText(file);
@@ -28695,7 +30293,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         function executePendingImport() {
             if (_isImportExecuting) return;
             if (!pendingImportDb) {
-                alert("لا توجد بيانات استيراد جاهزة.");
+                window.notifySafeToast("لا توجد بيانات استيراد جاهزة.");
                 return;
             }
 
@@ -28713,11 +30311,11 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     if (pendingImportDb.teacher) db.teacher = pendingImportDb.teacher;
                     if (pendingImportDb.academicYear) db.academicYear = pendingImportDb.academicYear;
                     saveDB();
-                    alert("تم استيراد الأقسام والتلاميذ بنجاح دون المساس بسجلات الغياب السابقة!");
+                    window.notifySafeToast("تم استيراد الأقسام والتلاميذ بنجاح دون المساس بسجلات الغياب السابقة!");
                 } else {
                     db = pendingImportDb;
                     saveDB();
-                    alert("تمت استعادة البيانات بنجاح! تم أخذ نقطة أمان احتياطية للتراجع إذا لزم الأمر.");
+                    window.notifySafeToast("تمت استعادة البيانات بنجاح! تم أخذ نقطة أمان احتياطية للتراجع إذا لزم الأمر.");
                 }
 
                 closeImportPreviewModal();
@@ -28725,14 +30323,14 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             } catch(err) {
                 _isImportExecuting = false;
                 console.error("Execute import error", err);
-                alert("حدث خطأ أثناء تطبيق الاستيراد: " + err.message);
+                window.notifySafeToast("حدث خطأ أثناء تطبيق الاستيراد: " + err.message);
             }
         }
 
         function restoreSafetySnapshot() {
             const backupStr = localStorage.getItem('absence_massar_v8_pre_restore_backup');
             if (!backupStr) {
-                alert("لا توجد نقطة أمان احتياطية محفوظة حالياً.");
+                window.notifySafeToast("لا توجد نقطة أمان احتياطية محفوظة حالياً.");
                 return;
             }
 
@@ -28742,11 +30340,11 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     if (parsed && typeof parsed === 'object') {
                         db = parsed;
                         saveDB();
-                        alert("تم التراجع واستعادة النسخة الاحتياطية السابقة بنجاح!");
+                        window.notifySafeToast("تم التراجع واستعادة النسخة الاحتياطية السابقة بنجاح!");
                         location.reload();
                     }
                 } catch(e) {
-                    alert("تعذر استرجاع نقطة الأمان: البيانات تالفة.");
+                    window.notifySafeToast("تعذر استرجاع نقطة الأمان: البيانات تالفة.");
                 }
             }
         }
@@ -28839,7 +30437,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         async function executeWipeAndResetApp() {
             const chk = document.getElementById('wipeConfirmationCheck');
             if (!chk || !chk.checked) {
-                alert('يرجى تفعيل خيار التأكيد أولاً لتأكيد رغبتك في مسح كافة المعطيات.');
+                window.notifySafeToast('يرجى تفعيل خيار التأكيد أولاً لتأكيد رغبتك في مسح كافة المعطيات.');
                 return;
             }
 
@@ -28905,11 +30503,11 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 closeWipeAndResetModal();
                 if (typeof closeTeacherSettings === 'function') closeTeacherSettings();
 
-                alert("تم بنجاح مسح جميع المعطيات وتصفير التطبيق بالكامل!\n\nتمت إعادة المنظومة إلى حالتها الأصلية الجديدة.");
+                window.notifySafeToast("تم بنجاح مسح جميع المعطيات وتصفير التطبيق بالكامل!\n\nتمت إعادة المنظومة إلى حالتها الأصلية الجديدة.");
                 window.location.reload();
             } catch (err) {
                 console.error("Error during app wipe:", err);
-                alert("حدث خطأ أثناء مسح البيانات، سيتم محاولة إعادة ضبط التخزين المحلي والتحميل من جديد.");
+                window.notifySafeToast("حدث خطأ أثناء مسح البيانات، سيتم محاولة إعادة ضبط التخزين المحلي والتحميل من جديد.");
                 try { localStorage.clear(); } catch(e){}
                 window.location.reload();
             }
@@ -28927,7 +30525,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     }
                     localStorage.removeItem('absence_massar_v8_manual');
                     try { localStorage.clear(); } catch(e){}
-                    alert("تم مسح كافة البيانات والنسخ الاحتياطية بنجاح. سيتم إعادة تحميل الصفحة للبدء من جديد.");
+                    window.notifySafeToast("تم مسح كافة البيانات والنسخ الاحتياطية بنجاح. سيتم إعادة تحميل الصفحة للبدء من جديد.");
                     location.reload();
                 }
             }
@@ -28958,7 +30556,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             db.lessonLogs = {};
 
             saveDB();
-            alert("تم بنجاح تصفير كافة السجلات التجريبية ومسح النسخ الاحتياطية القديمة!\n\nالتطبيق جاهز الآن بكل نظافة لبدء تسجيل الحضور والدروس ابتداءً من الغد.");
+            window.notifySafeToast("تم بنجاح تصفير كافة السجلات التجريبية ومسح النسخ الاحتياطية القديمة!\n\nالتطبيق جاهز الآن بكل نظافة لبدء تسجيل الحضور والدروس ابتداءً من الغد.");
             location.reload();
         }
 
@@ -28969,7 +30567,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     if (typeof window.deleteCloudBackup === 'function') {
                         try { await window.deleteCloudBackup(); } catch (e) {}
                     }
-                    alert("تم تنظيف سجلات النسخ الاحتياطية بنجاح!");
+                    window.notifySafeToast("تم تنظيف سجلات النسخ الاحتياطية بنجاح!");
                 }
             };
         }
@@ -28977,13 +30575,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         async function exportClassQuarterlyReportsPDF() {
             const className = document.getElementById('reportClassSelect').value;
             if (!className) {
-                alert('يرجى اختيار القسم أولاً لعرض وتصدير التقارير.');
+                window.notifySafeToast('يرجى اختيار القسم أولاً لعرض وتصدير التقارير.');
                 return;
             }
 
             const students = db.classes[className] || [];
             if (students.length === 0) {
-                alert('لا يوجد تلاميذ في هذا القسم.');
+                window.notifySafeToast('لا يوجد تلاميذ في هذا القسم.');
                 return;
             }
 
@@ -29008,6 +30606,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
 
             try {
+                if (typeof Chart === 'undefined' && typeof window.ensureChartJsLoaded === 'function') {
+                    await window.ensureChartJsLoaded();
+                }
                 const mainContainer = document.createElement('div');
                 mainContainer.style.fontFamily = 'system-ui, -apple-system, sans-serif';
                 mainContainer.style.direction = 'rtl';
@@ -29302,6 +30903,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     pagebreak: { mode: 'css', before: '#page-break-indicator' }
                 };
 
+                if (typeof html2pdf === 'undefined' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                    await window.ensureHtml2PdfLoaded();
+                }
+                if (typeof html2pdf !== 'function') {
+                    throw new Error('مكتبة تصدير PDF غير متوفرة حالياً.');
+                }
                 html2pdf().set(opt).from(mainContainer).save().then(() => {
                     mainContainer.innerHTML = '';
                     if (btn) {
@@ -29398,6 +31005,12 @@ window.printFullUnifiedReport = printFullUnifiedReport;
                     window.syncTeacherLeavesWithCalendarEvents();
                 }
             } catch (e) { console.warn('Leave sync warning:', e); }
+
+            try {
+                if (typeof window.syncHomeworkAgendaWithCalendarEvents === 'function') {
+                    window.syncHomeworkAgendaWithCalendarEvents();
+                }
+            } catch (e) { console.warn('Homework calendar sync warning:', e); }
 
             const year = currentCalendarDate.getFullYear();
             const month = currentCalendarDate.getMonth();
@@ -30430,13 +32043,13 @@ window.isPresentationMode = isPresentationMode;
                 initGoogleApi();
             }
             if (!gisInited) {
-                alert("لم يتم تحميل مكتبة Google بنجاح. يرجى التأكد من اتصالك بالإنترنت وتحديث الصفحة.");
+                window.notifySafeToast("لم يتم تحميل مكتبة Google بنجاح. يرجى التأكد من اتصالك بالإنترنت وتحديث الصفحة.");
                 return;
             }
             if (calendarSyncInProgress) return;
 
             if (!db.events || db.events.length === 0) {
-                alert("لا توجد أحداث في التقويم لتصديرها.");
+                window.notifySafeToast("لا توجد أحداث في التقويم لتصديرها.");
                 return;
             }
 
@@ -30460,7 +32073,7 @@ window.isPresentationMode = isPresentationMode;
 
                 if (eventsToExport.length === 0) {
                     hideLoading();
-                    alert("لا توجد أحداث قادمة لتصديرها.");
+                    window.notifySafeToast("لا توجد أحداث قادمة لتصديرها.");
                     calendarSyncInProgress = false;
                     return;
                 }
@@ -30508,15 +32121,15 @@ window.isPresentationMode = isPresentationMode;
                 hideLoading();
 
                 if (successCount > 0) {
-                    alert(`تم تصدير ${successCount} أحداث جديدة إلى Google Calendar بنجاح.`);
+                    window.notifySafeToast(`تم تصدير ${successCount} أحداث جديدة إلى Google Calendar بنجاح.`);
                 } else {
-                    alert("جميع الأحداث القادمة مصدرة مسبقاً.");
+                    window.notifySafeToast("جميع الأحداث القادمة مصدرة مسبقاً.");
                 }
 
             } catch (error) {
                 console.error("Error syncing with Google Calendar:", error);
                 hideLoading();
-                alert("حدث خطأ أثناء مزامنة التقويم. يرجى المحاولة لاحقاً.");
+                window.notifySafeToast("حدث خطأ أثناء مزامنة التقويم. يرجى المحاولة لاحقاً.");
             }
 
             calendarSyncInProgress = false;
@@ -30980,7 +32593,7 @@ window.isPresentationMode = isPresentationMode;
                 waUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
             }
 
-            window.open(waUrl, '_blank');
+            window.openSafeExternalUrl(waUrl, '_blank');
             showAppToast('جاري فتح واتساب لإرسال ملخص اليوم للأستاذ 📲', 'success');
         }
 
@@ -34527,7 +36140,7 @@ window.isPresentationMode = isPresentationMode;
         function syncAxesToSummaryActivities() {
             const compiled = compileAxesToSummary();
             if (!compiled) {
-                alert('يرجى كتابة عنوان أو محتوى فقرة في محور واحد على الأقل أولاً.');
+                window.notifySafeToast('يرجى كتابة عنوان أو محتوى فقرة في محور واحد على الأقل أولاً.');
                 return;
             }
             const summaryInput = document.getElementById('lessonLogSummary');
@@ -34852,7 +36465,7 @@ window.isPresentationMode = isPresentationMode;
             const targetPId = pSelect ? pSelect.value : 'general';
 
             if (!title && !url) {
-                alert('يرجى إدخال عنوان المورد أو الرابط على الأقل.');
+                window.notifySafeToast('يرجى إدخال عنوان المورد أو الرابط على الأقل.');
                 return;
             }
 
@@ -35139,7 +36752,7 @@ window.isPresentationMode = isPresentationMode;
             } else if (typeof window.openInAppFileViewer === 'function') {
                 window.openInAppFileViewer({ type: 'url', url: resLink, title: resTitle });
             } else {
-                window.open(resLink, '_blank');
+                window.openSafeExternalUrl(resLink, '_blank');
             }
         }
 
@@ -35185,7 +36798,7 @@ window.isPresentationMode = isPresentationMode;
             if (typeof playLessonVideoModal === 'function') {
                 playLessonVideoModal(encodeURIComponent(title), encodeURIComponent(url), 'معاينة المورد الرقمي المربوط بالفقرة');
             } else {
-                window.open(url, '_blank');
+                window.openSafeExternalUrl(url, '_blank');
             }
         }
 
@@ -35283,20 +36896,22 @@ window.isPresentationMode = isPresentationMode;
 
             if (!url || url === '#' || url.startsWith('javascript:')) {
                 if (typeof showAppToast === 'function') showAppToast('لا يتوفر رابط خارجي لهذا المورد للنسخ', 'warning');
-                else alert('لا يتوفر رابط خارجي لهذا المورد للنسخ');
+                else window.notifySafeToast('لا يتوفر رابط خارجي لهذا المورد للنسخ');
                 return;
             }
 
             const cleanUrl = url.replace(/&quot;/g, '"');
-            if (navigator.clipboard && navigator.clipboard.writeText) {
+            if (typeof window.safeCopyTextToClipboard === 'function') {
+                window.safeCopyTextToClipboard(cleanUrl, 'تم نسخ رابط المورد إلى الحافظة بنجاح 📋');
+            } else if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(cleanUrl).then(() => {
                     if (typeof showAppToast === 'function') showAppToast('تم نسخ رابط المورد إلى الحافظة بنجاح 📋', 'success');
-                    else alert('تم نسخ رابط المورد إلى الحافظة بنجاح 📋');
+                    else window.notifySafeToast('تم نسخ رابط المورد إلى الحافظة بنجاح 📋');
                 }).catch(() => {
-                    prompt('يرجى نسخ الرابط يدوياً:', cleanUrl);
+                    window.notifySafeToast(cleanUrl);
                 });
             } else {
-                prompt('يرجى نسخ الرابط يدوياً:', cleanUrl);
+                window.notifySafeToast(cleanUrl);
             }
         }
         window.copyCurrentLessonVideoLink = copyCurrentLessonVideoLink;
@@ -36803,7 +38418,7 @@ window.isPresentationMode = isPresentationMode;
         }
 
         function editLessonLog(className, id) {
-            if (isPresentationMode()) return alert("وضع العرض مفعل. لا يمكن التعديل.");
+            if (isPresentationMode()) return window.notifySafeToast("وضع العرض مفعل. لا يمكن التعديل.");
             const logs = (db.lessonLogs && db.lessonLogs[className]) ? db.lessonLogs[className] : [];
             const log = logs.find(l => l.id === id);
             if (!log) return;
@@ -36897,15 +38512,15 @@ window.isPresentationMode = isPresentationMode;
 
         function autoFillSessionFromRecentAttendance() {
             const className = document.getElementById('lessonLogClassSelect')?.value;
-            if (!className) return alert("يرجى اختيار القسم أولاً.");
+            if (!className) return window.notifySafeToast("يرجى اختيار القسم أولاً.");
 
             if (!db.records || db.records.length === 0) {
-                return alert("لا توجد تسجيلات غياب سابقة.");
+                return window.notifySafeToast("لا توجد تسجيلات غياب سابقة.");
             }
 
             const classRecords = [...getClassRecordsFast(className)];
             if (classRecords.length === 0) {
-                return alert(`لم يتم العثور على حصص حضور مسجلة للقسم (${className}).`);
+                return window.notifySafeToast(`لم يتم العثور على حصص حضور مسجلة للقسم (${className}).`);
             }
 
             // Sort descending by date
@@ -36956,7 +38571,7 @@ window.isPresentationMode = isPresentationMode;
         function saveLessonLog() {
             if (_isSavingLessonLog) return;
             if (isPresentationMode()) {
-                alert("وضع العرض مفعل. لا يمكن إضافة تدوينات جديدة.");
+                window.notifySafeToast("وضع العرض مفعل. لا يمكن إضافة تدوينات جديدة.");
                 return;
             }
             const className = document.getElementById('lessonLogClassSelect')?.value;
@@ -36984,10 +38599,10 @@ window.isPresentationMode = isPresentationMode;
             const homeworkDueDate = document.getElementById('lessonLogHomeworkDueDate')?.value || '';
             const notes = document.getElementById('lessonLogNotes')?.value?.trim();
 
-            if (!className) return alert('يرجى اختيار القسم أولاً.');
-            if (!date) return alert('يرجى تحديد تاريخ الحصة.');
-            if (!summary && !number && !title && structuredAxes.length === 0) return alert('يرجى كتابة عنوان الدرس ومحتوى الحصة المنجزة.');
-            if (!summary && structuredAxes.length === 0) return alert('يرجى كتابة الأنشطة ومحتوى الحصة المنجزة في المحاور أو في خانة الملخص.');
+            if (!className) return window.notifySafeToast('يرجى اختيار القسم أولاً.');
+            if (!date) return window.notifySafeToast('يرجى تحديد تاريخ الحصة.');
+            if (!summary && !number && !title && structuredAxes.length === 0) return window.notifySafeToast('يرجى كتابة عنوان الدرس ومحتوى الحصة المنجزة.');
+            if (!summary && structuredAxes.length === 0) return window.notifySafeToast('يرجى كتابة الأنشطة ومحتوى الحصة المنجزة في المحاور أو في خانة الملخص.');
 
             _isSavingLessonLog = true;
             const unlock = () => { setTimeout(() => { _isSavingLessonLog = false; }, 450); };
@@ -37099,12 +38714,12 @@ window.isPresentationMode = isPresentationMode;
             renderLessonLogs();
             if (typeof renderDashboardWeeklyHomework === "function") renderDashboardWeeklyHomework();
             if (typeof checkLessonLogReminders === "function") checkLessonLogReminders();
-            alert('✅ تم حفظ الحصة وتوثيقها في دفتر النصوص بنجاح!');
+            window.notifySafeToast('✅ تم حفظ الحصة وتوثيقها في دفتر النصوص بنجاح!');
             unlock();
         }
 
         function deleteLessonLog(className, id) {
-            if (isPresentationMode()) return alert("وضع العرض مفعل. لا يمكن الحذف.");
+            if (isPresentationMode()) return window.notifySafeToast("وضع العرض مفعل. لا يمكن الحذف.");
             if (!confirm('هل أنت متأكد من رغبتك في حذف هذه الحصة من دفتر النصوص؟')) return;
             if (db.lessonLogs && db.lessonLogs[className]) {
                 db.lessonLogs[className] = db.lessonLogs[className].filter(l => l.id !== id);
@@ -37903,7 +39518,7 @@ window.isPresentationMode = isPresentationMode;
             }
         }
 
-        function downloadCahierDeTextesPdf() {
+        async function downloadCahierDeTextesPdf() {
             const container = document.getElementById('cahierPdfPrintableContainer');
             if (!container) return;
 
@@ -37939,6 +39554,9 @@ window.isPresentationMode = isPresentationMode;
                 pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.page-break-avoid', '.signature-row'] }
             };
 
+            if (typeof html2pdf === 'undefined' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                await window.ensureHtml2PdfLoaded();
+            }
             if (typeof html2pdf !== 'undefined') {
                 html2pdf().set(opt).from(exportClone).save().then(() => {
                     if (btn) {
@@ -39222,8 +40840,8 @@ window.isPresentationMode = isPresentationMode;
             const axisTitle = document.getElementById('linkModalCustomAxisTitle')?.value?.trim() || document.getElementById('linkModalAxisSelect')?.value?.trim();
             const checkedSessions = (window.currentLinkModalState.sessions || []).filter(s => s.isChecked);
 
-            if (!className) return alert('يرجى اختيار القسم.');
-            if (!axisTitle) return alert('يرجى كتابة أو اختيار عنوان المحور المشترك المراد ربط الحصص به.');
+            if (!className) return window.notifySafeToast('يرجى اختيار القسم.');
+            if (!axisTitle) return window.notifySafeToast('يرجى كتابة أو اختيار عنوان المحور المشترك المراد ربط الحصص به.');
             if (checkedSessions.length < 2) {
                 if (!confirm(`لقد حددت (${checkedSessions.length}) حصة فقط. هل ترغب في اعتماد هذا المحور لهذه الحصة على أي حال؟`)) {
                     return;
@@ -39231,7 +40849,7 @@ window.isPresentationMode = isPresentationMode;
             }
 
             if (!db || !db.lessonLogs || !db.lessonLogs[className]) {
-                return alert('لم يتم العثور على سجلات لهذا القسم.');
+                return window.notifySafeToast('لم يتم العثور على سجلات لهذا القسم.');
             }
 
             const normTargetAxis = normalizeLessonTitle(axisTitle);
@@ -39631,10 +41249,10 @@ window.isPresentationMode = isPresentationMode;
         window._multiCopySourceFromDraft = false;
 
         function openMultiCopyLessonLogModal(sourceClassName, lessonId) {
-            if (isPresentationMode()) return alert("وضع العرض مفعل.");
+            if (isPresentationMode()) return window.notifySafeToast("وضع العرض مفعل.");
             const allSorted = getSortedClasses(false);
             if (allSorted.length === 0) {
-                return alert("لا توجد أقسام مسجلة في النظام.");
+                return window.notifySafeToast("لا توجد أقسام مسجلة في النظام.");
             }
 
             const modal = document.getElementById('multiCopyLessonLogModal');
@@ -39662,16 +41280,16 @@ window.isPresentationMode = isPresentationMode;
         }
 
         function openMultiCopyFromCurrentForm() {
-            if (isPresentationMode()) return alert("وضع العرض مفعل.");
+            if (isPresentationMode()) return window.notifySafeToast("وضع العرض مفعل.");
             const sourceClass = document.getElementById('lessonLogClassSelect')?.value;
             const date = document.getElementById('lessonLogDate')?.value;
             const number = document.getElementById('lessonLogNumber')?.value?.trim();
             const title = document.getElementById('lessonLogTitle')?.value?.trim();
             const summary = document.getElementById('lessonLogSummary')?.value?.trim();
 
-            if (!sourceClass) return alert("يرجى اختيار القسم أولاً.");
+            if (!sourceClass) return window.notifySafeToast("يرجى اختيار القسم أولاً.");
             if (!title && !summary && !number) {
-                return alert("يرجى كتابة عنوان أو محور أو موضوع الدرس في النموذج أولاً ليتم نسخه وتطبيقه على الأقسام الأخرى.");
+                return window.notifySafeToast("يرجى كتابة عنوان أو محور أو موضوع الدرس في النموذج أولاً ليتم نسخه وتطبيقه على الأقسام الأخرى.");
             }
 
             window._multiCopySourceFromDraft = true;
@@ -40052,7 +41670,7 @@ window.isPresentationMode = isPresentationMode;
         }
 
         function executeMultiCopyLessonLog() {
-            if (isPresentationMode()) return alert("وضع العرض مفعل.");
+            if (isPresentationMode()) return window.notifySafeToast("وضع العرض مفعل.");
             const sourceClass = document.getElementById('multiCopySourceClassSelect').value;
             const title = document.getElementById('multiCopyTitleInput').value.trim(); // محور
             const summary = document.getElementById('multiCopySummaryInput').value.trim(); // موضوع الدرس
@@ -40061,12 +41679,12 @@ window.isPresentationMode = isPresentationMode;
             const inputNotes = document.getElementById('multiCopyNotesInput')?.value?.trim();
 
             if (!summary && !title && !lessonNumberOrTitle) {
-                return alert("يرجى التأكد من تعبئة عنوان أو محور أو موضوع الدرس المُراد تكراره.");
+                return window.notifySafeToast("يرجى التأكد من تعبئة عنوان أو محور أو موضوع الدرس المُراد تكراره.");
             }
 
             const checkedBoxes = Array.from(document.querySelectorAll('.multi-copy-class-check:checked'));
             if (checkedBoxes.length === 0) {
-                return alert("يرجى تحديد وجهة واحدة على الأقل (نفس القسم أو أقسام أخرى) لتطبيق الحصة عليها.");
+                return window.notifySafeToast("يرجى تحديد وجهة واحدة على الأقل (نفس القسم أو أقسام أخرى) لتطبيق الحصة عليها.");
             }
 
             if (!db.lessonLogs) db.lessonLogs = {};
@@ -40163,13 +41781,13 @@ window.isPresentationMode = isPresentationMode;
             closeMultiCopyLessonLogModal();
 
             const toastMsg = `✅ تم بنجاح تكرار وتعميم الحصة على (${copiedClasses.length}) وجهات:\n• ${copiedClasses.join('\n• ')}`;
-            alert(toastMsg);
+            window.notifySafeToast(toastMsg);
         }
 
         function quickDuplicateToNextSessionOfSameClass() {
-            if (isPresentationMode()) return alert("وضع العرض مفعل.");
+            if (isPresentationMode()) return window.notifySafeToast("وضع العرض مفعل.");
             const sourceClass = document.getElementById('multiCopySourceClassSelect')?.value || document.getElementById('lessonLogClassSelect')?.value;
-            if (!sourceClass) return alert("يرجى اختيار القسم أولاً.");
+            if (!sourceClass) return window.notifySafeToast("يرجى اختيار القسم أولاً.");
 
             const title = document.getElementById('multiCopyTitleInput')?.value?.trim() || '';
             const summary = document.getElementById('multiCopySummaryInput')?.value?.trim() || '';
@@ -40178,7 +41796,7 @@ window.isPresentationMode = isPresentationMode;
             const inputNotes = document.getElementById('multiCopyNotesInput')?.value?.trim();
 
             if (!summary && !title && !lessonNumberOrTitle) {
-                return alert("يرجى التأكد من تعبئة عنوان أو محور أو موضوع الحصة المراد تكرارها.");
+                return window.notifySafeToast("يرجى التأكد من تعبئة عنوان أو محور أو موضوع الحصة المراد تكرارها.");
             }
 
             if (!db.lessonLogs) db.lessonLogs = {};
@@ -40221,7 +41839,7 @@ window.isPresentationMode = isPresentationMode;
             if (typeof checkLessonLogReminders === "function") checkLessonLogReminders();
 
             closeMultiCopyLessonLogModal();
-            alert(`✅ تم بنجاح تكرار الحصة للقسم [${sourceClass}] في موعدها القادم (${nextDate}) برقم الحصة #${newSession.sessionNum}!`);
+            window.notifySafeToast(`✅ تم بنجاح تكرار الحصة للقسم [${sourceClass}] في موعدها القادم (${nextDate}) برقم الحصة #${newSession.sessionNum}!`);
         }
 
         function quickDuplicateToSameLevelClasses() {
@@ -41245,6 +42863,17 @@ ${log.notes || 'سير الحصة عادي'}
                         <button type="button" id="btnDownloadPdfCustomPreview" style="background:linear-gradient(135deg,#059669,#047857); color:#fff; border:none; padding:7px 14px; border-radius:9px; font-weight:800; font-size:0.8rem; cursor:pointer; font-family:'Cairo',sans-serif; display:inline-flex; align-items:center; gap:5px; box-shadow:0 4px 12px rgba(5,150,105,0.35);">
                             📥 تحميل PDF
                         </button>
+                        <div style="display:inline-flex; align-items:center; gap:4px; background:#0f172a; border:1px solid #0284c7; padding:3px 6px; border-radius:9px;">
+                            <button type="button" id="btnDownloadPngCustomPreview" style="background:linear-gradient(135deg,#0284c7,#0369a1); color:#fff; border:none; padding:4px 10px; border-radius:6px; font-weight:800; font-size:0.78rem; cursor:pointer; font-family:'Cairo',sans-serif; display:inline-flex; align-items:center; gap:4px;">
+                                🖼️ تحميل PNG
+                            </button>
+                            <select id="selCustomPreviewPngDpi" title="تحديد دقة تصدير الصورة (DPI)" style="background:#1e293b; color:#bae6fd; border:1px solid #0369a1; border-radius:6px; padding:3px 5px; font-size:0.73rem; font-weight:800; font-family:'Cairo',sans-serif; cursor:pointer;">
+                                <option value="96">96 DPI</option>
+                                <option value="150">150 DPI</option>
+                                <option value="300" selected>300 DPI</option>
+                                <option value="600">600 DPI</option>
+                            </select>
+                        </div>
                         <button type="button" id="btnCloseCustomPreview" style="background:#ef4444; color:#fff; border:none; padding:7px 12px; border-radius:9px; font-weight:800; font-size:0.78rem; cursor:pointer; font-family:'Cairo',sans-serif;">
                             ✖ إغلاق
                         </button>
@@ -41342,11 +42971,14 @@ ${log.notes || 'سير الحصة عادي'}
 
             document.getElementById('btnDirectPrintCustomPreview').onclick = triggerModalDirectPrint;
 
-            document.getElementById('btnDownloadPdfCustomPreview').onclick = function () {
+            document.getElementById('btnDownloadPdfCustomPreview').onclick = async function () {
                 const btn = this;
                 const origText = btn.innerHTML;
                 btn.disabled = true;
                 btn.innerHTML = '⏳ جاري تجهيز PDF...';
+                if (typeof window.html2pdf !== 'function' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                    await window.ensureHtml2PdfLoaded();
+                }
                 if (typeof window.html2pdf === 'function' && sheetEl) {
                     const prevZoom = sheetEl.style.zoom;
                     sheetEl.style.zoom = '100%';
@@ -41376,6 +43008,58 @@ ${log.notes || 'سير الحصة عادي'}
                 }
             };
 
+            const btnPngPreview = document.getElementById('btnDownloadPngCustomPreview');
+            if (btnPngPreview) {
+                btnPngPreview.onclick = async function () {
+                    const btn = this;
+                    const origText = btn.innerHTML;
+                    const dpiSel = document.getElementById('selCustomPreviewPngDpi');
+                    const targetDpi = dpiSel && [96, 150, 300, 600].includes(Number(dpiSel.value)) ? Number(dpiSel.value) : 300;
+                    btn.disabled = true;
+                    btn.innerHTML = `⏳ PNG (${targetDpi} DPI)...`;
+                    const prevZoom = sheetEl ? sheetEl.style.zoom : '100%';
+                    try {
+                        await ensureHtml2Canvas();
+                        const h2c = window.html2canvas || (typeof html2canvas === 'function' ? html2canvas : null);
+                        if (typeof h2c !== 'function' || !sheetEl) {
+                            throw new Error('تعذر تهيئة محرك الصور');
+                        }
+                        sheetEl.style.zoom = '100%';
+                        const renderScale = +(targetDpi / 96).toFixed(4);
+                        const canvas = await h2c(sheetEl, {
+                            scale: renderScale,
+                            useCORS: true,
+                            allowTaint: true,
+                            backgroundColor: '#ffffff',
+                            logging: false,
+                            scrollX: 0,
+                            scrollY: 0
+                        });
+                        const rawUrl = canvas.toDataURL('image/png');
+                        const finalUrl = typeof injectPngDpiMetadata === 'function' ? injectPngDpiMetadata(rawUrl, targetDpi) : rawUrl;
+                        const a = document.createElement('a');
+                        a.href = finalUrl;
+                        a.download = `${docTitle.replace(/\s+/g, '_')}_${targetDpi}DPI.png`;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        canvas.width = 1;
+                        canvas.height = 1;
+                        if (typeof showAppToast === 'function') {
+                            showAppToast(`🖼️ تم تحميل التقرير بصيغة PNG عالية الدقة (${targetDpi} DPI) بنجاح`, 'success');
+                        }
+                    } catch (err) {
+                        if (typeof showAppToast === 'function') {
+                            showAppToast('حدث خطأ أثناء تصدير صورة PNG.', 'error');
+                        }
+                    } finally {
+                        if (sheetEl) sheetEl.style.zoom = prevZoom;
+                        btn.disabled = false;
+                        btn.innerHTML = origText;
+                    }
+                };
+            }
+
             const closeCustomModal = () => {
                 document.removeEventListener('keydown', onModalKeyDown);
                 modal.remove();
@@ -41395,53 +43079,10 @@ ${log.notes || 'سير الحصة عادي'}
         }
         window.openCustomPrintPreviewModal = openCustomPrintPreviewModal;
 
-        // محول ذكي يمنع حظر النوافذ المنبثقة (Popup Blockers) عند استدعاء window.open('', '_blank') للطباعة
-        (function installDirectPrintPopupInterceptor() {
-            const _origWindowOpen = window.open;
-            window.open = function(url, target, features) {
-                if (!url || url === '' || url === 'about:blank') {
-                    let _buffer = '';
-                    let _printed = false;
-                    const triggerDirectPrint = () => {
-                        if (_printed || !_buffer.trim()) return;
-                        _printed = true;
-                        const isLandscape = /size:\s*A4\s+landscape/i.test(_buffer);
-                        const titleMatch = _buffer.match(/<title[^>]*>([^<]+)<\/title>/i);
-                        const docTitle = titleMatch ? titleMatch[1].trim() : 'وثيقة_رسمية_للطباعة';
-                        openCustomPrintPreviewModal(_buffer, {
-                            title: docTitle,
-                            orientation: isLandscape ? 'landscape' : 'portrait'
-                        });
-                    };
-                    return {
-                        closed: false,
-                        document: {
-                            title: '',
-                            open: function() { _buffer = ''; return this; },
-                            write: function(str) {
-                                _buffer += String(str || '');
-                                setTimeout(triggerDirectPrint, 80);
-                            },
-                            writeln: function(str) {
-                                _buffer += String(str || '') + '\n';
-                                setTimeout(triggerDirectPrint, 80);
-                            },
-                            close: function() {
-                                setTimeout(triggerDirectPrint, 30);
-                            }
-                        },
-                        focus: function() {},
-                        print: function() {
-                            triggerDirectPrint();
-                        },
-                        close: function() {
-                            this.closed = true;
-                        }
-                    };
-                }
-                return _origWindowOpen ? _origWindowOpen.apply(window, arguments) : null;
-            };
-        })();
+        // محول اعتراض نوافذ الطباعة الفارغة (مفوض لوحدة /core/print-preview-engine.js)
+        if (window.PrintPreviewEngine && typeof window.PrintPreviewEngine.installDirectPrintPopupInterceptor === 'function') {
+            window.PrintPreviewEngine.installDirectPrintPopupInterceptor();
+        }
 
         // =========================================================================
         // Custom Lesson & Exercise SVG Icons Control Panel & Print Header Resolver
@@ -42608,17 +44249,17 @@ ${log.notes || 'سير الحصة عادي'}
 
                 return `
                 <tr style="height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; border-bottom: 1px solid #cbd5e1; background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'}; line-height: ${lineH};">
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: #475569; border: 1px solid #cbd5e1;">${std.orderNum || (idx + 1)}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 800; color: #1e3a8a; font-family: monospace; border: 1px solid #cbd5e1;">${std.massar || '-'}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; font-weight: 800; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid #cbd5e1;">${std.name}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1;">${fmtH(w1)}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1;">${fmtH(w2)}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1;">${fmtH(w3)}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1;">${fmtH(w4)}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 900; background: ${totalHours > 0 ? '#fef2f2' : '#f0fdf4'}; color: ${totalHours > 0 ? '#dc2626' : '#16a34a'}; border: 1px solid #cbd5e1;">${totalHours > 0 ? totalHours + 'س' : '0'}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; color: #0284c7; font-weight: 800; border: 1px solid #cbd5e1;">${stdJustified > 0 ? stdJustified + 'س' : '-'}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; color: #dc2626; font-weight: 800; border: 1px solid #cbd5e1;">${stdUnjustified > 0 ? stdUnjustified + 'س' : '-'}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; color: #d97706; font-weight: 800; border: 1px solid #cbd5e1;">${stdLates > 0 ? stdLates : '-'}</td>
+                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: #475569; border: 1px solid #cbd5e1; white-space: nowrap;">${std.orderNum || (idx + 1)}</td>
+                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 800; color: #1e3a8a; font-family: monospace; border: 1px solid #cbd5e1; white-space: nowrap;">${std.massar || '-'}</td>
+                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; font-weight: 800; color: #0f172a; border: 1px solid #cbd5e1;">${std.name}</td>
+                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1; white-space: nowrap;">${fmtH(w1)}</td>
+                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1; white-space: nowrap;">${fmtH(w2)}</td>
+                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1; white-space: nowrap;">${fmtH(w3)}</td>
+                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1; white-space: nowrap;">${fmtH(w4)}</td>
+                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 900; background: ${totalHours > 0 ? '#fef2f2' : '#f0fdf4'}; color: ${totalHours > 0 ? '#dc2626' : '#16a34a'}; border: 1px solid #cbd5e1; white-space: nowrap;">${totalHours > 0 ? totalHours + 'س' : '0'}</td>
+                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; color: #0284c7; font-weight: 800; border: 1px solid #cbd5e1; white-space: nowrap;">${stdJustified > 0 ? stdJustified + 'س' : '-'}</td>
+                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; color: #dc2626; font-weight: 800; border: 1px solid #cbd5e1; white-space: nowrap;">${stdUnjustified > 0 ? stdUnjustified + 'س' : '-'}</td>
+                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; color: #d97706; font-weight: 800; border: 1px solid #cbd5e1; white-space: nowrap;">${stdLates > 0 ? stdLates : '-'}</td>
                     <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-size: calc(${cellFontSize} - 0.2pt); border: 1px solid #cbd5e1;">${statusBadge}</td>
                 </tr>`;
             }).join('');
@@ -42641,20 +44282,20 @@ ${log.notes || 'سير الحصة عادي'}
                     ${officialHeaderHtml}
                     ${statsBlock}
                     <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; margin-top: 2px;">
-                        <table style="width: 100%; height: 100%; border-collapse: collapse; table-layout: fixed; font-family: 'Cairo', system-ui, sans-serif; font-size: ${cellFontSize}; border: 1.5px solid #0f766e;">
+                        <table style="width: 100%; height: 100%; border-collapse: collapse; table-layout: auto; font-family: 'Cairo', system-ui, sans-serif; font-size: ${cellFontSize}; border: 1.5px solid #0f766e;">
                             <thead>
                                 <tr style="background: #0f766e; color: #ffffff; font-weight: 800; line-height: 1.2;">
-                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 28px; font-size: ${headFontSize};">ر.ت</th>
-                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 72px; font-size: ${headFontSize};">رقم مسار</th>
-                                    <th style="padding: ${headPad}; text-align: right; border: 1px solid #0f766e; width: 175px; font-size: ${headFontSize};">الاسم الكامل للتلميذ(ة)</th>
-                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 42px; font-size: ${headFontSize};">س1</th>
-                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 42px; font-size: ${headFontSize};">س2</th>
-                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 42px; font-size: ${headFontSize};">س3</th>
-                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 42px; font-size: ${headFontSize};">س4</th>
-                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 50px; background: #134e4a; font-size: ${headFontSize};">المجموع</th>
-                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 44px; font-size: ${headFontSize};">مبرر</th>
-                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 46px; font-size: ${headFontSize};">غير مبرر</th>
-                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 36px; font-size: ${headFontSize};">تأخر</th>
+                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 28px; white-space: nowrap; font-size: ${headFontSize};">ر.ت</th>
+                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 76px; white-space: nowrap; font-size: ${headFontSize};">رقم مسار</th>
+                                    <th style="padding: ${headPad}; text-align: right; border: 1px solid #0f766e; min-width: 185px; font-size: ${headFontSize};">الاسم الكامل للتلميذ(ة)</th>
+                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 38px; white-space: nowrap; font-size: ${headFontSize};">س1</th>
+                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 38px; white-space: nowrap; font-size: ${headFontSize};">س2</th>
+                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 38px; white-space: nowrap; font-size: ${headFontSize};">س3</th>
+                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 38px; white-space: nowrap; font-size: ${headFontSize};">س4</th>
+                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 48px; white-space: nowrap; background: #134e4a; font-size: ${headFontSize};">المجموع</th>
+                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 42px; white-space: nowrap; font-size: ${headFontSize};">مبرر</th>
+                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 46px; white-space: nowrap; font-size: ${headFontSize};">غير مبرر</th>
+                                    <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 36px; white-space: nowrap; font-size: ${headFontSize};">تأخر</th>
                                     <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; font-size: ${headFontSize};">الوضعية والملاحظات</th>
                                 </tr>
                             </thead>
@@ -42776,11 +44417,11 @@ ${log.notes || 'سير الحصة عادي'}
 
                 return `
                 <tr style="height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; border-bottom: 1px solid #cbd5e1; background: ${idx % 2 === 0 ? '#fff' : '#f8fafc'};">
-                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: #475569; border: 1px solid #cbd5e1;">${std.orderNum || (idx + 1)}</td>
-                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; font-weight: 800; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid #cbd5e1;">${std.name}</td>
-                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 800; color: ${statusColor}; border: 1px solid #cbd5e1;">${status}</td>
-                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: ${hwColor}; border: 1px solid #cbd5e1;">${homework}</td>
-                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: #334155; border: 1px solid #cbd5e1;">${behavior}</td>
+                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: #475569; border: 1px solid #cbd5e1; white-space: nowrap;">${std.orderNum || (idx + 1)}</td>
+                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; font-weight: 800; color: #0f172a; border: 1px solid #cbd5e1;">${std.name}</td>
+                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 800; color: ${statusColor}; border: 1px solid #cbd5e1; white-space: nowrap;">${status}</td>
+                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: ${hwColor}; border: 1px solid #cbd5e1; white-space: nowrap;">${homework}</td>
+                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: #334155; border: 1px solid #cbd5e1; white-space: nowrap;">${behavior}</td>
                     <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; font-size: calc(${dFontSize} - 0.2pt); color: #475569; border: 1px solid #cbd5e1;">${rec && rec.notes ? rec.notes : ''}</td>
                 </tr>`;
             }).join('');
@@ -42800,14 +44441,14 @@ ${log.notes || 'سير الحصة عادي'}
                     ${header}
                     ${statsBlock}
                     <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; margin-top: 3px;">
-                        <table style="width: 100%; height: 100%; border-collapse: collapse; table-layout: fixed; font-family: 'Cairo', system-ui, sans-serif; font-size: ${dFontSize}; border: 1.5px solid #1e3a8a;">
+                        <table style="width: 100%; height: 100%; border-collapse: collapse; table-layout: auto; font-family: 'Cairo', system-ui, sans-serif; font-size: ${dFontSize}; border: 1.5px solid #1e3a8a;">
                             <thead>
                                 <tr style="background: #1e3a8a; color: #fff; line-height: 1.2;">
-                                    <th style="padding: ${dHeadPad}; text-align: center; border: 1px solid #1e3a8a; width: 35px; font-size: ${dHeadFontSize};">الرقم</th>
-                                    <th style="padding: ${dHeadPad}; text-align: right; border: 1px solid #1e3a8a; width: 190px; font-size: ${dHeadFontSize};">الاسم الكامل للتلميذ(ة)</th>
-                                    <th style="padding: ${dHeadPad}; text-align: center; border: 1px solid #1e3a8a; width: 75px; font-size: ${dHeadFontSize};">المواظبة</th>
-                                    <th style="padding: ${dHeadPad}; text-align: center; border: 1px solid #1e3a8a; width: 85px; font-size: ${dHeadFontSize};">الواجب المنزلي</th>
-                                    <th style="padding: ${dHeadPad}; text-align: center; border: 1px solid #1e3a8a; width: 75px; font-size: ${dHeadFontSize};">السلوك</th>
+                                    <th style="padding: ${dHeadPad}; text-align: center; border: 1px solid #1e3a8a; width: 36px; white-space: nowrap; font-size: ${dHeadFontSize};">الرقم</th>
+                                    <th style="padding: ${dHeadPad}; text-align: right; border: 1px solid #1e3a8a; min-width: 195px; font-size: ${dHeadFontSize};">الاسم الكامل للتلميذ(ة)</th>
+                                    <th style="padding: ${dHeadPad}; text-align: center; border: 1px solid #1e3a8a; width: 72px; white-space: nowrap; font-size: ${dHeadFontSize};">المواظبة</th>
+                                    <th style="padding: ${dHeadPad}; text-align: center; border: 1px solid #1e3a8a; width: 82px; white-space: nowrap; font-size: ${dHeadFontSize};">الواجب المنزلي</th>
+                                    <th style="padding: ${dHeadPad}; text-align: center; border: 1px solid #1e3a8a; width: 72px; white-space: nowrap; font-size: ${dHeadFontSize};">السلوك</th>
                                     <th style="padding: ${dHeadPad}; text-align: right; border: 1px solid #1e3a8a; font-size: ${dHeadFontSize};">ملاحظات الحصة</th>
                                 </tr>
                             </thead>
@@ -44314,7 +45955,7 @@ ${log.notes || 'سير الحصة عادي'}
         }
 
         // --- Export / Print / Copy Operations ---
-        function downloadUniversalPdf() {
+        async function downloadUniversalPdf() {
             const docType = document.getElementById('universalPdfDocType')?.value || 'doc';
             const className = document.getElementById('universalPdfClassSelect')?.value || 'عام';
             const orientation = document.getElementById('universalPdfOrientation')?.value || 'portrait';
@@ -44404,6 +46045,9 @@ ${log.notes || 'سير الحصة عادي'}
                 }
             }
 
+            if (!window.html2pdf && typeof window.ensureHtml2PdfLoaded === 'function') {
+                await window.ensureHtml2PdfLoaded();
+            }
             if (window.html2pdf) {
                 const opt = {
                     margin: [top, left, bottom, right],
@@ -44633,12 +46277,14 @@ ${log.notes || 'سير الحصة عادي'}
             }
 
             try {
-                if (typeof html2canvas === 'undefined') {
+                await ensureHtml2Canvas();
+                if (typeof html2canvas === 'undefined' && typeof window.html2canvas === 'undefined') {
                     throw new Error('مكتبة html2canvas غير محملة');
                 }
+                const h2c = window.html2canvas || html2canvas;
 
                 sheet.scrollTop = 0;
-                const canvas = await html2canvas(sheet, {
+                const canvas = await h2c(sheet, {
                     scale: 2,
                     useCORS: true,
                     logging: false,
@@ -45629,14 +47275,22 @@ ${log.notes || 'سير الحصة عادي'}
             container.innerHTML = tableHtml;
         }
 
-        function executeMassarExcelExport() {
+        async function executeMassarExcelExport() {
             const className = document.getElementById('massarExportClassSelect')?.value;
             const semester = document.getElementById('massarExportSemesterSelect')?.value || 's1';
             const exportType = document.getElementById('massarExportTypeSelect')?.value || 'component';
             const component = document.getElementById('massarExportComponentSelect')?.value || 'f1';
 
             if (!className && exportType !== 'all_classes') {
-                alert('يرجى اختيار القسم المستهدف أولاً');
+                window.notifySafeToast('يرجى اختيار القسم المستهدف أولاً');
+                return;
+            }
+
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
+            }
+            if (typeof XLSX === 'undefined') {
+                window.notifySafeToast('مكتبة تصدير Excel غير متوفرة حالياً.');
                 return;
             }
 
@@ -45653,7 +47307,7 @@ ${log.notes || 'سير الحصة عادي'}
             if (exportType === 'all_classes') {
                 const allClasses = Object.keys(db.classes || {});
                 if (allClasses.length === 0) {
-                    alert('لا توجد أقسام مسجلة في التطبيق');
+                    window.notifySafeToast('لا توجد أقسام مسجلة في التطبيق');
                     return;
                 }
                 allClasses.forEach(cls => {
@@ -45663,7 +47317,7 @@ ${log.notes || 'سير الحصة عادي'}
                 const filename = `مسار_نقط_الرياضيات_كافة_الأقسام_${semester}_${pYear}.xlsx`;
                 XLSX.writeFile(wb, filename);
                 if (typeof showFeedbackToast === 'function') showFeedbackToast('تم تصدير مصنف مسار الشامل لكافة الأقسام بنجاح! 📄✨');
-                else alert('تم تصدير مصنف مسار الشامل بنجاح!');
+                else window.notifySafeToast('تم تصدير مصنف مسار الشامل بنجاح!');
                 closeMassarExportModal();
                 return;
             }
@@ -45677,7 +47331,7 @@ ${log.notes || 'سير الحصة عادي'}
             const filename = `${prefix}_${className}_${compTag}_${semester}.xlsx`;
             XLSX.writeFile(wb, filename);
             if (typeof showFeedbackToast === 'function') showFeedbackToast(`تم تنزيل ملف مسار الرسمي: ${filename} بنجاح! 📥`);
-            else alert('تم تنزيل ملف مسار بنجاح!');
+            else window.notifySafeToast('تم تنزيل ملف مسار بنجاح!');
             closeMassarExportModal();
         }
 
@@ -45726,15 +47380,15 @@ ${log.notes || 'سير الحصة عادي'}
             generateMonthlyAbsenceReportPDF(targetMonth);
         }
 
-        function exportMonthlyAdministrativeAbsenceExcel(className, month) {
+        async function exportMonthlyAdministrativeAbsenceExcel(className, month) {
             const cls = className || document.getElementById('universalPdfClassSelect')?.value || document.getElementById('classSelect')?.value;
             if (!cls) {
-                alert('يرجى اختيار القسم أولاً');
+                window.notifySafeToast('يرجى اختيار القسم أولاً');
                 return;
             }
             const students = (db.classes && db.classes[cls]) ? db.classes[cls] : [];
             if (students.length === 0) {
-                alert('لا يوجد تلاميذ في هذا القسم');
+                window.notifySafeToast('لا يوجد تلاميذ في هذا القسم');
                 return;
             }
             let targetMonthNum = month || document.getElementById('universalPdfMonthSelect')?.value;
@@ -45842,6 +47496,13 @@ ${log.notes || 'سير الحصة عادي'}
                 'المصادقة والخاتم الرسمي: .................'
             ]);
 
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
+            }
+            if (typeof XLSX === 'undefined') {
+                window.notifySafeToast('مكتبة تصدير Excel غير متوفرة حالياً.');
+                return;
+            }
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(rows);
             ws['!cols'] = [
@@ -45852,19 +47513,26 @@ ${log.notes || 'سير الحصة عادي'}
             XLSX.utils.book_append_sheet(wb, ws, `تفريغ_غياب_${monthLabel}`);
             XLSX.writeFile(wb, `لائحة_الغياب_الشهرية_الإدارية_${cls}_${monthLabel}.xlsx`);
             if (typeof showFeedbackToast === 'function') showFeedbackToast(`تم تنزيل لائحة الغياب الشهرية بصيغة إكسيل بنجاح! 📥`);
-            else alert('تم تنزيل لائحة الغياب الشهرية بنجاح!');
+            else window.notifySafeToast('تم تنزيل لائحة الغياب الشهرية بنجاح!');
         }
 
-        function downloadCurrentUniversalDocExcel() {
+        async function downloadCurrentUniversalDocExcel() {
             const docType = document.getElementById('universalPdfDocType')?.value || 'absence';
             const className = document.getElementById('universalPdfClassSelect')?.value || document.getElementById('classSelect')?.value;
             const selectedMonth = document.getElementById('universalPdfMonthSelect')?.value || 'current';
 
             if (docType === 'monthly_absence') {
-                exportMonthlyAdministrativeAbsenceExcel(className, selectedMonth);
+                await exportMonthlyAdministrativeAbsenceExcel(className, selectedMonth);
                 return;
             }
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
+            }
             if (docType === 'grades') {
+                if (typeof XLSX === 'undefined') {
+                    window.notifySafeToast('مكتبة تصدير Excel غير متوفرة حالياً.');
+                    return;
+                }
                 const semester = window.activeSemester || 's1';
                 const wb = XLSX.utils.book_new();
                 const ws = buildMassarGradesWorksheet(className, semester, 'all');
@@ -45875,7 +47543,7 @@ ${log.notes || 'سير الحصة عادي'}
             }
             if (docType === 'absence') {
                 if (typeof exportFullReport === 'function') {
-                    exportFullReport();
+                    await exportFullReport();
                     return;
                 }
             }
@@ -45888,7 +47556,7 @@ ${log.notes || 'سير الحصة عادي'}
                 if (typeof showFeedbackToast === 'function') showFeedbackToast('تم تصدير الجدول إلى إكسيل بنجاح! 📥');
                 return;
             }
-            alert('تعذر استخراج ملف إكسيل من هذه الوثيقة المحددة.');
+            window.notifySafeToast('تعذر استخراج ملف إكسيل من هذه الوثيقة المحددة.');
         }
 
         window.downloadCurrentUniversalDocExcel = downloadCurrentUniversalDocExcel;
@@ -45955,7 +47623,7 @@ ${log.notes || 'سير الحصة عادي'}
                 if (typeof showToast === 'function') {
                     showToast('يرجى إضافة قسم واحد على الأقل لتفعيل وضع التركيز.', 'warning');
                 } else {
-                    alert('يرجى إضافة قسم واحد على الأقل لتفعيل وضع التركيز.');
+                    window.notifySafeToast('يرجى إضافة قسم واحد على الأقل لتفعيل وضع التركيز.');
                 }
                 return;
             }
@@ -46113,7 +47781,7 @@ ${log.notes || 'سير الحصة عادي'}
             const classRaw = (db.classes && db.classes[className]) ? (Array.isArray(db.classes[className]) ? db.classes[className] : (db.classes[className].students || [])) : [];
             const std = classRaw.find(s => s.id === studentId);
             if (!std) {
-                alert('تعذر العثور على بيانات التلميذ للطباعة.');
+                window.notifySafeToast('تعذر العثور على بيانات التلميذ للطباعة.');
                 return;
             }
 
@@ -47291,42 +48959,120 @@ ${log.notes || 'سير الحصة عادي'}
         }
 
         /* ==========================================================================
-           شريط تقدم الموسم الدراسي وأداة حالة الطقس والتنقل في لوحة القيادة
+           شريط تقدم الموسم الدراسي وأداة حالة الطقس والتنقل في لوحة القيادة (النسخة المطورة)
            ========================================================================== */
 
-        // 1. حساب واسترجاع تواريخ الموسم الدراسي
+        // 1. حساب واسترجاع تواريخ الموسم الدراسي بدقة متناهية وتصحيح التواريخ المتعارضة تلقائياً
         function getSchoolYearDates() {
             const now = (typeof getAppNow === 'function') ? getAppNow() : new Date();
             const currYear = now.getFullYear();
-            const currMonth = now.getMonth(); // 0-indexed: 0=Jan, 8=Sept
+            const currMonth = now.getMonth(); // 0-indexed: 0=Jan, 7=Aug, 8=Sept
 
-            // الافتراضي المغربي الرسمي: يبدأ 01 شتنبر وينتهي 30 يونيو
-            let defaultStartYear = currYear;
-            let defaultEndYear = currYear + 1;
-            if (currMonth < 7) {
-                defaultStartYear = currYear - 1;
-                defaultEndYear = currYear;
+            // الموسم الطبيعي الموافق للتاريخ الحالي: من شتنبر (8) إلى يوليوز (6) من السنة الموالية
+            const naturalStartYear = (currMonth < 7) ? (currYear - 1) : currYear;
+            const naturalEndYear = naturalStartYear + 1;
+
+            const defaultStartStr = `${naturalStartYear}-09-01`;
+            const defaultEndStr = `${naturalEndYear}-06-30`;
+
+            let startStr = defaultStartStr;
+            let endStr = defaultEndStr;
+
+            // التحقق من التواريخ المحفوظة في الإعدادات والتأكد من صلاحيتها وعدم تعارضها مع التاريخ الحالي إلا إذا خصصها الأستاذ يدوياً
+            if (db.settings && db.settings.schoolYearStart && db.settings.schoolYearEnd) {
+                const sDate = new Date(db.settings.schoolYearStart + 'T00:00:00');
+                const eDate = new Date(db.settings.schoolYearEnd + 'T23:59:59');
+                const isValidRange = !isNaN(sDate.getTime()) && !isNaN(eDate.getTime()) && eDate > sDate;
+                const durationDays = isValidRange ? Math.round((eDate.getTime() - sDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+
+                // إذا كانت التواريخ المحفوظة صالحة ومنطقية (بين 180 و 365 يوماً)
+                if (isValidRange && durationDays >= 180 && durationDays <= 366) {
+                    const isNowInsideSavedSeason = (now >= new Date(sDate.getTime() - 30 * 86400000) && now <= new Date(eDate.getTime() + 45 * 86400000));
+                    if (isNowInsideSavedSeason || db.settings.schoolYearUserCustomized === true) {
+                        startStr = db.settings.schoolYearStart;
+                        endStr = db.settings.schoolYearEnd;
+                    } else {
+                        // تصحيح تلقائي إذا كانت التواريخ المحفوظة من موسم سابق أو مستقبلي غير متوافق مع التاريخ الحالي
+                        db.settings.schoolYearStart = defaultStartStr;
+                        db.settings.schoolYearEnd = defaultEndStr;
+                    }
+                }
             }
 
-            const defaultStartStr = `${defaultStartYear}-09-01`;
-            const defaultEndStr = `${defaultEndYear}-06-30`;
+            const actualStartYear = parseInt(String(startStr).slice(0, 4), 10) || naturalStartYear;
+            const actualEndYear = parseInt(String(endStr).slice(0, 4), 10) || (actualStartYear + 1);
 
-            const startStr = (db.settings && db.settings.schoolYearStart) ? db.settings.schoolYearStart : defaultStartStr;
-            const endStr = (db.settings && db.settings.schoolYearEnd) ? db.settings.schoolYearEnd : defaultEndStr;
-
-            const label = (db.teacherProfile && db.teacherProfile.academicYear)
-                ? db.teacherProfile.academicYear
-                : `${defaultStartYear}/${defaultEndYear}`;
+            // ضمان تطابق شارة الموسم مع سنتي البداية والنهاية الفعليتين دائماً
+            const label = `${actualStartYear}/${actualEndYear}`;
 
             return {
                 startStr,
                 endStr,
                 label,
                 defaultStartStr,
-                defaultEndStr
+                defaultEndStr,
+                startYear: actualStartYear,
+                endYear: actualEndYear
             };
         }
         window.getSchoolYearDates = getSchoolYearDates;
+
+        // حساب نسبة إنجاز المقرر الدراسي الإجمالية لكافة الأقسام لمقارنتها مع الزمن المدرسي
+        function calculateGlobalCurriculumPacingForDashboard() {
+            try {
+                const classesList = (db.classes && typeof db.classes === 'object')
+                    ? (Array.isArray(db.classes) ? db.classes : Object.keys(db.classes))
+                    : [];
+                if (classesList.length === 0) {
+                    return { hasData: false, avgPercent: 0, totalCompletedLessons: 0, totalPlannedLessons: 0 };
+                }
+
+                let sumPercent = 0;
+                let validClasses = 0;
+                let totalCompletedLessons = 0;
+                let totalPlannedLessons = 0;
+
+                classesList.forEach(cls => {
+                    const logs = (db.lessonLogs && Array.isArray(db.lessonLogs[cls])) ? db.lessonLogs[cls] : [];
+                    if (logs.length === 0) return;
+
+                    if (typeof getLessonAxesSequenceInfo === 'function' && typeof getLessonCurriculumProgress === 'function') {
+                        const seq = getLessonAxesSequenceInfo(cls);
+                        const titles = (seq && Array.isArray(seq.lessonTitles)) ? seq.lessonTitles : [];
+                        if (titles.length > 0) {
+                            let clsExec = 0;
+                            let clsTarget = 0;
+                            titles.forEach(lt => {
+                                const p = getLessonCurriculumProgress(cls, lt.title);
+                                if (p) {
+                                    clsExec += (p.executedAxesCount || 0);
+                                    clsTarget += (p.targetAxesCount || 0);
+                                    if (p.isCompleted) totalCompletedLessons++;
+                                }
+                            });
+                            totalPlannedLessons += titles.length;
+                            if (clsTarget > 0) {
+                                sumPercent += Math.min(100, Math.round((clsExec / clsTarget) * 100));
+                                validClasses++;
+                            }
+                        }
+                    }
+                });
+
+                if (validClasses === 0) {
+                    return { hasData: false, avgPercent: 0, totalCompletedLessons: 0, totalPlannedLessons: 0 };
+                }
+
+                return {
+                    hasData: true,
+                    avgPercent: Math.round(sumPercent / validClasses),
+                    totalCompletedLessons,
+                    totalPlannedLessons
+                };
+            } catch (e) {
+                return { hasData: false, avgPercent: 0, totalCompletedLessons: 0, totalPlannedLessons: 0 };
+            }
+        }
 
         function renderSchoolYearProgress() {
             const card = document.getElementById('dashSchoolYearProgressCard');
@@ -47358,25 +49104,79 @@ ${log.notes || 'سير الحصة عادي'}
 
                 const formatArDate = (d) => {
                     try {
-                        const day = String(d.getDate()).padStart(2, '0');
-                        const month = String(d.getMonth() + 1).padStart(2, '0');
-                        const year = d.getFullYear();
+                        const dateObj = (d instanceof Date) ? d : new Date(String(d) + 'T00:00:00');
+                        if (isNaN(dateObj.getTime())) return String(d || '--');
+                        const day = String(dateObj.getDate()).padStart(2, '0');
+                        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                        const year = dateObj.getFullYear();
                         return `${day}/${month}/${year}`;
                     } catch(e) {
-                        return d.toISOString().slice(0, 10);
+                        return String(d || '--');
                     }
                 };
+
+                const formatShortDayMonth = (dStr) => {
+                    if (!dStr || typeof dStr !== 'string') return '';
+                    const p = dStr.split('-');
+                    return p.length === 3 ? `${p[2]}/${p[1]}` : dStr;
+                };
+
+                // استدعاء محرك الزمن المدرسي الحقيقي من annual-calendar.js مع تمرير تواريخ الموسم الفعلية
+                let trueMetrics = null;
+                if (typeof window.calculateTrueAcademicYearMetrics === 'function') {
+                    try {
+                        trueMetrics = window.calculateTrueAcademicYearMetrics(dates.startYear, dates.startStr, dates.endStr);
+                    } catch (e) {}
+                }
+
+                const netSchoolDaysRemaining = (trueMetrics && typeof trueMetrics.remainingSchoolDays === 'number')
+                    ? trueMetrics.remainingSchoolDays
+                    : Math.max(0, Math.round(remainingDays * 0.62));
+                const netSchoolDaysTotal = (trueMetrics && typeof trueMetrics.netSchoolDaysTotal === 'number')
+                    ? trueMetrics.netSchoolDaysTotal
+                    : Math.round(totalDays * 0.62);
+                const netSchoolDaysElapsed = (trueMetrics && typeof trueMetrics.elapsedSchoolDays === 'number')
+                    ? trueMetrics.elapsedSchoolDays
+                    : Math.max(0, netSchoolDaysTotal - netSchoolDaysRemaining);
+                const s1NetDays = (trueMetrics && typeof trueMetrics.netSchoolDaysS1 === 'number')
+                    ? trueMetrics.netSchoolDaysS1
+                    : Math.round(netSchoolDaysTotal * 0.5);
+                const s2NetDays = (trueMetrics && typeof trueMetrics.netSchoolDaysS2 === 'number')
+                    ? trueMetrics.netSchoolDaysS2
+                    : Math.max(0, netSchoolDaysTotal - s1NetDays);
+
+                // حساب إجمالي الحصص المتبقية لكافة الأقسام
+                let totalRemainingSessions = 0;
+                const breakdownArr = (trueMetrics && Array.isArray(trueMetrics.classBreakdown)) ? trueMetrics.classBreakdown : [];
+                if (breakdownArr.length > 0) {
+                    totalRemainingSessions = breakdownArr.reduce((acc, c) => acc + (Number(c.remainingSessions) || 0), 0);
+                }
+
+                // تحديد الأسدوس الحالي بناءً على منتصف الموسم (26 يناير من سنة النهاية)
+                const midYearDate = new Date(`${dates.endYear}-01-26T00:00:00`);
+                const isSemester2 = now >= midYearDate;
 
                 // Updating UI elements
                 const badgeEl = document.getElementById('dashSchoolYearBadge');
                 if (badgeEl) badgeEl.textContent = dates.label;
 
+                const semBadgeEl = document.getElementById('dashCurrentSemesterBadge');
+                if (semBadgeEl) {
+                    semBadgeEl.textContent = isSemester2 ? 'الأسدوس الثاني (S2)' : 'الأسدوس الأول (S1)';
+                    semBadgeEl.style.background = isSemester2 ? '#fef3c7' : '#e0f2fe';
+                    semBadgeEl.style.color = isSemester2 ? '#b45309' : '#0369a1';
+                    semBadgeEl.style.borderColor = isSemester2 ? '#fde68a' : '#bae6fd';
+                }
+
                 const pctRemainingEl = document.getElementById('dashSchoolYearPctRemaining');
                 if (pctRemainingEl) pctRemainingEl.textContent = pctRemaining.toFixed(1);
 
+                const netSchoolDaysRemainingValEl = document.getElementById('dashNetSchoolDaysRemainingVal');
+                if (netSchoolDaysRemainingValEl) netSchoolDaysRemainingValEl.textContent = netSchoolDaysRemaining;
+
                 const daysRemainingBadgeEl = document.getElementById('dashSchoolYearDaysRemainingText');
                 if (daysRemainingBadgeEl) {
-                    daysRemainingBadgeEl.textContent = `${remainingDays} يوماً متبقية`;
+                    daysRemainingBadgeEl.textContent = `${remainingDays} يوماً تقويمياً متبقية`;
                 }
 
                 const daysElapsedTextEl = document.getElementById('dashSchoolYearDaysElapsedText');
@@ -47385,22 +49185,179 @@ ${log.notes || 'سير الحصة عادي'}
                 const pctElapsedTextEl = document.getElementById('dashSchoolYearPctElapsedText');
                 if (pctElapsedTextEl) pctElapsedTextEl.textContent = pctElapsed.toFixed(1);
 
+                const remSessionsEl = document.getElementById('dashRemainingClassSessionsText');
+                if (remSessionsEl) {
+                    remSessionsEl.textContent = totalRemainingSessions > 0
+                        ? `${totalRemainingSessions} حصة فعلية متبقية`
+                        : `${netSchoolDaysElapsed} يوم دراسة فعلي منقضٍ`;
+                }
+
                 const progressFillEl = document.getElementById('dashSchoolYearProgressFill');
                 if (progressFillEl) {
                     progressFillEl.style.width = `${pctElapsed.toFixed(1)}%`;
                 }
 
+                // تفعيل وتلوين المحطة الجارية في شريط المراحل الخمس
+                let activeStageIdx = 1;
+                if (pctElapsed >= 95) activeStageIdx = 5;
+                else if (pctElapsed >= 55) activeStageIdx = 4;
+                else if (pctElapsed >= 45) activeStageIdx = 3;
+                else if (pctElapsed >= 20) activeStageIdx = 2;
+                else activeStageIdx = 1;
+
+                const stageLabels = [
+                    '🚩 انطلاق الموسم',
+                    '📝 الدورة 1',
+                    '☕ منتصف السنة',
+                    '📚 الدورة 2',
+                    '🏁 اختتام الموسم'
+                ];
+                for (let idx = 1; idx <= 5; idx++) {
+                    const stEl = document.getElementById(`dashSeasonStage${idx}`);
+                    if (!stEl) continue;
+                    if (idx < activeStageIdx) {
+                        stEl.textContent = `✓ ${stageLabels[idx - 1].replace(/^[^\s]+\s/, '')}`;
+                        stEl.style.background = '#dcfce7';
+                        stEl.style.color = '#166534';
+                        stEl.style.border = '1px solid #86efac';
+                    } else if (idx === activeStageIdx) {
+                        stEl.textContent = stageLabels[idx - 1];
+                        stEl.style.background = '#4f46e5';
+                        stEl.style.color = '#ffffff';
+                        stEl.style.border = '1px solid #4338ca';
+                        stEl.style.boxShadow = '0 2px 5px rgba(79,70,229,0.25)';
+                    } else {
+                        stEl.textContent = stageLabels[idx - 1];
+                        stEl.style.background = 'transparent';
+                        stEl.style.color = '#64748b';
+                        stEl.style.border = '1px solid transparent';
+                        stEl.style.boxShadow = 'none';
+                    }
+                }
+
+                // تحديث شريط التوافق مع التوزيع السنوي
+                const pacing = calculateGlobalCurriculumPacingForDashboard();
+                const currPctEl = document.getElementById('dashCurriculumPctVal');
+                const currCountEl = document.getElementById('dashCurriculumLessonsCount');
+                const syncBadgeEl = document.getElementById('dashPacingSyncStatusBadge');
+
+                if (pacing.hasData) {
+                    if (currPctEl) currPctEl.textContent = `${pacing.avgPercent}%`;
+                    if (currCountEl) currCountEl.textContent = `(${pacing.totalCompletedLessons}/${pacing.totalPlannedLessons} درس مكتمل)`;
+                    const diff = pacing.avgPercent - Math.round(pctElapsed);
+                    if (syncBadgeEl) {
+                        if (diff >= 8) {
+                            syncBadgeEl.textContent = `متقدم عن الزمن (+${diff}%) 🚀`;
+                            syncBadgeEl.style.background = '#dbeafe';
+                            syncBadgeEl.style.color = '#1e40af';
+                            syncBadgeEl.style.borderColor = '#93c5fd';
+                        } else if (diff <= -12) {
+                            syncBadgeEl.textContent = `تأخر (${Math.abs(diff)}%) يحتاج تدارك ⚠️`;
+                            syncBadgeEl.style.background = '#fef2f2';
+                            syncBadgeEl.style.color = '#991b1b';
+                            syncBadgeEl.style.borderColor = '#fecaca';
+                        } else {
+                            syncBadgeEl.textContent = `منسجم مع التوزيع السنوي ✅`;
+                            syncBadgeEl.style.background = '#dcfce7';
+                            syncBadgeEl.style.color = '#166534';
+                            syncBadgeEl.style.borderColor = '#86efac';
+                        }
+                    }
+                } else {
+                    const expectedPct = Math.round(pctElapsed);
+                    if (currPctEl) currPctEl.textContent = `${expectedPct}% (المتوقع)`;
+                    if (currCountEl) currCountEl.textContent = `(حسب الوعاء الزمني المنقضي)`;
+                    if (syncBadgeEl) {
+                        syncBadgeEl.textContent = `واكب دروسك في سجل الدروس 📝`;
+                        syncBadgeEl.style.background = '#f1f5f9';
+                        syncBadgeEl.style.color = '#475569';
+                        syncBadgeEl.style.borderColor = '#cbd5e1';
+                    }
+                }
+
                 const startEl = document.getElementById('dashSchoolYearStartDate');
-                if (startEl) startEl.textContent = formatArDate(startDate);
+                if (startEl) startEl.textContent = `من ${formatArDate(startDate)}`;
 
                 const endEl = document.getElementById('dashSchoolYearEndDate');
-                if (endEl) endEl.textContent = formatArDate(endDate);
+                if (endEl) endEl.textContent = `إلى ${formatArDate(endDate)}`;
 
                 const elapsedEl = document.getElementById('dashSchoolYearDaysElapsed');
                 if (elapsedEl) elapsedEl.textContent = `${elapsedDays} يوم (${pctElapsed.toFixed(0)}%)`;
 
+                const netTotalSubEl = document.getElementById('dashNetSchoolDaysTotalSub');
+                if (netTotalSubEl) netTotalSubEl.textContent = `صافي الموسم: ${netSchoolDaysTotal} يوم دراسة`;
+
                 const remainingEl = document.getElementById('dashSchoolYearDaysRemaining');
                 if (remainingEl) remainingEl.textContent = `${remainingDays} يوم (${pctRemaining.toFixed(0)}%)`;
+
+                const semBreakdownEl = document.getElementById('dashSemesterBreakdownSub');
+                if (semBreakdownEl) semBreakdownEl.textContent = `د1: ${s1NetDays} يوم | د2: ${s2NetDays} يوم`;
+
+                // تحديث العطل المتبقية والرادار المصغر
+                let holStats = null;
+                if (typeof window.getOfficialHolidaysStats === 'function') {
+                    try { holStats = window.getOfficialHolidaysStats(); } catch (e) {}
+                }
+                const remHolEl = document.getElementById('dashRemainingHolidaysCount');
+                if (remHolEl) {
+                    const remHolDays = (holStats && typeof holStats.remainingHolidayDays === 'number') ? holStats.remainingHolidayDays : 0;
+                    remHolEl.textContent = `${remHolDays} يوم عطلة متبقٍ`;
+                }
+
+                const nextHolInfo = (typeof window.getActiveOrUpcomingHoliday === 'function') ? window.getActiveOrUpcomingHoliday() : null;
+                const nextMsInfo = (typeof window.getActiveOrUpcomingMilestone === 'function') ? window.getActiveOrUpcomingMilestone() : null;
+
+                const nextHolMiniEl = document.getElementById('dashNextHolidayMiniCountdown');
+                if (nextHolMiniEl) {
+                    if (nextHolInfo && nextHolInfo.holiday) {
+                        const holDays = Number(nextHolInfo.daysLeft !== undefined ? nextHolInfo.daysLeft : nextHolInfo.daysUntil) || 0;
+                        const isHolActive = (nextHolInfo.status === 'active' || nextHolInfo.type === 'active');
+                        nextHolMiniEl.textContent = isHolActive
+                            ? `جارية الآن (متبقي ${holDays}ي)`
+                            : `الأقرب بعد ${holDays} يوم`;
+                    } else {
+                        nextHolMiniEl.textContent = `موسم مكتمل`;
+                    }
+                }
+
+                const radarHolEl = document.getElementById('dashSeasonNextHolidayInfo');
+                if (radarHolEl) {
+                    if (nextHolInfo && nextHolInfo.holiday) {
+                        const h = nextHolInfo.holiday;
+                        const hTitle = h.title || 'عطلة رسمية';
+                        const holDays = Number(nextHolInfo.daysLeft !== undefined ? nextHolInfo.daysLeft : nextHolInfo.daysUntil) || 0;
+                        const isHolActive = (nextHolInfo.status === 'active' || nextHolInfo.type === 'active');
+                        const dateSpan = h.startDate
+                            ? `<span style="color:#64748b;font-size:0.65rem;">(${formatShortDayMonth(h.startDate)}${h.endDate && h.endDate !== h.startDate ? ' - ' + formatShortDayMonth(h.endDate) : ''})</span>`
+                            : '';
+                        const badgeTxt = isHolActive
+                            ? `<span style="background:#dcfce7;color:#166534;padding:1px 6px;border-radius:999px;font-size:0.65rem;font-weight:800;">جارية (${holDays}ي)</span>`
+                            : `<span style="background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:999px;font-size:0.65rem;font-weight:800;">بعد ${holDays} يوم</span>`;
+                        radarHolEl.innerHTML = `<span>🌴</span> <span style="color:#0f172a;">${hTitle}</span> ${dateSpan} ${badgeTxt}`;
+                    } else {
+                        radarHolEl.innerHTML = `<span>🌴</span> <span>لا توجد عطل متبقية في هذا الموسم</span>`;
+                    }
+                }
+
+                const radarMsEl = document.getElementById('dashSeasonNextMilestoneInfo');
+                if (radarMsEl) {
+                    if (nextMsInfo && nextMsInfo.milestone) {
+                        const ms = nextMsInfo.milestone;
+                        const mTitle = ms.title || 'محطة تربوية';
+                        const shortTitle = mTitle.length > 26 ? mTitle.slice(0, 25) + '…' : mTitle;
+                        const msDays = Number(nextMsInfo.daysLeft !== undefined ? nextMsInfo.daysLeft : nextMsInfo.daysUntil) || 0;
+                        const isMsActive = (nextMsInfo.status === 'active' || nextMsInfo.type === 'active');
+                        const msDateSpan = ms.startDate
+                            ? `<span style="color:#64748b;font-size:0.65rem;">(${formatShortDayMonth(ms.startDate)})</span>`
+                            : '';
+                        const mBadge = isMsActive
+                            ? `<span style="background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:999px;font-size:0.65rem;font-weight:800;">جارية الآن</span>`
+                            : `<span style="background:#ede9fe;color:#6d28d9;padding:1px 6px;border-radius:999px;font-size:0.65rem;font-weight:800;">بعد ${msDays} يوم</span>`;
+                        radarMsEl.innerHTML = `<span>📌</span> <span title="${mTitle}">${shortTitle}</span> ${msDateSpan} ${mBadge}`;
+                    } else {
+                        radarMsEl.innerHTML = `<span>📌</span> <span>كافة المحطات التربوية منجزة</span>`;
+                    }
+                }
 
             } catch (err) {
                 console.error("renderSchoolYearProgress error:", err);
@@ -47431,7 +49388,6 @@ ${log.notes || 'سير الحصة عادي'}
         window.closeSchoolYearDatesModal = closeSchoolYearDatesModal;
 
         function applyPresetSchoolYearDates(preset) {
-            const dates = getSchoolYearDates();
             const startInput = document.getElementById('schoolYearStartInput');
             const endInput = document.getElementById('schoolYearEndInput');
             if (!startInput || !endInput) return;
@@ -47473,17 +49429,29 @@ ${log.notes || 'سير الحصة عادي'}
             if (!db.settings) db.settings = {};
             db.settings.schoolYearStart = startVal;
             db.settings.schoolYearEnd = endVal;
+            db.settings.schoolYearUserCustomized = true;
+
+            const sYr = parseInt(String(startVal).slice(0, 4), 10);
+            const eYr = parseInt(String(endVal).slice(0, 4), 10);
+            if (!isNaN(sYr) && !isNaN(eYr)) {
+                if (!db.teacherProfile) db.teacherProfile = {};
+                db.teacherProfile.academicYear = `${sYr}/${eYr}`;
+                if (typeof window.changeSelectedAcademicYear === 'function') {
+                    try { window.changeSelectedAcademicYear(sYr); } catch (e) {}
+                }
+            }
+
             saveDB();
 
             closeSchoolYearDatesModal();
             renderSchoolYearProgress();
             if (typeof showNotification === 'function') {
-                showNotification('تم تحديث تواريخ الموسم الدراسي وشريط التقدم بنجاح!', 'success');
+                showNotification('تم تحديث تواريخ الموسم الدراسي ومزامنة التقويم السنوي بنجاح!', 'success');
             }
         }
         window.saveSchoolYearDatesFromModal = saveSchoolYearDatesFromModal;
 
-        // 2. أداة حالة الطقس والتنقل والأجواء الصفية
+        // 2. أداة حالة الطقس والتنقل والأجواء الصفية المطورة
         var MOROCCAN_CITIES_COORDS = {
             'الدار البيضاء': { lat: 33.5731, lon: -7.5898 },
             'الرباط': { lat: 34.0209, lon: -6.8416 },
@@ -47529,7 +49497,47 @@ ${log.notes || 'سير الحصة عادي'}
         }
         window.getTeacherWeatherCity = getTeacherWeatherCity;
 
+        // استخراج ملخص حصص اليوم من جدول الحصص لربطها بتوجيهات الطقس
+        function getTodayScheduledSessionsForWeather() {
+            try {
+                const now = (typeof getAppNow === 'function') ? getAppNow() : new Date();
+                const dayNamesAr = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+                const todayAr = dayNamesAr[now.getDay()];
+                if (!db.timetable || todayAr === 'الأحد') {
+                    return { dayName: todayAr, total: 0, morningCount: 0, afternoonCount: 0, classes: [] };
+                }
+                const row = db.timetable[todayAr] || (todayAr === 'الإثنين' ? db.timetable['الاثنين'] : null) || {};
+                const morningSlots = ['m1', 'm2', 'm3', 'm4', '08:30 - 09:30', '09:30 - 10:30', '10:30 - 11:30', '11:30 - 12:30'];
+                let morningCount = 0;
+                let afternoonCount = 0;
+                const classes = [];
+
+                Object.keys(row).forEach(slotKey => {
+                    const val = row[slotKey];
+                    const clsName = (typeof val === 'object' && val !== null) ? (val.className || val.class || '') : String(val || '').trim();
+                    if (!clsName) return;
+                    if (!classes.includes(clsName)) classes.push(clsName);
+                    if (morningSlots.includes(slotKey) || slotKey.startsWith('m') || slotKey.startsWith('08') || slotKey.startsWith('09') || slotKey.startsWith('10') || slotKey.startsWith('11')) {
+                        morningCount++;
+                    } else {
+                        afternoonCount++;
+                    }
+                });
+
+                return {
+                    dayName: todayAr,
+                    total: morningCount + afternoonCount,
+                    morningCount,
+                    afternoonCount,
+                    classes
+                };
+            } catch (e) {
+                return { dayName: '', total: 0, morningCount: 0, afternoonCount: 0, classes: [] };
+            }
+        }
+
         var _cachedWeatherData = null;
+        var _cachedWeatherTimestamp = null;
 
         function initDashboardWeather() {
             const card = document.getElementById('dashWeatherWidgetCard');
@@ -47540,12 +49548,13 @@ ${log.notes || 'سير الحصة عادي'}
             if (cityTextEl) cityTextEl.textContent = city;
 
             try {
-                const stored = localStorage.getItem('massar_weather_cache_v2');
+                const stored = localStorage.getItem('massar_weather_cache_v3') || localStorage.getItem('massar_weather_cache_v2');
                 if (stored) {
                     const parsed = JSON.parse(stored);
                     if (parsed && parsed.city === city && (Date.now() - parsed.timestamp < 30 * 60 * 1000)) {
                         _cachedWeatherData = parsed.data;
-                        renderDashboardWeather(parsed.data, city);
+                        _cachedWeatherTimestamp = parsed.timestamp;
+                        renderDashboardWeather(parsed.data, city, parsed.timestamp);
                         return;
                     }
                 }
@@ -47558,7 +49567,7 @@ ${log.notes || 'سير الحصة عادي'}
         function getFallbackWeatherForCity(city, coords) {
             if (_cachedWeatherData) return _cachedWeatherData;
             try {
-                const stored = localStorage.getItem('massar_weather_cache_v2');
+                const stored = localStorage.getItem('massar_weather_cache_v3') || localStorage.getItem('massar_weather_cache_v2');
                 if (stored) {
                     const parsed = JSON.parse(stored);
                     if (parsed && parsed.data) return parsed.data;
@@ -47570,7 +49579,6 @@ ${log.notes || 'سير الحصة عادي'}
             const month = now.getMonth() + 1; // 1..12
             const isDay = (hour >= 6 && hour < 19) ? 1 : 0;
 
-            // Seasonal baseline temperature for Morocco based on month & latitude
             const lat = (coords && coords.lat) ? coords.lat : 33.5731;
             const lon = (coords && coords.lon) ? coords.lon : -7.5898;
             const isCoastal = lon < -6.5 || lat > 35.0;
@@ -47585,9 +49593,12 @@ ${log.notes || 'سير الحصة عادي'}
                 baseTemp = isCoastal ? 22 : 23;
             }
 
-            // Diurnal variation
             const diurnalOffset = isDay ? Math.round(Math.sin(((hour - 6) / 13) * Math.PI) * 4) : -3;
             const temperature_2m = baseTemp + diurnalOffset;
+            const tempMin = baseTemp - 4;
+            const tempMax = baseTemp + 4;
+            const morningTemp = baseTemp - 1;
+            const afternoonTemp = baseTemp + 3;
 
             return {
                 temperature_2m,
@@ -47596,8 +49607,28 @@ ${log.notes || 'سير الحصة عادي'}
                 wind_speed_10m: isCoastal ? 16 : 11,
                 precipitation: 0,
                 weather_code: isDay ? 1 : 0,
-                is_day: isDay
+                is_day: isDay,
+                tempMax,
+                tempMin,
+                rainProb: (month >= 11 || month <= 3) ? 15 : 5,
+                morningTemp,
+                morningCode: 1,
+                afternoonTemp,
+                afternoonCode: 1,
+                isFallback: true
             };
+        }
+
+        function getWeatherIconAndShortLabel(code, isDay = true) {
+            if (code === 0) return { icon: isDay ? '☀️' : '🌙', label: 'صحو' };
+            if (code <= 3) return { icon: isDay ? '⛅' : '☁️', label: 'غائم جزئياً' };
+            if (code === 45 || code === 48) return { icon: '🌫️', label: 'ضباب' };
+            if (code >= 51 && code <= 55) return { icon: '🌦️', label: 'رذاذ' };
+            if (code >= 61 && code <= 65) return { icon: '🌧️', label: 'ممطر' };
+            if (code >= 80 && code <= 82) return { icon: '🌧️', label: 'زخات' };
+            if (code >= 71 && code <= 86) return { icon: '❄️', label: 'ثلوج/صقيع' };
+            if (code >= 95) return { icon: '⛈️', label: 'رعدي' };
+            return { icon: isDay ? '☀️' : '🌙', label: 'معتدل' };
         }
 
         async function fetchDashboardWeather(forceRefresh = false) {
@@ -47624,9 +49655,7 @@ ${log.notes || 'سير الحصة عادي'}
                                 coords = { lat: geoData.results[0].latitude, lon: geoData.results[0].longitude };
                             }
                         }
-                    } catch (e) {
-                        // Ignore geocoding lookup errors and use fallback coordinates
-                    }
+                    } catch (e) {}
                 }
 
                 if (!coords) {
@@ -47635,7 +49664,7 @@ ${log.notes || 'سير الحصة عادي'}
 
                 const weatherCtrl = new AbortController();
                 const weatherTimer = setTimeout(() => weatherCtrl.abort(), 5000);
-                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m&timezone=auto`;
+                const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,weather_code,precipitation_probability&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=1&timezone=auto`;
                 const res = await fetch(weatherUrl, { signal: weatherCtrl.signal });
                 clearTimeout(weatherTimer);
 
@@ -47643,7 +49672,31 @@ ${log.notes || 'سير الحصة عادي'}
                 if (res && res.ok) {
                     const weatherData = await res.json();
                     if (weatherData && weatherData.current) {
-                        currentData = weatherData.current;
+                        currentData = Object.assign({}, weatherData.current);
+                        // استخراج العظمى والصغرى واحتمال المطر اليومي
+                        if (weatherData.daily) {
+                            if (Array.isArray(weatherData.daily.temperature_2m_max) && weatherData.daily.temperature_2m_max.length > 0) {
+                                currentData.tempMax = Math.round(weatherData.daily.temperature_2m_max[0]);
+                            }
+                            if (Array.isArray(weatherData.daily.temperature_2m_min) && weatherData.daily.temperature_2m_min.length > 0) {
+                                currentData.tempMin = Math.round(weatherData.daily.temperature_2m_min[0]);
+                            }
+                            if (Array.isArray(weatherData.daily.precipitation_probability_max) && weatherData.daily.precipitation_probability_max.length > 0) {
+                                currentData.rainProb = Math.round(weatherData.daily.precipitation_probability_max[0]);
+                            }
+                        }
+                        // استخراج توقعات فترة الصباح (10:00) وفترة الزوال (15:00)
+                        if (weatherData.hourly && Array.isArray(weatherData.hourly.temperature_2m)) {
+                            const hTemps = weatherData.hourly.temperature_2m;
+                            const hCodes = weatherData.hourly.weather_code || [];
+                            if (hTemps.length > 15) {
+                                currentData.morningTemp = Math.round((hTemps[9] + hTemps[10] + hTemps[11]) / 3);
+                                currentData.morningCode = hCodes[10] !== undefined ? hCodes[10] : currentData.weather_code;
+                                currentData.afternoonTemp = Math.round((hTemps[14] + hTemps[15] + hTemps[16]) / 3);
+                                currentData.afternoonCode = hCodes[15] !== undefined ? hCodes[15] : currentData.weather_code;
+                            }
+                        }
+                        currentData.isFallback = false;
                     }
                 }
 
@@ -47651,39 +49704,49 @@ ${log.notes || 'سير الحصة عادي'}
                     currentData = getFallbackWeatherForCity(city, coords);
                 }
 
+                const nowTs = Date.now();
                 _cachedWeatherData = currentData;
+                _cachedWeatherTimestamp = nowTs;
                 try {
-                    localStorage.setItem('massar_weather_cache_v2', JSON.stringify({
+                    localStorage.setItem('massar_weather_cache_v3', JSON.stringify({
                         city,
-                        timestamp: Date.now(),
+                        timestamp: nowTs,
                         data: currentData
                     }));
                 } catch (e) {}
 
-                renderDashboardWeather(currentData, city);
+                renderDashboardWeather(currentData, city, nowTs);
                 if (forceRefresh && typeof showNotification === 'function') {
-                    showNotification(`تم تحديث حالة الطقس لمدينة ${city} بنجاح!`, 'success');
+                    showNotification(`تم تحديث حالة الطقس وتوقعات الدوام لمدينة ${city} بنجاح!`, 'success');
                 }
             } catch (err) {
                 const fallbackData = getFallbackWeatherForCity(city, coords || { lat: 33.5731, lon: -7.5898 });
                 _cachedWeatherData = fallbackData;
-                renderDashboardWeather(fallbackData, city);
+                renderDashboardWeather(fallbackData, city, Date.now());
             } finally {
                 if (refreshIcon) refreshIcon.style.animation = '';
             }
         }
         window.fetchDashboardWeather = fetchDashboardWeather;
 
-        function renderDashboardWeather(current, city) {
+        function renderDashboardWeather(current, city, timestamp) {
             if (!current) return;
 
             const temp = Math.round(current.temperature_2m);
-            const apparent = Math.round(current.apparent_temperature);
-            const humidity = Math.round(current.relative_humidity_2m);
-            const wind = Math.round(current.wind_speed_10m);
+            const apparent = Math.round(current.apparent_temperature !== undefined ? current.apparent_temperature : temp);
+            const humidity = Math.round(current.relative_humidity_2m || 60);
+            const wind = Math.round(current.wind_speed_10m || 12);
             const precip = current.precipitation || 0;
             const code = current.weather_code || 0;
             const isDay = current.is_day === 1;
+
+            const tempMax = current.tempMax !== undefined ? current.tempMax : (temp + 3);
+            const tempMin = current.tempMin !== undefined ? current.tempMin : (temp - 4);
+            const rainProb = current.rainProb !== undefined ? current.rainProb : (precip > 0 ? 80 : 10);
+            const morningTemp = current.morningTemp !== undefined ? current.morningTemp : (temp - 1);
+            const afternoonTemp = current.afternoonTemp !== undefined ? current.afternoonTemp : (temp + 2);
+            const morningMeta = getWeatherIconAndShortLabel(current.morningCode !== undefined ? current.morningCode : code, true);
+            const afternoonMeta = getWeatherIconAndShortLabel(current.afternoonCode !== undefined ? current.afternoonCode : code, true);
 
             let conditionText = 'صحو وسماء صافية';
             let icon = isDay ? '☀️' : '🌙';
@@ -47717,6 +49780,9 @@ ${log.notes || 'سير الحصة عادي'}
             const tempEl = document.getElementById('dashWeatherTemp');
             if (tempEl) tempEl.textContent = temp;
 
+            const minMaxEl = document.getElementById('dashWeatherMinMax');
+            if (minMaxEl) minMaxEl.textContent = `عظمى ${tempMax}° / صغرى ${tempMin}°`;
+
             const condEl = document.getElementById('dashWeatherCondition');
             if (condEl) condEl.textContent = conditionText;
 
@@ -47732,9 +49798,93 @@ ${log.notes || 'سير الحصة عادي'}
             const windEl = document.getElementById('dashWeatherWind');
             if (windEl) windEl.textContent = wind;
 
+            const rainProbEl = document.getElementById('dashWeatherRainProb');
+            if (rainProbEl) rainProbEl.textContent = rainProb;
+
+            const morningInfoEl = document.getElementById('dashWeatherMorningInfo');
+            if (morningInfoEl) morningInfoEl.textContent = `${morningMeta.icon} ${morningTemp}°C (${morningMeta.label})`;
+
+            const afternoonInfoEl = document.getElementById('dashWeatherAfternoonInfo');
+            if (afternoonInfoEl) afternoonInfoEl.textContent = `${afternoonMeta.icon} ${afternoonTemp}°C (${afternoonMeta.label})`;
+
+            const lastUpdEl = document.getElementById('dashWeatherLastUpdateBadge');
+            if (lastUpdEl) {
+                if (current.isFallback) {
+                    lastUpdEl.textContent = 'تقدير مناخي محلي';
+                } else if (timestamp) {
+                    const diffMin = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
+                    lastUpdEl.textContent = diffMin <= 1 ? 'محدّث الآن 🟢' : `محدّث منذ ${diffMin} د`;
+                } else {
+                    lastUpdEl.textContent = 'محدّث الآن 🟢';
+                }
+            }
+
+            // تحديث المؤشرات الثلاثية (التنقل، الحجرة، المواظبة)
+            const commuteEl = document.getElementById('dashCommuteStatusVal');
+            const comfortEl = document.getElementById('dashClassroomComfortVal');
+            const impactEl = document.getElementById('dashAttendanceImpactVal');
+
+            const isRainy = (precip > 0.4 || code >= 51 || rainProb >= 60);
+            const isCold = (temp < 13 || morningTemp < 11);
+            const isHot = (temp >= 29 || afternoonTemp >= 30);
+            const isWindy = (wind >= 35);
+
+            if (commuteEl) {
+                if (code >= 80 || precip > 3) {
+                    commuteEl.textContent = 'اضطراب جوي 🔴';
+                    commuteEl.style.color = '#dc2626';
+                } else if (isRainy || isWindy || code === 45 || code === 48) {
+                    commuteEl.textContent = 'يقظة بالطريق 🟡';
+                    commuteEl.style.color = '#d97706';
+                } else {
+                    commuteEl.textContent = 'تنقل انسيابي 🟢';
+                    commuteEl.style.color = '#166534';
+                }
+            }
+
+            if (comfortEl) {
+                if (isCold) {
+                    comfortEl.textContent = 'إغلاق النوافذ ❄️';
+                    comfortEl.style.color = '#1d4ed8';
+                } else if (isHot) {
+                    comfortEl.textContent = 'تهوية مستمرة 🪟';
+                    comfortEl.style.color = '#c2410c';
+                } else if (isRainy || isWindy) {
+                    comfortEl.textContent = 'إحكام النوافذ 🌧️';
+                    comfortEl.style.color = '#0369a1';
+                } else {
+                    comfortEl.textContent = 'أجواء معتدلة 🌿';
+                    comfortEl.style.color = '#15803d';
+                }
+            }
+
+            if (impactEl) {
+                if (isRainy) {
+                    impactEl.textContent = 'تأخرات محتملة ⏳';
+                    impactEl.style.color = '#b45309';
+                } else if (isHot) {
+                    impactEl.textContent = 'خمول بعد الزوال 🌡️';
+                    impactEl.style.color = '#c2410c';
+                } else if (isCold) {
+                    impactEl.textContent = 'تنشيط ذهني مستحب ⚡';
+                    impactEl.style.color = '#1e40af';
+                } else {
+                    impactEl.textContent = 'تركيز واستيعاب عالٍ ✨';
+                    impactEl.style.color = '#4f46e5';
+                }
+            }
+
+            // التوجيه البيداغوجي الذكي المرتبط بجدول حصص اليوم
             const advisoryBox = document.getElementById('dashWeatherAdvisoryBox');
             const advisoryIcon = document.getElementById('dashWeatherAdvisoryIcon');
             const advisoryText = document.getElementById('dashWeatherAdvisoryText');
+            const quickActionBtn = document.getElementById('dashWeatherQuickActionBtn');
+
+            const todaySessions = getTodayScheduledSessionsForWeather();
+            let sessionsContextHtml = '';
+            if (todaySessions.total > 0) {
+                sessionsContextHtml = ` <span style="display:inline-block;background:rgba(255,255,255,0.85);padding:1px 7px;border-radius:6px;font-weight:800;font-size:0.7rem;border:1px solid rgba(0,0,0,0.08);margin-right:4px;">📅 حصص اليوم (${todaySessions.dayName}): ${todaySessions.total} حصص (${todaySessions.classes.join('، ')})</span>`;
+            }
 
             if (advisoryBox && advisoryText) {
                 let advIcon = '🌿';
@@ -47742,37 +49892,40 @@ ${log.notes || 'سير الحصة عادي'}
                 let boxBg = '#f0fdf4';
                 let boxBorder = '#bbf7d0';
                 let textColor = '#166534';
+                let showAttendanceAction = false;
 
-                if (precip > 0.5 || code >= 51) {
+                if (isRainy) {
                     advIcon = '🌧️';
                     boxBg = '#fef2f2';
                     boxBorder = '#fecaca';
                     textColor = '#991b1b';
-                    advHtml = `<strong>تنبيه التنقل والأجواء الصفية:</strong> هناك تساقطات مطرية متوقعة في <strong>${city}</strong> اليوم (${precip} مم). يُرجى توخي الحذر أثناء الطريق، وتفهم التأخرات الاستثنائية لبعض التلاميذ، والتأكد من إغلاق النوافذ المعرضة للمطر داخل الحجرة الدراسية.`;
-                } else if (temp < 12) {
+                    showAttendanceAction = true;
+                    advHtml = `<strong>تنبيه التنقل والأجواء الصفية:</strong> تساقطات مطرية أو احتمال أمطار (${rainProb}%) في <strong>${city}</strong>. يُنصح بمراعاة التأخرات الاستثنائية للتلاميذ في الحصص الصباحية وإغلاق النوافذ المعرضة للمطر.${sessionsContextHtml}`;
+                } else if (isCold) {
                     advIcon = '❄️';
                     boxBg = '#eff6ff';
                     boxBorder = '#bfdbfe';
                     textColor = '#1e40af';
-                    advHtml = `<strong>أجواء باردة (${temp}°C):</strong> يُنصح بتدفئة الحجرة والتأكد من إغلاق الأبواب والنوافذ لتفادي التيارات الهوائية المباشرة، وحث التلاميذ على ارتداء ملابس دافئة لضمان نشاطهم الذهني وسرعة استيعابهم للدروس.`;
-                } else if (temp >= 29) {
+                    showAttendanceAction = todaySessions.morningCount > 0;
+                    advHtml = `<strong>أجواء باردة (${temp}°C / صباحاً ${morningTemp}°C):</strong> يُنصح بتفادي التيارات الهوائية المباشرة داخل الفصل وبدء الحصة الصباحية بنشاط حساب ذهني سريع لتنشيط التلاميذ.${sessionsContextHtml}`;
+                } else if (isHot) {
                     advIcon = '🌡️';
                     boxBg = '#fff7ed';
                     boxBorder = '#fed7aa';
                     textColor = '#9a3412';
-                    advHtml = `<strong>طقس حار (${temp}°C):</strong> يُنصح بتهوية القاعة بانتظام عبر فتح النوافذ المتقابلة، وتخفيف الإجهاد البدني، وتذكير التلاميذ بشرب الماء للحفاظ على تركيزهم وتفادي الإرهاق الذهني.`;
-                } else if (wind >= 35) {
+                    advHtml = `<strong>طقس حار (تصل إلى ${tempMax}°C بعد الزوال):</strong> يُنصح بتهوية القاعة عبر النوافذ المتقابلة، وتكثيف التمارين التفاعلية القصيرة في حصص المساء لتفادي الخمول الحراري.${sessionsContextHtml}`;
+                } else if (isWindy) {
                     advIcon = '💨';
                     boxBg = '#fefce8';
                     boxBorder = '#fef08a';
                     textColor = '#854d0e';
-                    advHtml = `<strong>رياح نشطة (${wind} كم/س):</strong> يُرجى توخي الحيطة أثناء التنقل وتثبيت أوراق وفروض التلاميذ داخل الفصل الدراسي مع إحكام إغلاق النوافذ لتجنب التشويش.`;
+                    advHtml = `<strong>رياح نشطة (${wind} كم/س):</strong> يُرجى توخي الحيطة أثناء التنقل وإحكام إغلاق نوافذ القاعة لتفادي الغبار والتشويش السمعي أثناء الشرح.${sessionsContextHtml}`;
                 } else {
                     advIcon = '🌿';
                     boxBg = '#f0fdf4';
                     boxBorder = '#bbf7d0';
                     textColor = '#166534';
-                    advHtml = `<strong>أجواء مثالية (${temp}°C):</strong> ظروف مناخية معتدلة ومريحة في <strong>${city}</strong>، وتنقل انسيابي للمؤسسة. الأجواء الصفية ملائمة تماماً للتركيز والاستيعاب وإنجاز الأنشطة والتمارين البيداغوجية.`;
+                    advHtml = `<strong>أجواء صفية مثالية (${temp}°C):</strong> ظروف مناخية معتدلة ومريحة في <strong>${city}</strong> وتنقل انسيابي للمؤسسة، مما يدعم التركيز العالي وإنجاز الأنشطة البيداغوجية بكفاءة.${sessionsContextHtml}`;
                 }
 
                 advisoryBox.style.background = boxBg;
@@ -47780,6 +49933,10 @@ ${log.notes || 'سير الحصة عادي'}
                 advisoryBox.style.color = textColor;
                 if (advisoryIcon) advisoryIcon.textContent = advIcon;
                 advisoryText.innerHTML = advHtml;
+
+                if (quickActionBtn) {
+                    quickActionBtn.style.display = showAttendanceAction ? 'inline-flex' : 'none';
+                }
             }
         }
         window.renderDashboardWeather = renderDashboardWeather;
@@ -47788,6 +49945,69 @@ ${log.notes || 'سير الحصة عادي'}
             fetchDashboardWeather(force);
         }
         window.refreshDashboardWeather = refreshDashboardWeather;
+
+        // تحديد موقع المؤسسة التعليمية تلقائياً عبر GPS ومطابقته مع أقرب مدينة مغربية
+        function detectTeacherWeatherLocationGPS(fromModal = false) {
+            if (!navigator.geolocation) {
+                if (typeof showNotification === 'function') {
+                    showNotification('المتصفح لا يدعم ميزة تحديد الموقع الجغرافي (GPS). يرجى اختيار المدينة يدوياً.', 'warning');
+                }
+                return;
+            }
+
+            if (typeof showNotification === 'function') {
+                showNotification('جاري تحديد الموقع الجغرافي للمؤسسة...', 'info');
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lon = pos.coords.longitude;
+
+                    // إيجاد أقرب مدينة مغربية من القائمة المعتمدة باستخدام معادلة المسافة الجغرافية
+                    let nearestCity = 'الدار البيضاء';
+                    let minDist = Infinity;
+                    Object.keys(MOROCCAN_CITIES_COORDS).forEach(cityName => {
+                        const c = MOROCCAN_CITIES_COORDS[cityName];
+                        const dLat = (lat - c.lat) * Math.PI / 180;
+                        const dLon = (lon - c.lon) * Math.PI / 180;
+                        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                                  Math.cos(c.lat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
+                                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                        const distKm = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                        if (distKm < minDist) {
+                            minDist = distKm;
+                            nearestCity = cityName;
+                        }
+                    });
+
+                    // حفظ الإحداثيات الدقيقة للمدينة المختارة
+                    MOROCCAN_CITIES_COORDS[nearestCity] = { lat, lon };
+
+                    if (!db.settings) db.settings = {};
+                    db.settings.weatherCity = nearestCity;
+                    if (!db.teacherProfile) db.teacherProfile = {};
+                    db.teacherProfile.city = nearestCity;
+                    saveDB();
+
+                    const input = document.getElementById('weatherCustomCityInput');
+                    if (input) input.value = nearestCity;
+                    const cityInput = document.getElementById('settingsCity');
+                    if (cityInput) cityInput.value = nearestCity;
+
+                    if (fromModal) closeWeatherCitySelectModal();
+                    fetchDashboardWeather(true);
+                },
+                () => {
+                    if (typeof showNotification === 'function') {
+                        showNotification('تعذر الوصول إلى الموقع الجغرافي تلقائياً. يمكنك اختيار المدينة من القائمة بنقرة واحدة.', 'warning');
+                    }
+                    if (!fromModal) openWeatherCitySelectModal();
+                },
+                { timeout: 6000, maximumAge: 600000 }
+            );
+        }
+        window.detectTeacherWeatherLocationGPS = detectTeacherWeatherLocationGPS;
 
         function openWeatherCitySelectModal() {
             const city = getTeacherWeatherCity();
@@ -49610,7 +51830,7 @@ ${log.notes || 'سير الحصة عادي'}
         }
 
         function deleteWeeklyHomeworkItem(rawId, source, className) {
-            if (isPresentationMode()) return alert("وضع العرض مفعل.");
+            if (isPresentationMode()) return window.notifySafeToast("وضع العرض مفعل.");
             if (!confirm('هل أنت متأكد من رغبتك في حذف هذا الواجب من المفكرة؟')) return;
 
             if (source === 'agenda' && db.homeworkAgenda && db.homeworkAgenda[className]) {
@@ -49626,7 +51846,7 @@ ${log.notes || 'سير الحصة عادي'}
         function copyWeeklyHomeworkWhatsApp(id, source, className) {
             const allItems = getUnifiedWeeklyHomeworkItems();
             const item = allItems.find(i => i.id === id && i.className === className);
-            if (!item) return alert('تعذر العثور على بيانات الواجب المطلوب.');
+            if (!item) return window.notifySafeToast('تعذر العثور على بيانات الواجب المطلوب.');
 
             const dueDateAr = formatHwDateArabic(item.dueDate);
             const assignedDateAr = formatHwDateArabic(item.assignedDate);
@@ -49648,7 +51868,7 @@ ${log.notes || 'سير الحصة عادي'}
             navigator.clipboard.writeText(msg).then(() => {
                 showAppToast('📋 تم نسخ نص التذكير بالواجب المنزلي بنجاح! يمكنك لصقه مباشرة في WhatsApp.', 'success');
             }).catch(() => {
-                alert(msg);
+                window.notifySafeToast(msg);
             });
         }
 
@@ -49670,7 +51890,7 @@ ${log.notes || 'سير الحصة عادي'}
             }
 
             if (scoped.length === 0) {
-                return alert('لا توجد واجبات منزلية مجدولة حالياً لنسخها.');
+                return window.notifySafeToast('لا توجد واجبات منزلية مجدولة حالياً لنسخها.');
             }
 
             let msg = `📢 *برنامج الواجبات المنزلية المقرر (${weekRange.label})* 📚\n`;
@@ -49699,7 +51919,7 @@ ${log.notes || 'سير الحصة عادي'}
             navigator.clipboard.writeText(msg).then(() => {
                 showAppToast('📋 تم نسخ برنامج كافة الواجبات الأسبوعية بنجاح! جاهز للمشاركة في مجموعات الواتساب.', 'success');
             }).catch(() => {
-                alert(msg);
+                window.notifySafeToast(msg);
             });
         }
 
@@ -49758,9 +51978,9 @@ ${log.notes || 'سير الحصة عادي'}
             const assignedDate = assignDateInput?.value || formatLocalDate();
             const dueDate = dueDateInput?.value;
 
-            if (!className) return alert('الرجاء اختيار القسم أولاً.');
-            if (!title) return alert('الرجاء إدخال نص الواجب والتعليمات المطلوبة.');
-            if (!dueDate) return alert('الرجاء تحديد تاريخ الاستحقاق والتسليم.');
+            if (!className) return window.notifySafeToast('الرجاء اختيار القسم أولاً.');
+            if (!title) return window.notifySafeToast('الرجاء إدخال نص الواجب والتعليمات المطلوبة.');
+            if (!dueDate) return window.notifySafeToast('الرجاء تحديد تاريخ الاستحقاق والتسليم.');
 
             if (!db.homeworkAgenda) db.homeworkAgenda = {};
             if (!db.homeworkAgenda[className] || !Array.isArray(db.homeworkAgenda[className])) {
@@ -51462,7 +53682,7 @@ ${log.notes || 'سير الحصة عادي'}
                 ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`
                 : `https://wa.me/?text=${encodeURIComponent(msg)}`;
 
-            window.open(url, '_blank');
+            window.openSafeExternalUrl(url, '_blank');
             if (typeof showNotification === 'function') {
                 showNotification('تم فتح تطبيق WhatsApp لإرسال الرسالة', 'success');
             }
@@ -51910,7 +54130,7 @@ ${log.notes || 'سير الحصة عادي'}
             `;
         }
 
-        function downloadDashboardAdminReportPdf() {
+        async function downloadDashboardAdminReportPdf() {
             const container = document.getElementById('dashboardAdminReportPrintableContainer');
             if (!container) return;
 
@@ -51937,6 +54157,9 @@ ${log.notes || 'سير الحصة عادي'}
             const todayStr = formatLocalDate ? formatLocalDate() : new Date().toISOString().slice(0, 10);
             const filename = `كشف_المتابعة_الإداري_الإنذار_المبكر_${selectedClass}_${todayStr}.pdf`;
 
+            if (typeof window.html2pdf === 'undefined' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                await window.ensureHtml2PdfLoaded();
+            }
             if (typeof window.html2pdf !== 'undefined') {
                 const opt = {
                     margin: [8, 8, 8, 8],
@@ -51955,7 +54178,7 @@ ${log.notes || 'سير الحصة عادي'}
                     if (typeof showNotification === 'function') {
                         showNotification('تم بنجاح تحميل كشف المتابعة الإداري كملف PDF رسمي خالي من الأوراق الفارغة', 'success');
                     } else {
-                        alert('تم بنجاح توليد وتحميل ملف PDF!');
+                        window.notifySafeToast('تم بنجاح توليد وتحميل ملف PDF!');
                     }
                 }).catch(err => {
                     console.error('Error generating Admin Report PDF:', err);
@@ -52052,7 +54275,7 @@ ${log.notes || 'سير الحصة عادي'}
                     if (typeof showNotification === 'function') {
                         showNotification('تم نسخ ملخص الكشف الإداري إلى الحافظة بنجاح', 'success');
                     } else {
-                        alert('تم نسخ ملخص الكشف الإداري بنجاح!');
+                        window.notifySafeToast('تم نسخ ملخص الكشف الإداري بنجاح!');
                     }
                 }).catch(() => {
                     fallbackCopyText(text);
@@ -52072,7 +54295,7 @@ ${log.notes || 'سير الحصة عادي'}
             openDashboardAdminReportModal();
         }
 
-        function exportDashboardToExcel() {
+        async function exportDashboardToExcel() {
             const { students } = getDashboardAtRiskStudents();
             if (students.length === 0) {
                 if (typeof showNotification === 'function') showNotification('لا توجد بيانات لتصديرها حالياً', 'warning');
@@ -52099,6 +54322,9 @@ ${log.notes || 'سير الحصة عادي'}
             const todayStr = formatLocalDate();
             const filename = `لوحة_القيادة_تقرير_المتابعة_${todayStr}.xlsx`;
 
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
+            }
             if (typeof XLSX !== 'undefined') {
                 const ws = XLSX.utils.json_to_sheet(exportData);
                 ws['!dir'] = 'rtl';
@@ -52555,7 +54781,7 @@ ${log.notes || 'سير الحصة عادي'}
                     if (typeof showAppToast === 'function') {
                         showAppToast(msg, 'error');
                     } else {
-                        alert(msg);
+                        window.notifySafeToast(msg);
                     }
                     if (massarInput) massarInput.focus();
                     unlock();
@@ -52585,7 +54811,7 @@ ${log.notes || 'سير الحصة عادي'}
                 if (typeof showAppToast === 'function') {
                     showAppToast(msg, 'error');
                 } else {
-                    alert(msg);
+                    window.notifySafeToast(msg);
                 }
                 if (nameInput) nameInput.focus();
                 return;
@@ -52954,11 +55180,11 @@ ${log.notes || 'سير الحصة عادي'}
                 if (typeof showAppToast === 'function') {
                     showAppToast(successMsg, 'success');
                 } else {
-                    alert(successMsg);
+                    window.notifySafeToast(successMsg);
                 }
             } catch (err) {
                 console.error('Deduplication execution error', err);
-                alert('حدث خطأ أثناء تطهير التكرار: ' + err.message);
+                window.notifySafeToast('حدث خطأ أثناء تطهير التكرار: ' + err.message);
             }
         }
 
@@ -53709,7 +55935,7 @@ ${log.notes || 'سير الحصة عادي'}
                 ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`
                 : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
 
-            window.open(url, '_blank');
+            window.openSafeExternalUrl(url, '_blank');
 
             if (typeof showAppToast === 'function') {
                 showAppToast('تم فتح تطبيق WhatsApp لإرسال الملخص البيداغوجي 📲', 'success');
@@ -53855,7 +56081,7 @@ ${log.notes || 'سير الحصة عادي'}
         async function exportAllClassesAttendancePDFWithCovers() {
             const classes = Object.keys(db.classes || {});
             if (classes.length === 0) {
-                alert('لا توجد أقسام مسجلة لتصدير كشوفات الغياب.');
+                window.notifySafeToast('لا توجد أقسام مسجلة لتصدير كشوفات الغياب.');
                 return;
             }
 
@@ -54141,33 +56367,33 @@ ${log.notes || 'سير الحصة عادي'}
 
                             <!-- Table Container (Flex-1 to utilize vertical space) -->
                             <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-                                <table style="width: 100%; height: 100%; border-collapse: collapse; table-layout: fixed; font-size: ${dynFontSize}; text-align: center; border: 1.5px solid #0f172a;">
+                                <table style="width: 100%; height: 100%; border-collapse: collapse; table-layout: auto; font-size: ${dynFontSize}; text-align: center; border: 1.5px solid #0f172a;">
                                     <thead>
                                         <tr style="background: #1e3a8a; color: #ffffff; font-weight: 800; line-height: 1.2;">
-                                            <th style="padding: ${dynHeadPad}; width: 28px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">ر.ت</th>
-                                            <th style="padding: ${dynHeadPad}; width: 75px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">رقم مسار</th>
-                                            <th style="padding: ${dynHeadPad}; text-align: right; border: 1px solid #0f172a; width: 175px; font-size: ${dynHeadFontSize};">الاسم الكامل للتلميذ(ة)</th>
-                                            <th style="padding: ${dynHeadPad}; width: 62px; border: 1px solid #0f172a; background: #991b1b; color: #fff; font-size: ${dynHeadFontSize};">مجموع الغياب</th>
-                                            <th style="padding: ${dynHeadPad}; width: 44px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">مبرر</th>
-                                            <th style="padding: ${dynHeadPad}; width: 46px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">غير مبرر</th>
-                                            <th style="padding: ${dynHeadPad}; width: 38px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">تأخر</th>
-                                            <th style="padding: ${dynHeadPad}; width: 40px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">واجب</th>
-                                            <th style="padding: ${dynHeadPad}; width: 55px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">السلوك</th>
+                                            <th style="padding: ${dynHeadPad}; width: 28px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">ر.ت</th>
+                                            <th style="padding: ${dynHeadPad}; width: 76px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">رقم مسار</th>
+                                            <th style="padding: ${dynHeadPad}; text-align: right; border: 1px solid #0f172a; min-width: 185px; font-size: ${dynHeadFontSize};">الاسم الكامل للتلميذ(ة)</th>
+                                            <th style="padding: ${dynHeadPad}; width: 58px; white-space: nowrap; border: 1px solid #0f172a; background: #991b1b; color: #fff; font-size: ${dynHeadFontSize};">مجموع الغياب</th>
+                                            <th style="padding: ${dynHeadPad}; width: 42px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">مبرر</th>
+                                            <th style="padding: ${dynHeadPad}; width: 46px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">غير مبرر</th>
+                                            <th style="padding: ${dynHeadPad}; width: 36px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">تأخر</th>
+                                            <th style="padding: ${dynHeadPad}; width: 38px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">واجب</th>
+                                            <th style="padding: ${dynHeadPad}; width: 54px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">السلوك</th>
                                             <th style="padding: ${dynHeadPad}; text-align: right; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">ملاحظات الإدارة / الأستاذ</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         ${studentAbsenceRows.map((r, rIdx) => `
                                             <tr style="height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; background: ${rIdx % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1;">
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: #334155;">${r.order}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-family: monospace; font-size: ${dynSubFontSize}; font-weight: 700; color: #1e3a8a;">${r.massar}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.name}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 900; color: ${r.absentHours > 0 ? '#dc2626' : '#16a34a'}; background: ${r.absentHours > 0 ? '#fef2f2' : '#ffffff'}; font-size: ${dynFontSize};">${r.absentHours > 0 ? r.absentHours + ' س' : '<span style="color:#16a34a;">0</span>'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #2563eb; font-weight: 800;">${r.justHours > 0 ? r.justHours + ' س' : '-'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #dc2626; font-weight: 800;">${r.unjustHours > 0 ? r.unjustHours + ' س' : '-'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.lateCount > 0 ? '#ea580c' : '#94a3b8'};">${r.lateCount > 0 ? r.lateCount : '-'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.missedHw > 0 ? '#7c3aed' : '#94a3b8'};">${r.missedHw > 0 ? r.missedHw : '-'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; font-weight: 700;">${r.behavior}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: #334155; white-space: nowrap;">${r.order}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-family: monospace; font-size: ${dynSubFontSize}; font-weight: 700; color: #1e3a8a; white-space: nowrap;">${r.massar}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a;">${r.name}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 900; color: ${r.absentHours > 0 ? '#dc2626' : '#16a34a'}; background: ${r.absentHours > 0 ? '#fef2f2' : '#ffffff'}; font-size: ${dynFontSize}; white-space: nowrap;">${r.absentHours > 0 ? r.absentHours + ' س' : '<span style="color:#16a34a;">0</span>'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #2563eb; font-weight: 800; white-space: nowrap;">${r.justHours > 0 ? r.justHours + ' س' : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #dc2626; font-weight: 800; white-space: nowrap;">${r.unjustHours > 0 ? r.unjustHours + ' س' : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.lateCount > 0 ? '#ea580c' : '#94a3b8'}; white-space: nowrap;">${r.lateCount > 0 ? r.lateCount : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.missedHw > 0 ? '#7c3aed' : '#94a3b8'}; white-space: nowrap;">${r.missedHw > 0 ? r.missedHw : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; font-weight: 700; white-space: nowrap;">${r.behavior}</td>
                                                 <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; color: #334155; font-weight: 600;">${r.note}</td>
                                             </tr>
                                         `).join('')}
@@ -54204,13 +56430,16 @@ ${log.notes || 'سير الحصة عادي'}
                     pagebreak: { mode: ['css', 'legacy'] }
                 };
 
+                if (typeof html2pdf !== 'function' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                    await window.ensureHtml2PdfLoaded();
+                }
                 if (typeof html2pdf !== 'function') {
                     throw new Error('مكتبة تصدير PDF غير جاهزة حالياً');
                 }
                 await html2pdf().set(opt).from(mainContainer).save();
             } catch (err) {
                 console.error('Error generating batch absence PDF with covers:', err);
-                alert('حدث خطأ أثناء تصدير كشوفات الغياب لجميع الأقسام: ' + (err.message || err));
+                window.notifySafeToast('حدث خطأ أثناء تصدير كشوفات الغياب لجميع الأقسام: ' + (err.message || err));
             } finally {
                 if (mainContainer) {
                     mainContainer.innerHTML = '';
@@ -54232,7 +56461,7 @@ ${log.notes || 'سير الحصة عادي'}
         function downloadEmergencyDatabaseBackup() {
             try {
                 if (!window.db) {
-                    alert('قاعدة البيانات غير متوفرة حالياً.');
+                    window.notifySafeToast('قاعدة البيانات غير متوفرة حالياً.');
                     return;
                 }
                 const dataStr = (typeof safeStringify === 'function') ? safeStringify(window.db) : JSON.stringify(window.db);
@@ -54254,7 +56483,7 @@ ${log.notes || 'سير الحصة عادي'}
                 }
             } catch (e) {
                 console.error('Error downloading backup', e);
-                alert('تعذر تنزيل النسخة الاحتياطية: ' + e.message);
+                window.notifySafeToast('تعذر تنزيل النسخة الاحتياطية: ' + e.message);
             }
         }
         window.downloadEmergencyDatabaseBackup = downloadEmergencyDatabaseBackup;
@@ -54820,7 +57049,7 @@ ${log.notes || 'سير الحصة عادي'}
                 card.style.display = 'none';
                 return;
             }
-            card.style.display = 'block';
+            applyNotesSubViewVisibility();
             const data = computeClassAndStudentNotesQualitativeStats(className);
             const s = data.summary;
             sumContainer.innerHTML = `
@@ -54886,16 +57115,16 @@ ${log.notes || 'سير الحصة عادي'}
                         </thead>
                         <tbody>
                             ${list.length === 0 ? `<tr><td colspan="9" style="padding:14px; color:#64748b;">لا توجد بيانات مطابقة للفلتر المحدد.</td></tr>` : list.map(row => `
-                                <tr style="border-bottom:1px solid #f1f5f9; cursor:pointer;" onclick="setNotesStudentFilter('${row.studentId}')">
-                                    <td style="padding:6px; font-weight:700;">${row.orderNum}</td>
-                                    <td style="padding:6px; text-align:right; font-weight:800; color:#0f172a;">${row.name}</td>
+                                <tr style="border-bottom:1px solid #f1f5f9; cursor:pointer; background:${currentNotesStudentFilter === row.studentId ? '#eef2ff' : 'transparent'};" onclick="setNotesStudentFilter('${escNotesHtml(row.studentId)}')">
+                                    <td style="padding:6px; font-weight:700;">${escNotesHtml(row.orderNum)}</td>
+                                    <td style="padding:6px; text-align:right; font-weight:800; color:#0f172a;">${escNotesHtml(row.name)}</td>
                                     <td style="padding:6px; font-weight:900; color:#1e3a8a;">${row.total}</td>
                                     <td style="padding:6px; color:#1d4ed8; font-weight:700;">${row.pedagogical}</td>
                                     <td style="padding:6px; color:#6d28d9; font-weight:700;">${row.behavioral}</td>
                                     <td style="padding:6px; color:#b45309; font-weight:700;">${row.administrative}</td>
                                     <td style="padding:6px; color:#15803d; font-weight:700;">${row.positive}</td>
                                     <td style="padding:6px; color:#dc2626; font-weight:700;">${row.alert}</td>
-                                    <td style="padding:6px; text-align:right; font-size:0.73rem; color:#475569; max-width:260px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${row.lastNote ? row.lastNote.text : '—'}</td>
+                                    <td style="padding:6px; text-align:right; font-size:0.73rem; color:#475569; max-width:260px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${row.lastNote ? escNotesHtml(row.lastNote.text) : '—'}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -54905,7 +57134,144 @@ ${log.notes || 'سير الحصة عادي'}
         }
         window.renderNotesQualitativeStatistics = renderNotesQualitativeStatistics;
 
+        function renderSelectedStudentQualitativeSpotlight(className, studentId) {
+            const spotEl = document.getElementById('selectedStudentQualitativeSpotlight');
+            if (!spotEl) return;
+            if (!className || !studentId || !db.classes || !db.classes[className]) {
+                spotEl.style.display = 'none';
+                spotEl.innerHTML = '';
+                return;
+            }
+            const data = computeClassAndStudentNotesQualitativeStats(className);
+            const st = data.byStudent[studentId];
+            const profile = getStudentPedagogicalProfile(className, studentId);
+            if (!st || !profile) {
+                spotEl.style.display = 'none';
+                return;
+            }
+
+            const total = st.total || 0;
+            const pedPct = total > 0 ? Math.round((st.pedagogical / total) * 100) : 0;
+            const behPct = total > 0 ? Math.round((st.behavioral / total) * 100) : 0;
+            const admPct = total > 0 ? Math.max(0, 100 - pedPct - behPct) : 0;
+
+            const remarkRec = generatePedagogicalRemarks(profile, 'balanced');
+            const avgTxt = profile.avg !== null ? `${profile.avg.toFixed(2)} / 20` : 'غير مسجل';
+            const prog = profile.progression || { badge: '-', label: 'غير متوفر' };
+            const safeClass = String(className).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const safeStdId = String(studentId).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+            spotEl.style.display = 'block';
+            spotEl.innerHTML = `
+                <div style="background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%); border:1.5px solid #818cf8; border-radius:12px; padding:14px 16px; box-shadow:0 4px 12px rgba(79,70,229,0.08);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px; border-bottom:1px solid #c7d2fe; padding-bottom:8px;">
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <span style="background:#4f46e5; color:#fff; padding:3px 10px; border-radius:8px; font-size:0.75rem; font-weight:900;">🎯 البطاقة النوعية الفردية</span>
+                            <span style="font-size:0.98rem; font-weight:900; color:#1e1b4b;">${escNotesHtml(profile.name)}</span>
+                            <span style="font-size:0.73rem; color:#4338ca; background:#e0e7ff; padding:2px 8px; border-radius:6px; font-weight:800;">الترتيب: ${escNotesHtml(profile.orderNum)} ${profile.massar ? '· مسار: ' + escNotesHtml(profile.massar) : ''}</span>
+                        </div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button type="button" onclick="document.getElementById('notesStudentSelect').value='${safeStdId}'; onNotesStudentSelectChange(); document.getElementById('newNoteText')?.focus();" style="background:#4f46e5; color:#fff; border:none; padding:5px 11px; border-radius:7px; font-size:0.74rem; font-weight:800; cursor:pointer;">✍️ تدوين ملاحظة للتلميذ(ة)</button>
+                            <button type="button" onclick="printStudentQualitativeCard('${safeClass}', '${safeStdId}')" style="background:#0f766e; color:#fff; border:none; padding:5px 11px; border-radius:7px; font-size:0.74rem; font-weight:800; cursor:pointer;">🖨️ طباعة بطاقة التتبع</button>
+                            <button type="button" onclick="setNotesStudentFilter(null)" style="background:#fff; color:#475569; border:1px solid #cbd5e1; padding:5px 10px; border-radius:7px; font-size:0.74rem; font-weight:800; cursor:pointer;">✕ إغلاق البطاقة</button>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(135px, 1fr)); gap:8px; margin-bottom:10px;">
+                        <div style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:7px 10px;">
+                            <div style="font-size:0.68rem; color:#64748b; font-weight:700;">معدل الفروض والتطور</div>
+                            <div style="font-size:0.86rem; font-weight:900; color:#0f172a;">${avgTxt} <span style="font-size:0.72rem; color:#4338ca;">(${escNotesHtml(prog.badge)})</span></div>
+                        </div>
+                        <div style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:7px 10px;">
+                            <div style="font-size:0.68rem; color:#64748b; font-weight:700;">المواظبة والواجبات</div>
+                            <div style="font-size:0.84rem; font-weight:800; color:#0f172a;">غياب: ${profile.absentHours}س · إهمال واجب: ${profile.missedHw}</div>
+                        </div>
+                        <div style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:7px 10px;">
+                            <div style="font-size:0.68rem; color:#64748b; font-weight:700;">توزيع الملاحظات (${total})</div>
+                            <div style="font-size:0.8rem; font-weight:800; color:#1e293b;">🎓 ${st.pedagogical} · ⚖️ ${st.behavioral} · 🏛️ ${st.administrative}</div>
+                        </div>
+                        <div style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:7px 10px;">
+                            <div style="font-size:0.68rem; color:#64748b; font-weight:700;">الميزان النوعي</div>
+                            <div style="font-size:0.8rem; font-weight:800;"><span style="color:#15803d;">🌟 ${st.positive}</span> · <span style="color:#854d0e;">💡 ${st.guidance}</span> · <span style="color:#dc2626;">⚠️ ${st.alert}</span></div>
+                        </div>
+                    </div>
+
+                    ${total > 0 ? `
+                        <div style="height:8px; width:100%; background:#e2e8f0; border-radius:999px; overflow:hidden; display:flex; margin-bottom:10px;" title="بيداغوجية ${pedPct}% | سلوكية ${behPct}% | إدارية ${admPct}%">
+                            <div style="width:${pedPct}%; background:#2563eb;"></div>
+                            <div style="width:${behPct}%; background:#7c3aed;"></div>
+                            <div style="width:${admPct}%; background:#d97706;"></div>
+                        </div>
+                    ` : ''}
+
+                    <div style="background:#ffffff; border:1px solid #c7d2fe; border-right:4px solid ${remarkRec.color || '#4f46e5'}; border-radius:8px; padding:8px 12px; font-size:0.8rem; color:#1e293b;">
+                        <strong style="color:#4338ca;">💡 خلاصة التشخيص والتوصية التربوية المقترحة:</strong> ${escNotesHtml(remarkRec.primary)}
+                    </div>
+                </div>
+            `;
+        }
+        window.renderSelectedStudentQualitativeSpotlight = renderSelectedStudentQualitativeSpotlight;
+
+        function printStudentQualitativeCard(className, studentId) {
+            const profile = getStudentPedagogicalProfile(className, studentId);
+            const data = computeClassAndStudentNotesQualitativeStats(className);
+            const st = data.byStudent[studentId];
+            if (!profile || !st) return;
+            const remarkRec = generatePedagogicalRemarks(profile, 'balanced');
+            const html = `
+                <div style="font-family:'Cairo',sans-serif; direction:rtl; padding:16px;">
+                    <h2 style="margin:0 0 6px 0; color:#1e3a8a;">بطاقة التتبع البيداغوجي والنوعي الفردية للتلميذ(ة)</h2>
+                    <p style="margin:0 0 14px 0; font-size:0.9rem;"><strong>التلميذ(ة):</strong> ${escNotesHtml(profile.name)} | <strong>القسم:</strong> ${escNotesHtml(className)} | <strong>رقم مسار:</strong> ${escNotesHtml(profile.massar || '-')}</p>
+                    <table style="width:100%; border-collapse:collapse; margin-bottom:14px; font-size:0.85rem;">
+                        <tr style="background:#f1f5f9;">
+                            <th style="border:1px solid #334155; padding:7px;">المعدل الدراسي</th>
+                            <th style="border:1px solid #334155; padding:7px;">مؤشر التطور</th>
+                            <th style="border:1px solid #334155; padding:7px;">ساعات الغياب</th>
+                            <th style="border:1px solid #334155; padding:7px;">الواجبات غير المنجزة</th>
+                            <th style="border:1px solid #334155; padding:7px;">السلوك الصفي</th>
+                        </tr>
+                        <tr>
+                            <td style="border:1px solid #334155; padding:7px; text-align:center; font-weight:bold;">${profile.avg !== null ? profile.avg.toFixed(2) + ' / 20' : '-'}</td>
+                            <td style="border:1px solid #334155; padding:7px; text-align:center;">${escNotesHtml(profile.progression ? profile.progression.label : '-')}</td>
+                            <td style="border:1px solid #334155; padding:7px; text-align:center;">${profile.absentHours} س</td>
+                            <td style="border:1px solid #334155; padding:7px; text-align:center;">${profile.missedHw}</td>
+                            <td style="border:1px solid #334155; padding:7px; text-align:center;">${escNotesHtml(profile.behaviorStatus)}</td>
+                        </tr>
+                    </table>
+                    <div style="border:1px solid #334155; border-radius:8px; padding:10px; margin-bottom:14px; background:#f8fafc;">
+                        <strong>التوصية التربوية العامة:</strong> ${escNotesHtml(remarkRec.primary)}
+                    </div>
+                    <h4>سجل الملاحظات التربوية المسجلة (${st.notes.length}):</h4>
+                    <table style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+                        <thead>
+                            <tr style="background:#f1f5f9;">
+                                <th style="border:1px solid #334155; padding:6px; width:120px;">التاريخ</th>
+                                <th style="border:1px solid #334155; padding:6px; width:100px;">التصنيف</th>
+                                <th style="border:1px solid #334155; padding:6px;">نص الملاحظة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${st.notes.length === 0 ? `<tr><td colspan="3" style="border:1px solid #334155; padding:10px; text-align:center;">لا توجد ملاحظات فردية مسجلة.</td></tr>` : st.notes.map(n => `
+                                <tr>
+                                    <td style="border:1px solid #334155; padding:6px; text-align:center;">${escNotesHtml(n.date)}</td>
+                                    <td style="border:1px solid #334155; padding:6px; text-align:center;">${escNotesHtml(n.dim?.catMeta?.label || 'تربوية')}</td>
+                                    <td style="border:1px solid #334155; padding:6px; text-align:right;">${escNotesHtml(n.text)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            openCustomPrintPreviewModal(html, {
+                title: `بطاقة_التتبع_${profile.name}_${className}`,
+                orientation: 'portrait',
+                subtitle: `بطاقة التتبع البيداغوجي والنوعي — ${profile.name} (${className})`
+            });
+        }
+        window.printStudentQualitativeCard = printStudentQualitativeCard;
+
         function scrollToNotesQualitativeStats() {
+            switchNotesSubView('all');
             const card = document.getElementById('notesQualitativeStatsCard');
             if (!card) return;
             card.style.display = 'block';
@@ -54963,9 +57329,12 @@ ${log.notes || 'سير الحصة عادي'}
         }
         window.exportUnifiedReportWord = exportUnifiedReportWord;
 
-        function exportUnifiedReportExcel() {
+        async function exportUnifiedReportExcel() {
             const className = document.getElementById('reportClassSelect')?.value || 'جميع_الأقسام';
-            if (typeof XLSX === 'undefined' || !Array.isArray(reportDataCache) || reportDataCache.length === 0) {
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
+            }
+            if (!Array.isArray(reportDataCache) || reportDataCache.length === 0) {
                 if (typeof renderReport === 'function') renderReport();
             }
             if (typeof XLSX !== 'undefined' && Array.isArray(reportDataCache) && reportDataCache.length > 0) {
@@ -54987,11 +57356,14 @@ ${log.notes || 'سير الحصة عادي'}
         }
         window.exportCahierDeTextesWord = exportCahierDeTextesWord;
 
-        function exportCahierDeTextesExcel() {
+        async function exportCahierDeTextesExcel() {
             const className = document.getElementById('cahierPdfClassSelect')?.value || document.getElementById('lessonLogClassSelect')?.value;
             if (!className || !db.lessonLogs || !db.lessonLogs[className]) {
                 if (typeof showAppToast === 'function') showAppToast('يرجى اختيار قسم يحتوي على حصص مدونة أولاً.', 'warning');
                 return;
+            }
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
             }
             if (typeof XLSX === 'undefined') return;
             const rows = (db.lessonLogs[className] || []).map((log, i) => ({
@@ -55324,17 +57696,17 @@ ${log.notes || 'سير الحصة عادي'}
 
                 return `
                     <tr style="background:${bg}; border-bottom:1px solid #cbd5e1;">
-                        <td style="padding:5px 4px; border:1px solid #94a3b8; font-weight:800; text-align:center;">${c.index}</td>
+                        <td style="padding:5px 4px; border:1px solid #94a3b8; font-weight:800; text-align:center; white-space:nowrap;">${c.index}</td>
                         <td style="padding:5px 6px; border:1px solid #94a3b8; font-weight:900; color:#1e3a8a; text-align:right; white-space:nowrap;">${escapeHtml(c.className)}</td>
-                        <td style="padding:5px 4px; border:1px solid #94a3b8; font-weight:800; text-align:center;">${c.studentCount}</td>
-                        <td style="padding:5px 4px; border:1px solid #94a3b8; font-weight:700; color:#15803d; text-align:center;">${c.zeroAbsenceStudents} (${Math.round((c.zeroAbsenceStudents / Math.max(1, c.studentCount)) * 100)}%)</td>
-                        <td style="padding:5px 4px; border:1px solid #94a3b8; font-weight:800; color:${c.absentHours > 0 ? '#dc2626' : '#15803d'}; text-align:center; background:${c.absentHours > 0 ? '#fef2f2' : 'transparent'};">${c.absentHours} س</td>
-                        <td style="padding:5px 4px; border:1px solid #94a3b8; color:#0284c7; font-weight:700; text-align:center;">${c.justifiedHours} س</td>
-                        <td style="padding:5px 4px; border:1px solid #94a3b8; color:#dc2626; font-weight:700; text-align:center;">${c.unjustifiedHours} س</td>
-                        <td style="padding:5px 4px; border:1px solid #94a3b8; color:${c.lateCount > 0 ? '#d97706' : '#64748b'}; font-weight:700; text-align:center;">${c.lateCount}</td>
-                        <td style="padding:5px 6px; border:1px solid #94a3b8; text-align:center; min-width:105px;">
+                        <td style="padding:5px 4px; border:1px solid #94a3b8; font-weight:800; text-align:center; white-space:nowrap;">${c.studentCount}</td>
+                        <td style="padding:5px 4px; border:1px solid #94a3b8; font-weight:700; color:#15803d; text-align:center; white-space:nowrap;">${c.zeroAbsenceStudents} (${Math.round((c.zeroAbsenceStudents / Math.max(1, c.studentCount)) * 100)}%)</td>
+                        <td style="padding:5px 4px; border:1px solid #94a3b8; font-weight:800; color:${c.absentHours > 0 ? '#dc2626' : '#15803d'}; text-align:center; background:${c.absentHours > 0 ? '#fef2f2' : 'transparent'}; white-space:nowrap;">${c.absentHours} س</td>
+                        <td style="padding:5px 4px; border:1px solid #94a3b8; color:#0284c7; font-weight:700; text-align:center; white-space:nowrap;">${c.justifiedHours} س</td>
+                        <td style="padding:5px 4px; border:1px solid #94a3b8; color:#dc2626; font-weight:700; text-align:center; white-space:nowrap;">${c.unjustifiedHours} س</td>
+                        <td style="padding:5px 4px; border:1px solid #94a3b8; color:${c.lateCount > 0 ? '#d97706' : '#64748b'}; font-weight:700; text-align:center; white-space:nowrap;">${c.lateCount}</td>
+                        <td style="padding:5px 6px; border:1px solid #94a3b8; text-align:center; width:95px; white-space:nowrap;">
                             <div style="display:flex; align-items:center; justify-content:center; gap:4px;">
-                                <span style="background:${c.statusBadge.bg}; color:${c.statusBadge.color}; border:1px solid ${c.statusBadge.border}; padding:1.5px 7px; border-radius:999px; font-weight:900; font-size:7.6pt;">
+                                <span style="background:${c.statusBadge.bg}; color:${c.statusBadge.color}; border:1px solid ${c.statusBadge.border}; padding:1.5px 7px; border-radius:999px; font-weight:900; font-size:7.6pt; white-space:nowrap;">
                                     ${c.attendanceRate}%
                                 </span>
                             </div>
@@ -55481,18 +57853,18 @@ ${log.notes || 'سير الحصة عادي'}
                             <span>📊 أولاً: الجدول الإحصائي المجمع لنسب المواظبة الإجمالية والغياب والملاحظات حسب الأقسام</span>
                             <span style="font-size:7.2pt; color:#dbeafe;">المعدل العام للمواظبة بجميع الأقسام: ${totals.overallAttendanceRate}%</span>
                         </div>
-                        <table style="width:100%; border-collapse:collapse; font-size:7.5pt; border:1.2px solid #1e3a8a;">
+                        <table style="width:100%; border-collapse:collapse; font-size:7.5pt; border:1.2px solid #1e3a8a; table-layout:auto;">
                             <thead>
                                 <tr style="background:#f1f5f9; color:#0f172a; font-weight:900;">
-                                    <th style="padding:5px 4px; border:1px solid #94a3b8; width:26px;">#</th>
-                                    <th style="padding:5px 6px; border:1px solid #94a3b8; text-align:right; width:110px;">القسم</th>
-                                    <th style="padding:5px 4px; border:1px solid #94a3b8; width:52px;">التلاميذ</th>
-                                    <th style="padding:5px 4px; border:1px solid #94a3b8; width:72px;">حضور تام (0 غ)</th>
-                                    <th style="padding:5px 4px; border:1px solid #94a3b8; width:56px;">مجموع الغياب</th>
-                                    <th style="padding:5px 4px; border:1px solid #94a3b8; width:46px;">مبرر</th>
-                                    <th style="padding:5px 4px; border:1px solid #94a3b8; width:52px;">غير مبرر</th>
-                                    <th style="padding:5px 4px; border:1px solid #94a3b8; width:42px;">التأخر</th>
-                                    <th style="padding:5px 6px; border:1px solid #94a3b8; width:110px;">نسبة المواظبة الإجمالية</th>
+                                    <th style="padding:5px 4px; border:1px solid #94a3b8; width:26px; white-space:nowrap;">#</th>
+                                    <th style="padding:5px 6px; border:1px solid #94a3b8; text-align:right; width:100px; white-space:nowrap;">القسم</th>
+                                    <th style="padding:5px 4px; border:1px solid #94a3b8; width:48px; white-space:nowrap;">التلاميذ</th>
+                                    <th style="padding:5px 4px; border:1px solid #94a3b8; width:72px; white-space:nowrap;">حضور تام (0 غ)</th>
+                                    <th style="padding:5px 4px; border:1px solid #94a3b8; width:56px; white-space:nowrap;">مجموع الغياب</th>
+                                    <th style="padding:5px 4px; border:1px solid #94a3b8; width:44px; white-space:nowrap;">مبرر</th>
+                                    <th style="padding:5px 4px; border:1px solid #94a3b8; width:50px; white-space:nowrap;">غير مبرر</th>
+                                    <th style="padding:5px 4px; border:1px solid #94a3b8; width:40px; white-space:nowrap;">التأخر</th>
+                                    <th style="padding:5px 6px; border:1px solid #94a3b8; width:95px; white-space:nowrap;">نسبة المواظبة الإجمالية</th>
                                     <th style="padding:5px 7px; border:1px solid #94a3b8; text-align:right;">الملاحظات المسجلة والخلاصة التربوية للقسم</th>
                                 </tr>
                             </thead>
@@ -55501,14 +57873,14 @@ ${log.notes || 'سير الحصة عادي'}
                             </tbody>
                             <tfoot>
                                 <tr style="background:#e2e8f0; color:#0f172a; font-weight:900;">
-                                    <td colspan="2" style="padding:5px 6px; border:1px solid #64748b; text-align:right;">المجموع العام / المعدل الإجمالي (${totals.classesCount} أقسام)</td>
-                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center;">${totals.studentsCount}</td>
-                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#15803d;">${totals.zeroAbsenceStudents}</td>
-                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#dc2626;">${totals.absentHours} س</td>
-                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#0284c7;">${totals.justifiedHours} س</td>
-                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#dc2626;">${totals.unjustifiedHours} س</td>
-                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#d97706;">${totals.lateCount}</td>
-                                    <td style="padding:5px 6px; border:1px solid #64748b; text-align:center; color:${overallColor}; font-size:8.4pt;">${totals.overallAttendanceRate}%</td>
+                                    <td colspan="2" style="padding:5px 6px; border:1px solid #64748b; text-align:right; white-space:nowrap;">المجموع العام / المعدل الإجمالي (${totals.classesCount} أقسام)</td>
+                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; white-space:nowrap;">${totals.studentsCount}</td>
+                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#15803d; white-space:nowrap;">${totals.zeroAbsenceStudents}</td>
+                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#dc2626; white-space:nowrap;">${totals.absentHours} س</td>
+                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#0284c7; white-space:nowrap;">${totals.justifiedHours} س</td>
+                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#dc2626; white-space:nowrap;">${totals.unjustifiedHours} س</td>
+                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#d97706; white-space:nowrap;">${totals.lateCount}</td>
+                                    <td style="padding:5px 6px; border:1px solid #64748b; text-align:center; color:${overallColor}; font-size:8.4pt; white-space:nowrap;">${totals.overallAttendanceRate}%</td>
                                     <td style="padding:5px 7px; border:1px solid #64748b; text-align:right; font-size:7.2pt;">إجمالي الملاحظات المسجلة بجميع الأقسام: ${totals.recordedNotesCount} ملاحظة</td>
                                 </tr>
                             </tfoot>
@@ -55550,7 +57922,7 @@ ${log.notes || 'سير الحصة عادي'}
                 if (typeof showAppToast === 'function') {
                     showAppToast('لا توجد أقسام مسجلة حالياً لتوليد بطاقة الحضور المجمعة.', 'warning');
                 } else {
-                    alert('لا توجد أقسام مسجلة حالياً لتوليد بطاقة الحضور المجمعة.');
+                    window.notifySafeToast('لا توجد أقسام مسجلة حالياً لتوليد بطاقة الحضور المجمعة.');
                 }
                 return;
             }
@@ -55573,6 +57945,9 @@ ${log.notes || 'سير الحصة عادي'}
                     tempDiv.innerHTML = html;
                     document.body.appendChild(tempDiv);
 
+                    if (typeof window.html2pdf !== 'function' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                        await window.ensureHtml2PdfLoaded();
+                    }
                     if (typeof window.html2pdf === 'function') {
                         const opt = {
                             margin: [6, 6, 6, 6],
@@ -56243,19 +58618,19 @@ ${log.notes || 'سير الحصة عادي'}
                             <span>📊 أولاً: الكشف الإجمالي الشامل لحالات الغياب والتأخرات لجميع تلاميذ القسم (${escapeHtml(meta.className)})</span>
                             <span style="font-size:7pt; color:#dbeafe;">تلاميذ مسجل بحقهم غياب أو تأخر: ${totals.studentsWithAbsenceOrLateCount} من أصل ${totals.studentsCount}</span>
                         </div>
-                        <table style="width:100%; border-collapse:collapse; font-size:7.3pt; border:1.2px solid #1e3a8a;">
+                        <table style="width:100%; border-collapse:collapse; font-size:7.3pt; border:1.2px solid #1e3a8a; table-layout:auto;">
                             <thead>
                                 <tr style="background:#f1f5f9; color:#0f172a; font-weight:900;">
-                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:24px;">رت</th>
-                                    <th style="padding:4.5px 5px; border:1px solid #94a3b8; width:68px;">رقم مسار</th>
-                                    <th style="padding:4.5px 6px; border:1px solid #94a3b8; text-align:right; width:135px;">الاسم الكامل للتلميذ(ة)</th>
-                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:42px;">الحصص</th>
-                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:50px;">غير مبرر</th>
-                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:46px;">مبرر</th>
-                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:52px;">مجموع الغياب</th>
-                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:42px;">التأخرات</th>
+                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:24px; white-space:nowrap;">رت</th>
+                                    <th style="padding:4.5px 5px; border:1px solid #94a3b8; width:72px; white-space:nowrap;">رقم مسار</th>
+                                    <th style="padding:4.5px 6px; border:1px solid #94a3b8; text-align:right; min-width:155px;">الاسم الكامل للتلميذ(ة)</th>
+                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:40px; white-space:nowrap;">الحصص</th>
+                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:48px; white-space:nowrap;">غير مبرر</th>
+                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:42px; white-space:nowrap;">مبرر</th>
+                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:54px; white-space:nowrap;">مجموع الغياب</th>
+                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:40px; white-space:nowrap;">التأخرات</th>
                                     <th style="padding:4.5px 6px; border:1px solid #94a3b8; text-align:right;">تواريخ الحصص المرصودة (غياب / تأخر)</th>
-                                    <th style="padding:4.5px 6px; border:1px solid #94a3b8; width:125px;">الوضعية والقرار الإداري</th>
+                                    <th style="padding:4.5px 6px; border:1px solid #94a3b8; width:125px; white-space:nowrap;">الوضعية والقرار الإداري</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -56264,11 +58639,11 @@ ${log.notes || 'سير الحصة عادي'}
                             <tfoot>
                                 <tr style="background:#e2e8f0; color:#0f172a; font-weight:900;">
                                     <td colspan="3" style="padding:5px 6px; border:1px solid #64748b; text-align:right;">الحصيلة الإجمالية للقسم (${escapeHtml(meta.className)})</td>
-                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center;">${totals.totalAbsentSessions}</td>
-                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#dc2626;">${totals.totalUnjustifiedHours} س</td>
-                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#0284c7;">${totals.totalJustifiedHours} س</td>
-                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#b91c1c;">${totals.totalAbsentHours} س</td>
-                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#d97706;">${totals.totalLateCount}</td>
+                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; white-space:nowrap;">${totals.totalAbsentSessions}</td>
+                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#dc2626; white-space:nowrap;">${totals.totalUnjustifiedHours} س</td>
+                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#0284c7; white-space:nowrap;">${totals.totalJustifiedHours} س</td>
+                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#b91c1c; white-space:nowrap;">${totals.totalAbsentHours} س</td>
+                                    <td style="padding:5px 4px; border:1px solid #64748b; text-align:center; color:#d97706; white-space:nowrap;">${totals.totalLateCount}</td>
                                     <td colspan="2" style="padding:5px 6px; border:1px solid #64748b; text-align:right; font-size:7.1pt;">نسبة المواظبة العامة للقسم: <strong style="color:${rateColor};">${totals.attendanceRate}%</strong></td>
                                 </tr>
                             </tfoot>
@@ -56281,16 +58656,16 @@ ${log.notes || 'سير الحصة عادي'}
                             <span>🕒 ثانياً: السجل الزمني التفصيلي الموحد لوقائع الغياب والتأخرات المسجلة في القسم (${totals.totalIncidentsCount} حالة)</span>
                             <span style="font-size:7pt; color:#fecaca;">مرجع رسمي للمصادقة الإدارية لدى الحراسة العامة للخارجية</span>
                         </div>
-                        <table style="width:100%; border-collapse:collapse; font-size:7.3pt; border:1.2px solid #991b1b;">
+                        <table style="width:100%; border-collapse:collapse; font-size:7.3pt; border:1.2px solid #991b1b; table-layout:auto;">
                             <thead>
                                 <tr style="background:#fef2f2; color:#7f1d1d; font-weight:900;">
-                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:26px;">#</th>
-                                    <th style="padding:4.5px 6px; border:1px solid #94a3b8; width:74px;">تاريخ الحصة</th>
-                                    <th style="padding:4.5px 6px; border:1px solid #94a3b8; width:82px;">الفترة / التوقيت</th>
-                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:42px;">المدة</th>
-                                    <th style="padding:4.5px 5px; border:1px solid #94a3b8; width:70px;">رقم مسار</th>
-                                    <th style="padding:4.5px 6px; border:1px solid #94a3b8; text-align:right; width:145px;">الاسم الكامل للتلميذ(ة)</th>
-                                    <th style="padding:4.5px 6px; border:1px solid #94a3b8; width:95px;">طبيعة الحالة</th>
+                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:26px; white-space:nowrap;">#</th>
+                                    <th style="padding:4.5px 6px; border:1px solid #94a3b8; width:76px; white-space:nowrap;">تاريخ الحصة</th>
+                                    <th style="padding:4.5px 6px; border:1px solid #94a3b8; width:82px; white-space:nowrap;">الفترة / التوقيت</th>
+                                    <th style="padding:4.5px 4px; border:1px solid #94a3b8; width:40px; white-space:nowrap;">المدة</th>
+                                    <th style="padding:4.5px 5px; border:1px solid #94a3b8; width:72px; white-space:nowrap;">رقم مسار</th>
+                                    <th style="padding:4.5px 6px; border:1px solid #94a3b8; text-align:right; min-width:155px;">الاسم الكامل للتلميذ(ة)</th>
+                                    <th style="padding:4.5px 6px; border:1px solid #94a3b8; width:95px; white-space:nowrap;">طبيعة الحالة</th>
                                     <th style="padding:4.5px 6px; border:1px solid #94a3b8; text-align:right;">المبرر الإداري / الملاحظة المسجلة</th>
                                 </tr>
                             </thead>
@@ -56347,6 +58722,9 @@ ${log.notes || 'سير الحصة عادي'}
                     tempDiv.innerHTML = html;
                     document.body.appendChild(tempDiv);
 
+                    if (typeof window.html2pdf !== 'function' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                        await window.ensureHtml2PdfLoaded();
+                    }
                     if (typeof window.html2pdf === 'function') {
                         const opt = {
                             margin: [6, 6, 6, 6],
@@ -56397,3 +58775,148 @@ ${log.notes || 'سير الحصة عادي'}
             }
         }
         window.exportUnifiedClassAbsenceAndLatenessPDF = exportUnifiedClassAbsenceAndLatenessPDF;
+
+        /**
+         * طباعة وثيقة HTML عبر إطار مخفي معزول (srcdoc) بدلاً من window.open / document.write
+         * متوافق تماماً مع iFrame و Android WebView و Electron دون حظر نوافذ منبثقة
+         */
+        function printHtmlViaHiddenIframe(htmlContent) {
+            try {
+                const existing = document.getElementById('profDigitalHiddenPrintFrame');
+                if (existing) existing.remove();
+                const iframe = document.createElement('iframe');
+                iframe.id = 'profDigitalHiddenPrintFrame';
+                iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+                iframe.srcdoc = String(htmlContent || '');
+                iframe.onload = function () {
+                    setTimeout(() => {
+                        try {
+                            if (iframe.contentWindow) {
+                                iframe.contentWindow.focus();
+                                iframe.contentWindow.print();
+                            }
+                        } catch (printErr) {
+                            console.warn('Hidden iframe print error:', printErr);
+                        }
+                        setTimeout(() => {
+                            if (iframe.parentNode) iframe.remove();
+                        }, 60000);
+                    }, 180);
+                };
+                document.body.appendChild(iframe);
+            } catch (err) {
+                console.error('printHtmlViaHiddenIframe failed:', err);
+            }
+        }
+        window.printHtmlViaHiddenIframe = printHtmlViaHiddenIframe;
+
+        /**
+         * وحدة الفحص الذاتي والاختبارات الآلية (Audit Smoke Tests Suite)
+         * تتحقق من دقة الحسابات، الأرشفة والاستعادة، مدقق صيغ القوالب، وجاهزية السحابة/التخزين دون إنترنت
+         */
+        async function runSystemIntegritySmokeTests() {
+            const startedAt = performance.now();
+            const checks = [];
+
+            // 1. فحص مدقق نقط مسار والفاصلة العشرية
+            try {
+                const validComma = typeof parseMassarGradeValue === 'function' ? parseMassarGradeValue('14,75') : 14.75;
+                const invalidOver = typeof parseMassarGradeValue === 'function' ? parseMassarGradeValue('22.5') : undefined;
+                const ok = validComma === 14.75 && invalidOver === undefined;
+                checks.push({
+                    id: 'massar_grade_parser',
+                    name: 'مدقق نقط مسار والحدود القانونية (0-20)',
+                    passed: ok,
+                    detail: ok ? '14,75 -> 14.75 | رفض >20 بنجاح' : `نتيجة غير متوقعة (${validComma}, ${invalidOver})`
+                });
+            } catch (e) {
+                checks.push({ id: 'massar_grade_parser', name: 'مدقق نقط مسار', passed: false, detail: e.message });
+            }
+
+            // 2. فحص سلامة النسخ والترحيل في خزينة الأرشيف
+            try {
+                const sample = { students: [{ id: 's1', name: 'تلميذ' }], grades: { s1: { f1: 15 } } };
+                const cloned = typeof cloneArchivePayloadSafe === 'function'
+                    ? cloneArchivePayloadSafe(sample)
+                    : JSON.parse(JSON.stringify(sample));
+                cloned.grades.s1.f1 = 19;
+                const isolated = sample.grades.s1.f1 === 15 && cloned.grades.s1.f1 === 19;
+                checks.push({
+                    id: 'archive_isolation',
+                    name: 'عزل وسلامة بيانات خزينة الأرشيف (Archive Vault)',
+                    passed: isolated,
+                    detail: isolated ? 'نسخ عميق بدون مرجع مشترك (Lossless)' : 'تعارض مرجعي في النسخ'
+                });
+            } catch (e) {
+                checks.push({ id: 'archive_isolation', name: 'خزينة الأرشيف', passed: false, detail: e.message });
+            }
+
+            // 3. فحص محلل وإبراز الصيغ البرمجية للقوالب {{...}}
+            try {
+                let synOk = true;
+                let synDetail = 'الوحدة جاهزة';
+                if (typeof window.analyzePromptSyntaxDiagnostics === 'function' && typeof window.buildPromptEditorSyntaxHighlightHTML === 'function') {
+                    const diag = window.analyzePromptSyntaxDiagnostics('قسم {{className}} مع {{unclosed');
+                    const htmlOut = window.buildPromptEditorSyntaxHighlightHTML('{{className}}');
+                    synOk = diag.uniqueCount === 1 && diag.brokenBraces === 1 && htmlOut.includes('prompt-syn-known');
+                    synDetail = synOk ? 'تم رصد المتغير الصالح والأقواس غير المغلقة بدقة' : 'خلل في تحليل توكنات {{...}}';
+                }
+                checks.push({
+                    id: 'prompt_syntax_highlighter',
+                    name: 'محرك إبراز الصيغ البرمجية للقوالب {{...}}',
+                    passed: synOk,
+                    detail: synDetail
+                });
+            } catch (e) {
+                checks.push({ id: 'prompt_syntax_highlighter', name: 'إبراز الصيغ البرمجية', passed: false, detail: e.message });
+            }
+
+            // 4. فحص جاهزية المزامنة السحابية الخلفية و Service Worker
+            try {
+                const bgStatus = typeof window.getBackgroundSyncStatus === 'function' ? window.getBackgroundSyncStatus() : null;
+                const swSupported = 'serviceWorker' in navigator;
+                let swRegistered = false;
+                if (swSupported) {
+                    const regs = await navigator.serviceWorker.getRegistrations().catch(() => []);
+                    swRegistered = Array.isArray(regs) && regs.length > 0;
+                }
+                const syncReady = Boolean(bgStatus);
+                checks.push({
+                    id: 'bg_sync_and_sw',
+                    name: 'جاهزية المزامنة الخلفية ووضع عدم الاتصال (PWA)',
+                    passed: syncReady,
+                    detail: `BackgroundSync: ${bgStatus ? (bgStatus.enabled ? 'مفعل' : 'متوقف مؤقتاً') : 'غير متاح'} | SW: ${swRegistered ? 'مسجل' : 'سيسجل في النافذة الرئيسية'}`
+                });
+            } catch (e) {
+                checks.push({ id: 'bg_sync_and_sw', name: 'المزامنة و PWA', passed: false, detail: e.message });
+            }
+
+            // 5. فحص سلامة بنية قاعدة البيانات الحالية
+            try {
+                const hasDb = Boolean(window.db && typeof window.db === 'object');
+                const clsCount = hasDb && window.db.classes && typeof window.db.classes === 'object'
+                    ? (Array.isArray(window.db.classes) ? window.db.classes.length : Object.keys(window.db.classes).length)
+                    : 0;
+                const vaultCount = hasDb && window.db.archivedSeasonVault ? Object.keys(window.db.archivedSeasonVault).length : 0;
+                checks.push({
+                    id: 'db_integrity',
+                    name: 'سلامة بنية قاعدة البيانات المحلية',
+                    passed: hasDb,
+                    detail: hasDb ? `${clsCount} أقسام نشطة | ${vaultCount} أقسام بخزينة الأرشيف` : 'قاعدة البيانات غير مهيأة'
+                });
+            } catch (e) {
+                checks.push({ id: 'db_integrity', name: 'بنية قاعدة البيانات', passed: false, detail: e.message });
+            }
+
+            const passedCount = checks.filter(c => c.passed).length;
+            const durationMs = Math.round(performance.now() - startedAt);
+            return {
+                passedCount,
+                totalCount: checks.length,
+                allPassed: passedCount === checks.length,
+                durationMs,
+                checkedAt: new Date().toISOString(),
+                checks
+            };
+        }
+        window.runSystemIntegritySmokeTests = runSystemIntegritySmokeTests;

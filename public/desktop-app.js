@@ -1117,7 +1117,7 @@
         input.click();
     }
 
-    const BASE_APP_VERSION = '3.7';
+    const BASE_APP_VERSION = '3.9';
 
     function isAndroidHapticEnabled() {
         try {
@@ -1303,6 +1303,63 @@
                 fixes.push(`تنظيف ${initialRecLen - window.db.records.length} سجل غياب غير مكتمل`);
             }
             recordsCount = window.db.records.length;
+
+            // Audit & auto-repair db.tutoring (Private Tutoring subsystem)
+            if (!window.db.tutoring || typeof window.db.tutoring !== 'object' || Array.isArray(window.db.tutoring)) {
+                window.db.tutoring = { students: [], groups: [], scheduleSlots: [], expenses: [], groupSeries: {} };
+                fixes.push('إعادة تهيئة وحدة الدعم الخصوصي (db.tutoring)');
+            } else {
+                ['students', 'groups', 'scheduleSlots', 'expenses'].forEach((tKey) => {
+                    if (!Array.isArray(window.db.tutoring[tKey])) {
+                        window.db.tutoring[tKey] = [];
+                        fixes.push(`إصلاح مصفوفة الدعم الخصوصي (db.tutoring.${tKey})`);
+                    }
+                });
+                if (!window.db.tutoring.groupSeries || typeof window.db.tutoring.groupSeries !== 'object' || Array.isArray(window.db.tutoring.groupSeries)) {
+                    window.db.tutoring.groupSeries = {};
+                    fixes.push('تهيئة سجل سلاسل المجموعات (db.tutoring.groupSeries)');
+                }
+            }
+            const seenTutIds = new Set();
+            window.db.tutoring.students = window.db.tutoring.students.filter((st, idx) => {
+                if (!st || typeof st !== 'object') {
+                    fixes.push('حذف سجل تلميذ دعم فارغ أو تالف');
+                    return false;
+                }
+                if (!st.id) {
+                    st.id = `tut_${Date.now()}_${idx}`;
+                    fixes.push(`توليد معرف لتلميذ دعم (${st.name || idx + 1})`);
+                }
+                if (seenTutIds.has(st.id)) {
+                    st.id = `${st.id}_${idx}`;
+                    fixes.push(`معالجة تكرار معرف تلميذ دعم (${st.name || st.id})`);
+                }
+                seenTutIds.add(st.id);
+                if (!Array.isArray(st.sessions)) {
+                    st.sessions = [];
+                    fixes.push(`تهيئة مصفوفة الحصص للتلميذ (${st.name || st.id})`);
+                } else {
+                    const beforeLen = st.sessions.length;
+                    st.sessions = st.sessions.filter(ss => ss && typeof ss === 'object' && ss.date);
+                    st.sessions.forEach((ss, sIdx) => {
+                        if (!ss.id) ss.id = `sess_${Date.now()}_${idx}_${sIdx}`;
+                    });
+                    if (st.sessions.length !== beforeLen) {
+                        fixes.push(`تنظيف ${beforeLen - st.sessions.length} حصة غير مكتملة للتلميذ (${st.name || st.id})`);
+                    }
+                }
+                if (Array.isArray(st.payments)) {
+                    const fixedPay = {};
+                    st.payments.forEach(item => {
+                        if (item && item.month) fixedPay[item.month] = item;
+                    });
+                    st.payments = fixedPay;
+                    fixes.push(`تحويل سجل أداءات التلميذ (${st.name || st.id}) إلى البنية القياسية`);
+                } else if (!st.payments || typeof st.payments !== 'object') {
+                    st.payments = {};
+                }
+                return true;
+            });
 
             // Ensure default calendar holidays & milestones are seeded if empty
             if (typeof window.initDefaultHolidays === 'function' && window.db.officialHolidays.length === 0) {
@@ -1917,6 +1974,20 @@
                                 🔍 بدء الفحص التشخيصي
                             </button>
                         </div>
+
+                        <!-- Audit System Integrity Smoke Tests Panel -->
+                        <div style="background: #f5f3ff; border: 1.5px solid #ddd6fe; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                                <div>
+                                    <div style="font-weight: 800; font-size: 0.84rem; color: #4c1d95;">🛡️ الفحص الشامل لسلامة الحسابات والأرشيف وصيغ القوالب (Smoke Tests)</div>
+                                    <div style="font-size: 0.72rem; color: #6d28d9; margin-top: 2px;">اختبار آلي سريع لدقة نقط مسار، عزل الأرشيف، إبراز الصيغ {{...}}، وجاهزية المزامنة الخلفية.</div>
+                                </div>
+                                <button type="button" id="btnRunAuditSmokeTests" onclick="window.executeDesktopAuditSmokeTests(this)" style="background: linear-gradient(135deg, #6d28d9, #4f46e5); color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.78rem; cursor: pointer; box-shadow: 0 2px 6px rgba(109,40,217,0.24);">
+                                    ⚡ تشغيل اختبارات السلامة
+                                </button>
+                            </div>
+                            <div id="deskAuditSmokeResults" style="display: none; font-size: 0.74rem; background: #ffffff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 10px;"></div>
+                        </div>
                     </div>
 
                     <!-- 4. Local Backup & Cross-Device Sync Tab -->
@@ -2189,6 +2260,79 @@
         } catch (e) {}
     }
 
+    async function executeDesktopAuditSmokeTests(btn) {
+        const resultsEl = document.getElementById('deskAuditSmokeResults');
+        const originalText = btn ? btn.innerHTML : '';
+        const escHtml = (str) => String(str == null ? '' : str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '⏳ جاري تنفيذ الفحص الشامل...';
+        }
+        if (resultsEl) {
+            resultsEl.style.display = 'block';
+            resultsEl.innerHTML = '<div style="color:#5b21b6; font-weight:700;">جاري فحص الدقة الحسابية، خزينة الأرشيف، إبراز الصيغ {{...}}، والمزامنة الخلفية...</div>';
+        }
+
+        try {
+            if (typeof window.runSystemIntegritySmokeTests !== 'function') {
+                throw new Error('وحدة اختبارات السلامة غير متوفرة في النافذة الحالية.');
+            }
+            const report = await window.runSystemIntegritySmokeTests();
+            const checks = Array.isArray(report && report.checks) ? report.checks : [];
+            const headerBg = report.allPassed ? '#ecfdf5' : '#fffbeb';
+            const headerBorder = report.allPassed ? '#a7f3d0' : '#fde68a';
+            const headerColor = report.allPassed ? '#065f46' : '#92400e';
+            const headerIcon = report.allPassed ? '✅' : '⚠️';
+
+            const rowsHtml = checks.map((chk) => {
+                const badgeBg = chk.passed ? '#dcfce7' : '#fee2e2';
+                const badgeColor = chk.passed ? '#166534' : '#991b1b';
+                const badgeText = chk.passed ? 'اجتاز ✓' : 'تنبيه ✕';
+                return `
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:7px 8px; border-bottom:1px solid #f1f5f9;">
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-weight:800; color:#1e293b; font-size:0.74rem;">${escHtml(chk.name || chk.id)}</div>
+                            <div style="color:#64748b; font-size:0.7rem; margin-top:2px; word-break:break-word;">${escHtml(chk.detail || '')}</div>
+                        </div>
+                        <span style="flex-shrink:0; background:${badgeBg}; color:${badgeColor}; font-weight:800; font-size:0.68rem; padding:2px 8px; border-radius:999px;">${badgeText}</span>
+                    </div>
+                `;
+            }).join('');
+
+            if (resultsEl) {
+                resultsEl.innerHTML = `
+                    <div style="background:${headerBg}; border:1px solid ${headerBorder}; color:${headerColor}; border-radius:8px; padding:8px 10px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; font-weight:800;">
+                        <span>${headerIcon} نتيجة الفحص الشامل: ${Number(report.passedCount || 0)} / ${Number(report.totalCount || 0)} اختباراً بنجاح</span>
+                        <span style="font-size:0.68rem; opacity:0.85;">المدة: ${Number(report.durationMs || 0)}ms</span>
+                    </div>
+                    <div style="display:flex; flex-direction:column;">${rowsHtml}</div>
+                `;
+            }
+
+            if (report.allPassed) {
+                notifyUser(`✅ اجتازت المنظومة جميع اختبارات السلامة (${report.passedCount}/${report.totalCount}) بنجاح.`, 'success');
+            } else {
+                notifyUser(`⚠️ اكتمل الفحص مع وجود ملاحظات (${report.passedCount}/${report.totalCount}).`, 'warning');
+            }
+        } catch (err) {
+            if (resultsEl) {
+                resultsEl.innerHTML = `<div style="color:#991b1b; font-weight:700;">❌ تعذر إتمام الفحص: ${escHtml(err && err.message ? err.message : 'خطأ غير متوقع')}</div>`;
+            }
+            notifyUser('❌ تعذر تشغيل اختبارات السلامة الآلية.', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText || '⚡ تشغيل اختبارات السلامة';
+            }
+        }
+    }
+
     // Auto initialize on load
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
@@ -2233,5 +2377,6 @@
     window.toggleAndroidFullscreenClassroom = toggleAndroidFullscreenClassroom;
     window.downloadAndroidOfflineLauncherHtml = downloadAndroidOfflineLauncherHtml;
     window.runFullAppDiagnosticAndRepair = runFullAppDiagnosticAndRepair;
+    window.executeDesktopAuditSmokeTests = executeDesktopAuditSmokeTests;
 
 })(window);

@@ -117,7 +117,16 @@
     let cachedProofBaseSrc = '';
 
     let activeGeoInteraction = null; // { tool: 'ruler'|'protractor'|'setSquare'|'compass'|'curtain', mode: 'move'|'rotate'|'resize'|'ray'|'compass_arc', startX, startY, origX, origY, origAngle, origLength, origSize, origRadius }
-    let laserPointerPos = null;      // Decoupled 120fps laser pointer overlay pos: { x, y }
+    let laserPointerPos = null;      // Decoupled laser pointer overlay pos: { x, y }
+    let laserTrailPoints = [];       // [{ x, y, t }] for glowing fading laser trail
+    let laserTrailAnimId = null;     // requestAnimationFrame handle for fading laser trail
+    let spotlightState = {           // Spotlight focus aperture for remote teaching
+        active: false,
+        x: 420,
+        y: 300,
+        radius: 135
+    };
+    let isZenMode = false;           // Broadcast Zen Mode (hides studio bar)
     let strokePoints = [];           // Points history for smooth midpoint quadratic bezier curves
     let activeStylusId = null;       // Active pointer ID for Palm Rejection
 
@@ -157,24 +166,27 @@
         participationCount: 0
     };
     let studentCursorPos = null;
-    let collabBroadcastChannel = null;
-    try {
-        if (typeof window !== 'undefined' && window.BroadcastChannel) {
-            collabBroadcastChannel = new BroadcastChannel('math_whiteboard_collab');
-        }
-    } catch (e) {}
+    let collabClient = null;
+    const remotePeers = new Map(); // senderId -> { x, y, name, role, ts }
+
+    // Interactive Vector Selection & Tools Dock State
+    let selectedVectorIndex = -1;
+    let activeSelectInteraction = null; // { mode: 'move'|'nw'|'ne'|'sw'|'se', index, origObj, origBounds, startX, startY }
+    let isLeftDockCollapsed = false;
+    let isFreehandDrawerOpen = false;
 
     // Multi-page Whiteboard State (Vector Stroke Serialization + Raster fallback)
     let pageDataUrls = [''];
-    let pageVectorStrokes = [[]]; // [{ t: tool, c: color, s: size, pts: [[x,y], ...] }] (~4-8KB per page)
+    let pageVectorStrokes = [[]]; // [{ id, t, c, s, ... }] (~4-8KB per page)
     let pdfPageVectorStrokes = {}; // Map: pageNum -> array of vector strokes
     let currentVectorStroke = null;
     let currentPageIndex = 0;
 
-    // Undo / Redo Stacks (stores dataURLs of the ink canvas with memory optimization)
+    // Undo / Redo Stacks (stores dataURLs + synchronized vector snapshots)
     let undoStack = [];
     let redoStack = [];
-    let redoVectorStack = [];
+    let undoVectorSnapshots = [];
+    let redoVectorSnapshots = [];
     const MAX_HISTORY = 15;
 
     // PDF & Worksheet Integration State
@@ -193,6 +205,58 @@
     let pdfFitMode = 'contain'; // 'contain' or 'width'
     let isPdfRendering = false;
     let isThumbnailsOpen = true;
+
+    function getVectorEnv() {
+        return {
+            isPdfActive: isPdfOrWorksheetActive(),
+            pdfRenderPos: pdfRenderPos,
+            pdfPanOffset: pdfPanOffset,
+            currentBg: currentBg
+        };
+    }
+
+    function cloneVectorObj(obj) {
+        try { return JSON.parse(JSON.stringify(obj)); } catch (e) { return Object.assign({}, obj); }
+    }
+
+    function pushVectorObject(obj, skipCollabBroadcast = false) {
+        if (!obj) return null;
+        if (window.WbVectorEngine) {
+            if (!obj.id) obj.id = window.WbVectorEngine.uid('obj');
+            window.WbVectorEngine.attachNormalizedPdfFields(obj, getVectorEnv());
+        } else if (!obj.id) {
+            obj.id = 'obj_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+        }
+        const arr = getActiveVectorArray();
+        arr.push(obj);
+        if (!skipCollabBroadcast && collabClient && collabClient.roomCode) {
+            collabClient.send('stroke:add', { object: obj });
+        }
+        return obj;
+    }
+
+    function drawVectorObjectOnCtx(obj) {
+        if (!ctx || !obj) return;
+        if (window.WbVectorEngine && typeof window.WbVectorEngine.drawVectorObject === 'function') {
+            window.WbVectorEngine.drawVectorObject(ctx, obj, getVectorEnv(), () => {
+                const list = getActiveVectorArray();
+                replayVectorStrokesToCanvas(list);
+            });
+        }
+    }
+
+    function refreshFreehandDrawerIfOpen() {
+        if (isFreehandDrawerOpen && window.WbBridges && typeof window.WbBridges.renderFreehandPagesDrawer === 'function') {
+            window.WbBridges.renderFreehandPagesDrawer(
+                { pageDataUrls, currentPageIndex },
+                {
+                    onJump: (idx) => jumpToFreehandPage(idx),
+                    onMove: (fromIdx, toIdx) => moveFreehandPage(fromIdx, toIdx),
+                    onDelete: (idx) => deleteFreehandPageAt(idx)
+                }
+            );
+        }
+    }
 
     /**
      * فتح وتجهيز قاعدة بيانات IndexedDB للحفظ الفوري والمستمر للرسومات
@@ -284,6 +348,12 @@
                     if (data.setSquareState && typeof data.setSquareState === 'object') {
                         setSquareState = Object.assign(setSquareState, data.setSquareState);
                     }
+                    if (data.compassState && typeof data.compassState === 'object') {
+                        compassState = Object.assign(compassState, data.compassState);
+                    }
+                    if (data.curtainState && typeof data.curtainState === 'object') {
+                        curtainState = Object.assign(curtainState, data.curtainState);
+                    }
 
                     updateToolbarUI();
                     updatePageIndicator();
@@ -291,10 +361,10 @@
                     renderGeometricToolsOverlay();
 
                     if (!isPdfOrWorksheetActive() && !isDrawing) {
-                        if (pageDataUrls[currentPageIndex]) {
-                            restoreDataUrlToInkCanvas(pageDataUrls[currentPageIndex]);
-                        } else if (Array.isArray(pageVectorStrokes[currentPageIndex]) && pageVectorStrokes[currentPageIndex].length > 0) {
+                        if (Array.isArray(pageVectorStrokes[currentPageIndex]) && pageVectorStrokes[currentPageIndex].length > 0 && window.WbVectorEngine) {
                             replayVectorStrokesToCanvas(pageVectorStrokes[currentPageIndex]);
+                        } else if (pageDataUrls[currentPageIndex]) {
+                            restoreDataUrlToInkCanvas(pageDataUrls[currentPageIndex]);
                         }
                     }
                 };
@@ -329,6 +399,15 @@
             }, 150));
             setupFullscreenListeners();
             setupKeyboardShortcuts();
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const roomParam = urlParams.get('wbroom');
+                if (roomParam) {
+                    const roleParam = urlParams.get('role') === 'student' ? 'student' : 'teacher';
+                    const nameParam = urlParams.get('name') || (roleParam === 'student' ? 'تلميذ عن بعد' : 'الأستاذ');
+                    setTimeout(() => joinWhiteboardCollabRoom(roomParam, roleParam, nameParam), 250);
+                }
+            } catch (e) {}
             isInitialized = true;
         }
 
@@ -342,6 +421,11 @@
         if (isContainerVisible()) {
             resizeCanvas(true);
         }
+        requestAnimationFrame(() => {
+            if (isContainerVisible()) {
+                resizeCanvas(true);
+            }
+        });
 
         updateToolbarUI();
         updatePageIndicator();
@@ -424,12 +508,14 @@
             if (redoStack.length > 0) {
                 stats.undoTrimmed += redoStack.length;
                 redoStack = [];
+                redoVectorSnapshots = [];
             }
             const maxIdleUndo = options.aggressive ? 3 : 6;
             if (undoStack.length > maxIdleUndo) {
                 const removed = undoStack.length - maxIdleUndo;
                 stats.undoTrimmed += removed;
                 undoStack = undoStack.slice(-maxIdleUndo);
+                undoVectorSnapshots = undoVectorSnapshots.slice(-maxIdleUndo);
             }
 
             // 2. حذف الصفحات الفارغة الزائدة في نهاية المصفوفة
@@ -504,6 +590,8 @@
                 rulerState,
                 protractorState,
                 setSquareState,
+                compassState,
+                curtainState,
                 compressedAt: Date.now(),
                 updatedAt: Date.now()
             };
@@ -521,7 +609,9 @@
                     rulerState,
                     protractorState,
                     setSquareState,
-                    updatedAt: Date.now()
+                    compassState,
+                    curtainState,
+                    updatedAt: compactPayload.updatedAt
                 };
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(lsLightweight));
             } catch (e) {}
@@ -531,11 +621,25 @@
     }
 
     /**
-     * إعادة رسم المسارات المتجهية المحفوظة (Vector Stroke Serialization Replay) بدقة عالية وحجم لا يتجاوز بضعة كيلوبايتات
+     * إعادة رسم المسارات والكائنات المتجهية المحفوظة عبر محرك WbVectorEngine بدقة عالية
      */
     function replayVectorStrokesToCanvas(strokesList) {
-        if (!ctx || !canvas || !Array.isArray(strokesList) || strokesList.length === 0) return;
+        if (!ctx || !canvas) return;
         clearInkCanvasInternal();
+        if (!Array.isArray(strokesList) || strokesList.length === 0) return;
+
+        const env = getVectorEnv();
+        if (window.WbVectorEngine && typeof window.WbVectorEngine.drawVectorObject === 'function') {
+            for (let i = 0; i < strokesList.length; i++) {
+                const st = strokesList[i];
+                if (!st) continue;
+                window.WbVectorEngine.drawVectorObject(ctx, st, env, () => {
+                    replayVectorStrokesToCanvas(strokesList);
+                });
+            }
+            return;
+        }
+
         for (let i = 0; i < strokesList.length; i++) {
             const st = strokesList[i];
             if (!st) continue;
@@ -615,7 +719,6 @@
     function persistWhiteboardState() {
         if (!canvas || !ctx) return;
 
-        // Capture current canvas ink if canvas has valid size using WebP for low memory footprint
         if (canvas.width > 0 && canvas.height > 0 && lastValidWidth > 0) {
             try {
                 const dataUrl = canvas.toDataURL('image/webp', 0.85);
@@ -629,7 +732,7 @@
         }
 
         const payload = {
-            currentTool: currentTool === 'laser' || currentTool === 'pan' ? 'pen' : currentTool,
+            currentTool: (currentTool === 'laser' || currentTool === 'pan' || currentTool === 'spotlight') ? 'pen' : currentTool,
             currentColor,
             currentSize,
             currentBg,
@@ -641,13 +744,13 @@
             rulerState,
             protractorState,
             setSquareState,
+            compassState,
+            curtainState,
             updatedAt: Date.now()
         };
 
-        // 1. Save full state and multi-page annotations to IndexedDB
         savePayloadToIndexedDB(payload);
 
-        // 2. Fallback lightweight mirror to localStorage (Vector Strokes + active page only)
         try {
             const lsPayload = {
                 currentTool: payload.currentTool,
@@ -660,12 +763,15 @@
                 rulerState,
                 protractorState,
                 setSquareState,
+                compassState,
+                curtainState,
                 updatedAt: payload.updatedAt
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(lsPayload));
         } catch (e) {}
 
         flashPersistBadge();
+        refreshFreehandDrawerIfOpen();
     }
 
     function loadPersistedStateFromStorage() {
@@ -695,6 +801,12 @@
             }
             if (data.setSquareState && typeof data.setSquareState === 'object') {
                 setSquareState = Object.assign(setSquareState, data.setSquareState);
+            }
+            if (data.compassState && typeof data.compassState === 'object') {
+                compassState = Object.assign(compassState, data.compassState);
+            }
+            if (data.curtainState && typeof data.curtainState === 'object') {
+                curtainState = Object.assign(curtainState, data.curtainState);
             }
         } catch (e) {}
     }
@@ -778,8 +890,13 @@
             renderActiveDocumentPage(currentPdfPageNum, false);
         } else {
             drawBackground();
-            if (restoreAfterResize && activeDataUrl) {
-                restoreDataUrlToInkCanvas(activeDataUrl);
+            if (restoreAfterResize) {
+                const vecList = getActiveVectorArray();
+                if (Array.isArray(vecList) && vecList.length > 0 && window.WbVectorEngine) {
+                    replayVectorStrokesToCanvas(vecList);
+                } else if (activeDataUrl) {
+                    restoreDataUrlToInkCanvas(activeDataUrl);
+                }
             }
         }
         renderGeometricToolsOverlay();
@@ -981,29 +1098,112 @@
             targetCtx.moveTo(marginX, 0);
             targetCtx.lineTo(marginX, h);
             targetCtx.stroke();
+        } else if (currentBg === 'isometric') {
+            // شبكة الهندسة الفضائية المتقايسة (3D Isometric Grid - 30° / 60° / 90°)
+            targetCtx.fillStyle = '#f8fafc';
+            targetCtx.fillRect(0, 0, w, h);
+
+            const step = 34; // المسافة العمودية بين الرؤوس المتقايسة
+            const dx = step * Math.cos(Math.PI / 6); // step * √3 / 2 ≈ 29.44
+            const dy = step * Math.sin(Math.PI / 6); // step / 2 = 17
+
+            targetCtx.lineWidth = 0.75;
+            targetCtx.strokeStyle = 'rgba(148, 163, 184, 0.36)';
+            targetCtx.beginPath();
+
+            // 1. الخطوط العمودية (محور z الفضائي)
+            for (let x = 0; x <= w + dx; x += dx) {
+                targetCtx.moveTo(x, 0);
+                targetCtx.lineTo(x, h);
+            }
+
+            // 2. الخطوط المائلة بزاوية +30° و -30°
+            const tan30 = Math.tan(Math.PI / 6);
+            const extraH = w * tan30;
+            for (let yStart = -extraH; yStart <= h + extraH; yStart += step) {
+                targetCtx.moveTo(0, yStart);
+                targetCtx.lineTo(w, yStart + extraH);
+
+                targetCtx.moveTo(0, yStart);
+                targetCtx.lineTo(w, yStart - extraH);
+            }
+            targetCtx.stroke();
+
+            // 3. نقاط تقاطع الشبكة الفضائية لسهولة ضبط رؤوس المجسمات
+            targetCtx.fillStyle = 'rgba(37, 99, 235, 0.42)';
+            let colIndex = 0;
+            for (let x = 0; x <= w; x += dx) {
+                const yOffset = (colIndex % 2 === 1) ? dy : 0;
+                for (let y = yOffset; y <= h; y += step) {
+                    targetCtx.beginPath();
+                    targetCtx.arc(x, y, 1.4, 0, Math.PI * 2);
+                    targetCtx.fill();
+                }
+                colIndex++;
+            }
         }
 
         targetCtx.restore();
     }
 
+    function getActiveVectorArray() {
+        if (isPdfOrWorksheetActive()) {
+            if (!Array.isArray(pdfPageVectorStrokes[currentPdfPageNum])) {
+                pdfPageVectorStrokes[currentPdfPageNum] = [];
+            }
+            return pdfPageVectorStrokes[currentPdfPageNum];
+        }
+        while (pageVectorStrokes.length <= currentPageIndex) {
+            pageVectorStrokes.push([]);
+        }
+        if (!Array.isArray(pageVectorStrokes[currentPageIndex])) {
+            pageVectorStrokes[currentPageIndex] = [];
+        }
+        return pageVectorStrokes[currentPageIndex];
+    }
+
+    function setActiveVectorArray(arr) {
+        const nextArr = Array.isArray(arr) ? arr.slice() : [];
+        if (isPdfOrWorksheetActive()) {
+            pdfPageVectorStrokes[currentPdfPageNum] = nextArr;
+        } else {
+            while (pageVectorStrokes.length <= currentPageIndex) {
+                pageVectorStrokes.push([]);
+            }
+            pageVectorStrokes[currentPageIndex] = nextArr;
+        }
+    }
+
+    function resetUndoHistory() {
+        undoStack = [];
+        redoStack = [];
+        undoVectorSnapshots = [];
+        redoVectorSnapshots = [];
+    }
+
     /**
-     * حفظ لقطة قبل الرسم للتراجع (Undo) مع ضغط أمثل لتوفير ذاكرة التخزين RAM
+     * حفظ لقطة قبل الرسم للتراجع (Undo) مع ضغط أمثل ومزامنة المسارات المتجهية
      */
     function saveStateForUndo() {
         if (!ctx || !canvas) return;
+        const vecSnap = getActiveVectorArray().slice();
         try {
             const snapshot = canvas.toDataURL('image/webp', 0.85);
             undoStack.push(snapshot);
+            undoVectorSnapshots.push(vecSnap);
             if (undoStack.length > MAX_HISTORY) undoStack.shift();
+            if (undoVectorSnapshots.length > MAX_HISTORY) undoVectorSnapshots.shift();
             redoStack = [];
-            redoVectorStack = [];
+            redoVectorSnapshots = [];
         } catch (e) {
             try {
                 const snapshot = canvas.toDataURL('image/png');
                 undoStack.push(snapshot);
+                undoVectorSnapshots.push(vecSnap);
                 if (undoStack.length > MAX_HISTORY) undoStack.shift();
+                if (undoVectorSnapshots.length > MAX_HISTORY) undoVectorSnapshots.shift();
                 redoStack = [];
-                redoVectorStack = [];
+                redoVectorSnapshots = [];
             } catch (err) {}
         }
     }
@@ -1013,6 +1213,7 @@
      */
     function bindCanvasEvents() {
         let shapeSnapshotImg = null;
+        let lastCursorSentAt = 0;
 
         const getCoords = (e) => {
             const rect = canvas.getBoundingClientRect();
@@ -1112,6 +1313,93 @@
                 return;
             }
 
+            // Select / Move / Resize / Duplicate / Delete Vector Objects
+            if (currentTool === 'select' && window.WbVectorEngine) {
+                const arr = getActiveVectorArray();
+                const env = getVectorEnv();
+                if (selectedVectorIndex >= 0 && selectedVectorIndex < arr.length) {
+                    const selObj = arr[selectedVectorIndex];
+                    const selB = window.WbVectorEngine.getObjectBounds(selObj, env);
+                    const handle = window.WbVectorEngine.hitTestSelectionHandle(pos.x, pos.y, selB);
+                    if (handle === 'delete') {
+                        saveStateForUndo();
+                        const deleted = arr.splice(selectedVectorIndex, 1)[0];
+                        selectedVectorIndex = -1;
+                        replayVectorStrokesToCanvas(arr);
+                        renderGeometricToolsOverlay();
+                        persistWhiteboardState();
+                        if (collabClient && collabClient.roomCode && deleted && deleted.id) {
+                            collabClient.send('object:delete', { objectId: deleted.id });
+                        }
+                        return;
+                    }
+                    if (handle === 'duplicate') {
+                        saveStateForUndo();
+                        const copy = cloneVectorObj(selObj);
+                        copy.id = window.WbVectorEngine.uid('obj');
+                        window.WbVectorEngine.moveVectorObject(copy, 22, 22, env);
+                        pushVectorObject(copy);
+                        selectedVectorIndex = arr.length - 1;
+                        replayVectorStrokesToCanvas(arr);
+                        renderGeometricToolsOverlay();
+                        persistWhiteboardState();
+                        return;
+                    }
+                    if (handle) {
+                        saveStateForUndo();
+                        activeSelectInteraction = {
+                            mode: handle,
+                            index: selectedVectorIndex,
+                            origObj: cloneVectorObj(selObj),
+                            origBounds: selB,
+                            startX: pos.x,
+                            startY: pos.y
+                        };
+                        canvas.style.cursor = handle === 'move' ? 'grabbing' : 'nwse-resize';
+                        return;
+                    }
+                }
+
+                const hitIdx = window.WbVectorEngine.hitTestObjects(pos.x, pos.y, arr, env);
+                selectedVectorIndex = hitIdx;
+                if (hitIdx >= 0) {
+                    saveStateForUndo();
+                    const hitObj = arr[hitIdx];
+                    activeSelectInteraction = {
+                        mode: 'move',
+                        index: hitIdx,
+                        origObj: cloneVectorObj(hitObj),
+                        origBounds: window.WbVectorEngine.getObjectBounds(hitObj, env),
+                        startX: pos.x,
+                        startY: pos.y
+                    };
+                    canvas.style.cursor = 'grabbing';
+                } else {
+                    canvas.style.cursor = 'default';
+                }
+                renderGeometricToolsOverlay();
+                return;
+            }
+
+            // Whole-Stroke Vector Eraser
+            if (currentTool === 'stroke_eraser' && window.WbVectorEngine) {
+                const arr = getActiveVectorArray();
+                const hitIdx = window.WbVectorEngine.hitTestObjects(pos.x, pos.y, arr, getVectorEnv());
+                if (hitIdx >= 0) {
+                    saveStateForUndo();
+                    const deleted = arr.splice(hitIdx, 1)[0];
+                    if (selectedVectorIndex === hitIdx) selectedVectorIndex = -1;
+                    else if (selectedVectorIndex > hitIdx) selectedVectorIndex--;
+                    replayVectorStrokesToCanvas(arr);
+                    renderGeometricToolsOverlay();
+                    persistWhiteboardState();
+                    if (collabClient && collabClient.roomCode && deleted && deleted.id) {
+                        collabClient.send('object:delete', { objectId: deleted.id });
+                    }
+                }
+                return;
+            }
+
             if (currentTool === 'text') {
                 promptAndInsertText(pos.x, pos.y);
                 return;
@@ -1132,7 +1420,19 @@
             }
 
             if (currentTool === 'laser') {
+                const now = performance.now();
                 laserPointerPos = { x: pos.x, y: pos.y };
+                laserTrailPoints.push({ x: pos.x, y: pos.y, t: now });
+                if (laserTrailPoints.length > 48) laserTrailPoints.shift();
+                startLaserTrailLoop();
+                renderGeometricToolsOverlay();
+                return;
+            }
+
+            if (currentTool === 'spotlight') {
+                spotlightState.active = true;
+                spotlightState.x = pos.x;
+                spotlightState.y = pos.y;
                 renderGeometricToolsOverlay();
                 return;
             }
@@ -1169,8 +1469,10 @@
             const strokeColor = (studentCallState.active && studentCallState.studentRole === 'student') ? studentCallState.studentColor : currentColor;
             const qx = Math.round(snappedPos.x * 10) / 10;
             const qy = Math.round(snappedPos.y * 10) / 10;
+            const strokeId = window.WbVectorEngine ? window.WbVectorEngine.uid('st') : ('st_' + Date.now().toString(36));
             if (currentTool === 'pen' || currentTool === 'highlighter' || currentTool === 'eraser') {
                 currentVectorStroke = {
+                    id: strokeId,
                     t: currentTool,
                     c: strokeColor,
                     s: currentSize,
@@ -1178,6 +1480,7 @@
                 };
             } else {
                 currentVectorStroke = {
+                    id: strokeId,
                     t: currentTool,
                     c: strokeColor,
                     s: currentSize,
@@ -1208,6 +1511,56 @@
 
             const pos = getCoords(e);
 
+            if (collabClient && collabClient.roomCode) {
+                const nowMs = Date.now();
+                if (nowMs - lastCursorSentAt > 55) {
+                    lastCursorSentAt = nowMs;
+                    collabClient.send('cursor:move', { x: Math.round(pos.x), y: Math.round(pos.y) });
+                }
+            }
+
+            // Active Vector Select Move / Corner Resize
+            if (activeSelectInteraction && window.WbVectorEngine) {
+                e.preventDefault();
+                const arr = getActiveVectorArray();
+                const env = getVectorEnv();
+                const idx = activeSelectInteraction.index;
+                if (idx >= 0 && idx < arr.length) {
+                    const updated = cloneVectorObj(activeSelectInteraction.origObj);
+                    const dx = pos.x - activeSelectInteraction.startX;
+                    const dy = pos.y - activeSelectInteraction.startY;
+                    if (activeSelectInteraction.mode === 'move') {
+                        window.WbVectorEngine.moveVectorObject(updated, dx, dy, env);
+                    } else {
+                        const ob = activeSelectInteraction.origBounds;
+                        let nx = ob.x, ny = ob.y, nw = ob.w, nh = ob.h;
+                        const m = activeSelectInteraction.mode;
+                        if (m === 'se') {
+                            nw = Math.max(24, ob.w + dx);
+                            nh = Math.max(20, ob.h + dy);
+                        } else if (m === 'nw') {
+                            nw = Math.max(24, ob.w - dx);
+                            nh = Math.max(20, ob.h - dy);
+                            nx = ob.x + ob.w - nw;
+                            ny = ob.y + ob.h - nh;
+                        } else if (m === 'ne') {
+                            nw = Math.max(24, ob.w + dx);
+                            nh = Math.max(20, ob.h - dy);
+                            ny = ob.y + ob.h - nh;
+                        } else if (m === 'sw') {
+                            nw = Math.max(24, ob.w - dx);
+                            nh = Math.max(20, ob.h + dy);
+                            nx = ob.x + ob.w - nw;
+                        }
+                        window.WbVectorEngine.scaleObjectToBounds(updated, ob, { x: nx, y: ny, w: nw, h: nh }, env);
+                    }
+                    arr[idx] = updated;
+                    replayVectorStrokesToCanvas(arr);
+                    renderGeometricToolsOverlay();
+                }
+                return;
+            }
+
             // Active geometric tool transformation (moving, rotating, resizing, measuring angle, curtain)
             if (activeGeoInteraction) {
                 e.preventDefault();
@@ -1224,7 +1577,6 @@
                 } else if (activeGeoInteraction.mode === 'rotate') {
                     const currentPointerAngle = Math.atan2(pos.y - target.y, pos.x - target.x);
                     let newAngle = activeGeoInteraction.origAngle + (currentPointerAngle - activeGeoInteraction.startPointerAngle);
-                    // Snap to famous angles unless Shift is held
                     if (!e.shiftKey) {
                         const deg = ((newAngle * 180) / Math.PI) % 360;
                         const snapAngles = [-180, -150, -135, -120, -90, -60, -45, -30, 0, 30, 45, 60, 90, 120, 135, 150, 180];
@@ -1280,7 +1632,19 @@
             }
 
             if (currentTool === 'laser') {
+                const now = performance.now();
                 laserPointerPos = { x: pos.x, y: pos.y };
+                laserTrailPoints.push({ x: pos.x, y: pos.y, t: now });
+                if (laserTrailPoints.length > 48) laserTrailPoints.shift();
+                startLaserTrailLoop();
+                renderGeometricToolsOverlay();
+                return;
+            }
+
+            if (currentTool === 'spotlight') {
+                spotlightState.active = true;
+                spotlightState.x = pos.x;
+                spotlightState.y = pos.y;
                 renderGeometricToolsOverlay();
                 return;
             }
@@ -1298,10 +1662,25 @@
                     else if (hoverHit.mode === 'resize') canvas.style.cursor = 'nwse-resize';
                     else if (hoverHit.mode === 'close' || hoverHit.mode === 'stamp_angle' || hoverHit.mode === 'stamp_right_angle' || hoverHit.mode === 'draw_edge') canvas.style.cursor = 'pointer';
                     else canvas.style.cursor = 'move';
+                } else if (currentTool === 'select' && window.WbVectorEngine) {
+                    const arr = getActiveVectorArray();
+                    let cur = 'default';
+                    if (selectedVectorIndex >= 0 && selectedVectorIndex < arr.length) {
+                        const selB = window.WbVectorEngine.getObjectBounds(arr[selectedVectorIndex], getVectorEnv());
+                        const h = window.WbVectorEngine.hitTestSelectionHandle(pos.x, pos.y, selB);
+                        if (h === 'move') cur = 'move';
+                        else if (h === 'delete' || h === 'duplicate') cur = 'pointer';
+                        else if (h === 'nw' || h === 'se') cur = 'nwse-resize';
+                        else if (h === 'ne' || h === 'sw') cur = 'nesw-resize';
+                    }
+                    if (cur === 'default' && window.WbVectorEngine.hitTestObjects(pos.x, pos.y, arr, getVectorEnv()) >= 0) {
+                        cur = 'move';
+                    }
+                    canvas.style.cursor = cur;
                 } else {
                     if (currentTool === 'pan') canvas.style.cursor = 'grab';
                     else if (currentTool === 'text') canvas.style.cursor = 'text';
-                    else if (currentTool === 'laser') canvas.style.cursor = 'pointer';
+                    else if (currentTool === 'laser' || currentTool === 'stroke_eraser') canvas.style.cursor = 'pointer';
                     else canvas.style.cursor = 'crosshair';
                 }
                 return;
@@ -1320,6 +1699,18 @@
                         ctx.drawImage(shapeSnapshotImg, 0, 0, w, h);
                     }
                     drawShapePreview(startX, startY, snappedPos.x, snappedPos.y, 'line');
+                    if (currentVectorStroke) {
+                        currentVectorStroke = {
+                            id: currentVectorStroke.id,
+                            t: 'line',
+                            c: currentVectorStroke.c,
+                            s: currentVectorStroke.s,
+                            x1: Math.round(startX * 10) / 10,
+                            y1: Math.round(startY * 10) / 10,
+                            x2: Math.round(snappedPos.x * 10) / 10,
+                            y2: Math.round(snappedPos.y * 10) / 10
+                        };
+                    }
                     return;
                 }
 
@@ -1377,6 +1768,14 @@
                     currentVectorStroke.x2 = Math.round(snappedPos.x * 10) / 10;
                     currentVectorStroke.y2 = Math.round(snappedPos.y * 10) / 10;
                 }
+                if (proofRecording.isRecording && currentRecordedStroke) {
+                    const relT = Date.now() - proofRecording.startTime;
+                    if (currentRecordedStroke.points.length <= 1) {
+                        currentRecordedStroke.points.push({ x: snappedPos.x, y: snappedPos.y, t: relT, pressure: pos.pressure || 0.5 });
+                    } else {
+                        currentRecordedStroke.points[1] = { x: snappedPos.x, y: snappedPos.y, t: relT, pressure: pos.pressure || 0.5 };
+                    }
+                }
                 const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
                 const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
                 clearInkCanvasInternal();
@@ -1394,6 +1793,17 @@
             if (e && e.pointerId && canvas.releasePointerCapture) {
                 try { canvas.releasePointerCapture(e.pointerId); } catch(err) {}
             }
+            if (activeSelectInteraction) {
+                const idx = activeSelectInteraction.index;
+                activeSelectInteraction = null;
+                const arr = getActiveVectorArray();
+                if (collabClient && collabClient.roomCode && idx >= 0 && arr[idx]) {
+                    collabClient.send('object:update', { object: arr[idx] });
+                }
+                canvas.style.cursor = 'default';
+                persistWhiteboardState();
+                return;
+            }
             if (activeGeoInteraction) {
                 activeGeoInteraction = null;
                 persistWhiteboardState();
@@ -1406,6 +1816,11 @@
             }
             if (currentTool === 'laser') {
                 laserPointerPos = null;
+                startLaserTrailLoop();
+                renderGeometricToolsOverlay();
+                return;
+            }
+            if (currentTool === 'spotlight') {
                 renderGeometricToolsOverlay();
                 return;
             }
@@ -1414,17 +1829,7 @@
             strokePoints = [];
 
             if (currentVectorStroke) {
-                if (isPdfOrWorksheetActive()) {
-                    if (!Array.isArray(pdfPageVectorStrokes[currentPdfPageNum])) {
-                        pdfPageVectorStrokes[currentPdfPageNum] = [];
-                    }
-                    pdfPageVectorStrokes[currentPdfPageNum].push(currentVectorStroke);
-                } else {
-                    while (pageVectorStrokes.length <= currentPageIndex) {
-                        pageVectorStrokes.push([]);
-                    }
-                    pageVectorStrokes[currentPageIndex].push(currentVectorStroke);
-                }
+                pushVectorObject(currentVectorStroke);
                 currentVectorStroke = null;
             }
 
@@ -1436,7 +1841,6 @@
             }
 
             ctx.restore();
-            // Solid, non-stuttering persistence only on stroke finish
             persistWhiteboardState();
         };
 
@@ -1456,8 +1860,16 @@
             window.addEventListener('touchend', onPointerUp, { passive: false });
         }
 
-        // Wheel zoom/scroll when PDF is active, or rotate geometric tools when hovering over them
+        // Wheel zoom/scroll when PDF is active, spotlight radius, or rotate geometric tools when hovering over them
         canvas.addEventListener('wheel', (e) => {
+            if (currentTool === 'spotlight') {
+                e.preventDefault();
+                spotlightState.radius = Math.max(60, Math.min(280, spotlightState.radius + (e.deltaY < 0 ? 12 : -12)));
+                spotlightState.active = true;
+                renderGeometricToolsOverlay();
+                return;
+            }
+
             const pos = getCoords(e);
             const hoverHit = hitTestGeometricTools(pos.x, pos.y);
             if (hoverHit && hoverHit.tool !== 'curtain') {
@@ -1587,148 +1999,9 @@
 
         const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
         const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
-        const cx = Math.floor(w / 2);
-        const cy = Math.floor(h / 2);
-        const step = 40; // 1 وحدة = 40px
-
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-
-        // 1. شبكة الإحداثيات المتعامدة الخفيفة (Faint Orthonormal Coordinate Grid)
-        ctx.strokeStyle = 'rgba(203, 213, 225, 0.45)';
-        ctx.lineWidth = 0.6;
-        ctx.beginPath();
-        for (let x = cx % step; x < w; x += step) {
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x, h);
-        }
-        for (let y = cy % step; y < h; y += step) {
-            ctx.moveTo(0, y);
-            ctx.lineTo(w, y);
-        }
-        ctx.stroke();
-
-        // 2. المحاور الرئيسية
-        ctx.strokeStyle = currentColor;
-        ctx.fillStyle = currentColor;
-        ctx.lineWidth = 2.2;
-        ctx.font = 'bold 12px "Cairo", sans-serif';
-
-        // محور الأفاصيل (Ox)
-        ctx.beginPath();
-        ctx.moveTo(25, cy);
-        ctx.lineTo(w - 25, cy);
-        ctx.stroke();
-
-        // سهم محور الأفاصيل
-        ctx.beginPath();
-        ctx.moveTo(w - 25, cy);
-        ctx.lineTo(w - 38, cy - 6);
-        ctx.lineTo(w - 38, cy + 6);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillText('(x)', w - 20, cy - 8);
-
-        // محور الأراتيب (Oy)
-        ctx.beginPath();
-        ctx.moveTo(cx, h - 25);
-        ctx.lineTo(cx, 25);
-        ctx.stroke();
-
-        // سهم محور الأراتيب
-        ctx.beginPath();
-        ctx.moveTo(cx, 25);
-        ctx.lineTo(cx - 6, 38);
-        ctx.lineTo(cx + 6, 38);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillText('(y)', cx + 10, 28);
-
-        // 3. تدريجات وأرقام الوحدات
-        ctx.lineWidth = 1.4;
-        ctx.font = 'bold 10px "Cairo", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-
-        // تدريجات الأفاصيل الموجبة والسالبة
-        let val = 1;
-        for (let x = cx + step; x < w - 45; x += step) {
-            ctx.beginPath();
-            ctx.moveTo(x, cy - 4);
-            ctx.lineTo(x, cy + 4);
-            ctx.stroke();
-            ctx.fillText(String(val), x, cy + 6);
-            val++;
-        }
-        val = -1;
-        for (let x = cx - step; x > 40; x -= step) {
-            ctx.beginPath();
-            ctx.moveTo(x, cy - 4);
-            ctx.lineTo(x, cy + 4);
-            ctx.stroke();
-            ctx.fillText(String(val), x, cy + 6);
-            val--;
-        }
-
-        // تدريجات الأراتيب الموجبة والسالبة
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'middle';
-        val = 1;
-        for (let y = cy - step; y > 35; y -= step) {
-            ctx.beginPath();
-            ctx.moveTo(cx - 4, y);
-            ctx.lineTo(cx + 4, y);
-            ctx.stroke();
-            ctx.fillText(String(val), cx - 7, y);
-            val++;
-        }
-        val = -1;
-        for (let y = cy + step; y < h - 35; y += step) {
-            ctx.beginPath();
-            ctx.moveTo(cx - 4, y);
-            ctx.lineTo(cx + 4, y);
-            ctx.stroke();
-            ctx.fillText(String(val), cx - 7, y);
-            val--;
-        }
-
-        // أصل المعلم O
-        ctx.font = 'bold 13px "Cairo", sans-serif';
-        ctx.fillText('O', cx - 8, cy + 14);
-
-        // متجهتا الأساس i⃗ (أحمر) و j⃗ (أخضر)
-        ctx.lineWidth = 3.2;
-        ctx.strokeStyle = '#ef4444';
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + step, cy);
-        ctx.stroke();
-        // سهم i⃗
-        ctx.fillStyle = '#ef4444';
-        ctx.beginPath();
-        ctx.moveTo(cx + step, cy);
-        ctx.lineTo(cx + step - 7, cy - 4);
-        ctx.lineTo(cx + step - 7, cy + 4);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillText('i⃗', cx + step / 2, cy - 10);
-
-        ctx.strokeStyle = '#059669';
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx, cy - step);
-        ctx.stroke();
-        // سهم j⃗
-        ctx.fillStyle = '#059669';
-        ctx.beginPath();
-        ctx.moveTo(cx, cy - step);
-        ctx.lineTo(cx - 4, cy - step + 7);
-        ctx.lineTo(cx + 4, cy - step + 7);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillText('j⃗', cx + 18, cy - step / 2);
-
-        ctx.restore();
+        const obj = { t: 'axes', x: 0, y: 0, w, h, step: 40, c: currentColor };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
 
         if (typeof window.showNotification === 'function') {
@@ -1745,62 +2018,17 @@
 
         const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
         const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
-        const cx = Math.floor(w / 2);
-        const cy = Math.floor(h / 2);
-        const R = Math.min(cx, cy) * 0.65;
-
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        const isDarkBg = (currentBg === 'green' || currentBg === 'dark');
-        const axisColor = (isDarkBg && (currentColor === '#1e3a8a' || currentColor === '#0f172a')) ? '#f8fafc' : currentColor;
-        ctx.strokeStyle = axisColor;
-        ctx.fillStyle = axisColor;
-        ctx.lineWidth = 2;
-        ctx.font = 'bold 12px "Cairo", sans-serif';
-
-        ctx.beginPath();
-        ctx.moveTo(cx - R - 35, cy);
-        ctx.lineTo(cx + R + 35, cy);
-        ctx.moveTo(cx, cy + R + 35);
-        ctx.lineTo(cx, cy - R - 35);
-        ctx.stroke();
-        ctx.fillText('cos(x)', cx + R + 8, cy - 8);
-        ctx.fillText('sin(x)', cx + 8, cy - R - 15);
-
-        ctx.lineWidth = 2.5;
-        ctx.strokeStyle = isDarkBg ? '#38bdf8' : '#2563eb';
-        ctx.beginPath();
-        ctx.arc(cx, cy, R, 0, 2 * Math.PI);
-        ctx.stroke();
-
-        const angles = [
-            { rad: 0, label: '0' },
-            { rad: Math.PI / 6, label: 'π/6' },
-            { rad: Math.PI / 4, label: 'π/4' },
-            { rad: Math.PI / 3, label: 'π/3' },
-            { rad: Math.PI / 2, label: 'π/2' },
-            { rad: (2 * Math.PI) / 3, label: '2π/3' },
-            { rad: (3 * Math.PI) / 4, label: '3π/4' },
-            { rad: (5 * Math.PI) / 6, label: '5π/6' },
-            { rad: Math.PI, label: 'π' }
-        ];
-
-        ctx.fillStyle = '#dc2626';
-        ctx.font = 'bold 11px sans-serif';
-        angles.forEach(a => {
-            const px = cx + R * Math.cos(a.rad);
-            const py = cy - R * Math.sin(a.rad);
-
-            ctx.beginPath();
-            ctx.arc(px, py, 4, 0, 2 * Math.PI);
-            ctx.fill();
-
-            const tx = cx + (R + 18) * Math.cos(a.rad);
-            const ty = cy - (R + 18) * Math.sin(a.rad);
-            ctx.fillText(a.label, tx - 10, ty + 4);
-        });
-
-        ctx.restore();
+        const side = Math.min(w, h) * 0.88;
+        const obj = {
+            t: 'trig_circle',
+            x: Math.floor((w - side) / 2),
+            y: Math.floor((h - side) / 2),
+            w: side,
+            h: side,
+            c: currentColor
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
 
         if (typeof window.showNotification === 'function') {
@@ -1817,97 +2045,6 @@
 
         const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
         const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
-        const cx = Math.floor(w / 2);
-        const cy = Math.floor(h / 2);
-        const scale = 40;
-
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-
-        // رسم المقاربات إذا كانت دالة متخاطة أو دالة مقلوب
-        if (curveType === 'homographic') {
-            // f(x) = (2x - 1) / (x - 1) => المقارب العمودي: x = 1، المقارب الأفقي: y = 2
-            const asympX = cx + 1 * scale;
-            const asympY = cy - 2 * scale;
-
-            ctx.save();
-            ctx.lineWidth = 1.6;
-            ctx.setLineDash([5, 4]);
-
-            // مقارب عمودي x = 1 (أحمر)
-            ctx.strokeStyle = '#ef4444';
-            ctx.beginPath();
-            ctx.moveTo(asympX, 20);
-            ctx.lineTo(asympX, h - 20);
-            ctx.stroke();
-
-            // مقارب أفقي y = 2 (أزرق)
-            ctx.strokeStyle = '#2563eb';
-            ctx.beginPath();
-            ctx.moveTo(20, asympY);
-            ctx.lineTo(w - 20, asympY);
-            ctx.stroke();
-
-            ctx.font = 'bold 11px "Cairo", sans-serif';
-            ctx.fillStyle = '#ef4444';
-            ctx.fillText('المقارب العمودي: x = 1', asympX + 8, 40);
-            ctx.fillStyle = '#2563eb';
-            ctx.fillText('المقارب الأفقي: y = 2', w - 160, asympY - 8);
-            ctx.restore();
-        }
-
-        ctx.strokeStyle = currentColor;
-        ctx.lineWidth = Math.max(2.5, currentSize);
-        ctx.beginPath();
-
-        let started = false;
-        const xMin = -cx / scale;
-        const xMax = (w - cx) / scale;
-        const step = 0.04;
-
-        for (let x = xMin; x <= xMax; x += step) {
-            let y = null;
-            if (curveType === 'parabola') y = x * x;
-            else if (curveType === 'homographic') {
-                if (Math.abs(x - 1) > 0.12) y = (2 * x - 1) / (x - 1);
-            }
-            else if (curveType === 'sqrt') { if (x >= 0) y = Math.sqrt(x); }
-            else if (curveType === 'inv') { if (Math.abs(x) > 0.08) y = 1 / x; }
-            else if (curveType === 'sin') y = Math.sin(x);
-            else if (curveType === 'cos') y = Math.cos(x);
-            else if (curveType === 'tan') { if (Math.abs(Math.cos(x)) > 0.1) y = Math.tan(x); }
-            else if (curveType === 'cube') y = x * x * x;
-            else if (curveType === 'abs') y = Math.abs(x);
-            else if (curveType === 'ln') { if (x > 0.05) y = Math.log(x); }
-            else if (curveType === 'exp') y = Math.exp(x);
-            else if (curveType === 'gaussian') y = 2.5 * Math.exp(-x * x);
-            else if (curveType === 'tangent') {
-                // رسم منحنى شلجم ومماسه عند x = 1: y = 2x - 1
-                y = 2 * x - 1;
-            }
-
-            if (y !== null && !isNaN(y) && isFinite(y)) {
-                const px = cx + x * scale;
-                const py = cy - y * scale;
-                if (py >= -100 && py <= h + 100) {
-                    if (!started) {
-                        ctx.moveTo(px, py);
-                        started = true;
-                    } else {
-                        ctx.lineTo(px, py);
-                    }
-                } else {
-                    started = false;
-                }
-            } else {
-                started = false;
-            }
-        }
-
-        ctx.stroke();
-
-        ctx.font = 'bold 14px "Cairo", sans-serif';
-        ctx.fillStyle = currentColor;
         const labels = {
             parabola: 'Cf : f(x) = x²',
             homographic: 'Cf : f(x) = (2x - 1)/(x - 1)',
@@ -1921,10 +2058,22 @@
             ln: 'Cf : f(x) = ln(x)',
             exp: 'Cf : f(x) = eˣ',
             gaussian: 'Cf : f(x) = 2.5 e^(-x²)',
-            tangent: '(T) : y = 2x - 1 (مماس Cf عند النقطة 1)'
+            tangent: '(T) : y = 2x - 1 (مماس Cf عند A(1,1))'
         };
-        ctx.fillText(labels[curveType] || 'Cf', 60, 60);
-        ctx.restore();
+        const obj = {
+            t: 'math_curve',
+            curveType,
+            label: labels[curveType] || 'Cf',
+            x: 0,
+            y: 0,
+            w,
+            h,
+            scale: 40,
+            c: currentColor,
+            s: Math.max(2.5, currentSize)
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
 
         if (typeof window.showNotification === 'function') {
@@ -1941,16 +2090,21 @@
 
         const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
         const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
-
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.font = `bold ${Math.max(24, currentSize * 7)}px "Cairo", serif`;
-        ctx.fillStyle = currentColor;
-        // Random slight offset around center so multiple symbols don't stack on exact same pixel
         const offsetX = Math.floor((Math.random() - 0.5) * 80);
         const offsetY = Math.floor((Math.random() - 0.5) * 50);
-        ctx.fillText(sym, w / 2 - 20 + offsetX, h / 2 + offsetY);
-        ctx.restore();
+        const fontSize = Math.max(24, currentSize * 7);
+        const obj = {
+            t: 'text',
+            x: Math.floor(w / 2 - 20 + offsetX),
+            y: Math.floor(h / 2 - fontSize / 2 + offsetY),
+            text: sym,
+            fontSize,
+            fontFamily: '"Cairo", serif',
+            c: currentColor,
+            s: currentSize
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
 
         if (typeof window.showNotification === 'function') {
@@ -1992,12 +2146,19 @@
             if (input.parentElement) input.remove();
             if (!val || !ctx) return;
             saveStateForUndo();
-            ctx.save();
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.font = `bold ${Math.max(17, currentSize * 5)}px "Cairo", sans-serif`;
-            ctx.fillStyle = currentColor;
-            ctx.fillText(val, x, y + Math.max(14, currentSize * 3));
-            ctx.restore();
+            const fontSize = Math.max(17, currentSize * 5);
+            const obj = {
+                t: 'text',
+                x,
+                y: Math.max(8, y - 4),
+                text: val,
+                fontSize,
+                fontFamily: '"Cairo", sans-serif',
+                c: currentColor,
+                s: currentSize
+            };
+            pushVectorObject(obj);
+            drawVectorObjectOnCtx(obj);
             persistWhiteboardState();
         };
 
@@ -2067,6 +2228,9 @@
             return;
         }
 
+        if (!window.pdfjsLib && typeof window.ensurePdfJsLoaded === 'function') {
+            await window.ensurePdfJsLoaded();
+        }
         if (!window.pdfjsLib) {
             if (typeof window.showNotification === 'function') {
                 window.showNotification('مكتبة PDF.js غير متوفرة حالياً.', 'error');
@@ -2106,6 +2270,8 @@
         pdfTotalPages = currentPdfDoc.numPages;
         currentPdfPageNum = 1;
         pdfPageDataUrls = {};
+        pdfPageVectorStrokes = {};
+        selectedVectorIndex = -1;
         pdfZoom = 1.0;
         pdfRotation = 0;
         pdfPanOffset = { x: 0, y: 0 };
@@ -2113,8 +2279,7 @@
         activatePdfWorkspaceUI(currentPdfFileName, pdfTotalPages);
 
         clearInkCanvasInternal();
-        undoStack = [];
-        redoStack = [];
+        resetUndoHistory();
 
         await renderActiveDocumentPage(1, false);
         await buildPdfThumbnailsSidebar();
@@ -2163,6 +2328,8 @@
         pdfTotalPages = 3;
         currentPdfPageNum = 1;
         pdfPageDataUrls = {};
+        pdfPageVectorStrokes = {};
+        selectedVectorIndex = -1;
         pdfZoom = 1.0;
         pdfRotation = 0;
         pdfPanOffset = { x: 0, y: 0 };
@@ -2175,8 +2342,7 @@
 
         activatePdfWorkspaceUI(currentPdfFileName, pdfTotalPages);
         clearInkCanvasInternal();
-        undoStack = [];
-        redoStack = [];
+        resetUndoHistory();
 
         await renderActiveDocumentPage(1, false);
         await buildPdfThumbnailsSidebar();
@@ -2215,12 +2381,14 @@
         g.font = 'bold 14px "Cairo", sans-serif';
         g.textAlign = 'right';
         g.fillText('المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل', pageW - 50, 60);
+        const tp = (window.WbSecurityMath && window.WbSecurityMath.getTeacherProfile()) || {};
+        const acadYear = (window.WbSecurityMath && window.WbSecurityMath.getAcademicYearLabel()) || `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`;
         g.fillStyle = '#1e3a8a';
         g.font = 'bold 13px "Cairo", sans-serif';
-        g.fillText('مادة الرياضيات | السلك الثانوي التأهيلي | الأستاذ: إبراهيم قزيبر', pageW - 50, 84);
+        g.fillText(`${tp.specialty || 'مادة الرياضيات | السلك الثانوي التأهيلي'} | الأستاذ(ة): ${tp.name || 'الأستاذ(ة)'}`, pageW - 50, 84);
         g.fillStyle = '#475569';
         g.font = 'bold 12px "Cairo", sans-serif';
-        g.fillText(`الفرض المحروس النموذجي رقم 1 - الصفحة ${pageNumber} من 3 (الموسم الدراسي 2026/2027)`, pageW - 50, 108);
+        g.fillText(`الفرض المحروس النموذجي رقم 1 - الصفحة ${pageNumber} من 3 (الموسم الدراسي ${acadYear})`, pageW - 50, 108);
 
         // Content by Page
         g.textAlign = 'right';
@@ -2306,30 +2474,14 @@
      * فتح ملف PDF من المكتبة الرقمية للمنظومة
      */
     function openLibraryPdfForWhiteboard() {
-        const resources = (window.db && (window.db.resources || window.db.library)) || [];
-        const pdfResources = Array.isArray(resources)
-            ? resources.filter(r => r && ((r.type && r.type.includes('pdf')) || (r.name && r.name.toLowerCase().endsWith('.pdf')) || (r.dataUrl && r.dataUrl.startsWith('data:application/pdf'))))
-            : [];
-
-        if (pdfResources.length === 0) {
-            // If no PDF is in the digital library yet, offer to load the sample worksheet or open file dialog
-            if (typeof window.showNotification === 'function') {
-                window.showNotification('لا توجد ملفات PDF مرفوعة في المكتبة حالياً؛ تم فتح نافذة اختيار ملف PDF من جهازك.', 'info');
-            }
-            triggerWhiteboardPdfImport();
+        if (window.WbBridges && typeof window.WbBridges.openLibraryPdfPickerModal === 'function') {
+            window.WbBridges.openLibraryPdfPickerModal(
+                (buf, name) => loadPdfFromArrayBuffer(buf, name),
+                triggerWhiteboardPdfImport
+            );
             return;
         }
-
-        // Load the latest PDF resource from the library
-        const chosen = pdfResources[0];
-        if (chosen.dataUrl) {
-            fetch(chosen.dataUrl)
-                .then(res => res.arrayBuffer())
-                .then(buf => loadPdfFromArrayBuffer(buf, chosen.title || chosen.name || 'ملف_المكتبة.pdf'))
-                .catch(() => triggerWhiteboardPdfImport());
-        } else {
-            triggerWhiteboardPdfImport();
-        }
+        triggerWhiteboardPdfImport();
     }
 
     /**
@@ -2347,6 +2499,7 @@
             }
 
             currentPdfPageNum = pageNum;
+            selectedVectorIndex = -1;
             const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
             const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
 
@@ -2403,8 +2556,11 @@
 
             drawBackground();
 
-            // استعادة شروحات وحلول الأستاذ الخاصة بهذه الصفحة
-            if (pdfPageDataUrls[pageNum]) {
+            // استعادة شروحات وحلول الأستاذ الخاصة بهذه الصفحة مع الإحداثيات المعيارية للـ PDF
+            const pageVecs = pdfPageVectorStrokes[pageNum];
+            if (Array.isArray(pageVecs) && pageVecs.length > 0) {
+                replayVectorStrokesToCanvas(pageVecs);
+            } else if (pdfPageDataUrls[pageNum]) {
                 restoreDataUrlToInkCanvas(pdfPageDataUrls[pageNum]);
             } else {
                 clearInkCanvasInternal();
@@ -2413,6 +2569,7 @@
             updatePdfUI();
             updatePageIndicator();
             highlightActiveThumbnail(pageNum);
+            renderGeometricToolsOverlay();
 
         } catch (err) {
             console.error('Error rendering PDF page:', err);
@@ -2532,7 +2689,19 @@
         const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
         const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
 
-        // 1. Shift raster pixels on #mathWhiteboardCanvas
+        if (isPdfOrWorksheetActive() && Array.isArray(pdfPageVectorStrokes[currentPdfPageNum]) && pdfPageVectorStrokes[currentPdfPageNum].length > 0) {
+            pdfPageVectorStrokes[currentPdfPageNum].forEach(st => {
+                if (!st || st.coordSpace === 'pdf_norm') return;
+                if (window.WbVectorEngine && typeof window.WbVectorEngine.moveVectorObject === 'function') {
+                    window.WbVectorEngine.moveVectorObject(st, dx, dy, getVectorEnv());
+                }
+            });
+            replayVectorStrokesToCanvas(pdfPageVectorStrokes[currentPdfPageNum]);
+            renderGeometricToolsOverlay();
+            return;
+        }
+
+        // Fallback for legacy raster-only PDF annotations
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = canvas.width;
         tempCanvas.height = canvas.height;
@@ -2544,26 +2713,6 @@
         ctx.globalCompositeOperation = 'source-over';
         ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height, dx, dy, w, h);
         ctx.restore();
-
-        // 2. Shift vector stroke coordinates for current PDF page so persistence stays aligned
-        if (isPdfOrWorksheetActive() && Array.isArray(pdfPageVectorStrokes[currentPdfPageNum])) {
-            pdfPageVectorStrokes[currentPdfPageNum].forEach(st => {
-                if (!st) return;
-                if (Array.isArray(st.pts)) {
-                    st.pts.forEach(pt => {
-                        if (Array.isArray(pt) && pt.length >= 2) {
-                            pt[0] = Math.round((pt[0] + dx) * 10) / 10;
-                            pt[1] = Math.round((pt[1] + dy) * 10) / 10;
-                        }
-                    });
-                } else if (typeof st.x1 === 'number') {
-                    st.x1 = Math.round((st.x1 + dx) * 10) / 10;
-                    st.y1 = Math.round((st.y1 + dy) * 10) / 10;
-                    st.x2 = Math.round((st.x2 + dx) * 10) / 10;
-                    st.y2 = Math.round((st.y2 + dy) * 10) / 10;
-                }
-            });
-        }
     }
 
     function scrollWhiteboardPdfVertical(deltaY) {
@@ -2691,6 +2840,8 @@
         }
         pdfRenderedCanvas = null;
         pdfPageDataUrls = {};
+        pdfPageVectorStrokes = {};
+        selectedVectorIndex = -1;
         pdfZoom = 1.0;
         pdfPanOffset = { x: 0, y: 0 };
 
@@ -2712,8 +2863,15 @@
         if (vertNav) vertNav.style.display = 'none';
 
         drawBackground();
-        restoreDataUrlToInkCanvas(pageDataUrls[currentPageIndex] || '');
+        const curVecs = pageVectorStrokes[currentPageIndex];
+        if (Array.isArray(curVecs) && curVecs.length > 0) {
+            replayVectorStrokesToCanvas(curVecs);
+        } else {
+            restoreDataUrlToInkCanvas(pageDataUrls[currentPageIndex] || '');
+        }
         updatePageIndicator();
+        refreshFreehandDrawerIfOpen();
+        renderGeometricToolsOverlay();
 
         setTimeout(() => resizeCanvas(true), 40);
 
@@ -2781,10 +2939,45 @@
         });
     }
 
+    function deleteSelectedVectorObject() {
+        const arr = getActiveVectorArray();
+        if (selectedVectorIndex < 0 || selectedVectorIndex >= arr.length) return;
+        saveStateForUndo();
+        const removed = arr.splice(selectedVectorIndex, 1)[0];
+        selectedVectorIndex = -1;
+        replayVectorStrokesToCanvas(arr);
+        renderGeometricToolsOverlay();
+        persistWhiteboardState();
+        if (removed && removed.id && collabClient && collabClient.roomCode) {
+            collabClient.send('object:delete', { objectId: removed.id });
+        }
+    }
+
+    function duplicateSelectedVectorObject() {
+        const arr = getActiveVectorArray();
+        if (selectedVectorIndex < 0 || selectedVectorIndex >= arr.length) return;
+        const src = arr[selectedVectorIndex];
+        saveStateForUndo();
+        const copy = cloneVectorObj(src);
+        if (window.WbVectorEngine) {
+            copy.id = window.WbVectorEngine.uid('obj');
+            if (typeof window.WbVectorEngine.moveVectorObject === 'function') {
+                window.WbVectorEngine.moveVectorObject(copy, 26, 26, getVectorEnv());
+            }
+        } else {
+            copy.id = 'obj_' + Date.now();
+        }
+        pushVectorObject(copy);
+        selectedVectorIndex = arr.length - 1;
+        replayVectorStrokesToCanvas(arr);
+        renderGeometricToolsOverlay();
+        persistWhiteboardState();
+    }
+
     function setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
             if (!isContainerVisible()) return;
-            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable)) return;
 
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
                 e.preventDefault();
@@ -2792,6 +2985,21 @@
             } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
                 e.preventDefault();
                 redo();
+            } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd' && selectedVectorIndex >= 0) {
+                e.preventDefault();
+                duplicateSelectedVectorObject();
+            } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedVectorIndex >= 0) {
+                e.preventDefault();
+                deleteSelectedVectorObject();
+            } else if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1) {
+                const k = e.key.toLowerCase();
+                if (k === 'v') { e.preventDefault(); setTool('select'); }
+                else if (k === 'p') { e.preventDefault(); setTool('pen'); }
+                else if (k === 'h') { e.preventDefault(); setTool('highlighter'); }
+                else if (k === 'e') { e.preventDefault(); setTool('eraser'); }
+                else if (k === 'l') { e.preventDefault(); setTool('laser'); }
+                else if (k === 's') { e.preventDefault(); setTool(currentTool === 'spotlight' ? 'pen' : 'spotlight'); }
+                else if (k === 't') { e.preventDefault(); setTool('text'); }
             } else if (isPdfOrWorksheetActive() && (e.key === 'ArrowDown' || e.key === 'PageDown')) {
                 e.preventDefault();
                 scrollWhiteboardPdfVertical(e.key === 'PageDown' ? 260 : 100);
@@ -2799,6 +3007,15 @@
                 e.preventDefault();
                 scrollWhiteboardPdfVertical(e.key === 'PageUp' ? -260 : -100);
             } else if (e.key === 'Escape') {
+                if (selectedVectorIndex >= 0) {
+                    selectedVectorIndex = -1;
+                    renderGeometricToolsOverlay();
+                    return;
+                }
+                if (currentTool === 'spotlight') {
+                    setTool('pen');
+                    return;
+                }
                 const pane = document.getElementById('distanceBoardPane');
                 if (pane && pane.classList.contains('whiteboard-fullscreen-mode')) {
                     pane.classList.remove('whiteboard-fullscreen-mode');
@@ -2813,8 +3030,96 @@
     }
 
     // ====================================================================
-    // إدارة صفحات السبورة الاعتيادية (Whiteboard Multi-Pages)
+    // إدارة صفحات السبورة الاعتيادية (Whiteboard Multi-Pages) & شريط الأدوات الجانبي
     // ====================================================================
+
+    function toggleLeftToolsDock(forceState) {
+        const dock = document.getElementById('whiteboardLeftToolsDock');
+        const btn = document.getElementById('btnToggleLeftToolsDock');
+        if (!dock) return;
+        isLeftDockCollapsed = typeof forceState === 'boolean' ? !forceState : !isLeftDockCollapsed;
+        dock.classList.toggle('wb-dock-collapsed', isLeftDockCollapsed);
+        if (btn) {
+            btn.innerHTML = isLeftDockCollapsed ? '<span>▶ إظهار الأدوات</span>' : '<span>◀ طي الأدوات</span>';
+            btn.style.background = isLeftDockCollapsed ? '#eff6ff' : '#f8fafc';
+            btn.style.color = isLeftDockCollapsed ? '#1d4ed8' : '#334155';
+        }
+        setTimeout(() => resizeCanvas(true), 50);
+    }
+
+    function toggleFreehandPagesDrawer(forceState) {
+        const panel = document.getElementById('whiteboardFreehandPagesPanel');
+        if (!panel) return;
+        if (isPdfOrWorksheetActive() && forceState !== false) {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('أنت تشتغل حالياً على مستند PDF؛ توجد مصغرات صفحات الـ PDF على اليمين.', 'info');
+            }
+            return;
+        }
+        isFreehandDrawerOpen = typeof forceState === 'boolean' ? forceState : !isFreehandDrawerOpen;
+        panel.style.display = isFreehandDrawerOpen ? 'flex' : 'none';
+        if (isFreehandDrawerOpen) {
+            persistWhiteboardState();
+            refreshFreehandDrawerIfOpen();
+        }
+        setTimeout(() => resizeCanvas(true), 50);
+    }
+
+    function jumpToFreehandPage(idx) {
+        if (isPdfOrWorksheetActive()) return;
+        const target = Math.max(0, Math.min(pageDataUrls.length - 1, Number(idx) || 0));
+        if (target === currentPageIndex) return;
+        persistWhiteboardState();
+        currentPageIndex = target;
+        selectedVectorIndex = -1;
+        const vecs = pageVectorStrokes[currentPageIndex];
+        if (Array.isArray(vecs) && vecs.length > 0) {
+            replayVectorStrokesToCanvas(vecs);
+        } else if (pageDataUrls[currentPageIndex]) {
+            restoreDataUrlToInkCanvas(pageDataUrls[currentPageIndex]);
+        } else {
+            clearInkCanvasInternal();
+        }
+        resetUndoHistory();
+        updatePageIndicator();
+        refreshFreehandDrawerIfOpen();
+        renderGeometricToolsOverlay();
+    }
+
+    function moveFreehandPage(fromIdx, toIdx) {
+        if (isPdfOrWorksheetActive()) return;
+        if (fromIdx < 0 || toIdx < 0 || fromIdx >= pageDataUrls.length || toIdx >= pageDataUrls.length || fromIdx === toIdx) return;
+        persistWhiteboardState();
+        const [movedUrl] = pageDataUrls.splice(fromIdx, 1);
+        pageDataUrls.splice(toIdx, 0, movedUrl);
+        if (Array.isArray(pageVectorStrokes)) {
+            const [movedVec] = pageVectorStrokes.splice(fromIdx, 1);
+            pageVectorStrokes.splice(toIdx, 0, movedVec || []);
+        }
+        if (currentPageIndex === fromIdx) currentPageIndex = toIdx;
+        else if (fromIdx < currentPageIndex && toIdx >= currentPageIndex) currentPageIndex--;
+        else if (fromIdx > currentPageIndex && toIdx <= currentPageIndex) currentPageIndex++;
+        updatePageIndicator();
+        persistWhiteboardState();
+        refreshFreehandDrawerIfOpen();
+    }
+
+    function deleteFreehandPageAt(idx) {
+        if (isPdfOrWorksheetActive() || pageDataUrls.length <= 1) return;
+        if (idx === currentPageIndex) {
+            deleteBoardPage();
+            return;
+        }
+        persistWhiteboardState();
+        pageDataUrls.splice(idx, 1);
+        if (Array.isArray(pageVectorStrokes)) {
+            pageVectorStrokes.splice(idx, 1);
+        }
+        if (idx < currentPageIndex) currentPageIndex--;
+        updatePageIndicator();
+        persistWhiteboardState();
+        refreshFreehandDrawerIfOpen();
+    }
 
     function addPage() {
         if (!ctx || !canvas) return;
@@ -2830,13 +3135,15 @@
         pageDataUrls.push('');
         pageVectorStrokes.push([]);
         currentPageIndex = pageDataUrls.length - 1;
+        selectedVectorIndex = -1;
 
         clearInkCanvasInternal();
         drawBackground();
-        undoStack = [];
-        redoStack = [];
+        resetUndoHistory();
         updatePageIndicator();
         persistWhiteboardState();
+        refreshFreehandDrawerIfOpen();
+        renderGeometricToolsOverlay();
 
         if (typeof window.showNotification === 'function') {
             window.showNotification(`تمت إضافة صفحة سبورة جديدة (${currentPageIndex + 1})`, 'success');
@@ -2851,16 +3158,18 @@
         if (currentPageIndex > 0) {
             persistWhiteboardState();
             currentPageIndex--;
-            if (pageDataUrls[currentPageIndex]) {
-                restoreDataUrlToInkCanvas(pageDataUrls[currentPageIndex]);
-            } else if (Array.isArray(pageVectorStrokes[currentPageIndex]) && pageVectorStrokes[currentPageIndex].length > 0) {
+            selectedVectorIndex = -1;
+            if (Array.isArray(pageVectorStrokes[currentPageIndex]) && pageVectorStrokes[currentPageIndex].length > 0) {
                 replayVectorStrokesToCanvas(pageVectorStrokes[currentPageIndex]);
+            } else if (pageDataUrls[currentPageIndex]) {
+                restoreDataUrlToInkCanvas(pageDataUrls[currentPageIndex]);
             } else {
                 clearInkCanvasInternal();
             }
-            undoStack = [];
-            redoStack = [];
+            resetUndoHistory();
             updatePageIndicator();
+            refreshFreehandDrawerIfOpen();
+            renderGeometricToolsOverlay();
         }
     }
 
@@ -2872,16 +3181,18 @@
         if (currentPageIndex < pageDataUrls.length - 1) {
             persistWhiteboardState();
             currentPageIndex++;
-            if (pageDataUrls[currentPageIndex]) {
-                restoreDataUrlToInkCanvas(pageDataUrls[currentPageIndex]);
-            } else if (Array.isArray(pageVectorStrokes[currentPageIndex]) && pageVectorStrokes[currentPageIndex].length > 0) {
+            selectedVectorIndex = -1;
+            if (Array.isArray(pageVectorStrokes[currentPageIndex]) && pageVectorStrokes[currentPageIndex].length > 0) {
                 replayVectorStrokesToCanvas(pageVectorStrokes[currentPageIndex]);
+            } else if (pageDataUrls[currentPageIndex]) {
+                restoreDataUrlToInkCanvas(pageDataUrls[currentPageIndex]);
             } else {
                 clearInkCanvasInternal();
             }
-            undoStack = [];
-            redoStack = [];
+            resetUndoHistory();
             updatePageIndicator();
+            refreshFreehandDrawerIfOpen();
+            renderGeometricToolsOverlay();
         }
     }
 
@@ -2901,10 +3212,12 @@
         pageDataUrls.splice(currentPageIndex + 1, 0, currentUrl);
         pageVectorStrokes.splice(currentPageIndex + 1, 0, currentVectors);
         currentPageIndex++;
-        undoStack = [];
-        redoStack = [];
+        selectedVectorIndex = -1;
+        resetUndoHistory();
         updatePageIndicator();
         persistWhiteboardState();
+        refreshFreehandDrawerIfOpen();
+        renderGeometricToolsOverlay();
         if (typeof window.showNotification === 'function') {
             window.showNotification(`📋 تم استنساخ الصفحة الحالية إلى الصفحة (${currentPageIndex + 1})`, 'success');
         }
@@ -2929,17 +3242,19 @@
         if (currentPageIndex >= pageDataUrls.length) {
             currentPageIndex = pageDataUrls.length - 1;
         }
-        if (pageDataUrls[currentPageIndex]) {
-            restoreDataUrlToInkCanvas(pageDataUrls[currentPageIndex]);
-        } else if (Array.isArray(pageVectorStrokes[currentPageIndex]) && pageVectorStrokes[currentPageIndex].length > 0) {
+        selectedVectorIndex = -1;
+        if (Array.isArray(pageVectorStrokes[currentPageIndex]) && pageVectorStrokes[currentPageIndex].length > 0) {
             replayVectorStrokesToCanvas(pageVectorStrokes[currentPageIndex]);
+        } else if (pageDataUrls[currentPageIndex]) {
+            restoreDataUrlToInkCanvas(pageDataUrls[currentPageIndex]);
         } else {
             clearInkCanvasInternal();
         }
-        undoStack = [];
-        redoStack = [];
+        resetUndoHistory();
         updatePageIndicator();
         persistWhiteboardState();
+        refreshFreehandDrawerIfOpen();
+        renderGeometricToolsOverlay();
         if (typeof window.showNotification === 'function') {
             window.showNotification(`🗑️ تم حذف الصفحة. أنت الآن في الصفحة ${currentPageIndex + 1} من ${pageDataUrls.length}`, 'info');
         }
@@ -2964,37 +3279,60 @@
         if (undoStack.length === 0 || !canvas) return;
         const currentUrl = canvas.toDataURL('image/webp', 0.85);
         redoStack.push(currentUrl);
-        if (isPdfOrWorksheetActive()) {
-            const arr = pdfPageVectorStrokes[currentPdfPageNum];
-            redoVectorStack.push(Array.isArray(arr) && arr.length > 0 ? arr.pop() : null);
-        } else {
-            const arr = pageVectorStrokes[currentPageIndex];
-            redoVectorStack.push(Array.isArray(arr) && arr.length > 0 ? arr.pop() : null);
+        redoVectorSnapshots.push(cloneVectorObj(getActiveVectorArray()));
+
+        const prevVecSnap = undoVectorSnapshots.pop();
+        if (Array.isArray(prevVecSnap)) {
+            setActiveVectorArray(prevVecSnap);
         }
+        selectedVectorIndex = -1;
+
         const prevUrl = undoStack.pop();
-        restoreDataUrlToInkCanvas(prevUrl, () => {
+        if (Array.isArray(prevVecSnap) && prevVecSnap.length > 0) {
+            replayVectorStrokesToCanvas(prevVecSnap);
+            renderGeometricToolsOverlay();
             persistWhiteboardState();
-        });
+            refreshFreehandDrawerIfOpen();
+        } else {
+            restoreDataUrlToInkCanvas(prevUrl, () => {
+                renderGeometricToolsOverlay();
+                persistWhiteboardState();
+                refreshFreehandDrawerIfOpen();
+            });
+        }
+        if (collabClient && collabClient.roomCode) {
+            collabClient.send('page:restore', { objects: getActiveVectorArray() });
+        }
     }
 
     function redo() {
         if (redoStack.length === 0 || !canvas) return;
         const currentUrl = canvas.toDataURL('image/webp', 0.85);
         undoStack.push(currentUrl);
-        const restoredVec = redoVectorStack.pop();
-        if (restoredVec) {
-            if (isPdfOrWorksheetActive()) {
-                if (!Array.isArray(pdfPageVectorStrokes[currentPdfPageNum])) pdfPageVectorStrokes[currentPdfPageNum] = [];
-                pdfPageVectorStrokes[currentPdfPageNum].push(restoredVec);
-            } else {
-                if (!Array.isArray(pageVectorStrokes[currentPageIndex])) pageVectorStrokes[currentPageIndex] = [];
-                pageVectorStrokes[currentPageIndex].push(restoredVec);
-            }
+        undoVectorSnapshots.push(cloneVectorObj(getActiveVectorArray()));
+
+        const nextVecSnap = redoVectorSnapshots.pop();
+        if (Array.isArray(nextVecSnap)) {
+            setActiveVectorArray(nextVecSnap);
         }
+        selectedVectorIndex = -1;
+
         const nextUrl = redoStack.pop();
-        restoreDataUrlToInkCanvas(nextUrl, () => {
+        if (Array.isArray(nextVecSnap) && nextVecSnap.length > 0) {
+            replayVectorStrokesToCanvas(nextVecSnap);
+            renderGeometricToolsOverlay();
             persistWhiteboardState();
-        });
+            refreshFreehandDrawerIfOpen();
+        } else {
+            restoreDataUrlToInkCanvas(nextUrl, () => {
+                renderGeometricToolsOverlay();
+                persistWhiteboardState();
+                refreshFreehandDrawerIfOpen();
+            });
+        }
+        if (collabClient && collabClient.roomCode) {
+            collabClient.send('page:restore', { objects: getActiveVectorArray() });
+        }
     }
 
     /**
@@ -3004,6 +3342,7 @@
         if (!ctx || !canvas) return;
         saveStateForUndo();
         clearInkCanvasInternal();
+        selectedVectorIndex = -1;
 
         if (isPdfOrWorksheetActive()) {
             pdfPageDataUrls[currentPdfPageNum] = '';
@@ -3014,7 +3353,13 @@
             pageVectorStrokes[currentPageIndex] = [];
         }
 
+        renderGeometricToolsOverlay();
         persistWhiteboardState();
+        refreshFreehandDrawerIfOpen();
+
+        if (collabClient && collabClient.roomCode) {
+            collabClient.send('page:clear', {});
+        }
 
         if (typeof window.showNotification === 'function') {
             window.showNotification('🗑️ تم مسح رسومات الصفحة (يمكنك النقر على "تراجع ↩️" لاستعادتها)', 'info');
@@ -3099,26 +3444,181 @@
         }
     }
 
+    /**
+     * تصدير دفتر السبورة الكامل (جميع الصفحات الحرة أو صفحات الـ PDF المشروحة) كملف PDF شامل متعدد الصفحات
+     */
+    async function exportAllWhiteboardPagesToPDF() {
+        if (!canvas || !ctx) return;
+        persistWhiteboardState();
+
+        const w = lastValidWidth || parseFloat(canvas.style.width) || 960;
+        const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('⏳ جاري تجميع وتجهيز جميع صفحات السبورة في ملف PDF شامل عالي الدقة...', 'info');
+        }
+
+        const todayStr = new Date().toLocaleDateString('ar-MA');
+        const className = window.currentClass || '2BAC';
+        const teacherProfile = (window.WbSecurityMath && typeof window.WbSecurityMath.getTeacherProfile === 'function')
+            ? window.WbSecurityMath.getTeacherProfile()
+            : { name: 'الأستاذ(ة)' };
+
+        // Helper to render a single freehand page (background + vectors/ink + academic header strip) to a DataURL
+        const renderPageToDataUrl = (pageIdx, totalPagesCount) => new Promise((resolve) => {
+            const offCanvas = document.createElement('canvas');
+            const headerH = 44;
+            offCanvas.width = Math.round(w * dpr);
+            offCanvas.height = Math.round((h + headerH) * dpr);
+            const offCtx = offCanvas.getContext('2d');
+            offCtx.scale(dpr, dpr);
+
+            // Top academic header strip
+            offCtx.fillStyle = '#1e3a8a';
+            offCtx.fillRect(0, 0, w, headerH);
+            offCtx.fillStyle = '#ffffff';
+            offCtx.font = 'bold 14px "Cairo", sans-serif';
+            offCtx.textAlign = 'right';
+            offCtx.textBaseline = 'middle';
+            offCtx.fillText(`📐 دفتر السبورة التفاعلية — القسم: ${className} | ${teacherProfile.name || 'مادة الرياضيات'}`, w - 16, headerH / 2);
+            offCtx.textAlign = 'left';
+            offCtx.font = 'bold 13px "Cairo", sans-serif';
+            offCtx.fillStyle = '#bae6fd';
+            offCtx.fillText(`📅 ${todayStr}   |   📄 الصفحة ${pageIdx + 1} من ${totalPagesCount}`, 16, headerH / 2);
+
+            // Translate down for board area
+            offCtx.save();
+            offCtx.translate(0, headerH);
+
+            // Draw active background grid
+            drawBackgroundGrid(offCtx, w, h);
+
+            // Draw vectors if available
+            const vecs = Array.isArray(pageVectorStrokes[pageIdx]) ? pageVectorStrokes[pageIdx] : [];
+            const env = getVectorEnv();
+            if (vecs.length > 0 && window.WbVectorEngine) {
+                const inkLayer = document.createElement('canvas');
+                inkLayer.width = Math.round(w * dpr);
+                inkLayer.height = Math.round(h * dpr);
+                const inkCtx = inkLayer.getContext('2d');
+                inkCtx.scale(dpr, dpr);
+                vecs.forEach(obj => {
+                    window.WbVectorEngine.drawVectorObject(inkCtx, obj, env);
+                });
+                offCtx.drawImage(inkLayer, 0, 0, w, h);
+                offCtx.restore();
+                resolve(offCanvas.toDataURL('image/jpeg', 0.92));
+            } else if (pageDataUrls[pageIdx]) {
+                const img = new Image();
+                img.onload = () => {
+                    offCtx.drawImage(img, 0, 0, w, h);
+                    offCtx.restore();
+                    resolve(offCanvas.toDataURL('image/jpeg', 0.92));
+                };
+                img.onerror = () => {
+                    offCtx.restore();
+                    resolve(offCanvas.toDataURL('image/jpeg', 0.92));
+                };
+                img.src = pageDataUrls[pageIdx];
+            } else {
+                offCtx.restore();
+                resolve(offCanvas.toDataURL('image/jpeg', 0.92));
+            }
+        });
+
+        try {
+            const totalFreehand = Math.max(1, pageDataUrls.length, pageVectorStrokes.length);
+            const pageImages = [];
+
+            if (isPdfOrWorksheetActive() && totalFreehand <= 1) {
+                // Export current composited PDF/worksheet page
+                const comp = createCompositedCanvas();
+                pageImages.push(comp.toDataURL('image/jpeg', 0.92));
+            } else {
+                for (let i = 0; i < totalFreehand; i++) {
+                    const dataUrl = await renderPageToDataUrl(i, totalFreehand);
+                    pageImages.push(dataUrl);
+                }
+            }
+
+            if (typeof window.loadJsPDF === 'function') {
+                const jspdfLib = await window.loadJsPDF();
+                const jsPDFCtor = (jspdfLib && jspdfLib.jsPDF) ? jspdaSafe(jspdfLib) : (window.jspdf && window.jspdf.jsPDF);
+                if (jsPDFCtor) {
+                    const pdfDoc = new jsPDFCtor({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                    const pageW = pdfDoc.internal.pageSize.getWidth();
+                    const pageH = pdfDoc.internal.pageSize.getHeight();
+                    pageImages.forEach((imgData, idx) => {
+                        if (idx > 0) pdfDoc.addPage('a4', 'landscape');
+                        pdfDoc.addImage(imgData, 'JPEG', 6, 6, pageW - 12, pageH - 12);
+                    });
+                    const safeDate = new Date().toISOString().slice(0, 10);
+                    pdfDoc.save(`دفتر_السبورة_الرقمية_${className}_${safeDate}.pdf`);
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification(`✅ تم تصدير دفتر السبورة الشامل (${pageImages.length} صفحات) بصيغة PDF بنجاح!`, 'success');
+                    }
+                    return;
+                }
+            }
+
+            // Fallback to multi-page print document if jsPDF is unavailable
+            const pagesHtml = pageImages.map((imgUrl, idx) => `
+                <div style="page-break-after: ${idx < pageImages.length - 1 ? 'always' : 'auto'}; padding: 8px; text-align: center;">
+                    <img src="${imgUrl}" style="max-width: 100%; max-height: 195mm; border: 1px solid #cbd5e1; border-radius: 8px;" />
+                </div>
+            `).join('');
+            if (typeof window.printDocumentDirectly === 'function') {
+                window.printDocumentDirectly(`<div style="direction:rtl;font-family:'Cairo',sans-serif;">${pagesHtml}</div>`, `دفتر السبورة الرقمية (${pageImages.length} صفحات)`, { orientation: 'landscape' });
+            }
+        } catch (err) {
+            console.warn('Multi-page PDF export fallback:', err);
+            printAnnotatedWhiteboardPages();
+        }
+    }
+
+    function jspdaSafe(lib) {
+        return lib && (lib.jsPDF || lib.default || lib);
+    }
+
     // ====================================================================
     // شريط الأدوات وتغيير الأنماط والألوان والسمك (Toolbar & Customization)
     // ====================================================================
 
     function setTool(tool) {
         currentTool = tool;
+        if (tool !== 'select') {
+            selectedVectorIndex = -1;
+        }
+        if (tool === 'spotlight') {
+            spotlightState.active = true;
+            if (canvas) {
+                const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
+                const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
+                if (!spotlightState.x || spotlightState.x <= 0 || spotlightState.x > w) spotlightState.x = Math.floor(w / 2);
+                if (!spotlightState.y || spotlightState.y <= 0 || spotlightState.y > h) spotlightState.y = Math.floor(h / 2);
+            }
+        } else {
+            spotlightState.active = false;
+        }
         if (canvas) {
             if (tool === 'pan') canvas.style.cursor = 'grab';
+            else if (tool === 'select') canvas.style.cursor = 'default';
             else if (tool === 'text') canvas.style.cursor = 'text';
-            else if (tool === 'laser') canvas.style.cursor = 'pointer';
+            else if (tool === 'laser' || tool === 'spotlight') canvas.style.cursor = 'pointer';
             else canvas.style.cursor = 'crosshair';
         }
         updateToolbarUI();
+        renderGeometricToolsOverlay();
         persistWhiteboardState();
     }
 
     function setColor(color) {
         currentColor = color;
-        if (currentTool === 'eraser' || currentTool === 'pan') {
+        if (currentTool === 'eraser' || currentTool === 'pan' || currentTool === 'spotlight') {
             currentTool = 'pen';
+            spotlightState.active = false;
+            renderGeometricToolsOverlay();
         }
         const picker = document.getElementById('whiteboardCustomColorPicker');
         if (picker && color.startsWith('#') && color.length === 7) {
@@ -3142,7 +3642,7 @@
         currentBg = bg;
         // تبديل ذكي للون القلم عند الانتقال بين السبورة الفاتحة والسبورة الخضراء/الليلية لضمان وضوح الكتابة
         if (bg === 'green' || bg === 'dark') {
-            if (currentColor === '#1e3a8a' || currentColor === '#0f172a') {
+            if (currentColor === '#1e3a8a' || currentColor === '#0f172a' || currentColor === '#000000') {
                 currentColor = '#ffffff';
             }
         } else {
@@ -3440,17 +3940,17 @@
         const p1 = toWorldToolCoords(-halfL, -halfH - 1, rulerState);
         const p2 = toWorldToolCoords(halfL, -halfH - 1, rulerState);
 
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = currentColor;
-        ctx.lineWidth = Math.max(2, currentSize);
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.stroke();
-        ctx.restore();
-
+        const obj = {
+            t: 'line',
+            x1: p1.x,
+            y1: p1.y,
+            x2: p2.x,
+            y2: p2.y,
+            c: currentColor,
+            s: Math.max(2, currentSize)
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
     }
 
@@ -3469,36 +3969,35 @@
         const sq1 = toWorldToolCoords(sqSize, 0, setSquareState);
         const sqCorner = toWorldToolCoords(sqSize, -sqSize, setSquareState);
         const sq2 = toWorldToolCoords(0, -sqSize, setSquareState);
-
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = currentColor;
-        ctx.fillStyle = currentColor;
-        ctx.lineWidth = Math.max(2, currentSize);
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-
-        // رسم ضلعي التعامد
-        ctx.beginPath();
-        ctx.moveTo(hEnd.x, hEnd.y);
-        ctx.lineTo(origin.x, origin.y);
-        ctx.lineTo(vEnd.x, vEnd.y);
-        ctx.stroke();
-
-        // رسم رمز الزاوية القائمة
-        ctx.beginPath();
-        ctx.moveTo(sq1.x, sq1.y);
-        ctx.lineTo(sqCorner.x, sqCorner.y);
-        ctx.lineTo(sq2.x, sq2.y);
-        ctx.stroke();
-
-        // نقطة دائرية في منتصف رمز التعامد
         const dot = toWorldToolCoords(sqSize / 2, -sqSize / 2, setSquareState);
-        ctx.beginPath();
-        ctx.arc(dot.x, dot.y, 2.5, 0, Math.PI * 2);
-        ctx.fill();
 
-        ctx.restore();
+        const xs = [origin.x, hEnd.x, vEnd.x];
+        const ys = [origin.y, hEnd.y, vEnd.y];
+        const minX = Math.min(...xs) - 6;
+        const minY = Math.min(...ys) - 6;
+        const boxW = Math.max(24, Math.max(...xs) + 6 - minX);
+        const boxH = Math.max(24, Math.max(...ys) + 6 - minY);
+
+        const obj = {
+            t: 'right_angle',
+            x: minX,
+            y: minY,
+            w: boxW,
+            h: boxH,
+            baseW: boxW,
+            baseH: boxH,
+            origin: [origin.x, origin.y],
+            hEnd: [hEnd.x, hEnd.y],
+            vEnd: [vEnd.x, vEnd.y],
+            sq1: [sq1.x, sq1.y],
+            sqCorner: [sqCorner.x, sqCorner.y],
+            sq2: [sq2.x, sq2.y],
+            dot: [dot.x, dot.y],
+            c: currentColor,
+            s: Math.max(2, currentSize)
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
 
         if (typeof window.showNotification === 'function') {
@@ -3519,38 +4018,36 @@
         const origin = toWorldToolCoords(0, 0, protractorState);
         const baseEnd = toWorldToolCoords(r, 0, protractorState);
         const rayEnd = toWorldToolCoords(r * Math.cos(rayRad), -r * Math.sin(rayRad), protractorState);
-
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = currentColor;
-        ctx.fillStyle = currentColor;
-        ctx.lineWidth = Math.max(2, currentSize);
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-
-        // Draw angle rays
-        ctx.beginPath();
-        ctx.moveTo(baseEnd.x, baseEnd.y);
-        ctx.lineTo(origin.x, origin.y);
-        ctx.lineTo(rayEnd.x, rayEnd.y);
-        ctx.stroke();
-
-        // Draw angle arc
-        ctx.beginPath();
-        const startWorldAngle = protractorState.angle - rayRad;
-        const endWorldAngle = protractorState.angle;
-        ctx.arc(origin.x, origin.y, 34, startWorldAngle, endWorldAngle);
-        ctx.stroke();
-
-        // Draw degree label
         const midRad = rayRad / 2;
         const labelPos = toWorldToolCoords(52 * Math.cos(midRad), -52 * Math.sin(midRad), protractorState);
-        ctx.font = 'bold 14px "Cairo", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${deg}°`, labelPos.x, labelPos.y);
 
-        ctx.restore();
+        const xs = [origin.x, baseEnd.x, rayEnd.x, labelPos.x];
+        const ys = [origin.y, baseEnd.y, rayEnd.y, labelPos.y];
+        const minX = Math.min(...xs) - 16;
+        const minY = Math.min(...ys) - 16;
+        const boxW = Math.max(40, Math.max(...xs) + 16 - minX);
+        const boxH = Math.max(40, Math.max(...ys) + 16 - minY);
+
+        const obj = {
+            t: 'angle_arc',
+            x: minX,
+            y: minY,
+            w: boxW,
+            h: boxH,
+            baseW: boxW,
+            baseH: boxH,
+            origin: [origin.x, origin.y],
+            baseEnd: [baseEnd.x, baseEnd.y],
+            rayEnd: [rayEnd.x, rayEnd.y],
+            labelPos: [labelPos.x, labelPos.y],
+            startWorldAngle: protractorState.angle - rayRad,
+            endWorldAngle: protractorState.angle,
+            deg,
+            c: currentColor,
+            s: Math.max(2, currentSize)
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
     }
 
@@ -3565,39 +4062,18 @@
         const cy = compassState.y;
         const rCm = Math.round((r / 20) * 10) / 10;
 
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = currentColor;
-        ctx.fillStyle = currentColor;
-        ctx.lineWidth = Math.max(2, currentSize);
-        ctx.lineCap = 'round';
-
-        // رسم الدائرة
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // رسم نقطة المركز O
-        ctx.beginPath();
-        ctx.arc(cx, cy, 3.2, 0, Math.PI * 2);
-        ctx.fill();
-
-        // رسم شعاع متقطع خفيف مع القياس
-        const px = cx + r * Math.cos(compassState.angle || 0);
-        const py = cy + r * Math.sin(compassState.angle || 0);
-        ctx.save();
-        ctx.lineWidth = 1.3;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(px, py);
-        ctx.stroke();
-        ctx.restore();
-
-        ctx.font = 'bold 12px "Cairo", sans-serif';
-        ctx.fillText(`R = ${rCm} cm`, (cx + px) / 2 - 20, (cy + py) / 2 - 8);
-
-        ctx.restore();
+        const obj = {
+            t: 'compass_circle',
+            x: cx - r,
+            y: cy - r,
+            w: r * 2,
+            h: r * 2,
+            angle: compassState.angle || 0,
+            c: currentColor,
+            s: Math.max(2, currentSize)
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
         if (typeof window.showNotification === 'function') {
             window.showNotification(`🧭 تم رسم دائرة بالبركار (الشعاع R = ${rCm} cm)`, 'success');
@@ -3613,31 +4089,19 @@
         const r = compassState.radius || 120;
         const cx = compassState.x;
         const cy = compassState.y;
-        const baseAngle = compassState.angle || 0;
-        const halfArc = (35 * Math.PI) / 180; // 70° construction arc
 
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = currentColor;
-        ctx.fillStyle = currentColor;
-        ctx.lineWidth = Math.max(2, currentSize);
-        ctx.lineCap = 'round';
-
-        // رسم قوس الإنشاء الهندسي
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, baseAngle - halfArc, baseAngle + halfArc);
-        ctx.stroke();
-
-        // علامة المركز الخفيفة (+)
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.moveTo(cx - 4, cy);
-        ctx.lineTo(cx + 4, cy);
-        ctx.moveTo(cx, cy - 4);
-        ctx.lineTo(cx, cy + 4);
-        ctx.stroke();
-
-        ctx.restore();
+        const obj = {
+            t: 'compass_arc',
+            x: cx - r,
+            y: cy - r,
+            w: r * 2,
+            h: r * 2,
+            angle: compassState.angle || 0,
+            c: currentColor,
+            s: Math.max(2, currentSize)
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
         if (typeof window.showNotification === 'function') {
             window.showNotification('🧭 تم رسم قوس الإنشاء الهندسي بالبركار بنجاح', 'success');
@@ -3697,8 +4161,67 @@
         tCtx.restore();
     }
 
+    function startLaserTrailLoop() {
+        if (laserTrailAnimId) return;
+        const step = () => {
+            const now = performance.now();
+            laserTrailPoints = laserTrailPoints.filter(p => (now - p.t) < 1100);
+            renderGeometricToolsOverlay();
+            if (laserTrailPoints.length > 0 || (currentTool === 'laser' && laserPointerPos)) {
+                laserTrailAnimId = requestAnimationFrame(step);
+            } else {
+                laserTrailAnimId = null;
+            }
+        };
+        laserTrailAnimId = requestAnimationFrame(step);
+    }
+
+    function drawSpotlightFocusOverlay(tCtx, w, h, x, y, radius) {
+        tCtx.save();
+        // Dim everything outside the glowing focus aperture
+        tCtx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+        tCtx.beginPath();
+        tCtx.rect(0, 0, w, h);
+        tCtx.arc(x, y, radius, 0, Math.PI * 2, true);
+        tCtx.fill('evenodd');
+
+        // Soft glowing amber ring around the illuminated zone
+        tCtx.strokeStyle = 'rgba(250, 204, 21, 0.92)';
+        tCtx.lineWidth = 3;
+        tCtx.shadowColor = 'rgba(250, 204, 21, 0.85)';
+        tCtx.shadowBlur = 16;
+        tCtx.beginPath();
+        tCtx.arc(x, y, radius, 0, Math.PI * 2);
+        tCtx.stroke();
+
+        // Compact instruction pill below the spotlight aperture
+        tCtx.shadowBlur = 0;
+        tCtx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+        const labelText = `🔦 بقعة التركيز (عجلة الفأرة لتغيير القطر • Esc للخروج)`;
+        tCtx.font = 'bold 11px "Cairo", sans-serif';
+        const tw = tCtx.measureText(labelText).width + 20;
+        const lx = Math.max(10, Math.min(w - tw - 10, x - tw / 2));
+        const ly = Math.min(h - 32, y + radius + 12);
+        tCtx.beginPath();
+        if (typeof tCtx.roundRect === 'function') {
+            tCtx.roundRect(lx, ly, tw, 24, 10);
+        } else {
+            tCtx.rect(lx, ly, tw, 24);
+        }
+        tCtx.fill();
+        tCtx.strokeStyle = '#facc15';
+        tCtx.lineWidth = 1;
+        tCtx.stroke();
+
+        tCtx.fillStyle = '#fef08a';
+        tCtx.textAlign = 'center';
+        tCtx.textBaseline = 'middle';
+        tCtx.fillText(labelText, lx + tw / 2, ly + 12);
+        tCtx.restore();
+    }
+
     /**
-     * رسم المسطرة والمنقلة والكوس والبركار والستار ومؤشر الليزر على طبقة الأدوات (#whiteboardToolsCanvas)
+     * رسم المسطرة والمنقلة والكوس والبركار والستار وبقعة التركيز ومؤشر الليزر على طبقة الأدوات (#whiteboardToolsCanvas)
      */
     function renderGeometricToolsOverlay() {
         if (!toolsCanvas) {
@@ -3713,6 +4236,9 @@
         toolsCtx.save();
         toolsCtx.clearRect(0, 0, w, h);
 
+        if (currentTool === 'spotlight' && spotlightState.active) {
+            drawSpotlightFocusOverlay(toolsCtx, w, h, spotlightState.x, spotlightState.y, spotlightState.radius);
+        }
         if (curtainState.visible) {
             drawPedagogicalCurtain(toolsCtx, w, h);
         }
@@ -3728,10 +4254,30 @@
         if (compassState.visible) {
             drawInteractiveCompass(toolsCtx);
         }
-        if (laserPointerPos) {
-            drawLaserPointer(toolsCtx, laserPointerPos.x, laserPointerPos.y);
+        if (laserTrailPoints.length > 0 || laserPointerPos) {
+            drawLaserPointer(toolsCtx, laserPointerPos ? laserPointerPos.x : null, laserPointerPos ? laserPointerPos.y : null);
         }
-        if (studentCallState.active && studentCursorPos) {
+        if (selectedVectorIndex >= 0 && window.WbVectorEngine) {
+            const activeArr = getActiveVectorArray();
+            const selObj = activeArr[selectedVectorIndex];
+            if (selObj) {
+                const selBounds = window.WbVectorEngine.getObjectBounds(selObj, getVectorEnv());
+                if (selBounds) {
+                    window.WbVectorEngine.drawSelectionOverlay(toolsCtx, selBounds);
+                }
+            }
+        }
+        const nowPeerTs = Date.now();
+        let hasActiveRemotePeer = false;
+        remotePeers.forEach((peer, peerId) => {
+            if (peer && (nowPeerTs - (peer.ts || 0) < 15000)) {
+                hasActiveRemotePeer = true;
+                drawStudentCursorBadge(toolsCtx, peer.x, peer.y, peer.name, peer.role);
+            } else {
+                remotePeers.delete(peerId);
+            }
+        });
+        if (!hasActiveRemotePeer && studentCallState.active && studentCursorPos) {
             drawStudentCursorBadge(toolsCtx, studentCursorPos.x, studentCursorPos.y, studentCallState.studentName, studentCallState.studentRole);
         }
 
@@ -3890,24 +4436,55 @@
 
     function drawLaserPointer(tCtx, x, y) {
         tCtx.save();
-        tCtx.shadowColor = '#ef4444';
-        tCtx.shadowBlur = 18;
+        const now = performance.now();
+        // Draw glowing fading laser trail
+        if (laserTrailPoints.length >= 2) {
+            tCtx.lineCap = 'round';
+            tCtx.lineJoin = 'round';
+            tCtx.shadowColor = '#ef4444';
+            tCtx.shadowBlur = 14;
+            for (let i = 1; i < laserTrailPoints.length; i++) {
+                const p0 = laserTrailPoints[i - 1];
+                const p1 = laserTrailPoints[i];
+                const age = now - p1.t;
+                if (age >= 1100) continue;
+                const life = Math.max(0, 1 - age / 1100);
+                tCtx.strokeStyle = `rgba(239, 68, 68, ${(life * 0.9).toFixed(3)})`;
+                tCtx.lineWidth = Math.max(1.8, 7 * life);
+                tCtx.beginPath();
+                tCtx.moveTo(p0.x, p0.y);
+                tCtx.lineTo(p1.x, p1.y);
+                tCtx.stroke();
 
-        const grad = tCtx.createRadialGradient(x, y, 2, x, y, 14);
-        grad.addColorStop(0, '#ffffff');
-        grad.addColorStop(0.3, '#f87171');
-        grad.addColorStop(0.7, '#ef4444');
-        grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                tCtx.strokeStyle = `rgba(255, 255, 255, ${(life * 0.75).toFixed(3)})`;
+                tCtx.lineWidth = Math.max(0.8, 2.5 * life);
+                tCtx.beginPath();
+                tCtx.moveTo(p0.x, p0.y);
+                tCtx.lineTo(p1.x, p1.y);
+                tCtx.stroke();
+            }
+        }
 
-        tCtx.fillStyle = grad;
-        tCtx.beginPath();
-        tCtx.arc(x, y, 14, 0, Math.PI * 2);
-        tCtx.fill();
+        if (x !== null && y !== null) {
+            tCtx.shadowColor = '#ef4444';
+            tCtx.shadowBlur = 18;
 
-        tCtx.fillStyle = '#ffffff';
-        tCtx.beginPath();
-        tCtx.arc(x, y, 3, 0, Math.PI * 2);
-        tCtx.fill();
+            const grad = tCtx.createRadialGradient(x, y, 2, x, y, 14);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(0.3, '#f87171');
+            grad.addColorStop(0.7, '#ef4444');
+            grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+
+            tCtx.fillStyle = grad;
+            tCtx.beginPath();
+            tCtx.arc(x, y, 14, 0, Math.PI * 2);
+            tCtx.fill();
+
+            tCtx.fillStyle = '#ffffff';
+            tCtx.beginPath();
+            tCtx.arc(x, y, 3, 0, Math.PI * 2);
+            tCtx.fill();
+        }
         tCtx.restore();
     }
 
@@ -4495,18 +5072,20 @@
                         </foreignObject>
                     </svg>
                 `;
-                const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
-                const img = new Image();
-                img.onload = function () {
-                    ctx.save();
-                    ctx.globalCompositeOperation = 'source-over';
-                    ctx.drawImage(img, posX - 180, posY - 40, 360, 80);
-                    ctx.restore();
-                    URL.revokeObjectURL(url);
-                    persistWhiteboardState();
+                const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+                const obj = {
+                    t: 'latex_img',
+                    x: posX - 180,
+                    y: posY - 40,
+                    w: 360,
+                    h: 80,
+                    src: svgDataUrl,
+                    latex,
+                    c: clr
                 };
-                img.src = url;
+                pushVectorObject(obj);
+                drawVectorObjectOnCtx(obj);
+                persistWhiteboardState();
 
                 if (typeof window.showNotification === 'function') {
                     window.showNotification('∛ تم إدراج الصيغة الرياضية بنجاح على السبورة!', 'success');
@@ -4515,15 +5094,18 @@
             } catch (err) {}
         }
 
-        // Fallback: Unicode text drawing
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.font = `bold ${fSize}px "Cairo", serif`;
-        ctx.fillStyle = clr;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(latex, posX, posY);
-        ctx.restore();
+        const obj = {
+            t: 'text',
+            x: posX - 60,
+            y: posY - Math.round(fSize / 2),
+            text: latex,
+            fontSize: fSize,
+            fontFamily: '"Cairo", serif',
+            c: clr,
+            s: currentSize
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
 
         if (typeof window.showNotification === 'function') {
@@ -4759,6 +5341,7 @@
                 updateProofPlaybackUI(proofTotalDuration);
                 proofRecording.isPlaying = false;
                 if (playBtn) playBtn.textContent = '▶';
+                persistWhiteboardState();
                 return;
             }
 
@@ -4840,6 +5423,18 @@
             if (stroke.tool === 'highlighter') ctx.globalAlpha = 0.28;
 
             const visiblePoints = stroke.points.filter(pt => pt.t <= targetTime);
+            const isShapeTool = (stroke.tool === 'line' || stroke.tool === 'arrow' || stroke.tool === 'rect' || stroke.tool === 'circle' || stroke.tool === 'triangle');
+            if (isShapeTool && visiblePoints.length >= 2 && window.WbVectorEngine && typeof window.WbVectorEngine.drawShape === 'function') {
+                const first = visiblePoints[0];
+                const last = visiblePoints[visiblePoints.length - 1];
+                const dur = Math.max(1, (stroke.endTime || last.t || 1) - (stroke.startTime || first.t || 0));
+                const prog = Math.max(0, Math.min(1, (targetTime - (stroke.startTime || 0)) / dur));
+                const curX = first.x + (last.x - first.x) * prog;
+                const curY = first.y + (last.y - first.y) * prog;
+                ctx.restore();
+                window.WbVectorEngine.drawShape(ctx, first.x, first.y, curX, curY, stroke.tool, stroke.color, stroke.size);
+                continue;
+            }
             if (visiblePoints.length === 1) {
                 ctx.beginPath();
                 ctx.arc(visiblePoints[0].x, visiblePoints[0].y, Math.max(0.8, stroke.size / 2), 0, Math.PI * 2);
@@ -5027,8 +5622,8 @@
                             ${savedBank.map((item, idx) => `
                                 <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px;">
                                     <div>
-                                        <div style="font-size: 0.8rem; font-weight: 800; color: #1e293b;">${item.title}</div>
-                                        <div style="font-size: 0.66rem; color: #64748b;">تاريخ التسجيل: ${item.date} | المدة: ${Math.round(item.duration / 1000)} ثانية</div>
+                                        <div style="font-size: 0.8rem; font-weight: 800; color: #1e293b;">${escWb(item.title)}</div>
+                                        <div style="font-size: 0.66rem; color: #64748b;">تاريخ التسجيل: ${escWb(item.date)} | المدة: ${Math.round((item.duration || 0) / 1000)} ثانية</div>
                                     </div>
                                     <div style="display: flex; gap: 6px; align-items: center;">
                                         <button type="button" onclick="window.loadSavedProofItem(${idx})" style="background: #059669; color: #fff; border: none; padding: 4px 10px; border-radius: 5px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">▶️ استرجاع وتشغيل</button>
@@ -5166,7 +5761,7 @@
                     <div>
                         <label style="display: block; font-size: 0.78rem; font-weight: 800; color: #1e293b; margin-bottom: 4px;">👤 اختر التلميذ(ة) صاحب النسخة:</label>
                         <select id="wbHwSelectStudent" style="width: 100%; padding: 7px 10px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-weight: 700; font-size: 0.8rem; background: #fff; color: #1e293b;">
-                            ${studentOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+                            ${studentOptions.map(opt => `<option value="${escWb(opt)}">${escWb(opt)}</option>`).join('')}
                         </select>
                     </div>
 
@@ -5362,9 +5957,6 @@
         if (!ctx) return;
         saveStateForUndo();
 
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-
         let icon = '⭐';
         let label = 'ممتاز واصل!';
         let bgClr = '#fefce8';
@@ -5403,36 +5995,27 @@
             textClr = '#6b21a8';
         }
 
+        ctx.save();
         ctx.font = 'bold 12px "Cairo", sans-serif';
         const textWidth = ctx.measureText(`${icon} ${label}`).width;
-        const padX = 8;
-        const boxW = textWidth + padX * 2;
-        const boxH = 26;
-        const boxX = x - boxW / 2;
-        const boxY = y - boxH / 2;
-
-        ctx.shadowColor = 'rgba(0,0,0,0.12)';
-        ctx.shadowBlur = 6;
-        ctx.fillStyle = bgClr;
-        ctx.strokeStyle = borderClr;
-        ctx.lineWidth = 1.5;
-
-        ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') {
-            ctx.roundRect(boxX, boxY, boxW, boxH, 6);
-        } else {
-            ctx.rect(boxX, boxY, boxW, boxH);
-        }
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = textClr;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${icon} ${label}`, boxX + boxW / 2, boxY + boxH / 2);
-
         ctx.restore();
+        const boxW = textWidth + 16;
+        const boxH = 26;
+
+        const obj = {
+            t: 'stamp',
+            x: x - boxW / 2,
+            y: y - boxH / 2,
+            w: boxW,
+            h: boxH,
+            icon,
+            label,
+            bg: bgClr,
+            border: borderClr,
+            textColor: textClr
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
 
         homeworkCorrectionState.activeStamp = null;
@@ -5478,25 +6061,17 @@
             const w = lastValidWidth || 800;
             saveStateForUndo();
 
-            ctx.save();
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.fillStyle = '#dc2626';
-            ctx.strokeStyle = '#dc2626';
-            ctx.lineWidth = 2;
-            ctx.font = 'bold 16px "Cairo", sans-serif';
-
-            const posX = w - 40;
-            const posY = 130;
-
-            ctx.beginPath();
-            ctx.arc(posX, posY, 22, 0, Math.PI * 2);
-            ctx.stroke();
-
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(score, posX, posY);
-
-            ctx.restore();
+            const obj = {
+                t: 'score_badge',
+                x: w - 62,
+                y: 108,
+                w: 44,
+                h: 44,
+                score,
+                c: '#dc2626'
+            };
+            pushVectorObject(obj);
+            drawVectorObjectOnCtx(obj);
             persistWhiteboardState();
 
             if (typeof window.showNotification === 'function') {
@@ -5548,6 +6123,257 @@
     /* ====================================================================
      * 4. السبورة التشاركية ودعوة تلميذ للصعود للسبورة (Student Collaboration)
      * ==================================================================== */
+    function escWb(s) {
+        return window.WbSecurityMath ? window.WbSecurityMath.escapeHtml(s) : String(s || '');
+    }
+
+    function updateCollabRoomBadgeUI(statusInfo) {
+        const badge = document.getElementById('wbCollabRoomBadge');
+        const room = (collabClient && collabClient.roomCode) || studentCallState.roomCode || 'MATH-BAC-2026';
+        const peers = (collabClient && collabClient.peerCount) || 1;
+        const connected = statusInfo ? !!statusInfo.connected : (collabClient ? !!collabClient.isConnected : false);
+        if (badge) {
+            const dot = connected ? '🟢' : '🟡';
+            badge.textContent = `${dot} غرفة: ${room} | متصل: ${peers}`;
+        }
+        const btn = document.getElementById('btnToggleStudentLock');
+        const status = document.getElementById('wbStudentPenStatus');
+        if (btn) {
+            btn.textContent = studentCallState.isLocked ? '🔓 فتح القلم' : '🔒 قفل القلم';
+            btn.style.background = studentCallState.isLocked ? '#dc2626' : '#334155';
+        }
+        if (status) {
+            status.textContent = studentCallState.isLocked ? 'حالة القلم: مقفل للشرح 🔴' : 'حالة القلم: متاح للكتابة 🟢';
+        }
+    }
+
+    function getOrCreateCollabClient() {
+        if (collabClient) return collabClient;
+        if (!window.WbCollabSync || typeof window.WbCollabSync.WhiteboardCollabClient !== 'function') {
+            return null;
+        }
+        collabClient = new window.WbCollabSync.WhiteboardCollabClient({
+            onStatus: (info) => {
+                updateCollabRoomBadgeUI(info);
+            },
+            onEvent: (msg) => {
+                if (!msg || !msg.type) return;
+                if (msg.type === 'room:presence') {
+                    updateCollabRoomBadgeUI();
+                    return;
+                }
+                if (msg.type === 'room:sync') {
+                    studentCallState.isLocked = !!msg.locked;
+                    const syncObjects = Array.isArray(msg.objects)
+                        ? msg.objects
+                        : (msg.snapshot && Array.isArray(msg.snapshot.objects) ? msg.snapshot.objects : null);
+                    if (syncObjects && syncObjects.length > 0 && (studentCallState.studentRole === 'student' || getActiveVectorArray().length === 0)) {
+                        setActiveVectorArray(syncObjects.map(cloneVectorObj));
+                        selectedVectorIndex = -1;
+                        replayVectorStrokesToCanvas(getActiveVectorArray());
+                        refreshFreehandDrawerIfOpen();
+                        persistWhiteboardState();
+                    }
+                    renderGeometricToolsOverlay();
+                    updateCollabRoomBadgeUI();
+                    return;
+                }
+                if (msg.type === 'room:lock') {
+                    studentCallState.isLocked = !!msg.locked;
+                    updateCollabRoomBadgeUI();
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification(studentCallState.isLocked ? '🔒 تم قفل القلم مؤقتاً للشرح.' : '🔓 تم فتح القلم للكتابة مجدداً.', 'info');
+                    }
+                    return;
+                }
+                if (msg.type === 'lock:rejected') {
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification('🔒 القلم مقفل حالياً من طرف الأستاذ للشرح.', 'warning');
+                    }
+                    return;
+                }
+                if (msg.type === 'cursor:move') {
+                    if (msg.senderId) {
+                        remotePeers.set(String(msg.senderId), {
+                            x: Number(msg.x) || 0,
+                            y: Number(msg.y) || 0,
+                            name: String(msg.senderName || 'مشارك'),
+                            role: msg.senderRole === 'teacher' ? 'teacher' : 'student',
+                            ts: Date.now()
+                        });
+                        renderGeometricToolsOverlay();
+                    }
+                    return;
+                }
+                if (msg.type === 'stroke:add' && msg.object) {
+                    const arr = getActiveVectorArray();
+                    if (!msg.object.id || !arr.some(o => o && o.id === msg.object.id)) {
+                        const cloned = cloneVectorObj(msg.object);
+                        arr.push(cloned);
+                        drawVectorObjectOnCtx(cloned);
+                        refreshFreehandDrawerIfOpen();
+                        persistWhiteboardState();
+                    }
+                    return;
+                }
+                if (msg.type === 'object:update' && msg.object && msg.object.id) {
+                    const arr = getActiveVectorArray();
+                    const idx = arr.findIndex(o => o && o.id === msg.object.id);
+                    const cloned = cloneVectorObj(msg.object);
+                    if (idx >= 0) arr[idx] = cloned;
+                    else arr.push(cloned);
+                    replayVectorStrokesToCanvas(arr);
+                    renderGeometricToolsOverlay();
+                    refreshFreehandDrawerIfOpen();
+                    persistWhiteboardState();
+                    return;
+                }
+                if (msg.type === 'object:delete' && msg.objectId) {
+                    const filtered = getActiveVectorArray().filter(o => !o || o.id !== msg.objectId);
+                    setActiveVectorArray(filtered);
+                    selectedVectorIndex = -1;
+                    replayVectorStrokesToCanvas(filtered);
+                    renderGeometricToolsOverlay();
+                    refreshFreehandDrawerIfOpen();
+                    persistWhiteboardState();
+                    return;
+                }
+                if (msg.type === 'page:clear') {
+                    if (ctx && canvas) {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    }
+                    setActiveVectorArray([]);
+                    selectedVectorIndex = -1;
+                    renderGeometricToolsOverlay();
+                    refreshFreehandDrawerIfOpen();
+                    persistWhiteboardState();
+                    return;
+                }
+                if (msg.type === 'page:restore' && Array.isArray(msg.objects)) {
+                    const restored = msg.objects.map(cloneVectorObj);
+                    setActiveVectorArray(restored);
+                    selectedVectorIndex = -1;
+                    replayVectorStrokesToCanvas(restored);
+                    renderGeometricToolsOverlay();
+                    refreshFreehandDrawerIfOpen();
+                    persistWhiteboardState();
+                    return;
+                }
+                if (msg.type === 'guidance:send' && msg.text) {
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification(`💬 توجيه الأستاذ: "${msg.text}"`, 'info');
+                    }
+                }
+            }
+        });
+        return collabClient;
+    }
+
+    function joinWhiteboardCollabRoom(roomCode, role, displayName) {
+        const cleanRoom = (window.WbSecurityMath && window.WbSecurityMath.sanitizeRoomCode(roomCode))
+            || String(roomCode || studentCallState.roomCode || 'MATH-BAC-2026').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 32)
+            || 'MATH-BAC-2026';
+        const effectiveRole = role === 'student' ? 'student' : 'teacher';
+        const tp = (window.WbSecurityMath && window.WbSecurityMath.getTeacherProfile()) || {};
+        const effectiveName = displayName || (effectiveRole === 'teacher' ? (tp.name || 'الأستاذ') : (studentCallState.studentName || 'تلميذ عن بعد'));
+
+        studentCallState.roomCode = cleanRoom;
+        studentCallState.active = true;
+        studentCallState.studentRole = effectiveRole;
+        if (effectiveRole === 'student') {
+            studentCallState.studentName = effectiveName;
+        } else if (!studentCallState.studentName) {
+            studentCallState.studentName = 'تلميذ مشارك';
+        }
+
+        const banner = document.getElementById('wbStudentCallBanner');
+        if (banner) banner.style.display = 'flex';
+        const nameLbl = document.getElementById('wbActiveStudentName');
+        if (nameLbl) {
+            nameLbl.textContent = effectiveRole === 'student'
+                ? `التلميذ(ة): ${studentCallState.studentName}`
+                : `غرفة تشاركية: ${studentCallState.studentName || cleanRoom}`;
+        }
+
+        setCollabRole(effectiveRole);
+
+        const client = getOrCreateCollabClient();
+        if (client) {
+            client.connect(cleanRoom, effectiveRole, effectiveName, () => ({
+                objects: getActiveVectorArray(),
+                locked: !!studentCallState.isLocked
+            }));
+        }
+        updateCollabRoomBadgeUI();
+
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(`🌐 تم الاتصال بغرفة السبورة التفاعلية (${cleanRoom}) بصفة ${effectiveRole === 'student' ? 'تلميذ(ة)' : 'أستاذ'}.`, 'success');
+        }
+    }
+
+    function copyWhiteboardCollabLink() {
+        const room = (collabClient && collabClient.roomCode) || studentCallState.roomCode || 'MATH-BAC-2026';
+        if (!collabClient || !collabClient.roomCode) {
+            joinWhiteboardCollabRoom(room, 'teacher');
+        }
+        const base = window.location.origin + window.location.pathname;
+        const inviteUrl = `${base}?wbroom=${encodeURIComponent(room)}&role=student&name=${encodeURIComponent(studentCallState.studentName || 'تلميذ')}`;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(inviteUrl).catch(() => {});
+        } else {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = inviteUrl;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+            } catch (e) {}
+        }
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(`🔗 تم نسخ رابط غرفة التعاون (${room}) لدعوة التلاميذ عن بعد!`, 'success');
+        }
+    }
+
+    function openSaveBoardToLibraryModal() {
+        if (!window.WbBridges || typeof window.WbBridges.openSaveBoardToLibraryModal !== 'function') return;
+        window.WbBridges.openSaveBoardToLibraryModal(() => {
+            if (!canvas) return null;
+            persistWhiteboardState();
+            const comp = createCompositedCanvas();
+            const today = (typeof window.formatLocalDate === 'function') ? window.formatLocalDate() : new Date().toISOString().slice(0, 10);
+            const defaultTitle = isPdfOrWorksheetActive()
+                ? `تصحيح_${(currentPdfFileName || 'سلسلة_تمارين').replace(/\.pdf$/i, '')}_ص${currentPdfPageNum}`
+                : `ملخص_السبورة_ص${currentPageIndex + 1}_${today}`;
+            return {
+                previewUrl: comp.toDataURL('image/png'),
+                defaultTitle,
+                topic: window.currentLessonTopic || '',
+                toBlob: () => new Promise((resolve) => comp.toBlob(resolve, 'image/png'))
+            };
+        });
+    }
+
+    function openAttachBoardToTutoringModal() {
+        if (!window.WbBridges || typeof window.WbBridges.openAttachBoardToTutoringModal !== 'function') return;
+        window.WbBridges.openAttachBoardToTutoringModal(() => {
+            if (!canvas) return null;
+            persistWhiteboardState();
+            const comp = createCompositedCanvas();
+            const shareDataUrl = comp.toDataURL('image/webp', 0.86);
+            const defaultTitle = isPdfOrWorksheetActive()
+                ? `تصحيح ${currentPdfFileName || 'فرض'} - ص ${currentPdfPageNum}`
+                : `شرح السبورة التفاعلية - ص ${currentPageIndex + 1}`;
+            return {
+                previewUrl: shareDataUrl,
+                defaultTitle,
+                shareDataUrl
+            };
+        });
+    }
+
     function openStudentCallModal() {
         let modal = document.getElementById('whiteboardStudentCallModal');
         if (!modal) {
@@ -5611,6 +6437,7 @@
             }
         } catch (e) {}
 
+        const defaultRoom = studentCallState.roomCode || 'MATH-BAC-2026';
         modal.style.display = 'flex';
         modal.innerHTML = `
             <div style="background: #ffffff; border-radius: 14px; width: 100%; max-width: 540px; box-shadow: 0 25px 50px rgba(0,0,0,0.3); border: 1.5px solid #cbd5e1; display: flex; flex-direction: column; overflow: hidden; font-family: 'Cairo', sans-serif; direction: rtl;">
@@ -5619,7 +6446,7 @@
                         <span style="font-size: 1.25rem;">👥</span>
                         <span style="font-weight: 800; font-size: 0.98rem;">دعوة تلميذ(ة) للصعود إلى السبورة التفاعلية (حل تشاركي)</span>
                     </div>
-                    <button type="button" onclick="document.getElementById('whiteboardStudentCallModal').style.display='none'" style="background: rgba(255,255,255,0.2); border: none; color: #fff; width: 28px; height: 28px; border-radius: 50%; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+                    <button type="button" id="wbCallCloseTopBtn" style="background: rgba(255,255,255,0.2); border: none; color: #fff; width: 28px; height: 28px; border-radius: 50%; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
                 </div>
 
                 <div style="padding: 16px 18px; display: flex; flex-direction: column; gap: 14px;">
@@ -5629,8 +6456,16 @@
                             <button type="button" id="btnRandomPickStudentWb" style="background: #fef3c7; border: 1px solid #f59e0b; color: #b45309; border-radius: 6px; padding: 3px 9px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">🎲 قرعة عشوائية</button>
                         </div>
                         <select id="wbCallStudentSelect" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-weight: 700; font-size: 0.82rem; background: #fff; color: #1e293b;">
-                            ${studentList.map(s => `<option value="${s}">${s}</option>`).join('')}
+                            ${studentList.map(s => `<option value="${escWb(s)}">${escWb(s)}</option>`).join('')}
                         </select>
+                    </div>
+
+                    <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 0.76rem; font-weight: 800; color: #1e40af;">🌐 رمز غرفة التعاون اللحظي عبر الإنترنت (WebSocket):</label>
+                        <div style="display: flex; gap: 6px;">
+                            <input type="text" id="wbCallRoomCodeInput" value="${escWb(defaultRoom)}" dir="ltr" style="flex: 1; padding: 6px 10px; border-radius: 7px; border: 1.5px solid #93c5fd; font-weight: 800; font-size: 0.8rem; color: #0f172a; background: #fff;">
+                            <button type="button" id="btnCopyRoomInviteModal" style="background: #0284c7; color: #fff; border: none; border-radius: 7px; padding: 6px 12px; font-size: 0.74rem; font-weight: 800; cursor: pointer;">🔗 نسخ رابط الدعوة</button>
+                        </div>
                     </div>
 
                     <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px 14px; font-size: 0.74rem; color: #9a3412;">
@@ -5638,12 +6473,18 @@
                     </div>
 
                     <div style="display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid #e2e8f0; padding-top: 12px;">
-                        <button type="button" onclick="document.getElementById('whiteboardStudentCallModal').style.display='none'" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer;">إلغاء</button>
+                        <button type="button" id="wbCallCancelBtn" style="background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; cursor: pointer;">إلغاء</button>
                         <button type="button" id="btnStartStudentCallNow" style="background: linear-gradient(135deg, #ea580c, #c2410c); border: none; color: #fff; padding: 6px 18px; border-radius: 6px; font-weight: 800; font-size: 0.8rem; cursor: pointer;">🚀 بدء صعود التلميذ(ة) الآن</button>
                     </div>
                 </div>
             </div>
         `;
+
+        const closeCallModal = () => { modal.style.display = 'none'; };
+        const closeTop = document.getElementById('wbCallCloseTopBtn');
+        const closeBtm = document.getElementById('wbCallCancelBtn');
+        if (closeTop) closeTop.onclick = closeCallModal;
+        if (closeBtm) closeBtm.onclick = closeCallModal;
 
         const rndBtn = document.getElementById('btnRandomPickStudentWb');
         if (rndBtn) {
@@ -5659,21 +6500,38 @@
             });
         }
 
+        const copyInviteBtn = document.getElementById('btnCopyRoomInviteModal');
+        if (copyInviteBtn) {
+            copyInviteBtn.addEventListener('click', function () {
+                const roomInp = document.getElementById('wbCallRoomCodeInput');
+                const sel = document.getElementById('wbCallStudentSelect');
+                if (sel && sel.value) studentCallState.studentName = sel.value;
+                if (roomInp && roomInp.value.trim()) {
+                    studentCallState.roomCode = (window.WbSecurityMath && window.WbSecurityMath.sanitizeRoomCode(roomInp.value)) || roomInp.value.trim();
+                }
+                copyWhiteboardCollabLink();
+            });
+        }
+
         const startBtn = document.getElementById('btnStartStudentCallNow');
         if (startBtn) {
             startBtn.addEventListener('click', function () {
                 const sName = document.getElementById('wbCallStudentSelect').value;
-                modal.style.display = 'none';
-                startStudentCallSession(sName);
+                const roomInp = document.getElementById('wbCallRoomCodeInput');
+                const rCode = (roomInp && roomInp.value.trim()) || studentCallState.roomCode || 'MATH-BAC-2026';
+                closeCallModal();
+                startStudentCallSession(sName, rCode);
             });
         }
     }
 
-    function startStudentCallSession(studentName) {
+    function startStudentCallSession(studentName, roomCode) {
         studentCallState.active = true;
-        studentCallState.studentName = studentName || 'أمين الإدريسي';
-        studentCallState.studentRole = 'student';
+        studentCallState.studentName = studentName || 'تلميذ(ة) مشارك(ة)';
         studentCallState.isLocked = false;
+        if (roomCode) {
+            studentCallState.roomCode = (window.WbSecurityMath && window.WbSecurityMath.sanitizeRoomCode(roomCode)) || String(roomCode);
+        }
 
         const banner = document.getElementById('wbStudentCallBanner');
         if (banner) banner.style.display = 'flex';
@@ -5681,13 +6539,20 @@
         const nameLbl = document.getElementById('wbActiveStudentName');
         if (nameLbl) nameLbl.textContent = `التلميذ(ة): ${studentCallState.studentName}`;
 
-        const statusLbl = document.getElementById('wbStudentPenStatus');
-        if (statusLbl) statusLbl.textContent = 'حالة القلم: متاح للكتابة 🟢';
+        const tp = (window.WbSecurityMath && window.WbSecurityMath.getTeacherProfile()) || {};
+        const client = getOrCreateCollabClient();
+        if (client) {
+            client.connect(studentCallState.roomCode, 'teacher', tp.name || 'الأستاذ', () => ({
+                objects: getActiveVectorArray(),
+                locked: !!studentCallState.isLocked
+            }));
+        }
 
         setCollabRole('student');
+        updateCollabRoomBadgeUI();
 
         if (typeof window.showNotification === 'function') {
-            window.showNotification(`🧑‍🎓 صعد(ت) التلميذ(ة) ${studentCallState.studentName} إلى السبورة! القلم نشط الآن.`, 'success');
+            window.showNotification(`🧑‍🎓 صعد(ت) التلميذ(ة) ${studentCallState.studentName} إلى السبورة! الغرفة (${studentCallState.roomCode}) نشطة الآن.`, 'success');
         }
     }
 
@@ -5712,14 +6577,9 @@
 
     function toggleStudentPenLock() {
         studentCallState.isLocked = !studentCallState.isLocked;
-        const btn = document.getElementById('btnToggleStudentLock');
-        const status = document.getElementById('wbStudentPenStatus');
-        if (btn) {
-            btn.textContent = studentCallState.isLocked ? '🔓 فتح القلم' : '🔒 قفل القلم';
-            btn.style.background = studentCallState.isLocked ? '#dc2626' : '#334155';
-        }
-        if (status) {
-            status.textContent = studentCallState.isLocked ? 'حالة القلم: مقفل للشرح 🔴' : 'حالة القلم: متاح للكتابة 🟢';
+        updateCollabRoomBadgeUI();
+        if (collabClient && collabClient.roomCode) {
+            collabClient.send('room:lock', { locked: studentCallState.isLocked });
         }
         if (typeof window.showNotification === 'function') {
             window.showNotification(studentCallState.isLocked ? 'تم قفل قلم التلميذ مؤقتاً لتوضيح الأستاذ.' : 'تم فتح قلم التلميذ للكتابة مجدداً.', 'info');
@@ -5753,9 +6613,9 @@
                 </div>
                 <div style="font-size:0.75rem;color:#64748b;margin-bottom:8px;">انقر على توجيه جاهز أو اكتب توجيهاً مخصصاً:</div>
                 <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px;">
-                    ${prompts.map(p => `<button type="button" class="wb-guidance-preset-btn" data-msg="${p}" style="text-align:right;background:#faf5ff;border:1px solid #d8b4fe;color:#5b21b6;border-radius:8px;padding:6px 10px;font-size:0.78rem;font-weight:700;cursor:pointer;">💡 ${p}</button>`).join('')}
+                    ${prompts.map(p => `<button type="button" class="wb-guidance-preset-btn" data-msg="${escWb(p)}" style="text-align:right;background:#faf5ff;border:1px solid #d8b4fe;color:#5b21b6;border-radius:8px;padding:6px 10px;font-size:0.78rem;font-weight:700;cursor:pointer;">💡 ${escWb(p)}</button>`).join('')}
                 </div>
-                <input type="text" id="wbGuidanceCustomInput" value="${prompts[0]}" style="width:100%;padding:8px 12px;border:1.5px solid #c084fc;border-radius:8px;font-family:inherit;font-size:0.82rem;font-weight:700;color:#0f172a;margin-bottom:12px;box-sizing:border-box;outline:none;">
+                <input type="text" id="wbGuidanceCustomInput" value="${escWb(prompts[0])}" style="width:100%;padding:8px 12px;border:1.5px solid #c084fc;border-radius:8px;font-family:inherit;font-size:0.82rem;font-weight:700;color:#0f172a;margin-bottom:12px;box-sizing:border-box;outline:none;">
                 <div style="display:flex;justify-content:flex-end;gap:8px;">
                     <button type="button" id="wbGuidanceCancelBtn" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:7px 14px;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer;">إلغاء</button>
                     <button type="button" id="wbGuidanceSendBtn" style="background:#7c3aed;color:#fff;border:none;padding:7px 18px;border-radius:8px;font-weight:800;font-size:0.8rem;cursor:pointer;">إرسال التوجيه</button>
@@ -5769,6 +6629,9 @@
             const chosen = (msg || (inputEl && inputEl.value) || '').trim();
             if (!chosen) return;
             close();
+            if (collabClient && collabClient.roomCode) {
+                collabClient.send('guidance:send', { text: chosen });
+            }
             if (typeof window.showNotification === 'function') {
                 window.showNotification(`💬 توجيه الأستاذ إلى ${studentCallState.studentName || 'التلميذ(ة)'}: "${chosen}"`, 'info');
             }
@@ -5800,7 +6663,6 @@
         const msg = praises[studentCallState.participationCount % praises.length];
         studentCallState.participationCount++;
 
-        // Show an encouraging pedagogical badge briefly on the board viewport without affecting grades or participation points
         const vp = document.getElementById('whiteboardViewport');
         if (vp) {
             const oldToast = document.getElementById('wbFormativePraiseBanner');
@@ -5808,7 +6670,7 @@
             const badge = document.createElement('div');
             badge.id = 'wbFormativePraiseBanner';
             badge.style.cssText = 'position:absolute;top:52px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#065f46,#059669);color:#fff;padding:8px 18px;border-radius:999px;font-weight:800;font-size:0.82rem;box-shadow:0 10px 25px rgba(5,150,105,0.35);border:1.5px solid #6ee7b7;z-index:85;display:flex;align-items:center;gap:8px;direction:rtl;pointer-events:none;';
-            badge.innerHTML = `<span>${msg}</span> <span style="background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:999px;font-size:0.7rem;">تقويم تكويني — ${rawLabel}</span>`;
+            badge.innerHTML = `<span>${escWb(msg)}</span> <span style="background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:999px;font-size:0.7rem;">تقويم تكويني — ${escWb(rawLabel)}</span>`;
             vp.appendChild(badge);
             setTimeout(() => {
                 if (badge && badge.parentNode) badge.remove();
@@ -5827,10 +6689,16 @@
         studentCallState.studentRole = 'teacher';
         studentCallState.isLocked = false;
         studentCursorPos = null;
+        remotePeers.clear();
+
+        if (collabClient) {
+            try { collabClient.disconnect(); } catch (e) {}
+        }
 
         const banner = document.getElementById('wbStudentCallBanner');
         if (banner) banner.style.display = 'none';
 
+        updateCollabRoomBadgeUI({ connected: false });
         renderGeometricToolsOverlay();
         setCollabRole('teacher');
 
@@ -5895,6 +6763,14 @@
             btn.style.background = isActive ? '#eff6ff' : '#ffffff';
             btn.style.borderColor = isActive ? '#2563eb' : '#cbd5e1';
         });
+
+        const spotlightTopBtn = document.getElementById('btnToggleSpotlightTop');
+        if (spotlightTopBtn) {
+            const isSpot = currentTool === 'spotlight';
+            spotlightTopBtn.style.background = isSpot ? '#d97706' : '#fffbeb';
+            spotlightTopBtn.style.color = isSpot ? '#ffffff' : '#92400e';
+            spotlightTopBtn.style.borderColor = isSpot ? '#b45309' : '#fcd34d';
+        }
 
         const slider = document.getElementById('whiteboardSizeSlider');
         if (slider) slider.value = String(currentSize);
@@ -6039,166 +6915,22 @@
         const tableH = 195;
         const x0 = Math.floor((w - tableW) / 2);
         const y0 = Math.floor((h - tableH) / 2);
-        const col1W = 105;
-        const mainW = tableW - col1W;
 
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-
-        // خلفية الجدول البيضاء الواضحة
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
-        ctx.strokeStyle = '#1e3a8a';
-        ctx.lineWidth = 2.2;
-        ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') {
-            ctx.roundRect(x0, y0, tableW, tableH, 8);
-        } else {
-            ctx.rect(x0, y0, tableW, tableH);
-        }
-        ctx.fill();
-        ctx.stroke();
-
-        // عنوان الدالة أعلى الجدول
-        if (cfg.fnName) {
-            ctx.fillStyle = '#1e3a8a';
-            ctx.font = 'bold 14px "Cairo", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(`جدول تغيرات الدالة: ${cfg.fnName}`, x0 + tableW / 2, y0 - 10);
-        }
-
-        const r1H = 38; // صف x
-        const r2H = 44; // صف f'(x)
-        const r3H = tableH - r1H - r2H; // صف تغيرات f(x)
-
-        // الخطوط الأفقية والعمود الأول
-        ctx.beginPath();
-        ctx.moveTo(x0, y0 + r1H);
-        ctx.lineTo(x0 + tableW, y0 + r1H);
-        ctx.moveTo(x0, y0 + r1H + r2H);
-        ctx.lineTo(x0 + tableW, y0 + r1H + r2H);
-        ctx.moveTo(x0 + col1W, y0);
-        ctx.lineTo(x0 + col1W, y0 + tableH);
-        ctx.stroke();
-
-        // عناوين الصفوف على اليسار (النسق المغربي/الفرنسي من اليسار لليمين)
-        ctx.fillStyle = '#0f172a';
-        ctx.font = 'bold 14px "Cairo", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('x', x0 + col1W / 2, y0 + r1H / 2);
-        ctx.fillText("f'(x)", x0 + col1W / 2, y0 + r1H + r2H / 2);
-        ctx.fillText('f(x)', x0 + col1W / 2, y0 + r1H + r2H + r3H / 2);
-
-        // توزيع قيم x
-        const xArr = cfg.xVals.length > 0 ? cfg.xVals : ['-∞', '+∞'];
-        const padX = 28;
-        const usableW = mainW - padX * 2;
-        ctx.font = 'bold 13px "Cairo", sans-serif';
-        xArr.forEach((val, i) => {
-            const px = x0 + col1W + padX + (xArr.length === 1 ? usableW / 2 : (i / (xArr.length - 1)) * usableW);
-            ctx.fillStyle = '#1e3a8a';
-            ctx.fillText(val, px, y0 + r1H / 2);
-        });
-
-        // توزيع إشارات المشتقة f'(x) والخطوط العمودية للأصفار والقيم الممنوعة
-        const sArr = cfg.signs || [];
-        sArr.forEach((sig, i) => {
-            const px = x0 + col1W + padX + (sArr.length === 1 ? usableW / 2 : (i / (sArr.length - 1)) * usableW);
-            const py = y0 + r1H + r2H / 2;
-            if (sig === '0') {
-                ctx.save();
-                ctx.strokeStyle = '#64748b';
-                ctx.lineWidth = 1.2;
-                ctx.setLineDash([4, 3]);
-                ctx.beginPath();
-                ctx.moveTo(px, y0 + r1H);
-                ctx.lineTo(px, y0 + r1H + r2H);
-                ctx.stroke();
-                ctx.restore();
-                ctx.fillStyle = '#dc2626';
-                ctx.fillText('0', px, py);
-            } else if (sig === '||') {
-                // خط مزدوج للقيمة الممنوعة (Double barre)
-                ctx.save();
-                ctx.strokeStyle = '#dc2626';
-                ctx.lineWidth = 1.8;
-                ctx.beginPath();
-                ctx.moveTo(px - 3, y0 + r1H);
-                ctx.lineTo(px - 3, y0 + tableH);
-                ctx.moveTo(px + 3, y0 + r1H);
-                ctx.lineTo(px + 3, y0 + tableH);
-                ctx.stroke();
-                ctx.restore();
-            } else {
-                ctx.fillStyle = sig === '+' ? '#059669' : '#dc2626';
-                ctx.font = 'bold 17px sans-serif';
-                ctx.fillText(sig, px, py);
-                ctx.font = 'bold 13px "Cairo", sans-serif';
-            }
-        });
-
-        // رسم أسهم الرتابة والنهايات في خانة f(x)
-        const arrList = cfg.arrows || [];
-        const yList = cfg.yVals || [];
-        const topY = y0 + r1H + r2H + 22;
-        const botY = y0 + tableH - 22;
-        const midY = (topY + botY) / 2;
-
-        const segCount = Math.max(1, arrList.length);
-        const segW = usableW / segCount;
-
-        let yValIdx = 0;
-        arrList.forEach((ar, i) => {
-            const sx1 = x0 + col1W + padX + i * segW;
-            const sx2 = sx1 + segW;
-            if (ar === '||') return;
-
-            const isUp = ar.includes('↗') || ar === '+' || ar === 'up';
-            const startYPos = isUp ? botY : topY;
-            const endYPos = isUp ? topY : botY;
-
-            // قيمة البداية في أول سهم
-            if (i === 0 && yList[yValIdx] !== undefined) {
-                ctx.fillStyle = '#0f172a';
-                ctx.fillText(yList[yValIdx], sx1, startYPos);
-                yValIdx++;
-            }
-
-            // رسم السهم المائل
-            const ax1 = sx1 + 22;
-            const ay1 = isUp ? botY - 6 : topY + 6;
-            const ax2 = sx2 - 22;
-            const ay2 = isUp ? topY + 6 : botY - 6;
-
-            ctx.save();
-            ctx.strokeStyle = isUp ? '#059669' : '#dc2626';
-            ctx.fillStyle = isUp ? '#059669' : '#dc2626';
-            ctx.lineWidth = 2.2;
-            ctx.beginPath();
-            ctx.moveTo(ax1, ay1);
-            ctx.lineTo(ax2, ay2);
-            ctx.stroke();
-
-            const ang = Math.atan2(ay2 - ay1, ax2 - ax1);
-            ctx.beginPath();
-            ctx.moveTo(ax2, ay2);
-            ctx.lineTo(ax2 - 9 * Math.cos(ang - Math.PI / 6), ay2 - 9 * Math.sin(ang - Math.PI / 6));
-            ctx.lineTo(ax2 - 9 * Math.cos(ang + Math.PI / 6), ay2 - 9 * Math.sin(ang + Math.PI / 6));
-            ctx.closePath();
-            ctx.fill();
-            ctx.restore();
-
-            // قيمة النهاية أو المطراف
-            if (yList[yValIdx] !== undefined) {
-                ctx.fillStyle = '#0f172a';
-                ctx.fillText(yList[yValIdx], sx2, endYPos);
-                yValIdx++;
-            } else {
-                ctx.fillText('', sx2, midY);
-            }
-        });
-
-        ctx.restore();
+        const obj = {
+            t: 'variation_table',
+            x: x0,
+            y: y0,
+            w: tableW,
+            h: tableH,
+            blank: false,
+            fnName: cfg.fnName || 'f',
+            xList: cfg.xVals && cfg.xVals.length > 0 ? cfg.xVals : ['-∞', '+∞'],
+            sigList: cfg.signs || [],
+            arrList: cfg.arrows || [],
+            yList: cfg.yVals || []
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
         if (typeof window.showNotification === 'function') {
             window.showNotification('📊 تم إدراج جدول الإشارة والتغيرات على السبورة بنجاح!', 'success');
@@ -6209,24 +6941,10 @@
      * 6. راسم الدوال المخصصة مع المماس وحساب التكامل (Custom Function Plotter)
      * ==================================================================== */
     function evalMathExprSafe(exprStr, xVal) {
-        try {
-            let s = String(exprStr || '')
-                .replace(/\^/g, '**')
-                .replace(/\bln\s*\(/g, 'Math.log(')
-                .replace(/\bsin\s*\(/g, 'Math.sin(')
-                .replace(/\bcos\s*\(/g, 'Math.cos(')
-                .replace(/\btan\s*\(/g, 'Math.tan(')
-                .replace(/\bsqrt\s*\(/g, 'Math.sqrt(')
-                .replace(/\babs\s*\(/g, 'Math.abs(')
-                .replace(/\bexp\s*\(/g, 'Math.exp(')
-                .replace(/\bpi\b/gi, 'Math.PI')
-                .replace(/(\d)([x(])/gi, '$1*$2');
-            const fn = new Function('x', `return (${s});`);
-            const res = fn(xVal);
-            return (typeof res === 'number' && isFinite(res)) ? res : NaN;
-        } catch (e) {
-            return NaN;
+        if (window.WbSecurityMath && typeof window.WbSecurityMath.evaluateMathWithX === 'function') {
+            return window.WbSecurityMath.evaluateMathWithX(exprStr, xVal, false);
         }
+        return NaN;
     }
 
     function openCustomFunctionPlotterModal() {
@@ -6312,100 +7030,25 @@
 
             const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
             const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
-            const cx = Math.floor(w / 2);
-            const cy = Math.floor(h / 2);
-            const scale = 40;
-
-            ctx.save();
-            ctx.globalCompositeOperation = 'source-over';
-
-            // 1. تظليل حيز التكامل
-            if (withIntegral && intA !== intB) {
-                const a = Math.min(intA, intB);
-                const b = Math.max(intA, intB);
-                ctx.save();
-                ctx.fillStyle = 'rgba(124, 58, 237, 0.22)';
-                ctx.beginPath();
-                ctx.moveTo(cx + a * scale, cy);
-                for (let x = a; x <= b; x += 0.05) {
-                    const y = evalMathExprSafe(expr, x);
-                    if (!isNaN(y) && Math.abs(y) < 30) {
-                        ctx.lineTo(cx + x * scale, cy - y * scale);
-                    }
-                }
-                ctx.lineTo(cx + b * scale, cy);
-                ctx.closePath();
-                ctx.fill();
-                ctx.restore();
-            }
-
-            // 2. رسم منحنى الدالة C_f
-            ctx.strokeStyle = currentColor;
-            ctx.lineWidth = Math.max(2.6, currentSize);
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.beginPath();
-            let penDown = false;
-            let prevPy = null;
-            for (let px = 30; px < w - 30; px += 2) {
-                const x = (px - cx) / scale;
-                const y = evalMathExprSafe(expr, x);
-                if (isNaN(y) || Math.abs(y) > 25) {
-                    penDown = false;
-                    prevPy = null;
-                    continue;
-                }
-                const py = cy - y * scale;
-                if (py < 10 || py > h - 10 || (prevPy !== null && Math.abs(py - prevPy) > h * 0.45)) {
-                    penDown = false;
-                }
-                if (!penDown) {
-                    ctx.moveTo(px, py);
-                    penDown = true;
-                } else {
-                    ctx.lineTo(px, py);
-                }
-                prevPy = py;
-            }
-            ctx.stroke();
-
-            // 3. رسم المماس (T) في النقطة x0
-            if (withTangent) {
-                const y0 = evalMathExprSafe(expr, x0);
-                const eps = 0.0001;
-                const dy = (evalMathExprSafe(expr, x0 + eps) - evalMathExprSafe(expr, x0 - eps)) / (2 * eps);
-                if (!isNaN(y0) && !isNaN(dy)) {
-                    ctx.save();
-                    ctx.strokeStyle = '#dc2626';
-                    ctx.fillStyle = '#dc2626';
-                    ctx.lineWidth = 2;
-                    ctx.setLineDash([6, 4]);
-                    const dxSpan = 2.2;
-                    const xA = x0 - dxSpan;
-                    const yA = y0 + dy * (xA - x0);
-                    const xB = x0 + dxSpan;
-                    const yB = y0 + dy * (xB - x0);
-                    ctx.beginPath();
-                    ctx.moveTo(cx + xA * scale, cy - yA * scale);
-                    ctx.lineTo(cx + xB * scale, cy - yB * scale);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                    ctx.beginPath();
-                    ctx.arc(cx + x0 * scale, cy - y0 * scale, 4.5, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.font = 'bold 12px "Cairo", sans-serif';
-                    const mRound = Math.round(dy * 100) / 100;
-                    const pRound = Math.round((y0 - dy * x0) * 100) / 100;
-                    ctx.fillText(`(T): y = ${mRound}x ${pRound >= 0 ? '+ ' + pRound : pRound}`, cx + x0 * scale + 10, cy - y0 * scale - 10);
-                    ctx.restore();
-                }
-            }
-
-            ctx.font = 'bold 13px "Cairo", sans-serif';
-            ctx.fillStyle = currentColor;
-            ctx.fillText(`(Cf): f(x) = ${expr}`, 45, 48);
-
-            ctx.restore();
+            const obj = {
+                t: 'math_curve',
+                x: 0,
+                y: 0,
+                w,
+                h,
+                scale: 40,
+                expr,
+                label: `(Cf): f(x) = ${expr}`,
+                withTangent,
+                x0,
+                withIntegral,
+                intA,
+                intB,
+                c: currentColor,
+                s: Math.max(2.6, currentSize)
+            };
+            pushVectorObject(obj);
+            drawVectorObjectOnCtx(obj);
             persistWhiteboardState();
             if (typeof window.showNotification === 'function') {
                 window.showNotification(`📈 تم رسم منحنى الدالة f(x) = ${expr} بنجاح!`, 'success');
@@ -6422,184 +7065,172 @@
 
         const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
         const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
-        const cx = Math.floor(w / 2);
-        const cy = Math.floor(h / 2);
 
-        const isDarkBg = (currentBg === 'green' || currentBg === 'dark');
-        const mainClr = (isDarkBg && (currentColor === '#1e3a8a' || currentColor === '#0f172a')) ? '#f8fafc' : currentColor;
-
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = mainClr;
-        ctx.fillStyle = mainClr;
-        ctx.lineWidth = 2.2;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.font = 'bold 13px "Cairo", sans-serif';
-
-        if (templateType === 'cube3d') {
-            // مكعب ABCDEFGH في معلم فضائي (O, i, j, k) مع الأحرف المخفية المتقطعة
-            const s = 130;
-            const dx = 55;
-            const dy = -45;
-            // Front face: A(bottom-left), B(bottom-right), F(top-right), E(top-left)
-            const D = { x: cx - 40, y: cy + 50 };
-            const C = { x: D.x + s, y: D.y };
-            const H = { x: D.x, y: D.y - s };
-            const G = { x: C.x, y: C.y - s };
-
-            const A = { x: D.x - dx, y: D.y - dy };
-            const B = { x: C.x - dx, y: C.y - dy };
-            const E = { x: H.x - dx, y: H.y - dy };
-            const F = { x: G.x - dx, y: G.y - dy };
-
-            // Hidden edges from D (dashed)
-            ctx.save();
-            ctx.setLineDash([6, 4]);
-            ctx.lineWidth = 1.6;
-            ctx.beginPath();
-            ctx.moveTo(D.x, D.y); ctx.lineTo(A.x, A.y);
-            ctx.moveTo(D.x, D.y); ctx.lineTo(C.x, C.y);
-            ctx.moveTo(D.x, D.y); ctx.lineTo(H.x, H.y);
-            ctx.stroke();
-            ctx.restore();
-
-            // Visible edges (solid)
-            ctx.beginPath();
-            ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.lineTo(F.x, F.y); ctx.lineTo(E.x, E.y); ctx.closePath();
-            ctx.moveTo(B.x, B.y); ctx.lineTo(C.x, C.y); ctx.lineTo(G.x, G.y); ctx.lineTo(F.x, F.y);
-            ctx.moveTo(E.x, E.y); ctx.lineTo(H.x, H.y); ctx.lineTo(G.x, G.y);
-            ctx.stroke();
-
-            // Labels
-            ctx.fillText('A', A.x - 16, A.y + 14);
-            ctx.fillText('B', B.x + 8, B.y + 14);
-            ctx.fillText('C', C.x + 10, C.y + 6);
-            ctx.fillText('D', D.x - 14, D.y - 6);
-            ctx.fillText('E', E.x - 16, E.y - 6);
-            ctx.fillText('F', F.x + 8, F.y + 4);
-            ctx.fillText('G', G.x + 10, G.y - 6);
-            ctx.fillText('H', H.x - 14, H.y - 8);
-        } else if (templateType === 'tetrahedron') {
-            // رباعي الأوجه ABCD مع حرف خلفي متقطع [BC]
-            const A = { x: cx, y: cy - 110 };
-            const B = { x: cx - 120, y: cy + 75 };
-            const D = { x: cx + 15, y: cy + 115 };
-            const C = { x: cx + 125, y: cy + 55 };
-
-            ctx.beginPath();
-            ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y);
-            ctx.moveTo(A.x, A.y); ctx.lineTo(D.x, D.y);
-            ctx.moveTo(A.x, A.y); ctx.lineTo(C.x, C.y);
-            ctx.moveTo(B.x, B.y); ctx.lineTo(D.x, D.y);
-            ctx.moveTo(D.x, D.y); ctx.lineTo(C.x, C.y);
-            ctx.stroke();
-
-            ctx.save();
-            ctx.setLineDash([6, 4]);
-            ctx.beginPath();
-            ctx.moveTo(B.x, B.y); ctx.lineTo(C.x, C.y);
-            ctx.stroke();
-            ctx.restore();
-
-            ctx.fillText('A', A.x - 5, A.y - 10);
-            ctx.fillText('B', B.x - 18, B.y + 10);
-            ctx.fillText('D', D.x - 5, D.y + 18);
-            ctx.fillText('C', C.x + 10, C.y + 8);
-        } else if (templateType === 'sphere_plane') {
-            // فلكة (S) مركزها Ω يقطعها مستوى (P) وفق دائرة (C) مركزها H
-            const R = 105;
-            ctx.beginPath();
-            ctx.arc(cx, cy, R, 0, Math.PI * 2);
-            ctx.stroke();
-
-            // خط استواء الفلكة المتقطع
-            ctx.save();
-            ctx.setLineDash([5, 4]);
-            ctx.lineWidth = 1.4;
-            ctx.beginPath();
-            ctx.ellipse(cx, cy, R, 28, 0, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.restore();
-
-            // المستوى القاطع (P) والدائرة (C) في الأعلى
-            const hy = cy - 52;
-            const rSec = Math.sqrt(R * R - 52 * 52);
-            ctx.save();
-            ctx.fillStyle = 'rgba(2, 132, 199, 0.16)';
-            ctx.strokeStyle = '#0284c7';
-            ctx.beginPath();
-            ctx.ellipse(cx, hy, rSec, 20, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-            ctx.restore();
-
-            // المركز Ω والمسقط العمودي H
-            ctx.fillStyle = '#dc2626';
-            ctx.beginPath();
-            ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
-            ctx.arc(cx, hy, 3.5, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.moveTo(cx, cy);
-            ctx.lineTo(cx, hy);
-            ctx.lineTo(cx + rSec, hy);
-            ctx.stroke();
-
-            ctx.fillText('Ω', cx - 18, cy + 5);
-            ctx.fillText('H', cx - 18, hy + 4);
-            ctx.fillText('M', cx + rSec + 8, hy + 4);
-            ctx.fillText('(S)', cx - R - 28, cy - R + 20);
-        } else if (templateType === 'prob_tree') {
-            // شجرة الاحتمالات المتوازنة (الحدثان A و Ā والاحتمالات الشرطية B و B̄)
-            const root = { x: cx - 180, y: cy };
-            const nA = { x: cx - 30, y: cy - 85 };
-            const nAb = { x: cx - 30, y: cy + 85 };
-
-            const nAB = { x: cx + 140, y: cy - 130 };
-            const nABb = { x: cx + 140, y: cy - 40 };
-            const nAbB = { x: cx + 140, y: cy + 40 };
-            const nAbBb = { x: cx + 140, y: cy + 130 };
-
-            ctx.beginPath();
-            ctx.moveTo(root.x, root.y); ctx.lineTo(nA.x - 16, nA.y);
-            ctx.moveTo(root.x, root.y); ctx.lineTo(nAb.x - 16, nAb.y);
-
-            ctx.moveTo(nA.x + 16, nA.y); ctx.lineTo(nAB.x - 16, nAB.y);
-            ctx.moveTo(nA.x + 16, nA.y); ctx.lineTo(nABb.x - 16, nABb.y);
-
-            ctx.moveTo(nAb.x + 16, nAb.y); ctx.lineTo(nAbB.x - 16, nAbB.y);
-            ctx.moveTo(nAb.x + 16, nAb.y); ctx.lineTo(nAbBb.x - 16, nAbBb.y);
-            ctx.stroke();
-
-            ctx.fillStyle = '#1e3a8a';
-            ctx.font = 'bold 15px "Cairo", sans-serif';
-            ctx.fillText('Ω', root.x - 22, root.y + 5);
-            ctx.fillText('A', nA.x - 5, nA.y + 5);
-            ctx.fillText('Ā', nAb.x - 5, nAb.y + 5);
-
-            ctx.fillStyle = '#059669';
-            ctx.fillText('B', nAB.x, nAB.y + 5);
-            ctx.fillText('B̄', nABb.x, nABb.y + 5);
-            ctx.fillText('B', nAbB.x, nAbB.y + 5);
-            ctx.fillText('B̄', nAbBb.x, nAbBb.y + 5);
-
-            ctx.fillStyle = '#dc2626';
-            ctx.font = 'bold 11px sans-serif';
-            ctx.fillText('P(A)', (root.x + nA.x) / 2 - 20, (root.y + nA.y) / 2 - 8);
-            ctx.fillText('P(Ā)', (root.x + nAb.x) / 2 - 20, (root.y + nAb.y) / 2 + 18);
-            ctx.fillText('P_A(B)', (nA.x + nAB.x) / 2 - 15, (nA.y + nAB.y) / 2 - 8);
-            ctx.fillText('P_A(B̄)', (nA.x + nABb.x) / 2 - 15, (nA.y + nABb.y) / 2 + 16);
-            ctx.fillText('P_Ā(B)', (nAb.x + nAbB.x) / 2 - 15, (nAb.y + nAbB.y) / 2 - 8);
-            ctx.fillText('P_Ā(B̄)', (nAb.x + nAbBb.x) / 2 - 15, (nAb.y + nAbBb.y) / 2 + 16);
+        if (templateType === 'blank_variation_table') {
+            const tblW = Math.min(w - 80, 620);
+            const tblH = 230;
+            const obj = {
+                t: 'variation_table',
+                x: Math.floor((w - tblW) / 2),
+                y: Math.floor((h - tblH) / 2),
+                w: tblW,
+                h: tblH,
+                blank: true
+            };
+            pushVectorObject(obj);
+            drawVectorObjectOnCtx(obj);
+        } else {
+            const boxW = Math.min(w - 80, 440);
+            const boxH = Math.min(h - 60, 340);
+            const obj = {
+                t: 'space_prob',
+                templateType,
+                x: Math.floor((w - boxW) / 2),
+                y: Math.floor((h - boxH) / 2),
+                w: boxW,
+                h: boxH,
+                c: currentColor
+            };
+            pushVectorObject(obj);
+            drawVectorObjectOnCtx(obj);
         }
 
-        ctx.restore();
         persistWhiteboardState();
         if (typeof window.showNotification === 'function') {
-            window.showNotification('🧊 تم إدراج القالب الهندسي/الاحتمالي على السبورة بنجاح!', 'success');
+            window.showNotification('🧪 تم إدراج قالب مختبر الرياضيات التفاعلي على السبورة بنجاح!', 'success');
         }
+    }
+
+    function drawBlankVariationTableOnBoard() {
+        drawSpaceOrProbTemplate('blank_variation_table');
+    }
+
+    /**
+     * استوديو الهندسة الفضائية التفاعلي (3D Solids & Space Geometry Studio Modal)
+     */
+    function open3DSolidsStudioModal() {
+        let modal = document.getElementById('wb3DSolidsStudioModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'wb3DSolidsStudioModal';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.65);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;direction:rtl;font-family:"Cairo",sans-serif;';
+            document.body.appendChild(modal);
+        }
+
+        const solidsCatalog = [
+            { id: 'space_axes_3d', icon: '📐', name: 'معلم فضائي (O, i⃗, j⃗, k⃗)', desc: 'معلم متعامد ممنظم في الفضاء مع تمثيل النقطة M(x,y,z) ومسقطها العمودي H(x,y,0)' },
+            { id: 'cube3d', icon: '🧊', name: 'مكعب ABCDEFGH', desc: 'مكعب فضائي بأحرف مخفية متقطعة والقطر الفضائي [AG]' },
+            { id: 'parallelepiped3d', icon: '📦', name: 'متوازي المستطيلات', desc: 'متوازي المستطيلات القائم ABCDEFGH لدراسة الجداء السلمي والمسافات' },
+            { id: 'tetrahedron', icon: '🔺', name: 'رباعي الأوجه ABCD', desc: 'رباعي أوجه فضائي مع الحرف الخلفي المتقطع [BC]' },
+            { id: 'pyramid3d', icon: '⛰️', name: 'هرم رباعي القاعدة SABCD', desc: 'هرم منتظم قاعدته ABCD وارتفاعه العمودي [SH]' },
+            { id: 'sphere_plane', icon: '🌐', name: 'فلكة (S) ومستوى (P)', desc: 'تقاطع فلكة مركزها Ω وشعاعها R مع مستوى وفق دائرة (C) مركزها H' },
+            { id: 'cylinder3d', icon: '🛢️', name: 'أسطوانة قائمة', desc: 'أسطوانة دورانية قائمة محورها (OO\') وشعاع قاعدتها R' },
+            { id: 'cone3d', icon: '🍦', name: 'مخروط دوراني قائم', desc: 'مخروط دوراني رأسه S ومركز قاعدته O وشعاعه R' }
+        ];
+
+        modal.innerHTML = `
+            <div style="background:#ffffff;border-radius:16px;max-width:660px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,0.3);border:2px solid #0284c7;overflow:hidden;">
+                <div style="background:linear-gradient(135deg,#0f172a,#0369a1);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:1.4rem;">🧊</span>
+                        <div>
+                            <div style="font-size:0.98rem;font-weight:900;">استوديو الهندسة الفضائية التفاعلي (3D Space Studio)</div>
+                            <div style="font-size:0.72rem;color:#bae6fd;">توليد المجسمات الفضائية والمعلم (O,i⃗,j⃗,k⃗) مع الأحرف المخفية المتقطعة تلقائياً</div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="document.getElementById('wb3DSolidsStudioModal').style.display='none'" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-weight:bold;">✕</button>
+                </div>
+
+                <div style="padding:16px;display:flex;flex-direction:column;gap:12px;max-height:78vh;overflow-y:auto;">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:8px;" id="wb3DSolidCardsGrid">
+                        ${solidsCatalog.map((s, idx) => `
+                            <div class="wb-3d-solid-card" data-solid="${s.id}" style="border:2px solid ${idx === 0 ? '#0284c7' : '#e2e8f0'};background:${idx === 0 ? '#f0f9ff' : '#f8fafc'};border-radius:10px;padding:9px;cursor:pointer;transition:all 0.15s ease;">
+                                <div style="font-size:1.35rem;margin-bottom:3px;">${s.icon}</div>
+                                <div style="font-size:0.76rem;font-weight:900;color:#0f172a;">${s.name}</div>
+                                <div style="font-size:0.64rem;color:#475569;line-height:1.4;margin-top:2px;">${s.desc}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;">
+                        <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:800;color:#1e293b;cursor:pointer;">
+                            <input type="checkbox" id="wb3DShowHidden" checked style="accent-color:#0284c7;width:16px;height:16px;">
+                            <span>إظهار الأحرف المخفية بخط متقطع (---)</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:800;color:#1e293b;cursor:pointer;">
+                            <input type="checkbox" id="wb3DShowLabels" checked style="accent-color:#0284c7;width:16px;height:16px;">
+                            <span>تسمية الرؤوس والنقط (A, B, C, Ω...)</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:800;color:#1e293b;cursor:pointer;">
+                            <input type="checkbox" id="wb3DShowAltitude" checked style="accent-color:#0284c7;width:16px;height:16px;">
+                            <span>إظهار الارتفاع / المسقط / القطر الفضائي</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;font-weight:800;color:#0369a1;cursor:pointer;">
+                            <input type="checkbox" id="wb3DSwitchIsoGrid" style="accent-color:#0284c7;width:16px;height:16px;">
+                            <span>تفعيل خلفية الشبكة المتقايسة 3D تلقائياً</span>
+                        </label>
+                    </div>
+
+                    <div style="display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #e2e8f0;padding-top:10px;">
+                        <button type="button" onclick="document.getElementById('wb3DSolidsStudioModal').style.display='none'" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:8px;padding:7px 16px;font-family:'Cairo',sans-serif;font-size:0.78rem;font-weight:800;cursor:pointer;">إلغاء</button>
+                        <button type="button" id="btnConfirmStamp3DSolid" style="background:linear-gradient(135deg,#0284c7,#1d4ed8);color:#fff;border:none;border-radius:8px;padding:7px 20px;font-family:'Cairo',sans-serif;font-size:0.8rem;font-weight:900;cursor:pointer;box-shadow:0 4px 12px rgba(2,132,199,0.25);">🧊 إدراج المجسم على السبورة</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        modal.style.display = 'flex';
+        let selectedSolid = 'space_axes_3d';
+        const cards = modal.querySelectorAll('.wb-3d-solid-card');
+        cards.forEach(card => {
+            card.onclick = () => {
+                selectedSolid = card.getAttribute('data-solid') || 'cube3d';
+                cards.forEach(c => {
+                    const active = c.getAttribute('data-solid') === selectedSolid;
+                    c.style.borderColor = active ? '#0284c7' : '#e2e8f0';
+                    c.style.background = active ? '#f0f9ff' : '#f8fafc';
+                });
+            };
+        });
+
+        document.getElementById('btnConfirmStamp3DSolid').onclick = () => {
+            const showHiddenEdges = !!document.getElementById('wb3DShowHidden')?.checked;
+            const showLabels = !!document.getElementById('wb3DShowLabels')?.checked;
+            const showAltitude = !!document.getElementById('wb3DShowAltitude')?.checked;
+            const switchIso = !!document.getElementById('wb3DSwitchIsoGrid')?.checked;
+
+            if (switchIso) {
+                setBackground('isometric');
+            }
+
+            if (ctx && canvas) {
+                saveStateForUndo();
+                const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
+                const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
+                const boxW = Math.min(w - 80, 440);
+                const boxH = Math.min(h - 60, 350);
+                const obj = {
+                    t: 'space_prob',
+                    templateType: selectedSolid,
+                    showHiddenEdges,
+                    showLabels,
+                    showAltitude,
+                    x: Math.floor((w - boxW) / 2),
+                    y: Math.floor((h - boxH) / 2),
+                    w: boxW,
+                    h: boxH,
+                    c: currentColor
+                };
+                pushVectorObject(obj);
+                drawVectorObjectOnCtx(obj);
+                persistWhiteboardState();
+            }
+
+            modal.style.display = 'none';
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('🧊 تم إدراج المجسم الفضائي التفاعلي على السبورة (يمكنك تحريكه وتكبيره بأداة التحديد 🖱️)', 'success');
+            }
+        };
     }
 
     /* ====================================================================
@@ -6632,34 +7263,18 @@
             }
         } catch (e) {}
 
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-
-        // شريط ترويسة الدرس أعلى السبورة
-        ctx.fillStyle = 'rgba(239, 246, 255, 0.96)';
-        ctx.strokeStyle = '#1e3a8a';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') {
-            ctx.roundRect(24, 14, w - 48, 44, 10);
-        } else {
-            ctx.rect(24, 14, w - 48, 44);
-        }
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#1e3a8a';
-        ctx.font = 'bold 14px "Cairo", sans-serif';
-        ctx.textBaseline = 'middle';
-
-        ctx.textAlign = 'right';
-        ctx.fillText(`📅 ${todayStr}   |   🏫 القسم: ${className}`, w - 38, 36);
-
-        ctx.textAlign = 'left';
-        ctx.fillStyle = '#047857';
-        ctx.fillText(`📘 الدرس: ${lessonTitle}`, 38, 36);
-
-        ctx.restore();
+        const obj = {
+            t: 'lesson_header',
+            x: 24,
+            y: 14,
+            w: Math.max(240, w - 48),
+            h: 44,
+            todayStr,
+            className,
+            lessonTitle
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
         if (typeof window.showNotification === 'function') {
             window.showNotification(`📌 تم إدراج ترويسة الحصة (${className} — ${lessonTitle}) أعلى السبورة!`, 'success');
@@ -6786,7 +7401,7 @@
                     topic: isPdfOrWorksheetActive() ? `تصحيح: ${currentPdfFileName || 'سلسلة تمارين'}` : 'حصة تفاعلية على السبورة الرقمية',
                     summary: summaryNote,
                     homework: 'مراجعة الحلول المنجزة على السبورة الرقمية',
-                    signature: 'ذ. ابراهيم كوزيبر (توثيق رقمي من السبورة)',
+                    signature: `${(window.WbSecurityMath && window.WbSecurityMath.getTeacherProfile().name) || 'الأستاذ(ة)'} (توثيق رقمي من السبورة)`,
                     completionRate: 100
                 });
                 if (typeof window.saveDB === 'function') window.saveDB();
@@ -7011,10 +7626,11 @@
             document.body.appendChild(modal);
         }
 
-        const clsName = window.currentClass || '2BAC-PC-1';
+        const clsName = window.currentClass || 'عام';
         const pageTitle = isPdfOrWorksheetActive()
             ? `تصحيح ${currentPdfFileName || 'سلسلة تمارين'} - صفحة ${currentPdfPageNum}`
             : `ملخص السبورة التفاعلية - صفحة ${currentPageIndex + 1}`;
+        const tp = (window.WbSecurityMath && window.WbSecurityMath.getTeacherProfile()) || {};
 
         modal.style.display = 'flex';
         modal.innerHTML = `
@@ -7024,7 +7640,7 @@
                     <button type="button" id="wbShareCloseX" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;">✕</button>
                 </div>
                 <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;">
-                    <div style="font-size:0.8rem;font-weight:800;color:#1e293b;">${pageTitle} (${clsName})</div>
+                    <div style="font-size:0.8rem;font-weight:800;color:#1e293b;">${escWb(pageTitle)} (${escWb(clsName)})</div>
                     <img src="${imgDataUrl}" alt="معاينة السبورة" style="max-height:150px;width:auto;border-radius:8px;border:1.5px solid #cbd5e1;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
                     <div id="wbShareQrBox" style="min-height:165px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:#f8fafc;border:1.5px dashed #94a3b8;border-radius:12px;padding:12px;width:100%;box-sizing:border-box;">
                         <span style="font-size:0.78rem;color:#475569;font-weight:700;">⏳ جاري توليد رابط المشاركة ورمز الاستجابة السريعة QR...</span>
@@ -7034,7 +7650,7 @@
                         <button type="button" id="wbShareCopyLinkBtn" style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:0.76rem;font-weight:800;cursor:pointer;">📋 نسخ الرابط</button>
                     </div>
                     <div style="display:flex;justify-content:space-between;gap:8px;width:100%;border-top:1px solid #e2e8f0;padding-top:10px;">
-                        <button type="button" onclick="window.exportBoardImage()" style="flex:1;background:#059669;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:0.78rem;font-weight:800;cursor:pointer;">💾 تحميل الصورة PNG</button>
+                        <button type="button" id="wbShareExportPngBtn" style="flex:1;background:#059669;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:0.78rem;font-weight:800;cursor:pointer;">💾 تحميل الصورة PNG</button>
                         <button type="button" id="wbShareCloseBtn" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:8px;padding:8px 16px;font-size:0.78rem;font-weight:800;cursor:pointer;">إغلاق</button>
                     </div>
                 </div>
@@ -7044,44 +7660,67 @@
         const close = () => { modal.style.display = 'none'; };
         document.getElementById('wbShareCloseX').onclick = close;
         document.getElementById('wbShareCloseBtn').onclick = close;
+        const expPngBtn = document.getElementById('wbShareExportPngBtn');
+        if (expPngBtn) expPngBtn.onclick = () => exportBoardImage();
 
-        let shareUrl = window.location.origin;
+        let shareUrl = '';
+        let qrDataUrl = '';
+        let shareErrorMsg = '';
         try {
-            const htmlDoc = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${pageTitle}</title><style>body{margin:0;padding:16px;background:#0f172a;color:#fff;font-family:sans-serif;text-align:center;}img{max-width:100%;height:auto;border-radius:10px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,0.4);}</style></head><body><h3 style="margin:0 0 12px 0;">📐 ${pageTitle} — ${clsName}</h3><img src="${imgDataUrl}" alt="السبورة التفاعلية"></body></html>`;
             const resp = await fetch('/api/share/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    type: 'whiteboard',
                     title: `${pageTitle} (${clsName})`,
-                    htmlContent: htmlDoc,
-                    expiresInDays: 30
+                    subtitle: `ملخص وتصحيح على السبورة التفاعلية لمادة الرياضيات`,
+                    data: {
+                        kind: 'whiteboard_snapshot',
+                        imageDataUrl: imgDataUrl,
+                        pageTitle,
+                        className: clsName,
+                        createdAt: new Date().toISOString()
+                    },
+                    expiryDays: 30,
+                    teacherName: tp.name || '',
+                    schoolName: tp.school || ''
                 })
             });
-            if (resp.ok) {
-                const data = await resp.json();
-                if (data && data.shareId) {
-                    shareUrl = `${window.location.origin}/s/${data.shareId}`;
-                }
+            const data = await resp.json().catch(() => null);
+            if (resp.ok && data && data.success) {
+                shareUrl = data.shareUrl || (data.shareId ? `${window.location.origin}/?share=${data.shareId}` : '');
+                qrDataUrl = data.qrCodeDataUrl || '';
+            } else {
+                shareErrorMsg = (data && data.error) || 'تعذر الاتصال بخادم المشاركة الآمن.';
             }
-        } catch (err) {}
+        } catch (err) {
+            shareErrorMsg = err && err.message ? err.message : 'تعذر الاتصال بالخادم.';
+        }
 
         const urlInput = document.getElementById('wbShareDirectUrlInput');
-        if (urlInput) urlInput.value = shareUrl;
+        if (urlInput) urlInput.value = shareUrl || window.location.origin;
 
         const qrBox = document.getElementById('wbShareQrBox');
         if (qrBox) {
-            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(shareUrl)}`;
-            qrBox.innerHTML = `
-                <img src="${qrApiUrl}" alt="QR Code" style="width:145px;height:145px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;padding:4px;" onerror="this.style.display='none'">
-                <div style="font-size:0.72rem;font-weight:800;color:#3730a3;">📱 يمسح التلاميذ هذا الرمز بهواتفهم لفتح السبورة وحفظ الحلول فوراً</div>
-            `;
+            if (qrDataUrl) {
+                qrBox.innerHTML = `
+                    <img src="${escWb(qrDataUrl)}" alt="QR Code" style="width:155px;height:155px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;padding:4px;">
+                    <div style="font-size:0.72rem;font-weight:800;color:#3730a3;">📱 يمسح التلاميذ هذا الرمز بهواتفهم لفتح السبورة وحفظ الحلول فوراً</div>
+                `;
+            } else {
+                qrBox.innerHTML = `
+                    <div style="font-size:0.8rem;font-weight:800;color:#b45309;">⚠️ ${escWb(shareErrorMsg || 'لم يتم توليد رمز QR')}</div>
+                    <div style="font-size:0.72rem;color:#64748b;">يمكنك تحميل صورة السبورة PNG ومشاركتها مباشرة مع التلاميذ.</div>
+                `;
+            }
         }
 
         const copyBtn = document.getElementById('wbShareCopyLinkBtn');
         if (copyBtn) {
             copyBtn.onclick = () => {
+                const targetUrl = shareUrl || (urlInput && urlInput.value) || window.location.origin;
                 if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(shareUrl).catch(() => {});
+                    navigator.clipboard.writeText(targetUrl).catch(() => {});
                 } else if (urlInput) {
                     urlInput.select();
                     document.execCommand('copy');
@@ -7102,132 +7741,18 @@
 
         const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
         const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
-        const cx = Math.floor(w / 2);
-        const cy = Math.floor(h / 2);
-        const unit = 55; // 1 unit = 55px
-
-        const isDarkBg = (currentBg === 'green' || currentBg === 'dark');
-        const axisClr = isDarkBg ? '#f8fafc' : '#1e293b';
-
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = axisClr;
-        ctx.fillStyle = axisClr;
-        ctx.lineWidth = 2;
-
-        // 1. المحور الحقيقي Re(z) والمحور التخيلي Im(z)
-        ctx.beginPath();
-        ctx.moveTo(60, cy);
-        ctx.lineTo(w - 60, cy);
-        ctx.moveTo(cx, h - 50);
-        ctx.lineTo(cx, 50);
-        ctx.stroke();
-
-        // الأسهم
-        ctx.beginPath();
-        ctx.moveTo(w - 60, cy); ctx.lineTo(w - 70, cy - 5); ctx.lineTo(w - 70, cy + 5); ctx.closePath();
-        ctx.moveTo(cx, 50); ctx.lineTo(cx - 5, 60); ctx.lineTo(cx + 5, 60); ctx.closePath();
-        ctx.fill();
-
-        // 2. الدائرة المثلثية الواحدة |z| = 1
-        ctx.save();
-        ctx.strokeStyle = 'rgba(99, 102, 241, 0.45)';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.arc(cx, cy, unit, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-
-        // 3. المتجهتان الواحديتان u⃗ و v⃗
-        ctx.save();
-        ctx.strokeStyle = '#dc2626';
-        ctx.fillStyle = '#dc2626';
-        ctx.lineWidth = 2.8;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy); ctx.lineTo(cx + unit, cy);
-        ctx.moveTo(cx, cy); ctx.lineTo(cx, cy - unit);
-        ctx.stroke();
-        ctx.font = 'bold 13px sans-serif';
-        ctx.fillText('u⃗', cx + unit / 2 - 4, cy + 18);
-        ctx.fillText('v⃗', cx - 18, cy - unit / 2 + 4);
-        ctx.restore();
-
-        // 4. تمثيل النقطة M(z = a + ib) ومرافقها M'(z̄ = a - ib)
-        const a = 2.4;
-        const b = 1.6;
-        const mx = cx + a * unit;
-        const my = cy - b * unit;
-        const myConj = cy + b * unit;
-
-        // إسقاطات متقطعة على المحورين
-        ctx.save();
-        ctx.strokeStyle = '#64748b';
-        ctx.lineWidth = 1.3;
-        ctx.setLineDash([5, 4]);
-        ctx.beginPath();
-        ctx.moveTo(mx, cy); ctx.lineTo(mx, my);
-        ctx.moveTo(cx, my); ctx.lineTo(mx, my);
-        ctx.moveTo(mx, cy); ctx.lineTo(mx, myConj);
-        ctx.moveTo(cx, myConj); ctx.lineTo(mx, myConj);
-        ctx.stroke();
-        ctx.restore();
-
-        // المسافة OM = |z| = r
-        ctx.save();
-        ctx.strokeStyle = '#0284c7';
-        ctx.fillStyle = '#0284c7';
-        ctx.lineWidth = 2.4;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(mx, my);
-        ctx.stroke();
-
-        // قوس العمدة θ = arg(z)
-        const theta = Math.atan2(b, a);
-        ctx.beginPath();
-        ctx.arc(cx, cy, 36, -theta, 0);
-        ctx.stroke();
-        ctx.font = 'bold 13px sans-serif';
-        ctx.fillText('θ = arg(z)', cx + 42, cy - 12);
-        ctx.fillText('r = |z|', (cx + mx) / 2 - 22, (cy + my) / 2 - 10);
-
-        // النقطة M(z)
-        ctx.beginPath();
-        ctx.arc(mx, my, 4.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.font = 'bold 14px "Cairo", sans-serif';
-        ctx.fillText('M(z = a + ib)', mx + 10, my - 6);
-        ctx.restore();
-
-        // النقطة M'(z̄)
-        ctx.save();
-        ctx.strokeStyle = '#059669';
-        ctx.fillStyle = '#059669';
-        ctx.lineWidth = 1.8;
-        ctx.setLineDash([4, 3]);
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(mx, myConj);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.arc(mx, myConj, 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.font = 'bold 13px "Cairo", sans-serif';
-        ctx.fillText("M'(z̄ = a - ib)", mx + 10, myConj + 14);
-        ctx.restore();
-
-        // تسميات المحاور
-        ctx.font = 'bold 13px "Cairo", sans-serif';
-        ctx.fillText('O', cx - 16, cy + 16);
-        ctx.fillText('a = Re(z)', mx - 24, cy + 20);
-        ctx.fillText('ib', cx - 24, my + 4);
-        ctx.fillText('-ib', cx - 28, myConj + 4);
-        ctx.fillText('المحور الحقيقي (Re)', w - 165, cy - 10);
-        ctx.fillText('المحور التخيلي (i·Im)', cx + 12, 62);
-
-        ctx.restore();
+        const boxW = Math.min(w - 60, 620);
+        const boxH = Math.min(h - 40, 440);
+        const obj = {
+            t: 'complex_plane',
+            x: Math.floor((w - boxW) / 2),
+            y: Math.floor((h - boxH) / 2),
+            w: boxW,
+            h: boxH,
+            c: currentColor
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
         if (typeof window.showNotification === 'function') {
             window.showNotification('🔢 تم رسم المستوى العقدي (O, u⃗, v⃗) مع التمثيل المبياني لـ z و z̄ والمعيار والعمدة!', 'success');
@@ -7307,109 +7832,19 @@
 
         const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
         const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
-        const cx = Math.floor(w / 2);
-        const cy = Math.floor(h / 2);
-        const scale = 40;
-
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-
-        // 1. رسم المنصف الأول (Δ): y = x
-        ctx.save();
-        ctx.strokeStyle = '#64748b';
-        ctx.lineWidth = 1.8;
-        ctx.setLineDash([6, 4]);
-        ctx.beginPath();
-        ctx.moveTo(cx - 6 * scale, cy + 6 * scale);
-        ctx.lineTo(cx + 6 * scale, cy - 6 * scale);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = '#475569';
-        ctx.font = 'bold 12px "Cairo", sans-serif';
-        ctx.fillText('(Δ): y = x', cx + 4.2 * scale, cy - 4.4 * scale);
-        ctx.restore();
-
-        // 2. رسم منحنى الدالة (Cf)
-        ctx.save();
-        ctx.strokeStyle = '#2563eb';
-        ctx.lineWidth = 2.6;
-        ctx.beginPath();
-        let penDown = false;
-        for (let px = 40; px < w - 40; px += 2) {
-            const x = (px - cx) / scale;
-            const y = evalMathExprSafe(expr, x);
-            if (isNaN(y) || Math.abs(y) > 15) {
-                penDown = false;
-                continue;
-            }
-            const py = cy - y * scale;
-            if (!penDown) {
-                ctx.moveTo(px, py);
-                penDown = true;
-            } else {
-                ctx.lineTo(px, py);
-            }
-        }
-        ctx.stroke();
-        ctx.fillStyle = '#1d4ed8';
-        ctx.font = 'bold 13px "Cairo", sans-serif';
-        ctx.fillText(`(Cf): f(x) = ${expr}`, 45, 52);
-        ctx.restore();
-
-        // 3. إنشاء درج/حلزون المتتالية الترجعية u_{n+1} = f(u_n) وإسقاط الحدود على محور الأفاصيل
-        let currU = u0;
-        ctx.save();
-        for (let i = 0; i < steps; i++) {
-            const nextU = evalMathExprSafe(expr, currU);
-            if (isNaN(nextU) || Math.abs(nextU) > 15) break;
-
-            const xCurr = cx + currU * scale;
-            const yCurrOnLine = (i === 0) ? cy : (cy - currU * scale);
-            const yNext = cy - nextU * scale;
-            const xNext = cx + nextU * scale;
-
-            // خط عمودي نحو المنحنى (Cf) ثم أفقي نحو المنصف (Δ): y = x
-            ctx.strokeStyle = '#dc2626';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(xCurr, yCurrOnLine);
-            ctx.lineTo(xCurr, yNext);
-            ctx.lineTo(xNext, yNext);
-            ctx.stroke();
-
-            // إسقاط متقطع نحو محور الأفاصيل لتعيين u_n
-            ctx.save();
-            ctx.strokeStyle = '#059669';
-            ctx.lineWidth = 1.3;
-            ctx.setLineDash([3, 3]);
-            ctx.beginPath();
-            ctx.moveTo(xCurr, yNext);
-            ctx.lineTo(xCurr, cy);
-            ctx.moveTo(xNext, yNext);
-            ctx.lineTo(xNext, cy);
-            ctx.stroke();
-            ctx.restore();
-
-            // كتابة اسم الحد u_i على محور الأفاصيل
-            ctx.fillStyle = '#dc2626';
-            ctx.beginPath();
-            ctx.arc(xCurr, cy, 3.2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.font = 'bold 12px sans-serif';
-            ctx.fillText(`u${i}`, xCurr - 6, cy + 18 + (i % 2) * 12);
-
-            if (i === steps - 1) {
-                ctx.beginPath();
-                ctx.arc(xNext, cy, 3.2, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.fillText(`u${i + 1}`, xNext - 6, cy + 18 + ((i + 1) % 2) * 12);
-            }
-
-            currU = nextU;
-        }
-        ctx.restore();
-
-        ctx.restore();
+        const obj = {
+            t: 'cobweb',
+            x: 0,
+            y: 0,
+            w,
+            h,
+            scale: 40,
+            expr,
+            u0,
+            steps
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
         if (typeof window.showNotification === 'function') {
             window.showNotification(`🌀 تم تمثيل حدود المتتالية الترجعية uₙ₊₁ = f(uₙ) انطلاقاً من u₀ = ${u0}!`, 'success');
@@ -7495,36 +7930,19 @@
         const x0 = Math.floor((w - cardW) / 2);
         const y0 = 72;
 
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = bgColor || '#eff6ff';
-        ctx.strokeStyle = borderColor || '#1d4ed8';
-        ctx.lineWidth = 2.2;
-
-        ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') {
-            ctx.roundRect(x0, y0, cardW, cardH, 10);
-        } else {
-            ctx.rect(x0, y0, cardW, cardH);
-        }
-        ctx.fill();
-        ctx.stroke();
-
-        // Right accent stripe (RTL)
-        ctx.fillStyle = borderColor || '#1d4ed8';
-        ctx.fillRect(x0 + cardW - 6, y0 + 4, 6, cardH - 8);
-
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'top';
-        ctx.font = 'bold 13.5px "Cairo", sans-serif';
-        ctx.fillStyle = borderColor || '#1d4ed8';
-        ctx.fillText(title, x0 + cardW - 18, y0 + 12);
-
-        ctx.font = 'bold 12.5px "Cairo", sans-serif';
-        ctx.fillStyle = '#0f172a';
-        ctx.fillText(body, x0 + cardW - 18, y0 + 40, cardW - 32);
-
-        ctx.restore();
+        const obj = {
+            t: 'callout',
+            x: x0,
+            y: y0,
+            w: cardW,
+            h: cardH,
+            title,
+            body,
+            borderColor: borderColor || '#1d4ed8',
+            bgColor: bgColor || '#eff6ff'
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
         if (typeof window.showNotification === 'function') {
             window.showNotification('📌 تم تثبيت البطاقة الديداكتيكية على السبورة بنجاح!', 'success');
@@ -8302,68 +8720,601 @@
 
     function stampQuizQuestionToBoard(questionObj) {
         if (!canvas || !ctx || !questionObj) return;
-        saveStateToHistory();
-        const w = canvas.width / currentCanvasScale;
+        saveStateForUndo();
+        const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
         const cardW = Math.min(620, w - 50);
         const cardH = 195;
         const x0 = Math.max(25, (w - cardW) / 2);
         const y0 = 85;
 
-        ctx.save();
-        ctx.fillStyle = '#fffbeb';
-        ctx.strokeStyle = '#d97706';
-        ctx.lineWidth = 2.2;
-        ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(x0, y0, cardW, cardH, 12);
-        } else {
-            ctx.rect(x0, y0, cardW, cardH);
-        }
-        ctx.fill();
-        ctx.stroke();
-
-        // Top accent bar
-        ctx.fillStyle = '#d97706';
-        ctx.fillRect(x0 + cardW - 8, y0 + 8, 5, cardH - 16);
-
-        ctx.direction = 'rtl';
-        ctx.textAlign = 'right';
-
-        // Header
-        ctx.font = 'bold 13px "Cairo", sans-serif';
-        ctx.fillStyle = '#92400e';
-        ctx.fillText(`⚡ تذكير بالمكتسبات القبلية: ${questionObj.concept}`, x0 + cardW - 18, y0 + 26, cardW - 34);
-
-        // Question
-        ctx.font = 'bold 13.5px "Cairo", sans-serif';
-        ctx.fillStyle = '#0f172a';
-        ctx.fillText(`❓ ${questionObj.q}`, x0 + cardW - 18, y0 + 54, cardW - 34);
-
-        // Correct Answer
-        const correctText = questionObj.options[questionObj.correct] || '';
-        ctx.font = 'bold 13px "Cairo", sans-serif';
-        ctx.fillStyle = '#065f46';
-        ctx.fillText(`✅ الجواب الصحيح: ${correctText}`, x0 + cardW - 18, y0 + 86, cardW - 34);
-
-        // Explanation
-        ctx.font = 'bold 12px "Cairo", sans-serif';
-        ctx.fillStyle = '#1e3a8a';
-        ctx.fillText(`💡 التعليل: ${questionObj.explanation}`, x0 + cardW - 18, y0 + 118, cardW - 34);
-
-        // Common Pitfall
-        ctx.font = 'bold 11.5px "Cairo", sans-serif';
-        ctx.fillStyle = '#9f1239';
-        ctx.fillText(`⚠️ انتبه (خطأ شائع): ${questionObj.pitfall}`, x0 + cardW - 18, y0 + 150, cardW - 34);
-
-        // Footer note
-        ctx.font = '11px "Cairo", sans-serif';
-        ctx.fillStyle = '#64748b';
-        ctx.fillText('🎯 تقويم تشخيصي وتكويني فوري على السبورة الرقمية (غير محتسب في النقط)', x0 + cardW - 18, y0 + 178, cardW - 34);
-
-        ctx.restore();
+        const obj = {
+            t: 'quiz_card',
+            x: x0,
+            y: y0,
+            w: cardW,
+            h: cardH,
+            question: questionObj
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
         persistWhiteboardState();
         if (typeof window.showNotification === 'function') {
             window.showNotification('📌 تم تثبيت بطاقة السؤال القبلي وتعليله الرياضي على السبورة للشرح!', 'success');
+        }
+    }
+
+    /**
+     * وضع البث الصافي (Zen Broadcast Mode): إخفاء شريط الاستوديو لتوسيع مساحة السبورة أثناء مشاركة الشاشة
+     */
+    function toggleWhiteboardZenMode(forceState) {
+        const bar = document.getElementById('whiteboardRemoteStudioBar');
+        const btn = document.getElementById('btnToggleBoardZenMode');
+        isZenMode = typeof forceState === 'boolean' ? forceState : !isZenMode;
+        if (bar) {
+            bar.style.display = isZenMode ? 'none' : 'flex';
+        }
+        if (btn) {
+            btn.style.background = isZenMode ? '#0e7490' : '#ecfeff';
+            btn.style.color = isZenMode ? '#ffffff' : '#0e7490';
+            btn.style.borderColor = isZenMode ? '#0891b2' : '#67e8f9';
+            btn.innerHTML = isZenMode ? '<span>🔙 إظهار الاستوديو</span>' : '<span>📺 بث صافي</span>';
+        }
+        setTimeout(() => resizeCanvas(true), 60);
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(isZenMode ? '📺 تم تفعيل وضع البث الصافي لتوسيع مساحة الشرح للطلبة' : '🎓 تم إظهار شريط استوديو الحصة عن بعد', 'info');
+        }
+    }
+
+    /**
+     * تقييم التعابير الرياضية بأمان تام (بدون eval) للحاسبة العلمية العائمة
+     */
+    let calcDegMode = true;
+    let calcExprValue = '';
+    let calcLastResult = '';
+
+    function safeEvaluateScientificMath(rawExpr, degMode = true) {
+        if (window.WbSecurityMath && typeof window.WbSecurityMath.evaluateMathWithX === 'function') {
+            return window.WbSecurityMath.evaluateMathWithX(rawExpr, 0, degMode);
+        }
+        return NaN;
+    }
+
+    /**
+     * الحاسبة العلمية العائمة المدمجة للسبورة التفاعلية مع لصق النتيجة على السبورة
+     */
+    /**
+     * وضع السبورة المقسمة (Split-Board Mode: عرض التمرين الثابت بجانب مساحة الحل)
+     */
+    let isSplitBoardMode = false;
+    let splitSnapshotZoom = 1;
+    let splitPaneOnLeft = false;
+
+    function toggleWhiteboardSplitMode(forceState) {
+        const pane = document.getElementById('whiteboardSplitExercisePane');
+        const btn = document.getElementById('btnToggleBoardSplitMode');
+        if (!pane) return;
+
+        isSplitBoardMode = typeof forceState === 'boolean' ? forceState : !isSplitBoardMode;
+        pane.style.display = isSplitBoardMode ? 'flex' : 'none';
+
+        if (btn) {
+            btn.style.background = isSplitBoardMode ? '#1d4ed8' : '#eff6ff';
+            btn.style.color = isSplitBoardMode ? '#ffffff' : '#1d4ed8';
+            btn.style.borderColor = isSplitBoardMode ? '#1e40af' : '#93c5fd';
+            btn.innerHTML = isSplitBoardMode ? '<span>🪟 إغلاق التقسيم</span>' : '<span>🪟 تقسيم السبورة</span>';
+        }
+
+        // Resize the 3 canvas layers seamlessly after DOM reflow
+        requestAnimationFrame(() => {
+            resizeCanvas(true);
+            setTimeout(() => resizeCanvas(true), 90);
+        });
+
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(
+                isSplitBoardMode
+                    ? '🪟 تم تفعيل وضع السبورة المقسمة: ركن التمرين ثابت أمام التلاميذ بينما تكتب الحل بحرية على السبورة!'
+                    : '📐 تم العودة إلى وضع السبورة الكاملة',
+                'info'
+            );
+        }
+    }
+
+    function swapWhiteboardSplitSide() {
+        const wrapper = document.getElementById('whiteboardWorkspaceWrapper');
+        const pane = document.getElementById('whiteboardSplitExercisePane');
+        const canvasContainer = document.getElementById('whiteboardCanvasContainer');
+        if (!wrapper || !pane || !canvasContainer) return;
+
+        splitPaneOnLeft = !splitPaneOnLeft;
+        if (splitPaneOnLeft) {
+            wrapper.insertBefore(canvasContainer, pane);
+        } else {
+            wrapper.insertBefore(pane, canvasContainer);
+        }
+        requestAnimationFrame(() => resizeCanvas(true));
+    }
+
+    function switchWhiteboardSplitTab(tabName) {
+        const textBody = document.getElementById('wbSplitTextBody');
+        const snapBody = document.getElementById('wbSplitSnapshotBody');
+        const btnText = document.getElementById('btnSplitTabText');
+        const btnSnap = document.getElementById('btnSplitTabSnapshot');
+        const isSnap = tabName === 'snapshot';
+
+        if (textBody) textBody.style.display = isSnap ? 'none' : 'flex';
+        if (snapBody) snapBody.style.display = isSnap ? 'flex' : 'none';
+        if (btnText) {
+            btnText.style.background = isSnap ? '#ffffff' : '#2563eb';
+            btnText.style.color = isSnap ? '#1e40af' : '#ffffff';
+        }
+        if (btnSnap) {
+            btnSnap.style.background = isSnap ? '#2563eb' : '#ffffff';
+            btnSnap.style.color = isSnap ? '#ffffff' : '#1e40af';
+        }
+    }
+
+    function pinCurrentBoardToSplitPane() {
+        if (!canvas) return;
+        if (!isSplitBoardMode) {
+            toggleWhiteboardSplitMode(true);
+        }
+        const comp = createCompositedCanvas();
+        const dataUrl = comp.toDataURL('image/png');
+        const imgEl = document.getElementById('wbSplitSnapshotImg');
+        const lblEl = document.getElementById('wbSplitSnapLabel');
+        if (imgEl) {
+            imgEl.src = dataUrl;
+            splitSnapshotZoom = 1;
+            imgEl.style.width = '100%';
+            imgEl.style.maxWidth = '100%';
+        }
+        if (lblEl) {
+            lblEl.textContent = isPdfOrWorksheetActive()
+                ? `📄 صفحة PDF مثبتة (${currentPdfPageNum}/${pdfTotalPages})`
+                : `📸 لقطة سبورة مثبتة (صفحة ${currentPageIndex + 1})`;
+        }
+        switchWhiteboardSplitTab('snapshot');
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('📌 تم تثبيت نسخة من الوثيقة/السبورة الحالية في ركن التمرين! يمكنك الآن إضافة صفحة جديدة لحل التمرين.', 'success');
+        }
+    }
+
+    function zoomSplitSnapshot(delta) {
+        const imgEl = document.getElementById('wbSplitSnapshotImg');
+        const badge = document.getElementById('wbSplitSnapZoomBadge');
+        if (!imgEl) return;
+        if (delta === 0) {
+            splitSnapshotZoom = 1;
+        } else {
+            splitSnapshotZoom = Math.max(0.6, Math.min(2.6, Math.round((splitSnapshotZoom + delta) * 10) / 10));
+        }
+        const pct = Math.round(splitSnapshotZoom * 100);
+        imgEl.style.maxWidth = splitSnapshotZoom > 1 ? 'none' : '100%';
+        imgEl.style.width = `${pct}%`;
+        if (badge) badge.textContent = `${pct}%`;
+    }
+
+    function loadSplitExercisePreset(presetKey) {
+        const titleEl = document.getElementById('wbSplitExerciseTitle');
+        const contentEl = document.getElementById('wbSplitExerciseContent');
+        if (!titleEl || !contentEl) return;
+
+        const presets = {
+            func_ln: {
+                title: 'التمرين 1: دراسة دالة لوغاريتمية (7 نقط)',
+                body: `نعتبر الدالة العددية f المعرفة على ]0, +∞[ بما يلي:\nf(x) = x - 1 + ln(x) / x\n\n1) أ- احسب lim(x→0⁺) f(x) وأول النتيجة هندسياً.\n   ب- احسب lim(x→+∞) f(x) وبين أن المستقيم (Δ): y = x - 1 مقارب مائل لـ (Cf).\n2) أ- بين أنه لكل x من ]0, +∞[: f'(x) = (x² + 1 - ln(x)) / x²\n   ب- استنتج أن f تزايدية قطعا على ]0, +∞[ وضع جدول تغيراتها.\n3) أنشئ المقارب (Δ) والمنحنى (Cf) في معلم متعامد ممنظم.`
+            },
+            seq_rec: {
+                title: 'التمرين 2: المتتالية الترجعية uₙ₊₁ = f(uₙ) (4 نقط)',
+                body: `نعتبر المتتالية العددية (uₙ) المعرفة بحدها الأول u₀ = 2 ولكل n من ℕ:\nuₙ₊₁ = √(2uₙ + 3)\n\n1) احسب u₁ و u₂.\n2) بين بالترجع أنه لكل n من ℕ:  1 ≤ uₙ ≤ 3.\n3) بين أن المتتالية (uₙ) تزايدية قطعا واستنتج أنها متقاربة.\n4) حدد نهاية المتتالية (uₙ) بحل المعادلة f(x) = x.`
+            },
+            complex_geo: {
+                title: 'التمرين 3: الأعداد العقدية في المستوى العقدي (5 نقط)',
+                body: `1) حل في مجموعة الأعداد العقدية ℂ المعادلة:\n   z² - 2√3 z + 4 = 0\n2) نعتبر في المستوى العقدي النقط A و B و C التي ألحاقها:\n   a = √3 + i  و  b = √3 - i  و  c = 2i\n   أ- اكتب العدد العقدي a على الشكل المثلثي.\n   ب- احسب المعيار |a - c| و |b - a| واستنتج طبيعة المثلث ABC.`
+            },
+            space_sphere: {
+                title: 'التمرين 4: الهندسة الفضائية والفلكة (S) (3 نقط)',
+                body: `في الفضاء المنسوب إلى معلم متعامد ممنظم مباشر (O, i⃗, j⃗, k⃗)، نعتبر الفلكة (S) التي معادلتها:\nx² + y² + z² - 2x + 4y - 6z + 5 = 0\nوالمستوى (P) ذو المعادلة: x - 2y + 2z - 4 = 0\n\n1) حدد مثلث إحداثيات المركز Ω وشعاع الفلكة R.\n2) احسب المسافة d(Ω, (P)) واستنتج أن المستوى (P) يقطع الفلكة (S) وفق دائرة (C) يتم تحديد مركزها H وشعاعها r.`
+            },
+            prob_cond: {
+                title: 'التمرين 5: الاحتمالات الشرطية وسحب الكرات (3 نقط)',
+                body: `يحتوي كيس على 8 كرات لا يمكن التمييز بينها باللمس: 5 كرات حمراء و 3 كرات خضراء.\nنسحب عشوائياً وبالتتابع وبدون إحلال كرتين من الكيس.\nنعتبر الحدثين:\nA: "الكرة الأولى المسحوبة حمراء"\nB: "الكرة الثانية المسحوبة خضراء"\n\n1) أنشئ شجرة الاحتمالات الموافقة لهذه التجربة.\n2) احسب P(A) و P_A(B) ثم استنتج P(A ∩ B).\n3) باستعمال صيغة الاحتمالات الكلية، بين أن P(B) = 3/8.`
+            }
+        };
+
+        const p = presets[presetKey];
+        if (p) {
+            titleEl.value = p.title;
+            contentEl.value = p.body;
+            switchWhiteboardSplitTab('text');
+        }
+    }
+
+    function stampSplitExerciseToBoard() {
+        if (!ctx || !canvas) return;
+        const title = (document.getElementById('wbSplitExerciseTitle')?.value || 'تمرين تطبيقي').trim();
+        const body = (document.getElementById('wbSplitExerciseContent')?.value || '').trim();
+        if (!body) return;
+
+        saveStateForUndo();
+        const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
+        const lines = body.split('\n').filter(Boolean);
+        const cardW = Math.min(w - 40, 560);
+        const cardH = Math.max(110, 52 + lines.length * 24);
+        const obj = {
+            t: 'callout',
+            x: Math.max(20, w - cardW - 24),
+            y: 66,
+            w: cardW,
+            h: cardH,
+            badge: `📋 ${title}`,
+            text: body,
+            bg: '#eff6ff',
+            border: '#2563eb',
+            color: '#1e3a8a'
+        };
+        pushVectorObject(obj);
+        drawVectorObjectOnCtx(obj);
+        persistWhiteboardState();
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('📌 تم ختم نص التمرين على السبورة بنجاح!', 'success');
+        }
+    }
+
+    function clearAndStartSolutionBoard() {
+        addPage();
+        insertCurrentLessonHeaderOnBoard();
+    }
+
+    /**
+     * الحاسبة العلمية العائمة المدمجة + محلل المعادلات والنظمات الفوري
+     */
+    let calcActiveTab = 'sci'; // 'sci' | 'quad' | 'sys'
+    let quadState = { a: '1', b: '-5', c: '6' };
+    let sysState = { a1: '2', b1: '1', c1: '7', a2: '1', b2: '-1', c2: '2' };
+
+    function toggleBoardCalculatorWidget(forceState) {
+        const host = document.getElementById('whiteboardCanvasContainer') || document.body;
+        let widget = document.getElementById('wbScientificCalcWidget');
+
+        if (widget && forceState === false) {
+            widget.style.display = 'none';
+            return;
+        }
+        if (widget && forceState !== true && widget.style.display !== 'none') {
+            widget.style.display = 'none';
+            return;
+        }
+
+        if (!widget) {
+            widget = document.createElement('div');
+            widget.id = 'wbScientificCalcWidget';
+            widget.style.cssText = 'position:absolute;top:14px;right:14px;width:305px;background:rgba(15,23,42,0.97);backdrop-filter:blur(10px);border:1.5px solid #6366f1;border-radius:14px;box-shadow:0 16px 38px rgba(15,23,42,0.5);z-index:25;padding:10px;color:#ffffff;font-family:"Cairo",sans-serif;direction:ltr;user-select:none;';
+            host.appendChild(widget);
+        }
+
+        widget.style.display = 'block';
+        renderScientificCalcWidget(widget);
+    }
+
+    function solveQuadraticAnalytical(aNum, bNum, cNum) {
+        if (window.WbSecurityMath && typeof window.WbSecurityMath.solveQuadraticAnalytical === 'function') {
+            return window.WbSecurityMath.solveQuadraticAnalytical(aNum, bNum, cNum);
+        }
+        return null;
+    }
+
+    function solveLinearSystem2x2(a1, b1, c1, a2, b2, c2) {
+        if (window.WbSecurityMath && typeof window.WbSecurityMath.solveLinearSystem2x2 === 'function') {
+            return window.WbSecurityMath.solveLinearSystem2x2(a1, b1, c1, a2, b2, c2);
+        }
+        return null;
+    }
+
+    function renderScientificCalcWidget(widget) {
+        if (!widget) return;
+
+        const tabStyle = (t) => `flex:1;background:${calcActiveTab === t ? '#4f46e5' : '#1e293b'};color:${calcActiveTab === t ? '#fff' : '#94a3b8'};border:1px solid ${calcActiveTab === t ? '#818cf8' : '#334155'};border-radius:6px;padding:3px 4px;font-size:0.68rem;font-weight:800;cursor:pointer;font-family:'Cairo',sans-serif;`;
+
+        let bodyHtml = '';
+        if (calcActiveTab === 'sci') {
+            bodyHtml = `
+                <div style="background:#020617;border:1px solid #334155;border-radius:9px;padding:8px 10px;margin-bottom:8px;text-align:right;">
+                    <input type="text" id="wbCalcInput" value="${calcExprValue.replace(/"/g, '&quot;')}" placeholder="مثال: sin(30) + √(16)" style="width:100%;background:transparent;border:none;outline:none;color:#e2e8f0;font-family:monospace;font-size:0.9rem;font-weight:700;text-align:left;direction:ltr;box-sizing:border-box;">
+                    <div id="wbCalcResultLine" style="font-family:monospace;font-size:1.15rem;font-weight:900;color:#34d399;min-height:22px;margin-top:2px;">${calcLastResult ? '= ' + calcLastResult : ''}</div>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:7px;">
+                    <button type="button" class="wb-calc-key" data-val="sin(" style="background:#1e293b;color:#93c5fd;border:1px solid #334155;border-radius:6px;padding:5px 0;font-size:0.74rem;font-weight:800;cursor:pointer;">sin</button>
+                    <button type="button" class="wb-calc-key" data-val="cos(" style="background:#1e293b;color:#93c5fd;border:1px solid #334155;border-radius:6px;padding:5px 0;font-size:0.74rem;font-weight:800;cursor:pointer;">cos</button>
+                    <button type="button" class="wb-calc-key" data-val="tan(" style="background:#1e293b;color:#93c5fd;border:1px solid #334155;border-radius:6px;padding:5px 0;font-size:0.74rem;font-weight:800;cursor:pointer;">tan</button>
+                    <button type="button" class="wb-calc-key" data-val="ln(" style="background:#1e293b;color:#c4b5fd;border:1px solid #334155;border-radius:6px;padding:5px 0;font-size:0.74rem;font-weight:800;cursor:pointer;">ln</button>
+
+                    <button type="button" class="wb-calc-key" data-val="log(" style="background:#1e293b;color:#c4b5fd;border:1px solid #334155;border-radius:6px;padding:5px 0;font-size:0.74rem;font-weight:800;cursor:pointer;">log</button>
+                    <button type="button" class="wb-calc-key" data-val="√(" style="background:#1e293b;color:#6ee7b7;border:1px solid #334155;border-radius:6px;padding:5px 0;font-size:0.78rem;font-weight:800;cursor:pointer;">√</button>
+                    <button type="button" class="wb-calc-key" data-val="^2" style="background:#1e293b;color:#6ee7b7;border:1px solid #334155;border-radius:6px;padding:5px 0;font-size:0.74rem;font-weight:800;cursor:pointer;">x²</button>
+                    <button type="button" class="wb-calc-key" data-val="^" style="background:#1e293b;color:#6ee7b7;border:1px solid #334155;border-radius:6px;padding:5px 0;font-size:0.78rem;font-weight:800;cursor:pointer;">xʸ</button>
+
+                    <button type="button" class="wb-calc-key" data-val="(" style="background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:5px 0;font-size:0.8rem;font-weight:800;cursor:pointer;">(</button>
+                    <button type="button" class="wb-calc-key" data-val=")" style="background:#1e293b;color:#f8fafc;border:1px solid #334155;border-radius:6px;padding:5px 0;font-size:0.8rem;font-weight:800;cursor:pointer;">)</button>
+                    <button type="button" class="wb-calc-key" data-val="π" style="background:#1e293b;color:#fde047;border:1px solid #334155;border-radius:6px;padding:5px 0;font-size:0.8rem;font-weight:800;cursor:pointer;">π</button>
+                    <button type="button" class="wb-calc-key" data-val="e" style="background:#1e293b;color:#fde047;border:1px solid #334155;border-radius:6px;padding:5px 0;font-size:0.8rem;font-weight:800;cursor:pointer;">e</button>
+
+                    <button type="button" class="wb-calc-key" data-val="7" style="background:#334155;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.85rem;font-weight:800;cursor:pointer;">7</button>
+                    <button type="button" class="wb-calc-key" data-val="8" style="background:#334155;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.85rem;font-weight:800;cursor:pointer;">8</button>
+                    <button type="button" class="wb-calc-key" data-val="9" style="background:#334155;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.85rem;font-weight:800;cursor:pointer;">9</button>
+                    <button type="button" class="wb-calc-key" data-val="÷" style="background:#4338ca;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.9rem;font-weight:900;cursor:pointer;">÷</button>
+
+                    <button type="button" class="wb-calc-key" data-val="4" style="background:#334155;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.85rem;font-weight:800;cursor:pointer;">4</button>
+                    <button type="button" class="wb-calc-key" data-val="5" style="background:#334155;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.85rem;font-weight:800;cursor:pointer;">5</button>
+                    <button type="button" class="wb-calc-key" data-val="6" style="background:#334155;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.85rem;font-weight:800;cursor:pointer;">6</button>
+                    <button type="button" class="wb-calc-key" data-val="×" style="background:#4338ca;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.9rem;font-weight:900;cursor:pointer;">×</button>
+
+                    <button type="button" class="wb-calc-key" data-val="1" style="background:#334155;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.85rem;font-weight:800;cursor:pointer;">1</button>
+                    <button type="button" class="wb-calc-key" data-val="2" style="background:#334155;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.85rem;font-weight:800;cursor:pointer;">2</button>
+                    <button type="button" class="wb-calc-key" data-val="3" style="background:#334155;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.85rem;font-weight:800;cursor:pointer;">3</button>
+                    <button type="button" class="wb-calc-key" data-val="-" style="background:#4338ca;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.95rem;font-weight:900;cursor:pointer;">−</button>
+
+                    <button type="button" class="wb-calc-key" data-val="0" style="background:#334155;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.85rem;font-weight:800;cursor:pointer;">0</button>
+                    <button type="button" class="wb-calc-key" data-val="." style="background:#334155;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.95rem;font-weight:900;cursor:pointer;">.</button>
+                    <button type="button" id="wbCalcBackBtn" style="background:#7f1d1d;color:#fecaca;border:none;border-radius:6px;padding:6px 0;font-size:0.8rem;font-weight:800;cursor:pointer;">⌫</button>
+                    <button type="button" class="wb-calc-key" data-val="+" style="background:#4338ca;color:#fff;border:none;border-radius:6px;padding:6px 0;font-size:0.95rem;font-weight:900;cursor:pointer;">+</button>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:4px;direction:rtl;">
+                    <button type="button" id="wbCalcClearBtn" style="background:#991b1b;color:#fff;border:none;border-radius:7px;padding:6px;font-size:0.74rem;font-weight:800;cursor:pointer;">C مسح</button>
+                    <button type="button" id="wbCalcEvalBtn" style="background:#059669;color:#fff;border:none;border-radius:7px;padding:6px;font-size:0.88rem;font-weight:900;cursor:pointer;">=</button>
+                    <button type="button" id="wbCalcStampBtn" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:7px;padding:6px;font-size:0.72rem;font-weight:800;cursor:pointer;">📌 لصق على السبورة</button>
+                </div>
+            `;
+        } else if (calcActiveTab === 'quad') {
+            const qRes = solveQuadraticAnalytical(parseFloat(quadState.a), parseFloat(quadState.b), parseFloat(quadState.c));
+            bodyHtml = `
+                <div style="direction:rtl;display:flex;flex-direction:column;gap:8px;">
+                    <div style="font-size:0.72rem;color:#93c5fd;font-weight:800;text-align:center;background:#0f172a;padding:4px;border-radius:6px;border:1px solid #334155;">
+                        حل المعادلة: <span style="direction:ltr;display:inline-block;font-family:monospace;color:#fde047;">a·x² + b·x + c = 0</span> (في ℝ و ℂ)
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;direction:ltr;">
+                        <div>
+                            <label style="font-size:0.65rem;color:#cbd5e1;display:block;text-align:center;">a</label>
+                            <input type="number" step="any" id="wbQuadA" value="${quadState.a}" style="width:100%;background:#020617;border:1px solid #475569;color:#fff;border-radius:6px;padding:5px;text-align:center;font-weight:800;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.65rem;color:#cbd5e1;display:block;text-align:center;">b</label>
+                            <input type="number" step="any" id="wbQuadB" value="${quadState.b}" style="width:100%;background:#020617;border:1px solid #475569;color:#fff;border-radius:6px;padding:5px;text-align:center;font-weight:800;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.65rem;color:#cbd5e1;display:block;text-align:center;">c</label>
+                            <input type="number" step="any" id="wbQuadC" value="${quadState.c}" style="width:100%;background:#020617;border:1px solid #475569;color:#fff;border-radius:6px;padding:5px;text-align:center;font-weight:800;box-sizing:border-box;">
+                        </div>
+                    </div>
+                    <div id="wbQuadResultBox" style="background:#020617;border:1px solid #334155;border-radius:8px;padding:8px;font-size:0.75rem;line-height:1.6;">
+                        <div style="font-weight:900;color:#34d399;direction:ltr;text-align:center;">${qRes ? qRes.summary : ''}</div>
+                        <div style="font-size:0.68rem;color:#cbd5e1;margin-top:3px;text-align:center;">${qRes && qRes.subSummary ? qRes.subSummary : ''}</div>
+                    </div>
+                    <button type="button" id="btnStampQuadToBoard" style="background:linear-gradient(135deg,#059669,#047857);color:#fff;border:none;border-radius:8px;padding:7px;font-size:0.74rem;font-weight:800;cursor:pointer;font-family:'Cairo',sans-serif;">📌 ختم خطوات الحل والمميز Δ على السبورة</button>
+                </div>
+            `;
+        } else {
+            const sRes = solveLinearSystem2x2(
+                parseFloat(sysState.a1), parseFloat(sysState.b1), parseFloat(sysState.c1),
+                parseFloat(sysState.a2), parseFloat(sysState.b2), parseFloat(sysState.c2)
+            );
+            bodyHtml = `
+                <div style="direction:rtl;display:flex;flex-direction:column;gap:7px;">
+                    <div style="font-size:0.7rem;color:#93c5fd;font-weight:800;text-align:center;background:#0f172a;padding:4px;border-radius:6px;border:1px solid #334155;">
+                        حل النظمة: <span style="direction:ltr;display:inline-block;font-family:monospace;color:#fde047;">a₁x + b₁y = c₁  |  a₂x + b₂y = c₂</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;direction:ltr;">
+                        <input type="number" step="any" id="wbSysA1" value="${sysState.a1}" placeholder="a₁" style="background:#020617;border:1px solid #475569;color:#fff;border-radius:5px;padding:4px;text-align:center;font-weight:800;width:100%;box-sizing:border-box;">
+                        <input type="number" step="any" id="wbSysB1" value="${sysState.b1}" placeholder="b₁" style="background:#020617;border:1px solid #475569;color:#fff;border-radius:5px;padding:4px;text-align:center;font-weight:800;width:100%;box-sizing:border-box;">
+                        <input type="number" step="any" id="wbSysC1" value="${sysState.c1}" placeholder="c₁" style="background:#020617;border:1px solid #facc15;color:#fef08a;border-radius:5px;padding:4px;text-align:center;font-weight:800;width:100%;box-sizing:border-box;">
+                        <input type="number" step="any" id="wbSysA2" value="${sysState.a2}" placeholder="a₂" style="background:#020617;border:1px solid #475569;color:#fff;border-radius:5px;padding:4px;text-align:center;font-weight:800;width:100%;box-sizing:border-box;">
+                        <input type="number" step="any" id="wbSysB2" value="${sysState.b2}" placeholder="b₂" style="background:#020617;border:1px solid #475569;color:#fff;border-radius:5px;padding:4px;text-align:center;font-weight:800;width:100%;box-sizing:border-box;">
+                        <input type="number" step="any" id="wbSysC2" value="${sysState.c2}" placeholder="c₂" style="background:#020617;border:1px solid #facc15;color:#fef08a;border-radius:5px;padding:4px;text-align:center;font-weight:800;width:100%;box-sizing:border-box;">
+                    </div>
+                    <div style="background:#020617;border:1px solid #334155;border-radius:8px;padding:7px;font-size:0.74rem;line-height:1.5;text-align:center;">
+                        <div style="font-weight:900;color:#34d399;direction:ltr;">${sRes.summary}</div>
+                        <div style="font-size:0.68rem;color:#cbd5e1;direction:ltr;margin-top:2px;">${sRes.subSummary}</div>
+                    </div>
+                    <button type="button" id="btnStampSysToBoard" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:8px;padding:7px;font-size:0.74rem;font-weight:800;cursor:pointer;font-family:'Cairo',sans-serif;">📌 ختم حل النظمة (طريقة المحددات) على السبورة</button>
+                </div>
+            `;
+        }
+
+        widget.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;direction:rtl;">
+                <span style="font-size:0.78rem;font-weight:800;color:#c7d2fe;">🧮 الحاسبة ومحلل المعادلات</span>
+                <div style="display:flex;align-items:center;gap:5px;">
+                    <button type="button" id="wbCalcDegBtn" style="background:${calcDegMode ? '#4f46e5' : '#334155'};color:#fff;border:1px solid #818cf8;border-radius:5px;padding:1px 6px;font-size:0.65rem;font-weight:800;cursor:pointer;">${calcDegMode ? 'DEG' : 'RAD'}</button>
+                    <button type="button" id="wbCalcCloseBtn" style="background:rgba(255,255,255,0.12);border:none;color:#cbd5e1;width:22px;height:22px;border-radius:50%;font-size:0.75rem;cursor:pointer;">✕</button>
+                </div>
+            </div>
+            <div style="display:flex;gap:4px;margin-bottom:8px;direction:rtl;">
+                <button type="button" id="wbCalcTabSci" style="${tabStyle('sci')}">🧮 علمية</button>
+                <button type="button" id="wbCalcTabQuad" style="${tabStyle('quad')}">📐 معادلة 2°</button>
+                <button type="button" id="wbCalcTabSys" style="${tabStyle('sys')}">⚖️ نظمة 2×2</button>
+            </div>
+            ${bodyHtml}
+        `;
+
+        document.getElementById('wbCalcCloseBtn').onclick = () => { widget.style.display = 'none'; };
+        document.getElementById('wbCalcDegBtn').onclick = () => {
+            calcDegMode = !calcDegMode;
+            renderScientificCalcWidget(widget);
+        };
+        document.getElementById('wbCalcTabSci').onclick = () => { calcActiveTab = 'sci'; renderScientificCalcWidget(widget); };
+        document.getElementById('wbCalcTabQuad').onclick = () => { calcActiveTab = 'quad'; renderScientificCalcWidget(widget); };
+        document.getElementById('wbCalcTabSys').onclick = () => { calcActiveTab = 'sys'; renderScientificCalcWidget(widget); };
+
+        if (calcActiveTab === 'sci') {
+            const inputEl = document.getElementById('wbCalcInput');
+            const resEl = document.getElementById('wbCalcResultLine');
+            const evaluateNow = () => {
+                calcExprValue = (inputEl && inputEl.value) ? inputEl.value.trim() : '';
+                const val = safeEvaluateScientificMath(calcExprValue, calcDegMode);
+                if (!isNaN(val) && isFinite(val)) {
+                    const rounded = Math.round(val * 1000000) / 1000000;
+                    calcLastResult = String(rounded);
+                    if (resEl) {
+                        resEl.style.color = '#34d399';
+                        resEl.textContent = '= ' + calcLastResult;
+                    }
+                } else {
+                    calcLastResult = '';
+                    if (resEl) {
+                        resEl.style.color = '#f87171';
+                        resEl.textContent = calcExprValue ? 'خطأ في الصيغة' : '';
+                    }
+                }
+            };
+
+            document.getElementById('wbCalcClearBtn').onclick = () => {
+                calcExprValue = '';
+                calcLastResult = '';
+                if (inputEl) inputEl.value = '';
+                if (resEl) resEl.textContent = '';
+            };
+            document.getElementById('wbCalcBackBtn').onclick = () => {
+                if (inputEl) {
+                    inputEl.value = inputEl.value.slice(0, -1);
+                    calcExprValue = inputEl.value;
+                }
+            };
+            document.getElementById('wbCalcEvalBtn').onclick = evaluateNow;
+            document.getElementById('wbCalcStampBtn').onclick = () => {
+                evaluateNow();
+                if (!calcExprValue || !calcLastResult || !ctx || !canvas) return;
+                saveStateForUndo();
+                const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
+                const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
+                const textToStamp = `${calcExprValue} = ${calcLastResult}`;
+                ctx.save();
+                ctx.font = 'bold 18px monospace';
+                const tw = ctx.measureText(textToStamp).width + 26;
+                ctx.restore();
+                const x0 = Math.max(20, (w - tw) / 2);
+                const y0 = Math.max(70, Math.floor(h * 0.22));
+                const obj = {
+                    t: 'calc_result',
+                    x: x0,
+                    y: y0,
+                    w: tw,
+                    h: 38,
+                    text: textToStamp
+                };
+                pushVectorObject(obj);
+                drawVectorObjectOnCtx(obj);
+                persistWhiteboardState();
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification(`📌 تم لصق الحساب "${textToStamp}" على السبورة`, 'success');
+                }
+            };
+
+            widget.querySelectorAll('.wb-calc-key').forEach(btn => {
+                btn.onclick = () => {
+                    const v = btn.getAttribute('data-val') || '';
+                    if (inputEl) {
+                        inputEl.value += v;
+                        calcExprValue = inputEl.value;
+                        inputEl.focus();
+                    }
+                };
+            });
+
+            if (inputEl) {
+                inputEl.oninput = () => { calcExprValue = inputEl.value; };
+                inputEl.onkeydown = (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        evaluateNow();
+                    } else if (e.key === 'Escape') {
+                        widget.style.display = 'none';
+                    }
+                };
+            }
+        } else if (calcActiveTab === 'quad') {
+            ['A', 'B', 'C'].forEach(k => {
+                const el = document.getElementById('wbQuad' + k);
+                if (el) {
+                    el.oninput = () => {
+                        quadState[k.toLowerCase()] = el.value;
+                        renderScientificCalcWidget(widget);
+                        const ref = document.getElementById('wbQuad' + k);
+                        if (ref) { ref.focus(); }
+                    };
+                }
+            });
+            const stampBtn = document.getElementById('btnStampQuadToBoard');
+            if (stampBtn) {
+                stampBtn.onclick = () => {
+                    const qRes = solveQuadraticAnalytical(parseFloat(quadState.a), parseFloat(quadState.b), parseFloat(quadState.c));
+                    if (!qRes || !qRes.stampBody || !ctx || !canvas) return;
+                    saveStateForUndo();
+                    const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
+                    const cardW = Math.min(w - 50, 500);
+                    const obj = {
+                        t: 'callout',
+                        x: Math.floor((w - cardW) / 2),
+                        y: 80,
+                        w: cardW,
+                        h: 125,
+                        badge: qRes.stampTitle,
+                        text: qRes.stampBody,
+                        bg: '#f0fdf4',
+                        border: '#059669',
+                        color: '#065f46'
+                    };
+                    pushVectorObject(obj);
+                    drawVectorObjectOnCtx(obj);
+                    persistWhiteboardState();
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification('📌 تم ختم الحل الكامل للمعادلة على السبورة!', 'success');
+                    }
+                };
+            }
+        } else if (calcActiveTab === 'sys') {
+            ['A1', 'B1', 'C1', 'A2', 'B2', 'C2'].forEach(k => {
+                const el = document.getElementById('wbSys' + k);
+                if (el) {
+                    el.oninput = () => {
+                        sysState[k.toLowerCase()] = el.value;
+                        renderScientificCalcWidget(widget);
+                        const ref = document.getElementById('wbSys' + k);
+                        if (ref) { ref.focus(); }
+                    };
+                }
+            });
+            const stampSysBtn = document.getElementById('btnStampSysToBoard');
+            if (stampSysBtn) {
+                stampSysBtn.onclick = () => {
+                    const sRes = solveLinearSystem2x2(
+                        parseFloat(sysState.a1), parseFloat(sysState.b1), parseFloat(sysState.c1),
+                        parseFloat(sysState.a2), parseFloat(sysState.b2), parseFloat(sysState.c2)
+                    );
+                    if (!sRes || !sRes.stampBody || !ctx || !canvas) return;
+                    saveStateForUndo();
+                    const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
+                    const cardW = Math.min(w - 50, 500);
+                    const obj = {
+                        t: 'callout',
+                        x: Math.floor((w - cardW) / 2),
+                        y: 80,
+                        w: cardW,
+                        h: 130,
+                        badge: sRes.stampTitle,
+                        text: sRes.stampBody,
+                        bg: '#eff6ff',
+                        border: '#2563eb',
+                        color: '#1e3a8a'
+                    };
+                    pushVectorObject(obj);
+                    drawVectorObjectOnCtx(obj);
+                    persistWhiteboardState();
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification('📌 تم ختم حل النظمة بطريقة المحددات على السبورة!', 'success');
+                    }
+                };
+            }
         }
     }
 
@@ -8373,6 +9324,19 @@
     window.compressWhiteboardIndexedDB = compressWhiteboardIndexedDB;
     window.replayVectorStrokesToCanvas = replayVectorStrokesToCanvas;
     window.getWhiteboardVectorStrokes = () => ({ pageVectorStrokes, pdfPageVectorStrokes });
+    window.getBoardCurrentTool = () => currentTool;
+    window.toggleWhiteboardZenMode = toggleWhiteboardZenMode;
+    window.toggleWhiteboardSplitMode = toggleWhiteboardSplitMode;
+    window.swapWhiteboardSplitSide = swapWhiteboardSplitSide;
+    window.switchWhiteboardSplitTab = switchWhiteboardSplitTab;
+    window.pinCurrentBoardToSplitPane = pinCurrentBoardToSplitPane;
+    window.zoomSplitSnapshot = zoomSplitSnapshot;
+    window.loadSplitExercisePreset = loadSplitExercisePreset;
+    window.stampSplitExerciseToBoard = stampSplitExerciseToBoard;
+    window.clearAndStartSolutionBoard = clearAndStartSolutionBoard;
+    window.open3DSolidsStudioModal = open3DSolidsStudioModal;
+    window.exportAllWhiteboardPagesToPDF = exportAllWhiteboardPagesToPDF;
+    window.toggleBoardCalculatorWidget = toggleBoardCalculatorWidget;
     window.setBoardTool = setTool;
     window.setBoardColor = setColor;
     window.setBoardSize = setSize;
@@ -8398,6 +9362,7 @@
     window.stampVariationTableToCanvas = stampVariationTableToCanvas;
     window.openCustomFunctionPlotterModal = openCustomFunctionPlotterModal;
     window.drawSpaceOrProbTemplate = drawSpaceOrProbTemplate;
+    window.drawBlankVariationTableOnBoard = drawBlankVariationTableOnBoard;
     window.insertCurrentLessonHeaderOnBoard = insertCurrentLessonHeaderOnBoard;
     window.toggleBoardExerciseTimer = toggleBoardExerciseTimer;
     window.startPauseBoardExerciseTimer = startPauseBoardExerciseTimer;
@@ -8467,7 +9432,7 @@
     window.exportCorrectedHomeworkCopy = exportCorrectedHomeworkCopy;
     window.closeHomeworkCorrectionMode = closeHomeworkCorrectionMode;
 
-    // 4. Student Call-up & Virtual Blackboard Collaboration Exports
+    // 4. Student Call-up, Bridges & Virtual Blackboard Collaboration Exports
     window.openStudentCallModal = openStudentCallModal;
     window.startStudentCallSession = startStudentCallSession;
     window.setCollabRole = setCollabRole;
@@ -8475,5 +9440,14 @@
     window.sendInstantMathGuidance = sendInstantMathGuidance;
     window.awardStudentParticipationPoint = awardStudentParticipationPoint;
     window.endStudentCallSession = endStudentCallSession;
+    window.joinWhiteboardCollabRoom = joinWhiteboardCollabRoom;
+    window.copyWhiteboardCollabLink = copyWhiteboardCollabLink;
+
+    // 5. Docks, Freehand Pages Drawer & Pedagogical Bridges Exports
+    window.toggleLeftToolsDock = toggleLeftToolsDock;
+    window.toggleFreehandPagesDrawer = toggleFreehandPagesDrawer;
+    window.jumpToFreehandPage = jumpToFreehandPage;
+    window.openSaveBoardToLibraryModal = openSaveBoardToLibraryModal;
+    window.openAttachBoardToTutoringModal = openAttachBoardToTutoringModal;
 
 })(window);

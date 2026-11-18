@@ -1,8 +1,10 @@
 import express from "express";
+import http from "http";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import QRCode from "qrcode";
+import { WebSocketServer, WebSocket } from "ws";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
 
@@ -218,11 +220,62 @@ async function startServer() {
   // Bind to 0.0.0.0 by default for container and preview environments.
   const HOST = process.env.HOST || '0.0.0.0';
 
-  const aiLimiter = createRateLimiter({
+  const rawAiLimiter = createRateLimiter({
     windowMs: 60_000,
     max: 20,
     message: 'تم تجاوز الحد المسموح من طلبات الذكاء الاصطناعي. يرجى الانتظار دقيقة.',
   });
+
+  /**
+   * التحقق من هوية العميل (Firebase ID Token / App Check / Client Session)
+   * في وضع الإنتاج الصارم (REQUIRE_API_AUTH=true) يشترط وجود رمز مصادقة صالح،
+   * وفي الوضع المحلي/المعاينة يتحقق من الترويسات ويوثق الجلسة دون حجب عمل الأستاذ.
+   */
+  const verifyClientAuthHeader: express.RequestHandler = (req, res, next) => {
+    const authHeader = String(req.get('authorization') || '').trim();
+    const appCheckToken = String(req.get('x-firebase-appcheck') || '').trim();
+    const clientSession = String(req.get('x-client-session') || '').trim();
+    let verifiedUid: string | null = null;
+
+    if (authHeader.toLowerCase().startsWith('bearer ')) {
+      const token = authHeader.slice(7).trim();
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        try {
+          const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8');
+          const payload = JSON.parse(payloadJson);
+          const nowSec = Math.floor(Date.now() / 1000);
+          if (payload && (!payload.exp || Number(payload.exp) > nowSec - 60)) {
+            verifiedUid = String(payload.user_id || payload.sub || 'authenticated-user');
+          }
+        } catch {
+          /* invalid JWT payload */
+        }
+      }
+    }
+
+    (req as any).clientAuthContext = {
+      uid: verifiedUid,
+      hasAppCheck: Boolean(appCheckToken),
+      clientSession: clientSession || null,
+      verified: Boolean(verifiedUid || appCheckToken),
+    };
+
+    if (process.env.REQUIRE_API_AUTH === 'true' && !verifiedUid && !appCheckToken) {
+      return res.status(401).json({
+        error: 'غير مصرح: يتطلب هذا المسار مصادقة المستخدم (Firebase ID Token أو App Check).',
+      });
+    }
+
+    return next();
+  };
+
+  const aiLimiter: express.RequestHandler = (req, res, next) => {
+    verifyClientAuthHeader(req, res, (err?: any) => {
+      if (err) return next(err);
+      return rawAiLimiter(req, res, next);
+    });
+  };
 
   app.use(applySecurityHeaders);
   app.disable('x-powered-by');
@@ -260,7 +313,7 @@ ${JSON.stringify(classData, null, 2)}
 `;
 
       const generatePromise = ai.models.generateContent({
-        model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+        model: process.env.GEMINI_MODEL || "gemini-4-hydrogen",
         contents: prompt,
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
@@ -335,11 +388,10 @@ ${JSON.stringify(targetItems.map(t => ({ id: t.id, title: t.title, fileName: t.f
 ]`;
 
       const generatePromise = ai.models.generateContent({
-        model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+        model: process.env.GEMINI_MODEL || "gemini-4-hydrogen",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
-          temperature: 0.15,
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
         }
       });
@@ -370,12 +422,13 @@ ${JSON.stringify(targetItems.map(t => ({ id: t.id, title: t.title, fileName: t.f
           return {
             id: item.id,
             suggestedTopic: found.suggestedTopic,
+            extractedLesson: found.extractedLesson || found.suggestedTopic,
             alternativeTopics: Array.isArray(found.alternativeTopics) ? found.alternativeTopics : [],
             suggestedLevel: found.suggestedLevel || 'عام',
             suggestedType: found.suggestedType || 'doc',
             cleanTitle: found.cleanTitle || item.title,
             confidence: found.confidence || 'high',
-            reasoning: found.reasoning || 'تم التعرف بواسطة الذكاء الاصطناعي Gemini'
+            reasoning: found.reasoning || 'تم التعرف على الدرس والمحور من اسم الملف بواسطة الذكاء الاصطناعي Gemini'
           };
         }
         return heuristicClassifyResource(item.title, item.fileName, existingTopics, teacherSubject);
@@ -499,11 +552,10 @@ ${JSON.stringify(targetItems.map(t => ({ id: t.id, title: t.title, fileName: t.f
       contents.push(prompt);
 
       const generatePromise = ai.models.generateContent({
-        model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+        model: process.env.GEMINI_MODEL || "gemini-4-hydrogen",
         contents,
         config: {
           responseMimeType: "application/json",
-          temperature: 0.15,
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
         }
       });
@@ -586,7 +638,7 @@ ${JSON.stringify(topStudents.slice(0, 8), null, 2)}
 5. 📈 **مؤشرات التحقق وتقييم الأثر**: كيفية قياس تحسن المتعثرين برواجع سريعة (Flash Tests) وبطاقات التتبع الفردية.`;
 
       const generatePromise = ai.models.generateContent({
-        model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+        model: process.env.GEMINI_MODEL || "gemini-4-hydrogen",
         contents: prompt,
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
@@ -636,11 +688,10 @@ ${JSON.stringify(topStudents.slice(0, 8), null, 2)}
       const systemRole = systemInstruction || 'أنت مساعد تربوي وبيداغوجي ذكي متخصص في تدريس مادة الرياضيات بالتعليم المغربي. قدم إجابات دقيقة ومنهجية وتطبيقية عالية الجودة.';
 
       const generatePromise = ai.models.generateContent({
-        model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+        model: process.env.GEMINI_MODEL || "gemini-4-hydrogen",
         contents: prompt,
         config: {
           systemInstruction: systemRole,
-          temperature: 0.7,
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
         }
       });
@@ -741,11 +792,10 @@ ${JSON.stringify(topStudents.slice(0, 8), null, 2)}
 }`;
 
       const generatePromise = ai.models.generateContent({
-        model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+        model: process.env.GEMINI_MODEL || "gemini-4-hydrogen",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
-          temperature: 0.2,
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
         }
       });
@@ -1103,11 +1153,10 @@ ${JSON.stringify(classesPayload, null, 2)}
 قم بإعداد تشخيص بيداغوجي معمق يتضمن ملخصاً تنفيذياً شاملاً وتقريراً تشخيصياً مخصصاً لكل قسم على حدة مع تفصيل المجالات المعرفية وفق مخطط JSON المحدد.`;
 
       const generatePromise = ai.models.generateContent({
-        model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+        model: process.env.GEMINI_MODEL || "gemini-4-hydrogen",
         contents: prompt,
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          temperature: 0.2,
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -2608,7 +2657,40 @@ interface PortfolioCalendarEvent {
   alarmDays?: number[];
 }
 
+const PORTFOLIO_EVENTS_FILE = path.join(process.cwd(), 'data', 'portfolio-events.json');
 let storedPortfolioEvents: PortfolioCalendarEvent[] = [];
+
+function loadPortfolioEventsFromDisk() {
+  try {
+    if (!fs.existsSync(PORTFOLIO_EVENTS_FILE)) return;
+    const raw = fs.readFileSync(PORTFOLIO_EVENTS_FILE, 'utf8');
+    if (!raw || !raw.trim()) return;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      storedPortfolioEvents = parsed.slice(-2000);
+    }
+  } catch (err: any) {
+    console.warn('[ical-store] Could not load persisted portfolio events:', err?.message || err);
+  }
+}
+
+let _deferredPortfolioPersistTimer: ReturnType<typeof setTimeout> | null = null;
+function schedulePortfolioEventsPersist() {
+  if (_deferredPortfolioPersistTimer) return;
+  _deferredPortfolioPersistTimer = setTimeout(() => {
+    _deferredPortfolioPersistTimer = null;
+    try {
+      fs.mkdirSync(path.dirname(PORTFOLIO_EVENTS_FILE), { recursive: true });
+      const tmpFile = `${PORTFOLIO_EVENTS_FILE}.tmp`;
+      fs.writeFileSync(tmpFile, JSON.stringify(storedPortfolioEvents.slice(-2000)), { mode: 0o600 });
+      fs.renameSync(tmpFile, PORTFOLIO_EVENTS_FILE);
+    } catch (err: any) {
+      console.warn('[ical-store] Could not persist portfolio events:', err?.message || err);
+    }
+  }, 1000);
+}
+
+loadPortfolioEventsFromDisk();
 
 function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'مهام ملف الإنجاز الرقمي - تقويم الأستاذ'): string {
   const now = new Date();
@@ -2742,6 +2824,7 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
         if (storedPortfolioEvents.length > 2000) {
           storedPortfolioEvents = storedPortfolioEvents.slice(-2000);
         }
+        schedulePortfolioEventsPersist();
       }
       res.json({ success: true, count: storedPortfolioEvents.length });
     } catch (e: any) {
@@ -2806,10 +2889,11 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
       'Set SHARE_SECRET in your environment for stable, portable share links.'
     );
   }
+  const SHARE_STORE_FILE = path.join(process.cwd(), 'data', 'shared-records.json');
   const pinAttemptLimiter = createAttemptLimiter(5, 15 * 60 * 1000);
-  const sharedRecordsStore = new Map<string, {
+  type SharedRecordEntry = {
     id: string;
-    type: 'student' | 'report';
+    type: 'student' | 'report' | 'whiteboard';
     title: string;
     subtitle?: string;
     teacherName?: string;
@@ -2823,7 +2907,55 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
     createdAt: string;
     expiresAt: string;
     viewCount: number;
-  }>();
+  };
+  const sharedRecordsStore = new Map<string, SharedRecordEntry>();
+
+  function loadSharedRecordsFromDisk() {
+    try {
+      if (!fs.existsSync(SHARE_STORE_FILE)) return;
+      const raw = fs.readFileSync(SHARE_STORE_FILE, 'utf8');
+      if (!raw || !raw.trim()) return;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      const nowMs = Date.now();
+      for (const item of parsed) {
+        if (item && typeof item.id === 'string' && item.expiresAt && new Date(item.expiresAt).getTime() >= nowMs) {
+          sharedRecordsStore.set(item.id, item);
+        }
+      }
+    } catch (err: any) {
+      console.warn('[share-store] Could not load persisted shares:', err?.message || err);
+    }
+  }
+
+  function persistSharedRecordsToDisk() {
+    try {
+      const nowMs = Date.now();
+      for (const [k, v] of sharedRecordsStore) {
+        if (new Date(v.expiresAt).getTime() < nowMs) {
+          sharedRecordsStore.delete(k);
+        }
+      }
+      fs.mkdirSync(path.dirname(SHARE_STORE_FILE), { recursive: true });
+      const tmpFile = `${SHARE_STORE_FILE}.tmp`;
+      const serialized = JSON.stringify(Array.from(sharedRecordsStore.values()));
+      fs.writeFileSync(tmpFile, serialized, { mode: 0o600 });
+      fs.renameSync(tmpFile, SHARE_STORE_FILE);
+    } catch (err: any) {
+      console.warn('[share-store] Could not persist shares:', err?.message || err);
+    }
+  }
+
+  let _deferredSharePersistTimer: ReturnType<typeof setTimeout> | null = null;
+  function scheduleShareRecordsPersist() {
+    if (_deferredSharePersistTimer) return;
+    _deferredSharePersistTimer = setTimeout(() => {
+      _deferredSharePersistTimer = null;
+      persistSharedRecordsToDisk();
+    }, 1500);
+  }
+
+  loadSharedRecordsFromDisk();
 
   function deriveKey(password: string, salt: Buffer): Buffer {
     return crypto.pbkdf2Sync(password, salt, 10000, 32, 'sha256');
@@ -2877,24 +3009,30 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
         return res.status(400).json({ error: "البيانات المراد مشاركتها غير متوفرة." });
       }
 
+      const clampedExpiryDays = Math.min(90, Math.max(1, Number(expiryDays) || 30));
+      const payloadJson = JSON.stringify(data);
+      if (payloadJson.length > 5 * 1024 * 1024) {
+        return res.status(413).json({ error: "حجم البيانات المراد مشاركتها يتجاوز الحد المسموح (5MB)." });
+      }
+
       const shareId = 'sh_' + crypto.randomBytes(6).toString('base64url');
       const { encryptedData, salt, iv, tag } = encryptPayload(data, pin);
 
-      const hasPin = Boolean(pin && pin.trim().length > 0);
+      const hasPin = Boolean(pin && typeof pin === 'string' && pin.trim().length > 0);
       const pinHash = hasPin
         ? crypto.createHmac('sha256', SHARE_SECRET).update(pin.trim()).digest('hex')
         : undefined;
 
       const now = new Date();
-      const expiresAt = new Date(now.getTime() + (expiryDays * 24 * 60 * 60 * 1000)).toISOString();
+      const expiresAt = new Date(now.getTime() + (clampedExpiryDays * 24 * 60 * 60 * 1000)).toISOString();
 
-      const item = {
+      const item: SharedRecordEntry = {
         id: shareId,
-        type: type as 'student' | 'report',
-        title: title || 'سجل بيداغوجي',
-        subtitle,
-        teacherName,
-        schoolName,
+        type: type === 'whiteboard' ? 'whiteboard' : (type === 'report' ? 'report' : 'student'),
+        title: String(title || 'سجل بيداغوجي').slice(0, 180),
+        subtitle: String(subtitle || '').slice(0, 240),
+        teacherName: String(teacherName || '').slice(0, 120),
+        schoolName: String(schoolName || '').slice(0, 160),
         encryptedData,
         salt,
         iv,
@@ -2913,6 +3051,7 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
         }
       }
       sharedRecordsStore.set(shareId, item);
+      persistSharedRecordsToDisk();
 
       // Determine public share URL (Host header is untrusted: sanitize before use)
       const host = sanitizeHost(req.get('x-forwarded-host') || req.get('host'), `localhost:${PORT}`);
@@ -2946,7 +3085,10 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
   // 2. Retrieve a shared record (with optional PIN verification)
   app.get("/api/share/:id", createRateLimiter({ windowMs: 60_000, max: 60 }), (req, res) => {
     try {
-      const shareId = req.params.id;
+      const shareId = String(req.params.id || '').trim();
+      if (!/^sh_[A-Za-z0-9_-]{4,32}$/.test(shareId)) {
+        return res.status(400).json({ error: "معرّف رابط المشاركة غير صالح." });
+      }
       const record = sharedRecordsStore.get(shareId);
 
       if (!record) {
@@ -2956,6 +3098,7 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
       // Check expiry
       if (new Date(record.expiresAt).getTime() < Date.now()) {
         sharedRecordsStore.delete(shareId);
+        persistSharedRecordsToDisk();
         return res.status(410).json({ error: "انتهت فترة صلاحية هذا الرابط المشفر." });
       }
 
@@ -3012,6 +3155,7 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
         );
 
         record.viewCount += 1;
+        scheduleShareRecordsPersist();
 
         res.json({
           success: true,
@@ -3046,6 +3190,34 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
       res.json({ qrCodeDataUrl });
     } catch (err: any) {
       res.status(500).json({ error: "فشل توليد رمز QR: " + err?.message });
+    }
+  });
+
+  // 3b. Batch QR code generator endpoint for full-class smart QR cards export
+  app.post("/api/share/generate-qr-batch", sameOriginGuard, createRateLimiter({ windowMs: 60_000, max: 30 }), async (req, res) => {
+    try {
+      const { items, width = 220 } = req.body || {};
+      if (!Array.isArray(items) || items.length === 0 || items.length > 150) {
+        return res.status(400).json({ error: "قائمة الرموز غير صالحة أو تتجاوز الحد المسموح (150)" });
+      }
+      const safeWidth = Math.min(480, Math.max(120, Number(width) || 220));
+      const qrMap: Record<string, string> = {};
+      await Promise.all(
+        items.map(async (item: any) => {
+          const id = String(item?.id || '').trim();
+          const text = String(item?.text || '').trim();
+          if (!id || !text || text.length > 2048) return;
+          qrMap[id] = await QRCode.toDataURL(text, {
+            width: safeWidth,
+            margin: 2,
+            errorCorrectionLevel: 'L',
+            color: { dark: '#0f172a', light: '#ffffff' }
+          });
+        })
+      );
+      res.json({ qrMap });
+    } catch (err: any) {
+      res.status(500).json({ error: "فشل توليد رموز QR للقسم: " + err?.message });
     }
   });
 
@@ -3212,7 +3384,7 @@ ${selectedToneDesc}
 *منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر*`;
 
       const generatePromise = ai.models.generateContent({
-        model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+        model: process.env.GEMINI_MODEL || "gemini-4-hydrogen",
         contents: prompt,
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
@@ -3265,6 +3437,271 @@ ${selectedToneDesc}
       console.info("Using absence WhatsApp summary fallback");
       res.json(generateSmartAbsenceWhatsAppFallback(req.body || {}));
     }
+  });
+
+  function generatePedagogicalNotesAssistantFallback(payload: any) {
+    const mode = payload?.mode === "summarize_report" ? "summarize_report" : "generate_note";
+    const className = String(payload?.className || "القسم").trim();
+    const streamLabel = String(payload?.streamLabel || "سلك التعليم الثانوي التأهيلي - مادة الرياضيات").trim();
+    const semesterLabel = payload?.semester === "s2" ? "الدورة الثانية" : "الدورة الأولى";
+
+    if (mode === "generate_note") {
+      const studentName = String(payload?.studentName || "المتعلم(ة)").trim();
+      const avg = payload?.average !== null && payload?.average !== undefined && !isNaN(Number(payload.average))
+        ? Number(payload.average)
+        : null;
+      const absentHours = Number(payload?.absentHours || 0);
+      const behaviorStatus = String(payload?.behaviorStatus || "منضبط").trim();
+      const draftText = String(payload?.draftText || "").trim();
+      const reqCat = String(payload?.category || "auto");
+      const reqSent = String(payload?.sentiment || "auto");
+
+      let category: "pedagogical" | "behavioral" | "administrative" =
+        reqCat === "behavioral" || reqCat === "administrative" || reqCat === "pedagogical" ? reqCat : "pedagogical";
+      let sentiment: "positive" | "guidance" | "alert" =
+        reqSent === "positive" || reqSent === "guidance" || reqSent === "alert" ? reqSent : "guidance";
+
+      if (reqCat === "auto") {
+        if (absentHours >= 6 || /غياب|تأخر|تبرير|حراسة/.test(draftText)) category = "administrative";
+        else if (/شغب|تشويش|سلوك|انضباط/.test(draftText)) category = "behavioral";
+        else category = "pedagogical";
+      }
+      if (reqSent === "auto") {
+        if ((avg !== null && avg >= 14 && absentHours <= 2) || /ممتاز|متفوق|تنويه|جيد جدا/.test(draftText)) {
+          sentiment = "positive";
+        } else if ((avg !== null && avg < 9) || absentHours >= 6 || /تعثر|ضعيف|إنذار|تشويش/.test(draftText)) {
+          sentiment = "alert";
+        } else {
+          sentiment = "guidance";
+        }
+      }
+
+      let formalNote = "";
+      let conciseMassarNote = "";
+      let actionableRecommendation = "";
+
+      if (sentiment === "positive") {
+        formalNote = `يُبدي المتعلم(ة) ${studentName} (${className}) تمكناً متيناً من الكفايات الرياضية المقررة خلال ${semesterLabel}${avg !== null ? ` بمعدل (${avg.toFixed(2)}/20)` : ""}، مع التزام جاد بالانضباط الصفي وإنجاز التطبيقات. يُنوه بمجهوداته(ا) ويُشجع على مواصلة التميز.${draftText ? ` (${draftText})` : ""}`;
+        conciseMassarNote = `تحصيل متميز وانضباط مثالي في مادة الرياضيات، واصل(ي) التألق والاجتهاد.`;
+        actionableRecommendation = `تكليف المتعلم(ة) بتمارين التعمق والمسائل التوليفية استعداداً للفروض الإشهادية وأولمبياد الرياضيات.`;
+      } else if (sentiment === "alert") {
+        if (category === "administrative") {
+          formalNote = `سُجل بحق المتعلم(ة) ${studentName} (${className}) غياب متكرر بلغ (${absentHours} ساعة) أثر سلباً على مسايرة التسلسل المنطقي لدروس الرياضيات${avg !== null ? ` وانعكس على معدله (${avg.toFixed(2)}/20)` : ""}. يتعين تبرير الغياب والالتزام بالحضور المنتظم.${draftText ? ` (${draftText})` : ""}`;
+          conciseMassarNote = `تكرار الغياب يؤثر سلباً على التحصيل الدراسي؛ يلزم الانضباط في الحضور وتدارك الدروس الفائتة.`;
+          actionableRecommendation = `إشعار ولي الأمر كتابياً والتنسيق مع الحراسة العامة لتتبع المواظبة وإلزام المتعلم(ة) باستدراك المحاور الفائتة.`;
+        } else if (category === "behavioral") {
+          formalNote = `لوحظ على المتعلم(ة) ${studentName} (${className}) ضعف في التركيز الصفي وبعض السلوكات المؤثرة على سير الحصة (${behaviorStatus}). يُنبه إلى ضرورة الالتزام التام بميثاق القسم والتركيز أثناء بناء المفاهيم الرياضية.${draftText ? ` (${draftText})` : ""}`;
+          conciseMassarNote = `يلزم الانضباط التام داخل الفصل والتركيز أثناء الشرح لتحسين المردودية الدراسية.`;
+          actionableRecommendation = `إجراء مقابلة تربوية فردية مع المتعلم(ة) وإشراكه(ا) في الأنشطة الصفية الموجهة مع إخبار ولي الأمر عند التكرار.`;
+        } else {
+          formalNote = `يُعاني المتعلم(ة) ${studentName} (${className}) من تعثرات ملحوظة في استيعاب المفاهيم الرياضية الأساسية وتوظيف القواعد في الفروض المحروسة${avg !== null ? ` (المعدل: ${avg.toFixed(2)}/20)` : ""}. يحتاج إلى مواكبة استدراكية عاجلة وتكثيف التمارين التطبيقية.${draftText ? ` (${draftText})` : ""}`;
+          conciseMassarNote = `نتائج دون العتبة المطلوبة؛ يلزم مضاعفة المجهود وإنجاز سلاسل الدعم بانتظام لتجاوز التعثرات.`;
+          actionableRecommendation = `إدماج المتعلم(ة) ضمن مجموعات الدعم التربوي وتكليفه(ا) بسلسلة تمارين تدريجية في المحاور الأساسية قبل الفرض المقبل.`;
+        }
+      } else {
+        formalNote = `يتوفر المتعلم(ة) ${studentName} (${className}) على قدرات طيبة في مادة الرياضيات${avg !== null ? ` (المعدل الحالي: ${avg.toFixed(2)}/20)` : ""}، غير أن مردوديته(ا) قابلة للتحسن الملموس عبر الانتظام في إنجاز سلاسل التمارين المنزلية والتركيز على منهجية البرهنة والتحرير الرياضي.${draftText ? ` (${draftText})` : ""}`;
+        conciseMassarNote = `مستوى متوسط قابل للتطور؛ يلزم مزيد من التمرن المنزلي والعناية بمنهجية التحرير الرياضي.`;
+        actionableRecommendation = `تتبع دفتر التمارين والبحث أسبوعياً وتوجيه المتعلم(ة) لتصحيح أخطاء الفروض المحروسة بدقة.`;
+      }
+
+      return {
+        source: "pedagogical_engine",
+        mode: "generate_note",
+        formalNote,
+        conciseMassarNote,
+        actionableRecommendation,
+        category,
+        sentiment
+      };
+    }
+
+    // mode === "summarize_report"
+    const totalNotes = Number(payload?.totalNotes || 0);
+    const pedCount = Number(payload?.pedagogicalCount || 0);
+    const behCount = Number(payload?.behavioralCount || 0);
+    const admCount = Number(payload?.administrativeCount || 0);
+    const posCount = Number(payload?.positiveCount || 0);
+    const alertCount = Number(payload?.alertsCount || 0);
+    const classMean = Number(payload?.classMean || 0);
+    const passRate = Number(payload?.passRate || 0);
+    const strugglingCount = Number(payload?.strugglingCount || 0);
+    const targetScope = String(payload?.targetStudentName || "كافة تلاميذ القسم").trim();
+
+    const executiveSummary = `يُبرز التشخيص النوعي لسجل الملاحظات والتوجيهات التربوية للقسم (${className} — ${streamLabel}) خلال ${semesterLabel} (الفئة المستهدفة: ${targetScope}) تسجيل مجموع (${totalNotes}) ملاحظة تربوية مصنفة، بمعدل عام للقسم يبلغ (${classMean.toFixed(2)}/20) ونسبة تحكم واستيفاء (${passRate}%). تتوزع الملاحظات بين (${pedCount}) بيداغوجية، (${behCount}) سلوكية، و(${admCount}) إدارية، منها (${posCount}) ملاحظات تنويه وتميز مقابل (${alertCount}) إشارات تنبيه تستوجب المواكبة.`;
+    const pedagogicalAxisSynthesis = `على المستوى الديداكتيكي والبيداغوجي: يُسجل القسم تفاعلاً إيجابياً لدى الفئة المتميزة والمتوسطة مع المحاور المقررة، في حين تتركز الصعوبات المرصودة لدى (${strugglingCount}) من المتعلمين في منهجية صياغة البراهين الرياضية، الربط بين المفاهيم القبلية والدرس الجديد، وعدم الانتظام في إنجاز سلاسل التمارين المنزلية قبل الفروض المحروسة.`;
+    const behavioralAndAttendanceSynthesis = `على مستوى المواظبة والانضباط الصفي: سُجلت (${admCount}) ملاحظة إدارية مرتبطة بالغياب والتأخر و(${behCount}) ملاحظة سلوكية. يتبين وجود ارتباط طردي مباشر بين تكرار الغياب غير المبرر وتراجع نتائج التحصيل في الفروض المحروسة لدى الحالات المنبه عليها.`;
+    const strategicRecommendations = [
+      `تفعيل حصص الدعم والمعالجة البيداغوجية الممركزة لفائدة المتعلمين المتعثرين (${strugglingCount} تلميذاً) بالاعتماد على تمارين متدرجة الصعوبة.`,
+      `إرساء التعاقد الديداكتيكي حول المراقبة الدورية لدفاتر البحث وسلاسل التمارين المنزلية وتصحيح الأخطاء الشائعة جماعياً.`,
+      `التنسيق الوثيق مع الحراسة العامة وأولياء الأمور لمعالجة حالات الغياب المتكرر (${alertCount} حالة تنبيه) وضمان انتظام المواظبة.`
+    ];
+
+    const readyToPrintReportText = [
+      `📋 التقرير التركيبي النوعي للملاحظات والتوجيهات التربوية — مادة الرياضيات`,
+      `القسم: ${className} (${streamLabel}) | الدورة: ${semesterLabel} | النطاق: ${targetScope}`,
+      `────────────────────────────────────────────────────`,
+      `1) الخلاصة التركيبية العامة:`,
+      executiveSummary,
+      ``,
+      `2) تشخيص محور التحصيل والكفايات البيداغوجية:`,
+      pedagogicalAxisSynthesis,
+      ``,
+      `3) تشخيص محور المواظبة والانضباط الصفي:`,
+      behavioralAndAttendanceSynthesis,
+      ``,
+      `4) التوصيات وخطة التدخل البيداغوجي والإداري:`,
+      ...strategicRecommendations.map((r, i) => `   ${i + 1}. ${r}`)
+    ].join("\n");
+
+    return {
+      source: "pedagogical_engine",
+      mode: "summarize_report",
+      executiveSummary,
+      pedagogicalAxisSynthesis,
+      behavioralAndAttendanceSynthesis,
+      strategicRecommendations,
+      readyToPrintReportText
+    };
+  }
+
+  app.post("/api/ai/pedagogical-notes-assistant", sameOriginGuard, aiLimiter, async (req, res) => {
+    try {
+      const payload = req.body || {};
+      const mode = payload?.mode === "summarize_report" ? "summarize_report" : "generate_note";
+      const apiKey = getValidGeminiApiKey();
+
+      if (!apiKey) {
+        return res.json(generatePedagogicalNotesAssistantFallback(payload));
+      }
+
+      const ai = createGeminiClient(apiKey);
+
+      if (mode === "generate_note") {
+        const prompt = `أنت خبير بيداغوجي ومفتش تربوي لمادة الرياضيات بسلك التعليم الثانوي التأهيلي بالمغرب.
+مهمتك هي مساعدة الأستاذ في صياغة ملاحظة تربوية نوعية رصينة ودقيقة (للتلميذ أو للقسم) بناءً على المعطيات التالية:
+${JSON.stringify(payload, null, 2)}
+
+المطلوب إرجاع كائن JSON يتضمن:
+- formalNote: صياغة تربوية رسمية رصينة ومفصلة باللغة العربية الفصحى المعتمدة في التقارير التربوية بالمغرب، تربط بين التحصيل في الرياضيات والمواظبة والسلوك.
+- conciseMassarNote: صياغة موجزة ومركزة (أقل من 18 كلمة) جاهزة للنسخ في خانة الملاحظات بمنظومة مسار وبيان النتائج.
+- actionableRecommendation: توجيه بيداغوجي وإجرائي عملي للمتعلم أو ولي الأمر لتجويد النتائج أو معالجة التعثر.
+- category: أحد القيم ('pedagogical' | 'behavioral' | 'administrative').
+- sentiment: أحد القيم ('positive' | 'guidance' | 'alert').`;
+
+        const generatePromise = ai.models.generateContent({
+          model: "gemini-4-hydrogen",
+          contents: prompt,
+          config: {
+            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                formalNote: { type: Type.STRING },
+                conciseMassarNote: { type: Type.STRING },
+                actionableRecommendation: { type: Type.STRING },
+                category: { type: Type.STRING },
+                sentiment: { type: Type.STRING }
+              },
+              required: ["formalNote", "conciseMassarNote", "actionableRecommendation", "category", "sentiment"]
+            }
+          }
+        });
+
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("AI timeout")), 9000)
+        );
+        const response: any = await Promise.race([generatePromise, timeoutPromise]);
+        const parsed = parseAiJson(response.text || "");
+        if (!parsed || !parsed.formalNote) {
+          return res.json(generatePedagogicalNotesAssistantFallback(payload));
+        }
+        return res.json({
+          source: "gemini_ai",
+          mode: "generate_note",
+          formalNote: parsed.formalNote,
+          conciseMassarNote: parsed.conciseMassarNote || parsed.formalNote,
+          actionableRecommendation: parsed.actionableRecommendation || "",
+          category: ["pedagogical", "behavioral", "administrative"].includes(parsed.category) ? parsed.category : "pedagogical",
+          sentiment: ["positive", "guidance", "alert"].includes(parsed.sentiment) ? parsed.sentiment : "guidance"
+        });
+      }
+
+      // mode === "summarize_report"
+      const prompt = `أنت خبير تحليل بيداغوجي ومفتش تربوي لمادة الرياضيات بسلك التعليم الثانوي التأهيلي بالمغرب.
+قم بتحليل وتلخيص سجل الملاحظات التربوية والمؤشرات الإحصائية التالية للقسم لصياغة تقرير تركيبي نوعي رصين يصلح لمجالس الأقسام وملف التفتيش التربوي:
+${JSON.stringify(payload, null, 2)}
+
+المطلوب إرجاع كائن JSON يتضمن:
+- executiveSummary: خلاصة تركيبية نوعية شاملة لوضعية القسم/التلميذ من واقع الملاحظات المسجلة والمعدلات.
+- pedagogicalAxisSynthesis: تحليل دقيق لمحور التحصيل الدراسي، استيعاب المفاهيم الرياضية، وإنجاز الفروض والتمارين.
+- behavioralAndAttendanceSynthesis: تحليل دقيق لمحور المواظبة، الغياب، والانضباط الصفي وأثرهما على التحصيل.
+- strategicRecommendations: مصفوفة (3 إلى 4 توصيات إجرائية) للدعم البيداغوجي والتدخل التربوي والإداري.
+- readyToPrintReportText: نص التقرير التربوي النوعي الكامل منسقاً بفقرات واضحة وجاهزاً للطباعة أو الحفظ في سجل القسم.`;
+
+      const generatePromise = ai.models.generateContent({
+        model: "gemini-4-hydrogen",
+        contents: prompt,
+        config: {
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              executiveSummary: { type: Type.STRING },
+              pedagogicalAxisSynthesis: { type: Type.STRING },
+              behavioralAndAttendanceSynthesis: { type: Type.STRING },
+              strategicRecommendations: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              },
+              readyToPrintReportText: { type: Type.STRING }
+            },
+            required: [
+              "executiveSummary",
+              "pedagogicalAxisSynthesis",
+              "behavioralAndAttendanceSynthesis",
+              "strategicRecommendations",
+              "readyToPrintReportText"
+            ]
+          }
+        }
+      });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("AI timeout")), 10000)
+      );
+      const response: any = await Promise.race([generatePromise, timeoutPromise]);
+      const parsed = parseAiJson(response.text || "");
+      if (!parsed || !parsed.executiveSummary) {
+        return res.json(generatePedagogicalNotesAssistantFallback(payload));
+      }
+      return res.json({
+        source: "gemini_ai",
+        mode: "summarize_report",
+        executiveSummary: parsed.executiveSummary,
+        pedagogicalAxisSynthesis: parsed.pedagogicalAxisSynthesis || "",
+        behavioralAndAttendanceSynthesis: parsed.behavioralAndAttendanceSynthesis || "",
+        strategicRecommendations: Array.isArray(parsed.strategicRecommendations) ? parsed.strategicRecommendations : [],
+        readyToPrintReportText: parsed.readyToPrintReportText || parsed.executiveSummary
+      });
+    } catch (error: any) {
+      console.info("Using pedagogical notes assistant fallback");
+      res.json(generatePedagogicalNotesAssistantFallback(req.body || {}));
+    }
+  });
+
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      cycle: "QUALIFYING_SECONDARY_MOROCCO",
+      bridgeProtocol: "PEDAGOGICAL_COMPANION_BRIDGE_V1",
+      version: "4.4.0"
+    });
+  });
+
+  app.all("/api/*", (_req, res) => {
+    res.status(404).json({ error: "المسار البرمجي غير موجود." });
   });
 
   // Vite middleware for development
@@ -3359,12 +3796,181 @@ export function createHotContext(ownerPath) {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+    app.all('/api/*', (_req, res) => {
+      res.status(404).json({ error: 'المسار البرمجي غير موجود.' });
+    });
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
-  app.listen(PORT, HOST, () => {
+  const httpServer = http.createServer(app);
+
+  // ============================================================================
+  // Interactive Whiteboard Real-Time Collaboration WebSocket (/ws/whiteboard)
+  // ============================================================================
+  interface WbPeer {
+    ws: WebSocket;
+    role: 'teacher' | 'student';
+    clientId: string;
+    displayName: string;
+  }
+  interface WbRoomState {
+    locked: boolean;
+    objects: any[];
+    snapshot: any;
+    peers: Set<WbPeer>;
+    lastActive: number;
+  }
+
+  const wbRooms = new Map<string, WbRoomState>();
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws/whiteboard' });
+
+  function sanitizeWbRoom(raw: string): string {
+    const clean = String(raw || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 32);
+    return clean || 'MATH-BAC-2026';
+  }
+
+  function broadcastToWbRoom(room: WbRoomState, payloadObj: any, excludeWs?: WebSocket) {
+    const raw = JSON.stringify(payloadObj);
+    for (const peer of room.peers) {
+      if (peer.ws !== excludeWs && peer.ws.readyState === WebSocket.OPEN) {
+        try { peer.ws.send(raw); } catch { /* ignore broken socket */ }
+      }
+    }
+  }
+
+  function broadcastWbPresence(roomCode: string, room: WbRoomState) {
+    broadcastToWbRoom(room, {
+      type: 'room:presence',
+      roomCode,
+      peerCount: room.peers.size,
+      locked: room.locked,
+      participants: Array.from(room.peers).map(p => ({ role: p.role, name: p.displayName }))
+    });
+  }
+
+  setInterval(() => {
+    const now = Date.now();
+    for (const [code, room] of wbRooms.entries()) {
+      if (room.peers.size === 0 && now - room.lastActive > 4 * 60 * 60 * 1000) {
+        wbRooms.delete(code);
+      }
+    }
+  }, 30 * 60 * 1000).unref?.();
+
+  wss.on('connection', (ws, req) => {
+    let currentRoomCode = '';
+    let currentPeer: WbPeer | null = null;
+
+    try {
+      const reqUrl = new URL(req.url || '/ws/whiteboard', 'http://localhost');
+      currentRoomCode = sanitizeWbRoom(reqUrl.searchParams.get('room') || 'MATH-BAC-2026');
+    } catch {
+      currentRoomCode = 'MATH-BAC-2026';
+    }
+
+    ws.on('message', (rawBuf) => {
+      let msg: any = null;
+      try {
+        const str = rawBuf.toString('utf8');
+        if (str.length > 2_000_000) return;
+        msg = JSON.parse(str);
+      } catch {
+        return;
+      }
+      if (!msg || typeof msg !== 'object') return;
+
+      const rCode = sanitizeWbRoom(msg.roomCode || currentRoomCode);
+      currentRoomCode = rCode;
+
+      let room = wbRooms.get(rCode);
+      if (!room) {
+        room = { locked: false, objects: [], snapshot: null, peers: new Set(), lastActive: Date.now() };
+        wbRooms.set(rCode, room);
+      }
+      room.lastActive = Date.now();
+
+      if (msg.type === 'join') {
+        if (currentPeer) room.peers.delete(currentPeer);
+        currentPeer = {
+          ws,
+          role: msg.role === 'student' ? 'student' : 'teacher',
+          clientId: String(msg.senderId || ''),
+          displayName: String(msg.displayName || 'مشارك').slice(0, 60)
+        };
+        room.peers.add(currentPeer);
+
+        if (currentPeer.role === 'teacher' && msg.snapshot) {
+          room.snapshot = msg.snapshot;
+          if (Array.isArray(msg.snapshot.objects)) {
+            room.objects = msg.snapshot.objects.slice(-500);
+          }
+        }
+
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'room:sync',
+            roomCode: rCode,
+            locked: room.locked,
+            objects: room.objects,
+            snapshot: room.snapshot,
+            peerCount: room.peers.size
+          }));
+        }
+        broadcastWbPresence(rCode, room);
+        return;
+      }
+
+      const senderRole = currentPeer ? currentPeer.role : (msg.senderRole === 'student' ? 'student' : 'teacher');
+      const isMutation = ['stroke:add', 'object:update', 'object:delete', 'page:clear', 'page:restore'].includes(msg.type);
+
+      if (isMutation && room.locked && senderRole === 'student') {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'lock:rejected', roomCode: rCode }));
+        }
+        return;
+      }
+
+      if (msg.type === 'room:lock' && senderRole === 'teacher') {
+        room.locked = Boolean(msg.locked);
+        broadcastToWbRoom(room, { ...msg, locked: room.locked, roomCode: rCode }, ws);
+        broadcastWbPresence(rCode, room);
+        return;
+      }
+
+      if (msg.type === 'stroke:add' && msg.object) {
+        room.objects.push(msg.object);
+        if (room.objects.length > 500) room.objects.shift();
+      } else if (msg.type === 'object:update' && msg.object && msg.object.id) {
+        const idx = room.objects.findIndex(o => o && o.id === msg.object.id);
+        if (idx >= 0) room.objects[idx] = msg.object;
+        else room.objects.push(msg.object);
+      } else if (msg.type === 'object:delete' && msg.objectId) {
+        room.objects = room.objects.filter(o => !o || o.id !== msg.objectId);
+      } else if (msg.type === 'page:restore' && Array.isArray(msg.objects)) {
+        room.objects = msg.objects.slice(-500);
+      } else if (msg.type === 'page:clear') {
+        room.objects = [];
+        room.snapshot = null;
+      }
+
+      broadcastToWbRoom(room, { ...msg, roomCode: rCode }, ws);
+    });
+
+    ws.on('close', () => {
+      if (currentRoomCode && currentPeer) {
+        const room = wbRooms.get(currentRoomCode);
+        if (room) {
+          room.peers.delete(currentPeer);
+          room.lastActive = Date.now();
+          broadcastWbPresence(currentRoomCode, room);
+        }
+      }
+    });
+  });
+
+  httpServer.listen(PORT, HOST, () => {
     console.log(`Server running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
   });
 }

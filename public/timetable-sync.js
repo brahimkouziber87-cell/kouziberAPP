@@ -592,8 +592,8 @@
         const banner = document.getElementById('upcomingSessionRadarBanner');
         if (!banner) return;
 
-        // اختيار أول قسم متاح أو اسم افتراضي
-        let firstClass = '1APIC-1';
+        // اختيار أول قسم متاح بالتعليم الثانوي التأهيلي أو اسم افتراضي
+        let firstClass = 'TCS-1';
         if (window.db && window.db.classes) {
             const keys = Object.keys(window.db.classes);
             if (keys.length > 0) firstClass = keys[0];
@@ -607,7 +607,7 @@
             hours: 2,
             room: '12',
             hasHomework: true,
-            homeworkItems: [{ title: 'تمارين 12 و 14 ص 45 - الأعداد الجذرية' }]
+            homeworkItems: [{ title: 'تمارين 12 و 14 ص 45 - الحساب المتجهي في المستوى' }]
         };
 
         const statusBadge = document.getElementById('sessionRadarStatusBadge');
@@ -901,7 +901,7 @@
      */
     function exportTimetableWithAlertsIcs() {
         if (!window.db || !window.db.timetable) {
-            alert('لا توجد بيانات مسجلة في جدول الحصص لتصديرها.');
+            window.notifySafeToast('لا توجد بيانات مسجلة في جدول الحصص لتصديرها.');
             return;
         }
 
@@ -1076,7 +1076,7 @@
         const note = noteInput ? noteInput.value.trim() : '';
 
         if (!className || !date || !title) {
-            alert('يرجى تحديد القسم، التاريخ، ووصف الواجب المنزلي.');
+            window.notifySafeToast('يرجى تحديد القسم، التاريخ، ووصف الواجب المنزلي.');
             return;
         }
 

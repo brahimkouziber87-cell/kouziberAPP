@@ -290,6 +290,13 @@
     function renderGradesAbsenceChart(dataset) {
         const canvas = document.getElementById('gradesAbsenceImpactChartCanvas');
         if (!canvas) return;
+        if (typeof Chart === 'undefined') {
+            if (typeof window.ensureChartJsLoaded === 'function' && !canvas.dataset.chartLoading) {
+                canvas.dataset.chartLoading = '1';
+                window.ensureChartJsLoaded().then(c => { if (c) renderGradesAbsenceChart(dataset); });
+            }
+            return;
+        }
 
         if (_chartInstance) {
             _chartInstance.destroy();

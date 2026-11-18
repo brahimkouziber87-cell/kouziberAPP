@@ -372,44 +372,44 @@
 
                 return `
                     <tr style="transition: background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                        <td style="font-weight: 700; color: #475569;">${std.orderNum || (idx + 1)}</td>
-                        <td style="text-align: right; padding-right: 10px; font-weight: 800; color: #0f172a;">
+                        <td style="font-weight: 700; color: #475569; white-space: nowrap; text-align: center;">${std.orderNum || (idx + 1)}</td>
+                        <td class="td-name" style="text-align: right; padding-right: 10px; font-weight: 800; color: #0f172a; min-width: 175px;">
                             ${escapeHtml(std.name)}
-                            <div style="font-size: 0.68rem; color: #94a3b8; font-weight: normal;">${escapeHtml(std.massar || '')}</div>
+                            <div style="font-size: 0.68rem; color: #94a3b8; font-weight: normal; font-family: monospace;">${escapeHtml(std.massar || '')}</div>
                         </td>
-                        <td style="padding: 4px;">
+                        <td style="padding: 4px; white-space: nowrap;">
                             <input type="number" min="0" max="5" step="0.25" value="${d1}"
                                 onchange="window.updateStudentDiagnosticMark('${escapeHtml(className)}', '${escapeHtml(std.id)}', 'd1', this.value)"
                                 style="width: 60px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; text-align: center; font-weight: 700; font-size: 0.8rem; background: #fff;"
                                 title="الحسابيات والأنشطة العددية (من 5)">
                         </td>
-                        <td style="padding: 4px;">
+                        <td style="padding: 4px; white-space: nowrap;">
                             <input type="number" min="0" max="5" step="0.25" value="${d2}"
                                 onchange="window.updateStudentDiagnosticMark('${escapeHtml(className)}', '${escapeHtml(std.id)}', 'd2', this.value)"
                                 style="width: 60px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; text-align: center; font-weight: 700; font-size: 0.8rem; background: #fff;"
                                 title="الهندسة والحساب المثلثي (من 5)">
                         </td>
-                        <td style="padding: 4px;">
+                        <td style="padding: 4px; white-space: nowrap;">
                             <input type="number" min="0" max="5" step="0.25" value="${d3}"
                                 onchange="window.updateStudentDiagnosticMark('${escapeHtml(className)}', '${escapeHtml(std.id)}', 'd3', this.value)"
                                 style="width: 60px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; text-align: center; font-weight: 700; font-size: 0.8rem; background: #fff;"
                                 title="الجبر والتحليل (من 5)">
                         </td>
-                        <td style="padding: 4px;">
+                        <td style="padding: 4px; white-space: nowrap;">
                             <input type="number" min="0" max="5" step="0.25" value="${d4}"
                                 onchange="window.updateStudentDiagnosticMark('${escapeHtml(className)}', '${escapeHtml(std.id)}', 'd4', this.value)"
                                 style="width: 60px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; text-align: center; font-weight: 700; font-size: 0.8rem; background: #fff;"
                                 title="تنظيم المعطيات وحل المسائل (من 5)">
                         </td>
-                        <td style="font-weight: 900; font-size: 0.95rem; color: ${prof.profileColor}; background: ${prof.profileBg}; border-radius: 4px;">
+                        <td style="font-weight: 900; font-size: 0.95rem; color: ${prof.profileColor}; background: ${prof.profileBg}; border-radius: 4px; white-space: nowrap; text-align: center;">
                             ${total.toFixed(2)}
                         </td>
-                        <td style="padding: 4px;">
-                            <span style="display: inline-block; padding: 2px 8px; border-radius: 12px; font-weight: 800; font-size: 0.72rem; color: ${prof.profileColor}; background: ${prof.profileBg}; border: 1px solid ${prof.profileBorder};">
+                        <td style="padding: 4px 6px; white-space: nowrap; text-align: center;">
+                            <span style="display: inline-block; padding: 2px 8px; border-radius: 12px; font-weight: 800; font-size: 0.72rem; color: ${prof.profileColor}; background: ${prof.profileBg}; border: 1px solid ${prof.profileBorder}; white-space: nowrap;">
                                 ${prof.profileLabel}
                             </span>
                         </td>
-                        <td style="text-align: right; padding-right: 8px; font-size: 0.73rem; color: #475569; line-height: 1.4;">
+                        <td style="text-align: right; padding-right: 8px; font-size: 0.73rem; color: #475569; line-height: 1.4; min-width: 220px;">
                             ${escapeHtml(prof.recommendation)}
                         </td>
                     </tr>
@@ -464,7 +464,7 @@
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('يرجى اختيار القسم أولاً لتعبئة نتائج التقويم التشخيصي.', 'warning');
             } else {
-                alert('يرجى اختيار القسم أولاً.');
+                window.notifySafeToast('يرجى اختيار القسم أولاً.');
             }
             return;
         }
@@ -533,19 +533,22 @@
     /**
      * تصدير شبكة تفريغ التقويم التشخيصي إلى Excel بصيغة رسمية متناسقة
      */
-    function exportDiagnosticExcelGrid() {
+    async function exportDiagnosticExcelGrid() {
         const className = document.getElementById('reportClassSelect')?.value;
         if (!className || !window.db || !window.db.classes || !window.db.classes[className]) {
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('يرجى اختيار القسم لتصدير شبكة التقويم التشخيصي.', 'warning');
             } else {
-                alert('يرجى اختيار القسم أولاً.');
+                window.notifySafeToast('يرجى اختيار القسم أولاً.');
             }
             return;
         }
 
+        if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+            await window.ensureXlsxLoaded();
+        }
         if (typeof XLSX === 'undefined') {
-            alert('مكتبة تصدير Excel غير محملة.');
+            window.notifySafeToast('مكتبة تصدير Excel غير محملة.');
             return;
         }
 

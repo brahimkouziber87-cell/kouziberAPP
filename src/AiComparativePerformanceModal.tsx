@@ -151,7 +151,10 @@ export const AiComparativePerformanceModal: React.FC<StudentAiComparativeModalPr
     let missedHwCount = 0;
 
     records.forEach((r: any) => {
-      const dur = r.duration || 1;
+      const dur =
+        typeof (window as any).getRecordAbsenceDuration === 'function'
+          ? Number((window as any).getRecordAbsenceDuration(r)) || (Number(r.duration) || 1)
+          : Number(r.duration) || 1;
       if (r.status === 'غائب') {
         absentHours += dur;
         unexcusedHours += dur;

@@ -557,9 +557,12 @@
     /**
      * تصدير ورقة التنقيط الرسمية لمسار + مصفوفة القيمة المضافة والتجانس بصيغة Excel
      */
-    function exportCouncilMassarFicheExcel() {
+    async function exportCouncilMassarFicheExcel() {
         const cls = _councilState.selectedClass;
         const sem = _councilState.semester;
+        if (cls && !window.XLSX && typeof window.ensureXlsxLoaded === 'function') {
+            await window.ensureXlsxLoaded();
+        }
         if (!cls || !window.XLSX) {
             const toastFn = window.showAppToast || window.showToast;
             if (typeof toastFn === 'function') {

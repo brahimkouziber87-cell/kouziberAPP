@@ -524,7 +524,7 @@
         markSlipAsReminded(slipId);
 
         const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(text);
-        window.open(url, '_blank');
+        window.openSafeExternalUrl(url, '_blank');
         closeAdminFollowUpReminderModal();
         showFollowUpToast('تم فتح واتساب وتوثيق إرسال التذكير بنجاح ✓');
     }
@@ -540,7 +540,7 @@
             showFollowUpToast('تم نسخ نص التذكير الإداري إلى الحافظة بنجاح ✓');
             closeAdminFollowUpReminderModal();
         }).catch(() => {
-            alert('تم تحديد النص، يمكنك نسخه يدوياً.');
+            window.notifySafeToast('تم تحديد النص، يمكنك نسخه يدوياً.');
         });
     }
 

@@ -31,6 +31,7 @@ import {
   BookOpen,
   User
 } from 'lucide-react';
+import WeekdayAbsenceDistributionCard from './WeekdayAbsenceDistributionCard.tsx';
 
 export interface BehaviorLogEntry {
   id: string;
@@ -176,7 +177,9 @@ export default function AttendanceAndBehaviorHub({
   const studentsInFormClass = useMemo(() => {
     if (!db?.classes || !activeFormClass) return [];
     const raw = db.classes[activeFormClass];
-    return Array.isArray(raw) ? raw : [];
+    if (Array.isArray(raw)) return raw;
+    if (raw && Array.isArray(raw.students)) return raw.students;
+    return [];
   }, [db?.classes, activeFormClass]);
 
   const activeFormStudentId = useMemo(() => {
@@ -197,7 +200,8 @@ export default function AttendanceAndBehaviorHub({
     // Total enrolled students across target classes
     let enrolledStudents = 0;
     targetClasses.forEach((c) => {
-      const list = db?.classes?.[c];
+      const raw = db?.classes?.[c];
+      const list = Array.isArray(raw) ? raw : raw?.students || [];
       if (Array.isArray(list)) enrolledStudents += list.length;
     });
     const safeEnrolled = Math.max(enrolledStudents, 1);
@@ -249,7 +253,12 @@ export default function AttendanceAndBehaviorHub({
         recordsByDate.set(dStr, bucket);
       }
 
-      const dur = Number(r.duration) || 1;
+      const dur =
+        typeof window !== 'undefined' && typeof (window as any).getRecordAbsenceDuration === 'function'
+          ? Number((window as any).getRecordAbsenceDuration(r)) || 1
+          : r.part === 'h1' || r.part === 'h2'
+          ? 1
+          : Number(r.duration) || 1;
       bucket.presentOrTotalRecords += 1;
 
       if (r.status === 'غائب') {
@@ -400,7 +409,8 @@ export default function AttendanceAndBehaviorHub({
     const behaviorsObj = winDb.behaviors || {};
     Object.keys(behaviorsObj).forEach((clsName) => {
       const clsBeh = behaviorsObj[clsName] || {};
-      const stdList: any[] = Array.isArray(winDb.classes?.[clsName]) ? winDb.classes[clsName] : [];
+      const rawCls = winDb.classes?.[clsName];
+      const stdList: any[] = Array.isArray(rawCls) ? rawCls : rawCls?.students || [];
 
       Object.keys(clsBeh).forEach((stdId) => {
         const entry = clsBeh[stdId];
@@ -633,6 +643,11 @@ export default function AttendanceAndBehaviorHub({
 
   return (
     <div className="space-y-5 mb-5" dir="rtl">
+      {/* ===================================================================== */}
+      {/* PART 0: WEEKDAY ABSENCE DISTRIBUTION & PEAK-DAY DECISION CARD         */}
+      {/* ===================================================================== */}
+      <WeekdayAbsenceDistributionCard dbProp={db} classNamesProp={classNames} />
+
       {/* ===================================================================== */}
       {/* PART 1: 30-DAY ATTENDANCE TRENDS CHART                                */}
       {/* ===================================================================== */}

@@ -2572,7 +2572,7 @@
     /**
      * توليد وتنزيل ملف PDF الفعلي باستخدام html2pdf.js مع بديل الطباعة المباشرة
      */
-    function downloadTeacherProfilePdfFile() {
+    async function downloadTeacherProfilePdfFile() {
         const sheetEl = document.getElementById('teacherProfilePdfPrintableSheet');
         if (!sheetEl) {
             window.printTeacherProfessionalProfile();
@@ -2585,6 +2585,9 @@
         const btn = document.getElementById('btnDownloadTeacherProfilePdfNow');
         const originalText = btn ? btn.innerHTML : '';
 
+        if (typeof window.html2pdf !== 'function' && typeof window.ensureHtml2PdfLoaded === 'function') {
+            await window.ensureHtml2PdfLoaded();
+        }
         if (typeof window.html2pdf === 'function') {
             if (btn) {
                 btn.disabled = true;

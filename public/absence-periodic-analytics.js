@@ -313,7 +313,14 @@
      */
     function renderChartJs(data) {
         const canvas = document.getElementById('dashAbsencePeriodicCanvas');
-        if (!canvas || !window.Chart) return;
+        if (!canvas) return;
+        if (!window.Chart) {
+            if (typeof window.ensureChartJsLoaded === 'function' && !canvas.dataset.chartLoading) {
+                canvas.dataset.chartLoading = '1';
+                window.ensureChartJsLoaded().then(c => { if (c) renderChartJs(data); });
+            }
+            return;
+        }
 
         if (_chartInstance) {
             _chartInstance.destroy();

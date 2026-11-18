@@ -191,6 +191,102 @@ window.getCloudUserEmail = () => {
 
 // الحد الأقصى الآمن لحجم الوثيقة في Firestore لتفادي تجاوز حد 1MB
 const MAX_FIRESTORE_DOC_PAYLOAD_SIZE = 600000; // 600KB
+const FIRESTORE_DIFF_HASH_CACHE_KEY = 'firestore_diff_hashes_v1';
+
+const DIFFERENTIAL_SLICE_DEFS = [
+    { id: 'classes_profile', keys: ['classes', 'classOrder', 'teacherProfile', 'settings', 'disabledDates', 'holidays', 'teacherTimetable', 'timetable', 'cloudSyncConfig'] },
+    { id: 'records', keys: ['records'] },
+    { id: 'grades_s1', keys: ['grades', 'gradesS1', 'examConfigs', 'gradeScales'] },
+    { id: 'grades_s2', keys: ['gradesS2'] },
+    { id: 'behaviors_notes', keys: ['behaviors', 'notes', 'attendanceArchive', 'behaviorLogs'] },
+    { id: 'textbook_curriculum', keys: ['textbook', 'curriculum', 'lessonNotes', 'axisParagraphNotes', 'lessonLogs'] },
+    { id: 'library_resources', keys: ['library', 'libraryDriveFolders', 'sharedResources'] },
+    { id: 'tutoring_data', keys: ['tutoring', 'tutoringStudents', 'tutoringSessions', 'tutoringGroups', 'tutoringPayments'] }
+];
+
+function computeSliceDigest(str) {
+    let hash = 2166136261;
+    const s = String(str || '');
+    for (let i = 0; i < s.length; i++) {
+        hash ^= s.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    return 'F32-' + (hash >>> 0).toString(16).toUpperCase().padStart(8, '0') + ':' + s.length;
+}
+
+function getCachedCloudSliceHashes(targetUid) {
+    try {
+        const raw = localStorage.getItem(FIRESTORE_DIFF_HASH_CACHE_KEY);
+        const all = raw ? JSON.parse(raw) : {};
+        return (all && all[targetUid] && typeof all[targetUid] === 'object') ? all[targetUid] : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+function saveCachedCloudSliceHashes(targetUid, hashesMap) {
+    try {
+        const raw = localStorage.getItem(FIRESTORE_DIFF_HASH_CACHE_KEY);
+        const all = raw ? JSON.parse(raw) : {};
+        all[targetUid] = hashesMap;
+        localStorage.setItem(FIRESTORE_DIFF_HASH_CACHE_KEY, JSON.stringify(all));
+    } catch (e) {}
+}
+
+function clearCachedCloudSliceHashes(targetUid) {
+    try {
+        const raw = localStorage.getItem(FIRESTORE_DIFF_HASH_CACHE_KEY);
+        if (!raw) return;
+        const all = JSON.parse(raw);
+        if (all && targetUid in all) {
+            delete all[targetUid];
+            localStorage.setItem(FIRESTORE_DIFF_HASH_CACHE_KEY, JSON.stringify(all));
+        }
+    } catch (e) {}
+}
+
+function partitionPayloadIntoDifferentialSlices(sourceObj) {
+    const obj = (sourceObj && typeof sourceObj === 'object') ? sourceObj : {};
+    const assignedKeys = new Set();
+    const slices = [];
+
+    DIFFERENTIAL_SLICE_DEFS.forEach((def) => {
+        const sliceData = {};
+        def.keys.forEach((k) => {
+            assignedKeys.add(k);
+            if (obj[k] !== undefined) {
+                sliceData[k] = obj[k];
+            }
+        });
+        const serialized = safeStringify(sliceData);
+        slices.push({
+            id: def.id,
+            serialized,
+            hash: computeSliceDigest(serialized),
+            rawSize: serialized.length
+        });
+    });
+
+    const miscStable = {};
+    const miscFull = {};
+    Object.keys(obj).forEach((k) => {
+        if (assignedKeys.has(k)) return;
+        miscFull[k] = obj[k];
+        if (k !== '_lastSavedAt' && k !== '_lastSavedTimestamp' && k !== '_lastSavedDevice') {
+            miscStable[k] = obj[k];
+        }
+    });
+    const miscStableStr = safeStringify(miscStable);
+    const miscFullStr = safeStringify(miscFull);
+    slices.push({
+        id: 'auxiliary_misc',
+        serialized: miscFullStr,
+        hash: computeSliceDigest(miscStableStr),
+        rawSize: miscFullStr.length
+    });
+
+    return slices;
+}
 
 /**
  * ضغط السلاسل النصية الكبيرة باستخدام Gzip (مدمج في المتصفحات الحديثة)
@@ -237,7 +333,65 @@ async function decompressString(str, isCompressed) {
 }
 
 /**
- * قراءة وثيقة مستخدم مفردة من Firestore بحسب معرّف الوثيقة
+ * قراءة الشرائح التفاضلية لـ Firestore وإعادة بناء قاعدة البيانات الكاملة
+ */
+async function readDifferentialSlicesForSlot(targetUid) {
+    const manifestPath = `users/${targetUid}/slices/manifest`;
+    let manifestSnap;
+    try {
+        manifestSnap = await getDoc(doc(dbFirestore, "users", targetUid, "slices", "manifest"));
+    } catch (err) {
+        handleFirestoreError(err, OperationType.GET, manifestPath, false);
+        return null;
+    }
+    if (!manifestSnap || !manifestSnap.exists()) return null;
+
+    const mData = manifestSnap.data();
+    if (!mData || !mData.payload) return null;
+
+    const manifestRaw = await decompressString(mData.payload, mData.isCompressed);
+    let manifestObj = null;
+    try { manifestObj = JSON.parse(manifestRaw); } catch (_) {}
+    if (!manifestObj || !Array.isArray(manifestObj.sliceIds)) return null;
+
+    const sliceDocs = await Promise.all(
+        manifestObj.sliceIds.map(async (sId) => {
+            try {
+                const sSnap = await getDoc(doc(dbFirestore, "users", targetUid, "slices", sId));
+                if (!sSnap || !sSnap.exists()) return null;
+                const sData = sSnap.data();
+                const rawSliceStr = await decompressString(sData.payload, sData.isCompressed);
+                return JSON.parse(rawSliceStr);
+            } catch (sliceErr) {
+                handleFirestoreError(sliceErr, OperationType.GET, `users/${targetUid}/slices/${sId}`, false);
+                return null;
+            }
+        })
+    );
+
+    if (sliceDocs.some((s) => s === null)) {
+        return null;
+    }
+
+    const merged = {};
+    sliceDocs.forEach((part) => {
+        if (part && typeof part === 'object') {
+            Object.assign(merged, part);
+        }
+    });
+
+    if (manifestObj.hashes && typeof manifestObj.hashes === 'object') {
+        saveCachedCloudSliceHashes(targetUid, manifestObj.hashes);
+    }
+
+    return {
+        rawString: safeStringify(merged),
+        slicesCount: manifestObj.sliceIds.length
+    };
+}
+
+/**
+ * قراءة وثيقة مستخدم مفردة من Firestore بحسب معرّف الوثيقة (مع دعم المزامنة التفاضلية والنسخ الموحدة)
  */
 async function readSingleFirestoreUserSlot(targetUid) {
     if (!targetUid) return null;
@@ -253,6 +407,24 @@ async function readSingleFirestoreUserSlot(targetUid) {
 
     const cloudData = docSnap.data();
     if (!cloudData) return null;
+
+    if (cloudData.syncMode === 'differential_v1') {
+        try {
+            const diffResult = await readDifferentialSlicesForSlot(targetUid);
+            if (diffResult && diffResult.rawString) {
+                return {
+                    uid: targetUid,
+                    rawString: diffResult.rawString,
+                    lastUpdated: cloudData.lastUpdated,
+                    lastSavedTimestamp: Number(cloudData.lastSavedTimestamp) || (cloudData.lastUpdated ? new Date(cloudData.lastUpdated).getTime() : 0),
+                    chunksCount: diffResult.slicesCount || 0,
+                    syncMode: 'differential_v1'
+                };
+            }
+        } catch (diffReadErr) {
+            console.warn('Differential slot read notice, checking fallback:', diffReadErr);
+        }
+    }
 
     let payloadString = '';
     if (cloudData.isChunked && cloudData.chunksCount > 0) {
@@ -280,7 +452,8 @@ async function readSingleFirestoreUserSlot(targetUid) {
         rawString: rawString,
         lastUpdated: cloudData.lastUpdated,
         lastSavedTimestamp: Number(cloudData.lastSavedTimestamp) || (cloudData.lastUpdated ? new Date(cloudData.lastUpdated).getTime() : 0),
-        chunksCount: cloudData.chunksCount || 0
+        chunksCount: cloudData.chunksCount || 0,
+        syncMode: cloudData.syncMode || 'full'
     };
 }
 
@@ -332,7 +505,8 @@ async function executeFirestoreUserWriteToUid(targetUid, userEmail, payloadStrin
             compressedSize: Number(payloadString.length) || 0,
             lastUpdated: String(nowIso).slice(0, 64),
             lastSavedTimestamp: nowTs,
-            userEmail: String(userEmail || '').slice(0, 256)
+            userEmail: String(userEmail || '').slice(0, 256),
+            syncMode: 'full'
         });
     } else {
         const chunks = [];
@@ -350,7 +524,8 @@ async function executeFirestoreUserWriteToUid(targetUid, userEmail, payloadStrin
             compressedSize: Number(payloadString.length) || 0,
             lastUpdated: String(nowIso).slice(0, 64),
             lastSavedTimestamp: nowTs,
-            userEmail: String(userEmail || '').slice(0, 256)
+            userEmail: String(userEmail || '').slice(0, 256),
+            syncMode: 'full_chunked'
         });
 
         for (let idx = 0; idx < chunks.length; idx++) {
@@ -364,23 +539,166 @@ async function executeFirestoreUserWriteToUid(targetUid, userEmail, payloadStrin
     }
 }
 
-async function executeFirestoreUserWrite(user, payloadString, compressed, rawLength, nowIso) {
+async function executeDifferentialFirestoreWriteToUid(targetUid, userEmail, filteredObj, rawLength, nowIso, nowTs) {
+    if (!targetUid) return null;
+    const slices = partitionPayloadIntoDifferentialSlices(filteredObj);
+    let knownHashes = getCachedCloudSliceHashes(targetUid);
+
+    // If no local hash cache exists yet for this UID, hydrate from cloud manifest once
+    if (!knownHashes || Object.keys(knownHashes).length === 0) {
+        try {
+            const manifestSnap = await getDoc(doc(dbFirestore, "users", targetUid, "slices", "manifest"));
+            if (manifestSnap && manifestSnap.exists()) {
+                const mData = manifestSnap.data();
+                const rawM = await decompressString(mData.payload, mData.isCompressed);
+                const parsedM = JSON.parse(rawM);
+                if (parsedM && parsedM.hashes) {
+                    knownHashes = parsedM.hashes;
+                    saveCachedCloudSliceHashes(targetUid, knownHashes);
+                }
+            }
+        } catch (_) {}
+    }
+
+    const changedSlices = slices.filter((s) => knownHashes[s.id] !== s.hash);
+    const unchangedCount = slices.length - changedSlices.length;
+
+    // Even if nothing changed, avoid redundant slice writes if manifest is already present
+    if (changedSlices.length === 0 && Object.keys(knownHashes).length === slices.length) {
+        const skippedStats = {
+            mode: 'differential_v1',
+            totalSlices: slices.length,
+            uploadedSlices: 0,
+            skippedSlices: slices.length,
+            uploadedBytes: 0,
+            savedRawBytes: rawLength,
+            lastUpdated: nowIso
+        };
+        window.__lastFirestoreDiffStats = skippedStats;
+        return skippedStats;
+    }
+
+    // Compress only modified slices
+    const compressedChanged = await Promise.all(
+        changedSlices.map(async (s) => {
+            const res = await compressString(s.serialized);
+            return Object.assign({}, s, {
+                compressed: res.compressed,
+                payload: res.data
+            });
+        })
+    );
+
+    // If any individual slice exceeds the safe Firestore document size, fallback cleanly to chunked backup
+    if (compressedChanged.some((s) => s.payload.length > MAX_FIRESTORE_DOC_PAYLOAD_SIZE)) {
+        const rawString = safeStringify(filteredObj);
+        const { compressed, data: payloadString } = await compressString(rawString);
+        await executeFirestoreUserWriteToUid(targetUid, userEmail, payloadString, compressed, rawString.length, nowIso, nowTs);
+        return {
+            mode: 'full_chunked_fallback',
+            totalSlices: slices.length,
+            uploadedSlices: slices.length,
+            skippedSlices: 0,
+            uploadedBytes: payloadString.length,
+            savedRawBytes: 0,
+            lastUpdated: nowIso
+        };
+    }
+
+    const totalUploadedBytes = compressedChanged.reduce((acc, s) => acc + s.payload.length, 0);
+    const savedRawBytes = slices
+        .filter((s) => knownHashes[s.id] === s.hash)
+        .reduce((acc, s) => acc + s.rawSize, 0);
+
+    // 1. Write parent slot metadata first so security rules verify ownership for subcollection writes
+    await setDoc(doc(dbFirestore, "users", targetUid), {
+        isCompressed: true,
+        isChunked: false,
+        chunksCount: 0,
+        totalRawSize: Number(rawLength) || 0,
+        compressedSize: Number(totalUploadedBytes) || 0,
+        lastUpdated: String(nowIso).slice(0, 64),
+        lastSavedTimestamp: nowTs,
+        userEmail: String(userEmail || '').slice(0, 256),
+        syncMode: 'differential_v1'
+    });
+
+    // 2. Upload ONLY changed slices in parallel
+    await Promise.all(
+        compressedChanged.map((s) =>
+            setDoc(doc(dbFirestore, "users", targetUid, "slices", s.id), {
+                sliceId: s.id,
+                hash: s.hash,
+                payload: s.payload,
+                isCompressed: Boolean(s.compressed),
+                rawSize: Number(s.rawSize) || 0,
+                compressedSize: Number(s.payload.length) || 0,
+                lastUpdated: String(nowIso).slice(0, 64),
+                lastSavedTimestamp: nowTs,
+                userEmail: String(userEmail || '').slice(0, 256)
+            })
+        )
+    );
+
+    // 3. Update slice manifest document
+    const updatedHashMap = {};
+    slices.forEach((s) => {
+        updatedHashMap[s.id] = s.hash;
+    });
+    const manifestObj = {
+        version: 1,
+        sliceIds: slices.map((s) => s.id),
+        hashes: updatedHashMap,
+        lastUpdated: nowIso
+    };
+    const manifestStr = safeStringify(manifestObj);
+    const compressedManifest = await compressString(manifestStr);
+    await setDoc(doc(dbFirestore, "users", targetUid, "slices", "manifest"), {
+        sliceId: 'manifest',
+        hash: computeSliceDigest(manifestStr),
+        payload: compressedManifest.data,
+        isCompressed: Boolean(compressedManifest.compressed),
+        rawSize: Number(manifestStr.length) || 0,
+        compressedSize: Number(compressedManifest.data.length) || 0,
+        lastUpdated: String(nowIso).slice(0, 64),
+        lastSavedTimestamp: nowTs,
+        userEmail: String(userEmail || '').slice(0, 256)
+    });
+
+    saveCachedCloudSliceHashes(targetUid, updatedHashMap);
+    const diffStats = {
+        mode: 'differential_v1',
+        totalSlices: slices.length,
+        uploadedSlices: changedSlices.length,
+        skippedSlices: unchangedCount,
+        uploadedBytes: totalUploadedBytes,
+        savedRawBytes,
+        lastUpdated: nowIso
+    };
+    window.__lastFirestoreDiffStats = diffStats;
+    return diffStats;
+}
+
+async function executeFirestoreUserWrite(user, filteredObj, rawLength, nowIso) {
     const nowTs = Date.now();
     const cleanEmail = normalizeGmailAddress(user.email || '');
-    await executeFirestoreUserWriteToUid(user.uid, cleanEmail, payloadString, compressed, rawLength, nowIso, nowTs);
+    const primaryStats = await executeDifferentialFirestoreWriteToUid(user.uid, cleanEmail, filteredObj, rawLength, nowIso, nowTs);
 
     // مرآة متزامنة لمعرّف Gmail القياسي لضمان التوافق الفوري بين الدخول الرسمي والدخول المباشر بالبريد
     if (cleanEmail) {
         const gmailSlotUid = computeGmailUid(cleanEmail);
         if (gmailSlotUid && gmailSlotUid !== user.uid) {
             try {
-                await executeFirestoreUserWriteToUid(gmailSlotUid, cleanEmail, payloadString, compressed, rawLength, nowIso, nowTs);
+                await executeDifferentialFirestoreWriteToUid(gmailSlotUid, cleanEmail, filteredObj, rawLength, nowIso, nowTs);
             } catch (mirrorErr) {
                 console.warn('Mirror Gmail slot sync notice:', mirrorErr);
             }
         }
     }
+    return primaryStats;
 }
+
+window.getCloudDifferentialSyncStats = () => window.__lastFirestoreDiffStats || null;
 
 window.syncToFirebase = async (data, preSerialized) => {
     const user = getEffectiveUser();
@@ -415,26 +733,31 @@ window.syncToFirebase = async (data, preSerialized) => {
                 : (data || window.db || {});
             const rawString = (typeof preSerialized === 'string' && preSerialized.length > 2) ? preSerialized : safeStringify(filteredData);
 
-            // 1. ضغط البيانات لتقليص الحجم بنسبة 80-95%
-            const { compressed, data: payloadString } = await compressString(rawString);
-
-            // 2. كتابة البيانات مع إعادة المحاولة تلقائياً بعد تحديث رمز المصادقة إذا لزم الأمر
+            // تنفيذ المزامنة التفاضلية للشرائح المتغيرة فقط مع إعادة المحاولة تلقائياً عند انتهاء صلاحية التوكن
+            let diffStats = null;
             try {
-                await executeFirestoreUserWrite(user, payloadString, compressed, rawString.length, nowIso);
+                diffStats = await executeFirestoreUserWrite(user, filteredData, rawString.length, nowIso);
             } catch (firstErr) {
                 const msg = firstErr?.message || String(firstErr);
                 if (msg.includes('permission') || firstErr?.code === 'permission-denied') {
                     if (typeof user.getIdToken === 'function') {
                         await user.getIdToken(true);
                     }
-                    await executeFirestoreUserWrite(user, payloadString, compressed, rawString.length, nowIso);
+                    diffStats = await executeFirestoreUserWrite(user, filteredData, rawString.length, nowIso);
                 } else {
                     throw firstErr;
                 }
             }
 
-            const result = { success: true, cloud: true, timestamp: new Date(), user: user.email || user.displayName };
+            const result = {
+                success: true,
+                cloud: true,
+                timestamp: new Date(),
+                user: user.email || user.displayName,
+                diffStats
+            };
             window.dispatchEvent(new CustomEvent('cloudSyncResult', { detail: result }));
+            window.dispatchEvent(new CustomEvent('cloudDiffSyncCompleted', { detail: diffStats || {} }));
             return result;
         } catch(e) {
             const errInfo = handleFirestoreError(e, OperationType.WRITE, userDocPath, false);
@@ -919,6 +1242,7 @@ window.autoSyncToGoogleDrive = (data) => {
 
       const serialized = safeStringify(payloadObj);
 
+      let driveUploaded = false;
       if (isRealOAuthToken(cachedAccessToken)) {
         const fileId = await getBackupFileId(cachedAccessToken);
         let driveRes;
@@ -947,13 +1271,20 @@ window.autoSyncToGoogleDrive = (data) => {
           const errTxt = await driveRes.text().catch(() => '');
           throw new Error(`Google Drive HTTP ${driveRes.status}: ${errTxt.slice(0, 160) || driveRes.statusText}`);
         }
+        if (driveRes && driveRes.ok) driveUploaded = true;
       }
 
+      let firestoreSynced = false;
       if (user && typeof window.syncToFirebase === 'function') {
-        await window.syncToFirebase(payloadObj, serialized);
+        const fsRes = await window.syncToFirebase(payloadObj, serialized);
+        firestoreSynced = !!(fsRes && fsRes.success);
       }
 
-      if (typeof window.markAutoSyncedModulesTimestamp === 'function') {
+      if (firestoreSynced && typeof window.markFirestorePayloadSynced === 'function') {
+        window.markFirestorePayloadSynced(serialized, { bumpHourlyCounter: false, trigger: 'auto_sync' });
+      }
+
+      if ((firestoreSynced || driveUploaded) && typeof window.markAutoSyncedModulesTimestamp === 'function') {
         window.markAutoSyncedModulesTimestamp(payloadObj._lastSavedAt);
       }
 
@@ -965,6 +1296,9 @@ window.autoSyncToGoogleDrive = (data) => {
       window.dispatchEvent(new CustomEvent('gdriveSyncSuccess', { detail: { timestamp: new Date() } }));
     } catch (err) {
       console.warn("Silent Drive auto-sync failed:", err?.message || String(err));
+      if (typeof window.markFirestoreSyncPending === 'function') {
+        window.markFirestoreSyncPending(err?.message || 'offline_or_network');
+      }
       if (typeof window.logCloudSyncError === 'function') {
         window.logCloudSyncError({
           service: 'Google Drive',
@@ -984,6 +1318,15 @@ window.autoSyncToGoogleDrive = (data) => {
 // Interactive UI Modals for Multi-Device Sync
 // -------------------------------------------------------------
 
+function escapeSyncHtml(val) {
+  return String(val == null ? '' : val)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function showDriveNewDeviceModal(cloudSummary) {
   let modal = document.getElementById('driveNewDeviceDetectedModal');
   if (!modal) {
@@ -1002,25 +1345,25 @@ function showDriveNewDeviceModal(cloudSummary) {
           <span class="ui-icon"><span data-lucide="cloud-download" data-size="30"></span></span>
         </div>
         <h3 style="font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0 0 6px 0;">تم التعرف على آخر تحديث سحابي!</h3>
-        <p style="font-size: 0.85rem; color: #64748b; margin: 0;">أهلاً بك أستاذ <strong>${cloudSummary.teacherName}</strong>. تم العثور على أحدث نسخة لبياناتك ومادتك في (${cloudSummary.source}).</p>
+        <p style="font-size: 0.85rem; color: #64748b; margin: 0;">أهلاً بك أستاذ <strong>${escapeSyncHtml(cloudSummary.teacherName)}</strong>. تم العثور على أحدث نسخة لبياناتك ومادتك في (${escapeSyncHtml(cloudSummary.source)}).</p>
       </div>
 
       <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; font-size: 0.84rem;">
         <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #cbd5e1;">
           <span style="color: #64748b;">📅 آخر حفظ وتحديث:</span>
-          <strong style="color: #0284c7;">${cloudSummary.dateStr}</strong>
+          <strong style="color: #0284c7;">${escapeSyncHtml(cloudSummary.dateStr)}</strong>
         </div>
         <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #cbd5e1;">
-          <span style="color: #64748b;">📚 الأقسام الدراسية (${cloudSummary.classesCount}):</span>
-          <strong style="color: #0f172a;">${classListText || 'لا توجد'}</strong>
+          <span style="color: #64748b;">📚 الأقسام الدراسية (${Number(cloudSummary.classesCount || 0)}):</span>
+          <strong style="color: #0f172a;">${escapeSyncHtml(classListText || 'لا توجد')}</strong>
         </div>
         <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #cbd5e1;">
           <span style="color: #64748b;">👥 إجمالي التلاميذ:</span>
-          <strong style="color: #10b981;">${cloudSummary.totalStudents} تلميذ</strong>
+          <strong style="color: #10b981;">${Number(cloudSummary.totalStudents || 0)} تلميذ</strong>
         </div>
         <div style="display: flex; justify-content: space-between; padding: 6px 0;">
           <span style="color: #64748b;">📝 الحصص والغياب والنقط:</span>
-          <strong style="color: #475569;">${cloudSummary.recordsCount} حصة مسجلة</strong>
+          <strong style="color: #475569;">${Number(cloudSummary.recordsCount || 0)} حصة مسجلة</strong>
         </div>
       </div>
 
@@ -1181,7 +1524,7 @@ window.openDriveSyncCenterModal = async () => {
                 <span style="font-size: 0.73rem; color: #475569; font-weight: 700;">حساب Gmail النشط:</span>
                 ${modeBadgeHtml}
               </div>
-              <div style="font-weight: 800; font-size: 0.92rem; color: #0f172a; direction: ltr; text-align: right; margin-top: 2px;">${email}</div>
+              <div style="font-weight: 800; font-size: 0.92rem; color: #0f172a; direction: ltr; text-align: right; margin-top: 2px;">${escapeSyncHtml(email)}</div>
             </div>
           </div>
           <div style="display: flex; gap: 6px; align-items: center;">
@@ -1224,15 +1567,70 @@ window.openDriveSyncCenterModal = async () => {
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
         <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 10px 12px;">
           <div style="font-size: 0.73rem; color: #64748b; font-weight: 800; margin-bottom: 4px;">🖥️ بيانات هذا الجهاز</div>
-          <div style="font-size: 0.8rem; font-weight: 800; color: #0f172a;">${localSummary ? localSummary.dateStr : 'غير متوفر'}</div>
-          <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">أقسام: ${localSummary ? localSummary.classesCount : 0} | تلاميذ: ${localSummary ? localSummary.totalStudents : 0}</div>
+          <div style="font-size: 0.8rem; font-weight: 800; color: #0f172a;">${escapeSyncHtml(localSummary ? localSummary.dateStr : 'غير متوفر')}</div>
+          <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">أقسام: ${localSummary ? Number(localSummary.classesCount || 0) : 0} | تلاميذ: ${localSummary ? Number(localSummary.totalStudents || 0) : 0}</div>
         </div>
         <div style="background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 10px; padding: 10px 12px;">
           <div style="font-size: 0.73rem; color: #166534; font-weight: 800; margin-bottom: 4px;">☁️ النسخة السحابية (Gmail)</div>
-          <div id="syncCenterCloudDate" style="font-size: 0.8rem; font-weight: 800; color: #15803d;">${cloudSummary ? cloudSummary.dateStr : 'جاري الفحص...'}</div>
-          <div id="syncCenterCloudStats" style="font-size: 0.72rem; color: #166534; margin-top: 4px;">أقسام: ${cloudSummary ? cloudSummary.classesCount : '--'} | تلاميذ: ${cloudSummary ? cloudSummary.totalStudents : '--'}</div>
+          <div id="syncCenterCloudDate" style="font-size: 0.8rem; font-weight: 800; color: #15803d;">${escapeSyncHtml(cloudSummary ? cloudSummary.dateStr : 'جاري الفحص...')}</div>
+          <div id="syncCenterCloudStats" style="font-size: 0.72rem; color: #166534; margin-top: 4px;">أقسام: ${cloudSummary ? Number(cloudSummary.classesCount || 0) : '--'} | تلاميذ: ${cloudSummary ? Number(cloudSummary.totalStudents || 0) : '--'}</div>
         </div>
       </div>
+
+      <!-- حالة وإعدادات المزامنة السحابية والنسخ الاحتياطي الساعي التلقائي مع Firestore -->
+      ${(() => {
+        const bgCfg = (typeof window.getBackgroundSyncStatus === 'function')
+          ? window.getBackgroundSyncStatus()
+          : { enabled: true, intervalMinutes: 60, lastSyncFormatted: 'لم تتم بعد', pendingDirty: false, online: navigator.onLine };
+        const hourlyCfg = (typeof window.getHourlyFirestoreBackupStatus === 'function')
+          ? window.getHourlyFirestoreBackupStatus()
+          : { enabled: true, lastBackupFormatted: 'لم تتم بعد', nextBackupFormatted: 'خلال ساعة', totalBackups: 0, lastStatus: 'ready' };
+        const hasVerifiedFirebaseSession = !!(auth && auth.currentUser);
+        return `
+          <div style="background: #f0f9ff; border: 1.5px solid #bae6fd; border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span data-lucide="refresh-cw" data-size="14" style="color: #0284c7;"></span>
+                <strong style="font-size: 0.78rem; color: #0f172a;">خدمة النسخ الاحتياطي الساعي التلقائي (Firestore كل ساعة)</strong>
+              </div>
+              <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.73rem; font-weight: 800; color: ${hourlyCfg.enabled ? '#15803d' : '#64748b'}; cursor: pointer;">
+                <input type="checkbox" ${hourlyCfg.enabled ? 'checked' : ''} onchange="window.toggleHourlyFirestoreBackup(this.checked); window.openDriveSyncCenterModal();" style="accent-color: #0284c7; width: 15px; height: 15px; cursor: pointer;">
+                <span>${hourlyCfg.enabled ? 'مفعّلة كل ساعة' : 'متوقفة'}</span>
+              </label>
+            </div>
+            ${!hasVerifiedFirebaseSession ? `
+              <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 7px; padding: 6px 9px; margin-bottom: 7px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 0.71rem; color: #92400e;">
+                <span>⚠️ يتطلب النسخ الساعي التلقائي في Firestore توثيق الجلسة عبر تسجيل دخول Google الرسمي.</span>
+                <button type="button" onclick="window.closeDriveSyncCenterModal(); window.handleGoogleSignInOfficial({ forcePopup: true });" style="background: #d97706; color: #fff; border: none; padding: 3px 8px; border-radius: 5px; font-size: 0.69rem; font-weight: 800; cursor: pointer;">توثيق الجلسة الآن</button>
+              </div>
+            ` : ''}
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 0.72rem; color: #334155; margin-bottom: 6px;">
+              <div>
+                <span>آخر نسخة ساعية: <strong id="bgSyncLastTimeLabel" style="color: #0369a1;">${escapeSyncHtml(hourlyCfg.lastBackupFormatted)}</strong></span>
+                <span style="margin-right: 6px; padding: 1px 6px; border-radius: 999px; font-size: 0.67rem; font-weight: 800; background: ${bgCfg.pendingDirty ? '#fef3c7' : '#dcfce7'}; color: ${bgCfg.pendingDirty ? '#92400e' : '#166534'};">
+                  ${bgCfg.pendingDirty ? 'تعديلات بانتظار النسخ' : 'محمي ومتطابق ✓'}
+                </span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 5px;">
+                <span>الدورية:</span>
+                <select onchange="window.setBackgroundCloudSyncInterval(Number(this.value))" style="padding: 2px 6px; border-radius: 6px; border: 1px solid #93c5fd; font-size: 0.71rem; font-weight: 700; background: #fff; color: #1e3a8a;">
+                  <option value="60" ${bgCfg.intervalMinutes === 60 ? 'selected' : ''}>كل ساعة (60 د - افتراضي)</option>
+                  <option value="30" ${bgCfg.intervalMinutes === 30 ? 'selected' : ''}>كل 30 دقيقة</option>
+                  <option value="15" ${bgCfg.intervalMinutes === 15 ? 'selected' : ''}>كل 15 دقيقة</option>
+                  <option value="5" ${bgCfg.intervalMinutes === 5 ? 'selected' : ''}>كل 5 دقائق</option>
+                  <option value="3" ${bgCfg.intervalMinutes === 3 ? 'selected' : ''}>كل 3 دقائق</option>
+                </select>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding-top: 6px; border-top: 1px dashed #bae6fd; font-size: 0.7rem; color: #475569;">
+              <span>النسخة الساعية القادمة: <strong style="color: #0f172a;">${escapeSyncHtml(hourlyCfg.nextBackupFormatted)}</strong> · إجمالي النسخ: <strong>${Number(hourlyCfg.totalBackups || 0)}</strong></span>
+              <button type="button" onclick="window.triggerHourlyFirestoreBackupNow().then(() => window.openDriveSyncCenterModal());" style="background: #0284c7; color: #fff; border: none; padding: 3px 9px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
+                🔄 نسخ احتياطي الآن
+              </button>
+            </div>
+          </div>
+        `;
+      })()}
 
       <!-- الإجراءات السريعة -->
       <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
@@ -1476,10 +1874,10 @@ window.openGmail = function(to, subject, body) {
   if (to) url += '&to=' + encodeURIComponent(to);
   if (subject) url += '&su=' + encodeURIComponent(subject);
   if (body) url += '&body=' + encodeURIComponent(body);
-  window.open(url, '_blank', 'noopener,noreferrer');
+  window.openSafeExternalUrl(url, '_blank', 'noopener,noreferrer');
 };
 window.openGmailInbox = function() {
-  window.open('https://mail.google.com', '_blank', 'noopener,noreferrer');
+  window.openSafeExternalUrl('https://mail.google.com', '_blank', 'noopener,noreferrer');
 };
 window.openGmailComposeForTeacher = function() {
   const summary = getLocalSummary();
@@ -1575,7 +1973,13 @@ window.handleLoginScreenDriveSync = window.handleLoginScreenDirectGmail;
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
+    try {
+      if (typeof user.getIdToken === 'function') {
+        window.__currentFirebaseIdToken = await user.getIdToken();
+      }
+    } catch (e) {}
     syncBackupUI(user);
+    testConnection();
     if (user.email) {
       const clean = normalizeGmailAddress(user.email);
       localStorage.setItem('gdrive_last_email', clean);
@@ -1587,6 +1991,7 @@ onAuthStateChanged(auth, async (user) => {
       window.checkForDriveUpdates({ interactive: false, onLogin: true });
     }, 600);
   } else {
+    window.__currentFirebaseIdToken = '';
     const effectiveUser = getEffectiveUser();
     if (effectiveUser && localStorage.getItem('gdrive_authenticated') === 'true') {
       syncBackupUI(effectiveUser);
@@ -1982,6 +2387,9 @@ window.deleteCloudBackup = async () => {
                           await deleteDoc(doc(dbFirestore, "users", targetUid, "chunks", `chunk_${i}`)).catch(() => {});
                       }
                   }
+                  const sliceNames = ['manifest', ...DIFFERENTIAL_SLICE_DEFS.map(d => d.id), 'auxiliary_misc'];
+                  await Promise.all(sliceNames.map(sId => deleteDoc(doc(dbFirestore, "users", targetUid, "slices", sId)).catch(() => {})));
+                  clearCachedCloudSliceHashes(targetUid);
                   await deleteDoc(doc(dbFirestore, "users", targetUid));
                   firestoreDeleted = true;
               }
@@ -2034,7 +2442,7 @@ window.handleClearAllBackups = async () => {
   }
 };
 
-// Check for updates when user returns to tab after working on another device
+// Check for updates when user returns to tab & run silent background Firestore sync when dirty
 document.addEventListener('visibilitychange', () => {
   const user = getEffectiveUser();
   if (!document.hidden && user) {
@@ -2042,8 +2450,453 @@ document.addEventListener('visibilitychange', () => {
     if (elapsed > 90000) { // If > 1.5 minutes since last check
       window.checkForDriveUpdates({ interactive: false });
     }
+    if (typeof window.runBackgroundCloudSyncCycle === 'function') {
+      setTimeout(() => window.runBackgroundCloudSyncCycle('visibility_resume'), 1200);
+    }
+  } else if (document.hidden && user && typeof window.runBackgroundCloudSyncCycle === 'function') {
+    window.runBackgroundCloudSyncCycle('tab_hidden');
   }
 });
+
+// ============================================================================
+// محرك المزامنة السحابية الخلفية والنسخ الاحتياطي الساعي التلقائي مع Firestore
+// يراقب التعديلات ويضمن أخذ نسخة احتياطية سحابية تلقائية كل ساعة (60 دقيقة) لمنع فقدان البيانات
+// ============================================================================
+const BG_SYNC_CONFIG_KEY = 'prof_digital_bg_sync_config_v1';
+const HOURLY_BACKUP_STATE_KEY = 'prof_digital_firestore_hourly_backup_v1';
+const HOURLY_BACKUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour (3,600,000 ms)
+const HOURLY_WATCHDOG_TICK_MS = 60 * 1000; // Check every 60s to handle sleep/throttling accurately
+let _bgSyncTimerId = null;
+let _hourlyWatchdogTimerId = null;
+let _bgSyncInProgress = false;
+let _hourlyBackupInProgress = false;
+
+function computeStableDbDigest(str) {
+  let hash = 2166136261;
+  const s = String(str || '');
+  for (let i = 0; i < s.length; i++) {
+    hash ^= s.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16) + ':' + s.length;
+}
+
+function getBgSyncConfig() {
+  const defaults = {
+    enabled: true,
+    intervalMinutes: 60,
+    lastSyncAt: null,
+    lastSyncedDigest: '',
+    pendingDirty: false,
+    lastStatus: 'idle'
+  };
+  try {
+    const raw = localStorage.getItem(BG_SYNC_CONFIG_KEY);
+    if (!raw) return defaults;
+    return Object.assign({}, defaults, JSON.parse(raw));
+  } catch (e) {
+    return defaults;
+  }
+}
+
+function saveBgSyncConfig(cfg) {
+  try {
+    localStorage.setItem(BG_SYNC_CONFIG_KEY, JSON.stringify(cfg));
+  } catch (e) {}
+}
+
+function getHourlyBackupState() {
+  const defaults = {
+    enabled: true,
+    lastHourlyBackupAt: 0,
+    nextRetryAt: 0,
+    failureStreak: 0,
+    totalBackups: 0,
+    lastStatus: 'ready',
+    lastError: '',
+    lastRawBytes: 0
+  };
+  try {
+    const raw = localStorage.getItem(HOURLY_BACKUP_STATE_KEY);
+    if (!raw) return defaults;
+    return Object.assign({}, defaults, JSON.parse(raw));
+  } catch (e) {
+    return defaults;
+  }
+}
+
+function saveHourlyBackupState(state) {
+  try {
+    localStorage.setItem(HOURLY_BACKUP_STATE_KEY, JSON.stringify(state));
+  } catch (e) {}
+}
+
+function hasMeaningfulAppData() {
+  const d = window.db;
+  if (!d || typeof d !== 'object') return false;
+  if (d.classes && Object.keys(d.classes).length > 0) return true;
+  if (Array.isArray(d.records) && d.records.length > 0) return true;
+  if (d.grades && Object.keys(d.grades).length > 0) return true;
+  if (Array.isArray(d.textbook) && d.textbook.length > 0) return true;
+  if (Array.isArray(d.library) && d.library.length > 0) return true;
+  if (d.teacherProfile && (d.teacherProfile.name || d.teacherProfile.school)) return true;
+  return false;
+}
+
+function buildCanonicalSyncSnapshotString() {
+  const rawDb = (window.db && typeof window.db === 'object') ? window.db : {};
+  const clone = Object.assign({}, rawDb);
+  // استبعاد الطوابع الزمنية المتغيرة لضمان دقة كشف التعديلات الحقيقية فقط
+  delete clone._lastSavedAt;
+  delete clone._lastSavedTimestamp;
+  delete clone._lastSavedDevice;
+  const filtered = typeof window.buildFilteredCloudPayloadForAutoSync === 'function'
+    ? window.buildFilteredCloudPayloadForAutoSync(clone)
+    : clone;
+  return safeStringify(filtered);
+}
+
+function registerServiceWorkerHourlyBackupTags(includeOneShot = false) {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.ready.then((reg) => {
+    if (!reg) return;
+    if (reg.periodicSync && typeof reg.periodicSync.register === 'function') {
+      reg.periodicSync.register('firestore-hourly-backup', { minInterval: HOURLY_BACKUP_INTERVAL_MS }).catch(() => {});
+    }
+    if (includeOneShot && reg.sync && typeof reg.sync.register === 'function') {
+      reg.sync.register('firestore-hourly-backup').catch(() => {});
+    }
+  }).catch(() => {});
+}
+
+window.markFirestorePayloadSynced = (serializedStr, options = {}) => {
+  const nowMs = Date.now();
+  const cfg = getBgSyncConfig();
+  const canonical = serializedStr ? buildCanonicalSyncSnapshotString() : '';
+  cfg.lastSyncAt = new Date(nowMs).toISOString();
+  if (canonical) cfg.lastSyncedDigest = computeStableDbDigest(canonical);
+  cfg.pendingDirty = false;
+  cfg.lastStatus = options.trigger ? ('synced_' + options.trigger) : 'synced';
+  saveBgSyncConfig(cfg);
+
+  const hState = getHourlyBackupState();
+  hState.lastHourlyBackupAt = nowMs;
+  hState.nextRetryAt = 0;
+  hState.failureStreak = 0;
+  hState.lastStatus = options.trigger ? ('synced_' + options.trigger) : 'synced';
+  hState.lastError = '';
+  if (options.bumpHourlyCounter) {
+    hState.totalBackups = (Number(hState.totalBackups) || 0) + 1;
+  }
+  if (typeof serializedStr === 'string') {
+    hState.lastRawBytes = serializedStr.length;
+  }
+  saveHourlyBackupState(hState);
+};
+
+window.markFirestoreSyncPending = (reason = 'local_edit') => {
+  const cfg = getBgSyncConfig();
+  cfg.pendingDirty = true;
+  cfg.lastStatus = reason;
+  saveBgSyncConfig(cfg);
+
+  // تسجيل طلب مزامنة خلفية في Service Worker إذا كان غير متصل بالإنترنت
+  if (!navigator.onLine && 'serviceWorker' in navigator && 'SyncManager' in window) {
+    navigator.serviceWorker.ready.then((reg) => {
+      if (reg && reg.sync) {
+        return reg.sync.register('firestore-periodic-sync');
+      }
+    }).catch(() => {});
+  }
+};
+
+window.getBackgroundSyncStatus = () => {
+  const cfg = getBgSyncConfig();
+  let lastSyncFormatted = 'لم تتم بعد';
+  if (cfg.lastSyncAt) {
+    try {
+      lastSyncFormatted = new Date(cfg.lastSyncAt).toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch (e) {
+      lastSyncFormatted = cfg.lastSyncAt;
+    }
+  }
+  return Object.assign({}, cfg, {
+    lastSyncFormatted,
+    online: navigator.onLine
+  });
+};
+
+window.getHourlyFirestoreBackupStatus = () => {
+  const st = getHourlyBackupState();
+  const now = Date.now();
+  let lastBackupFormatted = 'لم تتم بعد';
+  if (st.lastHourlyBackupAt > 0) {
+    try {
+      lastBackupFormatted = new Date(st.lastHourlyBackupAt).toLocaleString('ar-MA', {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+    } catch (e) {
+      lastBackupFormatted = new Date(st.lastHourlyBackupAt).toLocaleTimeString();
+    }
+  }
+  let nextBackupFormatted = 'عند تفعيل الاتصال والمصادقة';
+  if (st.enabled) {
+    const nextTs = st.lastHourlyBackupAt > 0
+      ? st.lastHourlyBackupAt + HOURLY_BACKUP_INTERVAL_MS
+      : now + HOURLY_BACKUP_INTERVAL_MS;
+    const remainMins = Math.max(0, Math.ceil((nextTs - now) / 60000));
+    try {
+      const timeLabel = new Date(nextTs).toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' });
+      nextBackupFormatted = remainMins === 0 ? 'مجدولة الآن' : `${timeLabel} (بعد ${remainMins} د)`;
+    } catch (e) {
+      nextBackupFormatted = `بعد ${remainMins} دقيقة`;
+    }
+  } else {
+    nextBackupFormatted = 'متوقفة';
+  }
+  return Object.assign({}, st, {
+    intervalMs: HOURLY_BACKUP_INTERVAL_MS,
+    lastBackupFormatted,
+    nextBackupFormatted,
+    online: navigator.onLine
+  });
+};
+
+window.toggleHourlyFirestoreBackup = (enabled) => {
+  const st = getHourlyBackupState();
+  st.enabled = !!enabled;
+  saveHourlyBackupState(st);
+  const cfg = getBgSyncConfig();
+  cfg.enabled = !!enabled;
+  saveBgSyncConfig(cfg);
+  startBackgroundCloudSyncScheduler();
+  if (st.enabled) {
+    registerServiceWorkerHourlyBackupTags(false);
+    setTimeout(() => window.runHourlyFirestoreBackupCycle('manual_enable', false), 300);
+  }
+};
+
+window.toggleBackgroundCloudSync = (enabled) => {
+  window.toggleHourlyFirestoreBackup(enabled);
+};
+
+window.setBackgroundCloudSyncInterval = (minutes) => {
+  const mins = Math.max(2, Math.min(120, Number(minutes) || 60));
+  const cfg = getBgSyncConfig();
+  cfg.intervalMinutes = mins;
+  saveBgSyncConfig(cfg);
+  startBackgroundCloudSyncScheduler();
+  if (typeof window.showAppToast === 'function') {
+    const msg = mins === 60
+      ? '⏱️ تم ضبط المزامنة والنسخ الاحتياطي التلقائي مع Firestore ليعمل كل ساعة (60 دقيقة).'
+      : `⏱️ تم ضبط المزامنة السحابية الخلفية لتعمل كل ${mins} دقائق تلقائياً.`;
+    window.showAppToast(msg, 'info');
+  }
+};
+
+window.runHourlyFirestoreBackupCycle = async (trigger = 'hourly_watchdog', force = false) => {
+  if (_hourlyBackupInProgress || _bgSyncInProgress || isDriveSyncing) {
+    return { skipped: true, reason: 'busy' };
+  }
+  const st = getHourlyBackupState();
+  if (!st.enabled && !force) {
+    return { skipped: true, reason: 'disabled' };
+  }
+
+  const now = Date.now();
+  const elapsedSinceLast = now - (Number(st.lastHourlyBackupAt) || 0);
+  if (!force) {
+    if (st.lastHourlyBackupAt > 0 && elapsedSinceLast < HOURLY_BACKUP_INTERVAL_MS) {
+      return { skipped: true, reason: 'not_due_yet', remainingMs: HOURLY_BACKUP_INTERVAL_MS - elapsedSinceLast };
+    }
+    if (st.nextRetryAt && now < st.nextRetryAt) {
+      return { skipped: true, reason: 'retry_backoff' };
+    }
+  }
+
+  if (!navigator.onLine) {
+    window.markFirestoreSyncPending('offline_hourly_due');
+    registerServiceWorkerHourlyBackupTags(true);
+    return { skipped: true, reason: 'offline' };
+  }
+
+  const user = getEffectiveUser();
+  if (!user || !auth || !auth.currentUser) {
+    return { skipped: true, reason: 'no_verified_firebase_session' };
+  }
+  if (!hasMeaningfulAppData()) {
+    return { skipped: true, reason: 'empty_db' };
+  }
+
+  _hourlyBackupInProgress = true;
+  try {
+    updateDriveSyncHeaderBadge('saving', 'نسخ احتياطي ساعي (Firestore)...');
+    const serialized = buildCanonicalSyncSnapshotString();
+    const res = await window.syncToFirebase(window.db);
+    if (res && res.success) {
+      window.markFirestorePayloadSynced(serialized, { bumpHourlyCounter: true, trigger });
+      const doneAt = Date.now();
+
+      const badgeLabel = isRealOAuthToken(cachedAccessToken)
+        ? 'Google Drive: متزامن ✓'
+        : (user.email ? `Gmail: ${user.email.split('@')[0]} ✓` : 'Firestore: محفوظ ✓');
+      updateDriveSyncHeaderBadge('synced', badgeLabel);
+      window.dispatchEvent(new CustomEvent('firestoreHourlyBackupCompleted', { detail: { trigger, at: new Date(doneAt).toISOString() } }));
+      return { success: true, trigger, at: doneAt };
+    }
+
+    st.failureStreak = (Number(st.failureStreak) || 0) + 1;
+    const backoffMs = Math.min(15 * 60 * 1000, Math.pow(2, Math.min(4, st.failureStreak)) * 60 * 1000);
+    st.nextRetryAt = Date.now() + backoffMs;
+    st.lastStatus = 'deferred';
+    st.lastError = (res && res.error) ? String(res.error).slice(0, 140) : 'sync_deferred';
+    saveHourlyBackupState(st);
+    registerServiceWorkerHourlyBackupTags(true);
+    return { success: false, reason: st.lastError };
+  } catch (err) {
+    st.failureStreak = (Number(st.failureStreak) || 0) + 1;
+    st.nextRetryAt = Date.now() + 2 * 60 * 1000;
+    st.lastStatus = 'error';
+    st.lastError = (err && err.message) ? String(err.message).slice(0, 140) : 'unknown_error';
+    saveHourlyBackupState(st);
+    registerServiceWorkerHourlyBackupTags(true);
+    return { success: false, error: st.lastError };
+  } finally {
+    _hourlyBackupInProgress = false;
+  }
+};
+
+window.triggerHourlyFirestoreBackupNow = async () => {
+  const res = await window.runHourlyFirestoreBackupCycle('manual_trigger', true);
+  if (typeof window.showAppToast === 'function') {
+    if (res && res.success) {
+      window.showAppToast('✅ تم حفظ النسخة الاحتياطية الكاملة في Firestore وتجديد جدولة الساعة بنجاح.', 'success');
+    } else if (res && res.reason === 'no_verified_firebase_session') {
+      window.showAppToast('⚠️ يرجى تسجيل الدخول بحساب Google الموثّق لإتمام النسخ الاحتياطي السحابي في Firestore.', 'warning');
+    } else if (res && res.reason === 'offline') {
+      window.showAppToast('⚠️ لا يوجد اتصال بالإنترنت حالياً؛ سيتم النسخ تلقائياً فور عودة الاتصال.', 'warning');
+    } else {
+      window.showAppToast('ℹ️ تعذر إتمام النسخ الاحتياطي الساعي: ' + (res?.reason || res?.error || ''), 'info');
+    }
+  }
+  return res;
+};
+
+window.runBackgroundCloudSyncCycle = async (trigger = 'periodic') => {
+  if (_bgSyncInProgress || _hourlyBackupInProgress || isDriveSyncing) return { skipped: true, reason: 'busy' };
+  const cfg = getBgSyncConfig();
+  if (!cfg.enabled && trigger === 'periodic') return { skipped: true, reason: 'disabled' };
+  if (!navigator.onLine) {
+    window.markFirestoreSyncPending('offline');
+    return { skipped: true, reason: 'offline' };
+  }
+
+  const user = getEffectiveUser();
+  if (!user || !auth || !auth.currentUser) {
+    return { skipped: true, reason: 'no_verified_firebase_session' };
+  }
+  if (!hasMeaningfulAppData()) {
+    return { skipped: true, reason: 'empty_db' };
+  }
+
+  const canonical = buildCanonicalSyncSnapshotString();
+  const currentDigest = computeStableDbDigest(canonical);
+  const hState = getHourlyBackupState();
+  const hourlyDue = hState.enabled && ((Date.now() - (Number(hState.lastHourlyBackupAt) || 0)) >= HOURLY_BACKUP_INTERVAL_MS);
+
+  if (!hourlyDue && !cfg.pendingDirty && cfg.lastSyncedDigest && cfg.lastSyncedDigest === currentDigest && trigger !== 'manual_enable') {
+    return { skipped: true, reason: 'unchanged' };
+  }
+
+  _bgSyncInProgress = true;
+  try {
+    updateDriveSyncHeaderBadge('saving', hourlyDue ? 'نسخ احتياطي ساعي...' : 'مزامنة خلفية...');
+    const res = await window.syncToFirebase(window.db);
+    if (res && res.success) {
+      window.markFirestorePayloadSynced(canonical, { bumpHourlyCounter: hourlyDue, trigger });
+      const badgeLabel = isRealOAuthToken(cachedAccessToken)
+        ? 'Google Drive: متزامن ✓'
+        : (user.email ? `Gmail: ${user.email.split('@')[0]} ✓` : 'السحابة: متزامن ✓');
+      updateDriveSyncHeaderBadge('synced', badgeLabel);
+      window.dispatchEvent(new CustomEvent('firestoreBackgroundSyncCompleted', { detail: { trigger, at: new Date().toISOString() } }));
+      return { success: true, trigger };
+    }
+    cfg.pendingDirty = true;
+    cfg.lastStatus = (res && res.error) ? String(res.error).slice(0, 80) : 'sync_deferred';
+    saveBgSyncConfig(cfg);
+    return { success: false, reason: cfg.lastStatus };
+  } catch (err) {
+    cfg.pendingDirty = true;
+    cfg.lastStatus = 'error';
+    saveBgSyncConfig(cfg);
+    return { success: false, error: err && err.message };
+  } finally {
+    _bgSyncInProgress = false;
+  }
+};
+
+function startBackgroundCloudSyncScheduler() {
+  if (_bgSyncTimerId) {
+    clearInterval(_bgSyncTimerId);
+    _bgSyncTimerId = null;
+  }
+  if (_hourlyWatchdogTimerId) {
+    clearInterval(_hourlyWatchdogTimerId);
+    _hourlyWatchdogTimerId = null;
+  }
+
+  const cfg = getBgSyncConfig();
+  if (cfg.enabled) {
+    const intervalMs = Math.max(2, Number(cfg.intervalMinutes) || 60) * 60 * 1000;
+    _bgSyncTimerId = setInterval(() => {
+      const runIdle = typeof window.requestIdleCallback === 'function'
+        ? (fn) => window.requestIdleCallback(() => fn(), { timeout: 5000 })
+        : (fn) => setTimeout(fn, 150);
+      runIdle(() => window.runBackgroundCloudSyncCycle('periodic'));
+    }, intervalMs);
+  }
+
+  const hState = getHourlyBackupState();
+  if (hState.enabled) {
+    // Watchdog runs every minute to ensure the 1-hour backup runs reliably even after device sleep
+    _hourlyWatchdogTimerId = setInterval(() => {
+      const runIdle = typeof window.requestIdleCallback === 'function'
+        ? (fn) => window.requestIdleCallback(() => fn(), { timeout: 5000 })
+        : (fn) => setTimeout(fn, 150);
+      runIdle(() => window.runHourlyFirestoreBackupCycle('hourly_watchdog', false));
+    }, HOURLY_WATCHDOG_TICK_MS);
+    registerServiceWorkerHourlyBackupTags(false);
+  }
+}
+
+window.addEventListener('dbUpdated', () => {
+  window.markFirestoreSyncPending('db_updated');
+});
+
+window.addEventListener('online', () => {
+  setTimeout(() => {
+    window.runBackgroundCloudSyncCycle('network_restored');
+    window.runHourlyFirestoreBackupCycle('network_restored', false);
+  }, 1500);
+});
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (!event || !event.data) return;
+    if (event.data.type === 'TRIGGER_FIRESTORE_BACKGROUND_SYNC') {
+      window.runBackgroundCloudSyncCycle('sw_sync_event');
+    } else if (event.data.type === 'TRIGGER_FIRESTORE_HOURLY_BACKUP') {
+      window.runHourlyFirestoreBackupCycle('sw_hourly_event', false);
+    }
+  });
+}
+
+// بدء الجدولة الخلفية والنسخ الاحتياطي الساعي بعد استقرار التحميل الأولي
+setTimeout(() => {
+  startBackgroundCloudSyncScheduler();
+  window.runBackgroundCloudSyncCycle('startup_catchup');
+  window.runHourlyFirestoreBackupCycle('startup_hourly_catchup', false);
+}, 6000);
 
 // ============================================================================
 // شاشة الإعدادات المتقدمة لإدارة عمليات الربط والمزامنة مع Google Drive و Firestore
@@ -2724,7 +3577,12 @@ function renderAdvancedCloudSyncModalContent() {
       `
       : linkedFolders.map(folder => {
           const isAuto = folder.autoSync !== false;
-          const safeName = String(folder.name || 'مجلد بدون اسم').replace(/</g, '&lt;');
+          const safeName = escapeSyncHtml(folder.name || 'مجلد بدون اسم');
+          const safeFolderId = escapeSyncHtml(folder.id || '');
+          const safeLevel = escapeSyncHtml(folder.level || 'عام');
+          const safeSyncDate = escapeSyncHtml(folder.lastSyncFormatted || 'لم تتم بعد');
+          const rawUrl = String(folder.webViewLink || `https://drive.google.com/drive/folders/${encodeURIComponent(String(folder.id || ''))}`);
+          const safeHref = /^https?:\/\//i.test(rawUrl) ? escapeSyncHtml(rawUrl) : '#';
           return `
             <div style="background:#ffffff;border:1.5px solid ${isAuto ? '#bfdbfe' : '#e2e8f0'};border-radius:11px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;box-shadow:0 1px 3px rgba(15,23,42,0.04);">
               <div style="display:flex;align-items:center;gap:11px;min-width:220px;flex:1;">
@@ -2739,11 +3597,11 @@ function renderAdvancedCloudSyncModalContent() {
                     </span>
                   </div>
                   <div style="font-size:0.74rem;color:#64748b;margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;">
-                    <span>المستوى: <strong>${folder.level || 'عام'}</strong></span>
+                    <span>المستوى: <strong>${safeLevel}</strong></span>
                     <span>•</span>
-                    <span>الملفات المستوردة: <strong style="color:#0284c7;">${folder.syncedFilesCount || 0}</strong></span>
+                    <span>الملفات المستوردة: <strong style="color:#0284c7;">${Number(folder.syncedFilesCount || 0)}</strong></span>
                     <span>•</span>
-                    <span>آخر مزامنة: <strong>${folder.lastSyncFormatted || 'لم تتم بعد'}</strong></span>
+                    <span>آخر مزامنة: <strong>${safeSyncDate}</strong></span>
                   </div>
                 </div>
               </div>
@@ -2751,19 +3609,19 @@ function renderAdvancedCloudSyncModalContent() {
               <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
                 <!-- مفتاح اختيار المزامنة التلقائية أو اليدوية لهذا المجلد -->
                 <div style="display:inline-flex;background:#f1f5f9;padding:3px;border-radius:8px;border:1px solid #cbd5e1;">
-                  <button type="button" onclick="window.toggleSingleDriveFolderSyncModeFromAdvanced('${folder.id}', 'auto')" style="border:none;padding:4px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;background:${isAuto ? '#0284c7' : 'transparent'};color:${isAuto ? '#ffffff' : '#475569'};">
+                  <button type="button" onclick="window.toggleSingleDriveFolderSyncModeFromAdvanced('${safeFolderId}', 'auto')" style="border:none;padding:4px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;background:${isAuto ? '#0284c7' : 'transparent'};color:${isAuto ? '#ffffff' : '#475569'};">
                     تلقائية
                   </button>
-                  <button type="button" onclick="window.toggleSingleDriveFolderSyncModeFromAdvanced('${folder.id}', 'manual')" style="border:none;padding:4px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;background:${!isAuto ? '#1e293b' : 'transparent'};color:${!isAuto ? '#ffffff' : '#475569'};">
+                  <button type="button" onclick="window.toggleSingleDriveFolderSyncModeFromAdvanced('${safeFolderId}', 'manual')" style="border:none;padding:4px 10px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;background:${!isAuto ? '#1e293b' : 'transparent'};color:${!isAuto ? '#ffffff' : '#475569'};">
                     يدوية
                   </button>
                 </div>
 
-                <button type="button" onclick="window.syncSingleDriveFolderFromAdvanced('${folder.id}')" style="background:#eff6ff;border:1px solid #93c5fd;color:#1d4ed8;padding:6px 11px;border-radius:7px;font-size:0.75rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px;" title="مزامنة ملفات هذا المجلد يدوياً الآن">
+                <button type="button" onclick="window.syncSingleDriveFolderFromAdvanced('${safeFolderId}')" style="background:#eff6ff;border:1px solid #93c5fd;color:#1d4ed8;padding:6px 11px;border-radius:7px;font-size:0.75rem;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:5px;" title="مزامنة ملفات هذا المجلد يدوياً الآن">
                   <span>🔄 مزامنة الآن</span>
                 </button>
 
-                <a href="${folder.webViewLink || `https://drive.google.com/drive/folders/${folder.id}`}" target="_blank" rel="noopener noreferrer" style="background:#f8fafc;border:1px solid #cbd5e1;color:#334155;padding:6px 9px;border-radius:7px;font-size:0.74rem;font-weight:700;text-decoration:none;">
+                <a href="${safeHref}" target="_blank" rel="noopener noreferrer" style="background:#f8fafc;border:1px solid #cbd5e1;color:#334155;padding:6px 9px;border-radius:7px;font-size:0.74rem;font-weight:700;text-decoration:none;">
                   فتح ↗
                 </a>
               </div>
@@ -2830,17 +3688,17 @@ function renderAdvancedCloudSyncModalContent() {
         <div style="background:#ffffff;border:1.5px solid ${isAuto ? folder.border : '#cbd5e1'};border-right:4px solid ${folder.color};border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
           <div style="flex:1;min-width:240px;">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <strong style="font-size:0.9rem;color:#0f172a;">${folder.name}</strong>
+              <strong style="font-size:0.9rem;color:#0f172a;">${escapeSyncHtml(folder.name)}</strong>
               <span style="font-size:0.7rem;padding:2px 8px;border-radius:999px;font-weight:800;background:${folder.bg};color:${folder.color};border:1px solid ${folder.border};">
-                ${countBadge}
+                ${escapeSyncHtml(countBadge)}
               </span>
               <span style="font-size:0.7rem;padding:2px 8px;border-radius:999px;font-weight:800;background:${isAuto ? '#dcfce7' : '#f1f5f9'};color:${isAuto ? '#166534' : '#475569'};">
                 ${isAuto ? '🟢 تلقائي مع كل حفظ' : '⚪ يدوي عند الطلب فقط'}
               </span>
             </div>
-            <div style="font-size:0.75rem;color:#475569;margin-top:4px;">${folder.description}</div>
+            <div style="font-size:0.75rem;color:#475569;margin-top:4px;">${escapeSyncHtml(folder.description)}</div>
             <div style="font-size:0.71rem;color:#64748b;margin-top:4px;">
-              الخدمة: <strong>${folder.service}</strong> · آخر مزامنة ناجحة: <strong>${lastSyncStr}</strong>
+              الخدمة: <strong>${escapeSyncHtml(folder.service)}</strong> · آخر مزامنة ناجحة: <strong>${escapeSyncHtml(lastSyncStr)}</strong>
             </div>
           </div>
 
@@ -2903,33 +3761,33 @@ function renderAdvancedCloudSyncModalContent() {
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                   <span style="background:${badgeBg};color:${badgeCol};border:1px solid ${badgeBorder};font-size:0.7rem;font-weight:900;padding:2px 8px;border-radius:999px;">
-                    ${log.service}
+                    ${escapeSyncHtml(log.service)}
                   </span>
-                  <strong style="font-size:0.84rem;color:#0f172a;">📁 ${log.folderName}</strong>
+                  <strong style="font-size:0.84rem;color:#0f172a;">📁 ${escapeSyncHtml(log.folderName)}</strong>
                   <span style="font-size:0.7rem;background:#f1f5f9;color:#475569;padding:1px 6px;border-radius:4px;font-family:monospace;">
-                    ${log.operation}
+                    ${escapeSyncHtml(log.operation)}
                   </span>
-                  ${log.occurrences > 1 ? `<span style="font-size:0.68rem;background:#fee2e2;color:#991b1b;padding:1px 6px;border-radius:999px;font-weight:800;">تكرر ${log.occurrences} مرات</span>` : ''}
+                  ${log.occurrences > 1 ? `<span style="font-size:0.68rem;background:#fee2e2;color:#991b1b;padding:1px 6px;border-radius:999px;font-weight:800;">تكرر ${Number(log.occurrences)} مرات</span>` : ''}
                   ${log.resolved ? `<span style="font-size:0.7rem;background:#dcfce7;color:#166534;padding:1px 7px;border-radius:999px;font-weight:800;">✓ تم التصحيح</span>` : ''}
                 </div>
                 <div style="display:flex;align-items:center;gap:8px;">
-                  <span style="font-size:0.72rem;color:#64748b;font-weight:700;">🕒 ${log.formattedTime}</span>
-                  <button type="button" onclick="window.removeSingleCloudSyncErrorLog('${log.id}')" title="حذف هذا السجل" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:0.9rem;font-weight:bold;">✕</button>
+                  <span style="font-size:0.72rem;color:#64748b;font-weight:700;">🕒 ${escapeSyncHtml(log.formattedTime)}</span>
+                  <button type="button" onclick="window.removeSingleCloudSyncErrorLog('${escapeSyncHtml(log.id)}')" title="حذف هذا السجل" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:0.9rem;font-weight:bold;">✕</button>
                 </div>
               </div>
 
               <div style="font-size:0.78rem;color:#881337;background:rgba(255,255,255,0.75);border:1px solid #fecdd3;border-radius:6px;padding:6px 9px;margin-bottom:6px;">
-                <strong>🔍 التشخيص:</strong> ${log.arabicDiagnosis}
+                <strong>🔍 التشخيص:</strong> ${escapeSyncHtml(log.arabicDiagnosis)}
                 <div style="font-size:0.7rem;color:#64748b;font-family:monospace;direction:ltr;text-align:left;margin-top:3px;word-break:break-all;">
-                  [${log.code}] ${log.message}
+                  [${escapeSyncHtml(log.code)}] ${escapeSyncHtml(log.message)}
                 </div>
               </div>
 
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
                 <div style="font-size:0.75rem;color:#0f172a;">
-                  <strong style="color:#0369a1;">💡 خطوة التصحيح المقترحة:</strong> ${log.fixRecommendation}
+                  <strong style="color:#0369a1;">💡 خطوة التصحيح المقترحة:</strong> ${escapeSyncHtml(log.fixRecommendation)}
                 </div>
-                <button type="button" onclick="window.executeSyncErrorFixAction('${log.id}')" style="background:#0f172a;color:#ffffff;border:none;padding:5px 11px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;">
+                <button type="button" onclick="window.executeSyncErrorFixAction('${escapeSyncHtml(log.id)}')" style="background:#0f172a;color:#ffffff;border:none;padding:5px 11px;border-radius:6px;font-size:0.73rem;font-weight:800;cursor:pointer;">
                   ${fixLabel}
                 </button>
               </div>
@@ -2994,7 +3852,7 @@ function renderAdvancedCloudSyncModalContent() {
         <div style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
           <div>
             <div style="font-size:0.71rem;color:#64748b;font-weight:700;">الحساب السحابي المرتبط</div>
-            <div style="font-size:0.84rem;font-weight:900;color:#0f172a;direction:ltr;text-align:right;">${email}</div>
+            <div style="font-size:0.84rem;font-weight:900;color:#0f172a;direction:ltr;text-align:right;">${escapeSyncHtml(email)}</div>
           </div>
           <button type="button" onclick="window.openGmailQuickSwitchModal()" style="background:#ffffff;border:1px solid #0284c7;color:#0284c7;padding:4px 9px;border-radius:6px;font-size:0.72rem;font-weight:800;cursor:pointer;">تبديل</button>
         </div>

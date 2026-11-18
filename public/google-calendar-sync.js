@@ -36,6 +36,55 @@
     }
 
     /**
+     * نافذة تأكيد غير حاجبة داخل التطبيق (بديلة عن window.confirm المحظورة في iFrame و WebView)
+     */
+    function showCalendarConfirmDialog(message, confirmLabel = 'تأكيد المتابعة', cancelLabel = 'إلغاء') {
+        return new Promise((resolve) => {
+            const existing = document.getElementById('gcalInAppConfirmModal');
+            if (existing) existing.remove();
+
+            const backdrop = document.createElement('div');
+            backdrop.id = 'gcalInAppConfirmModal';
+            backdrop.setAttribute('dir', 'rtl');
+            backdrop.setAttribute('role', 'dialog');
+            backdrop.setAttribute('aria-modal', 'true');
+            backdrop.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(15,23,42,0.58);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:16px;font-family:inherit;';
+
+            const card = document.createElement('div');
+            card.style.cssText = 'width:100%;max-width:420px;background:#ffffff;border-radius:16px;border:1px solid #e2e8f0;box-shadow:0 20px 45px rgba(15,23,42,0.24);padding:20px;color:#0f172a;';
+            card.innerHTML = `
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                    <div style="width:36px;height:36px;border-radius:10px;background:#eff6ff;color:#1d4ed8;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">📅</div>
+                    <h4 style="margin:0;font-size:0.96rem;font-weight:800;color:#1e293b;">تأكيد مزامنة تقويم Google</h4>
+                </div>
+                <p style="margin:0 0 18px 0;font-size:0.86rem;line-height:1.65;color:#475569;">${escapeHtml(message)}</p>
+                <div style="display:flex;justify-content:flex-end;gap:8px;">
+                    <button type="button" id="gcalConfirmCancelBtn" style="padding:8px 16px;border-radius:9px;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:0.82rem;font-weight:700;cursor:pointer;">${escapeHtml(cancelLabel)}</button>
+                    <button type="button" id="gcalConfirmOkBtn" style="padding:8px 18px;border-radius:9px;border:none;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#ffffff;font-size:0.82rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(37,99,235,0.28);">${escapeHtml(confirmLabel)}</button>
+                </div>
+            `;
+            backdrop.appendChild(card);
+            document.body.appendChild(backdrop);
+
+            const cleanup = (result) => {
+                document.removeEventListener('keydown', onKeyDown);
+                backdrop.remove();
+                resolve(result);
+            };
+            const onKeyDown = (ev) => {
+                if (ev.key === 'Escape') cleanup(false);
+            };
+            document.addEventListener('keydown', onKeyDown);
+
+            backdrop.addEventListener('click', (ev) => {
+                if (ev.target === backdrop) cleanup(false);
+            });
+            card.querySelector('#gcalConfirmCancelBtn').addEventListener('click', () => cleanup(false));
+            card.querySelector('#gcalConfirmOkBtn').addEventListener('click', () => cleanup(true));
+        });
+    }
+
+    /**
      * الحصول على توكن الوصول المخزن لـ Google Calendar
      */
     async function getAccessToken(interactive = false) {
@@ -283,10 +332,9 @@
         try {
             if (action === 'delete') {
                 if (item.googleEventId) {
-                    // تأكيد الحذف الإلزامي للعمليات الحساسة
                     const title = item.title || item.name || 'الموعد المختار';
                     const confirmMsg = `هل تريد بالتأكيد حذف "${title}" من تقويم Google Calendar أيضاً لضمان التزامن؟`;
-                    if (window.confirm(confirmMsg)) {
+                    if (await showCalendarConfirmDialog(confirmMsg, 'حذف من التقويم', 'الاحتفاظ به')) {
                         await apiDeleteEvent(token, item.googleEventId);
                         item.googleEventId = null;
                         if (typeof window.showAppToast === 'function') {
@@ -339,7 +387,7 @@
         let token = await getAccessToken(interactive);
         if (!token) {
             if (interactive) {
-                const proceed = window.confirm('يجب تسجيل الدخول بحساب Google أولاً لمزامنة التقويم. هل تود تسجيل الدخول الآن؟');
+                const proceed = await showCalendarConfirmDialog('يجب تسجيل الدخول بحساب Google أولاً لمزامنة التقويم. هل تود تسجيل الدخول الآن؟', 'تسجيل الدخول الآن', 'لاحقاً');
                 if (proceed && typeof window.handleDriveLogin === 'function') {
                     token = await window.handleDriveLogin();
                 }
@@ -507,7 +555,7 @@
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast(msg, 'success');
             } else {
-                alert(msg);
+                window.notifySafeToast(msg);
             }
             renderGoogleCalendarSyncBanner();
         } catch (err) {
@@ -516,7 +564,7 @@
             _syncState.inProgress = false;
             _syncState.lastError = err.message;
             updateSyncUIStatus('error');
-            alert(`حدث خطأ أثناء المزامنة مع تقويم جوجل: ${err.message}`);
+            window.notifySafeToast(`حدث خطأ أثناء المزامنة مع تقويم جوجل: ${err.message}`);
         }
     }
 
@@ -529,7 +577,7 @@
         let token = await getAccessToken(interactive);
         if (!token) {
             if (interactive) {
-                const proceed = window.confirm('يتطلب استيراد الأحداث تسجيل الدخول بحساب Google. هل تود المتابعة؟');
+                const proceed = await showCalendarConfirmDialog('يتطلب استيراد الأحداث تسجيل الدخول بحساب Google. هل تود المتابعة؟', 'تسجيل الدخول والمتابعة', 'إلغاء');
                 if (proceed && typeof window.handleDriveLogin === 'function') {
                     token = await window.handleDriveLogin();
                 }
@@ -549,7 +597,7 @@
                 if (typeof window.showAppToast === 'function') {
                     window.showAppToast('لم يتم العثور على أحداث قادمة في تقويم جوجل.', 'info');
                 } else {
-                    alert('لم يتم العثور على أحداث قادمة في تقويم Google.');
+                    window.notifySafeToast('لم يتم العثور على أحداث قادمة في تقويم Google.');
                 }
                 return;
             }
@@ -629,12 +677,12 @@
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast(resMsg, 'success');
             } else {
-                alert(resMsg);
+                window.notifySafeToast(resMsg);
             }
         } catch (err) {
             if (typeof window.hideLoading === 'function') window.hideLoading();
             console.error('importFromGoogleCalendar error:', err);
-            alert(`فشل استيراد الأحداث من تقويم جوجل: ${err.message}`);
+            window.notifySafeToast(`فشل استيراد الأحداث من تقويم جوجل: ${err.message}`);
         }
     }
 

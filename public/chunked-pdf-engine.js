@@ -230,6 +230,14 @@
         let cumulativeReclaimedMB = 0;
 
         try {
+            // Ensure lazy-loaded PDF & Canvas engines are initialized before chunk rendering
+            if (typeof window.ensureHtml2PdfLoaded === 'function') {
+                await window.ensureHtml2PdfLoaded();
+            }
+            if (!window.html2canvas && typeof window.ensureHtml2Canvas === 'function') {
+                await window.ensureHtml2Canvas();
+            }
+
             // Instantiate jsPDF
             pdf = getJsPdfInstance({ orientation, format: 'a4' });
 
@@ -338,7 +346,7 @@
             if (typeof window.showNotification === 'function') {
                 window.showNotification(err.message || 'حدث خطأ أثناء التصدير المتدرج', 'error');
             } else {
-                alert(err.message || 'حدث خطأ أثناء التصدير');
+                window.notifySafeToast(err.message || 'حدث خطأ أثناء التصدير');
             }
         } finally {
             hideProgressModal();
@@ -642,33 +650,33 @@
 
                             <!-- Table Container (Flex-1 to utilize vertical space) -->
                             <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-                                <table style="width: 100%; height: 100%; border-collapse: collapse; table-layout: fixed; font-size: ${dynFontSize}; text-align: center; border: 1.5px solid #0f172a;">
+                                <table style="width: 100%; height: 100%; border-collapse: collapse; table-layout: auto; font-size: ${dynFontSize}; text-align: center; border: 1.5px solid #0f172a;">
                                     <thead>
                                         <tr style="background: #1e3a8a; color: #ffffff; font-weight: 800; line-height: 1.2;">
-                                            <th style="padding: ${dynHeadPad}; width: 28px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">ر.ت</th>
-                                            <th style="padding: ${dynHeadPad}; width: 75px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">رقم مسار</th>
-                                            <th style="padding: ${dynHeadPad}; text-align: right; border: 1px solid #0f172a; width: 175px; font-size: ${dynHeadFontSize};">الاسم الكامل للتلميذ(ة)</th>
-                                            <th style="padding: ${dynHeadPad}; width: 62px; border: 1px solid #0f172a; background: #991b1b; color: #fff; font-size: ${dynHeadFontSize};">مجموع الغياب</th>
-                                            <th style="padding: ${dynHeadPad}; width: 44px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">مبرر</th>
-                                            <th style="padding: ${dynHeadPad}; width: 46px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">غير مبرر</th>
-                                            <th style="padding: ${dynHeadPad}; width: 38px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">تأخر</th>
-                                            <th style="padding: ${dynHeadPad}; width: 40px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">واجب</th>
-                                            <th style="padding: ${dynHeadPad}; width: 55px; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">السلوك</th>
+                                            <th style="padding: ${dynHeadPad}; width: 28px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">ر.ت</th>
+                                            <th style="padding: ${dynHeadPad}; width: 76px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">رقم مسار</th>
+                                            <th style="padding: ${dynHeadPad}; text-align: right; border: 1px solid #0f172a; min-width: 185px; font-size: ${dynHeadFontSize};">الاسم الكامل للتلميذ(ة)</th>
+                                            <th style="padding: ${dynHeadPad}; width: 58px; white-space: nowrap; border: 1px solid #0f172a; background: #991b1b; color: #fff; font-size: ${dynHeadFontSize};">مجموع الغياب</th>
+                                            <th style="padding: ${dynHeadPad}; width: 42px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">مبرر</th>
+                                            <th style="padding: ${dynHeadPad}; width: 46px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">غير مبرر</th>
+                                            <th style="padding: ${dynHeadPad}; width: 36px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">تأخر</th>
+                                            <th style="padding: ${dynHeadPad}; width: 38px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">واجب</th>
+                                            <th style="padding: ${dynHeadPad}; width: 54px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">السلوك</th>
                                             <th style="padding: ${dynHeadPad}; text-align: right; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">ملاحظات الإدارة / الأستاذ</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         ${studentAbsenceRows.map((r, rIdx) => `
                                             <tr style="height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; background: ${rIdx % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1;">
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: #334155;">${r.order}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-family: monospace; font-size: ${dynSubFontSize}; font-weight: 700; color: #1e3a8a;">${r.massar}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${r.name}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 900; color: ${r.absentHours > 0 ? '#dc2626' : '#16a34a'}; background: ${r.absentHours > 0 ? '#fef2f2' : '#ffffff'}; font-size: ${dynFontSize};">${r.absentHours > 0 ? r.absentHours + ' س' : '<span style="color:#16a34a;">0</span>'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #2563eb; font-weight: 800;">${r.justHours > 0 ? r.justHours + ' س' : '-'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #dc2626; font-weight: 800;">${r.unjustHours > 0 ? r.unjustHours + ' س' : '-'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.lateCount > 0 ? '#ea580c' : '#94a3b8'};">${r.lateCount > 0 ? r.lateCount : '-'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.missedHw > 0 ? '#7c3aed' : '#94a3b8'};">${r.missedHw > 0 ? r.missedHw : '-'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; font-weight: 700;">${r.behavior}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: #334155; white-space: nowrap;">${r.order}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-family: monospace; font-size: ${dynSubFontSize}; font-weight: 700; color: #1e3a8a; white-space: nowrap;">${r.massar}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a;">${r.name}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 900; color: ${r.absentHours > 0 ? '#dc2626' : '#16a34a'}; background: ${r.absentHours > 0 ? '#fef2f2' : '#ffffff'}; font-size: ${dynFontSize}; white-space: nowrap;">${r.absentHours > 0 ? r.absentHours + ' س' : '<span style="color:#16a34a;">0</span>'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #2563eb; font-weight: 800; white-space: nowrap;">${r.justHours > 0 ? r.justHours + ' س' : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #dc2626; font-weight: 800; white-space: nowrap;">${r.unjustHours > 0 ? r.unjustHours + ' س' : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.lateCount > 0 ? '#ea580c' : '#94a3b8'}; white-space: nowrap;">${r.lateCount > 0 ? r.lateCount : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.missedHw > 0 ? '#7c3aed' : '#94a3b8'}; white-space: nowrap;">${r.missedHw > 0 ? r.missedHw : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; font-weight: 700; white-space: nowrap;">${r.behavior}</td>
                                                 <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; color: #334155; font-weight: 600;">${r.note}</td>
                                             </tr>
                                         `).join('')}

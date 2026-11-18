@@ -992,31 +992,31 @@
             window.showNotification && window.showNotification('جاري إعداد كشف التغيب الجماعي الرسمي للطباعة...', 'info');
         }
 
-        // توليد نافذة طباعة مخصصة بنسق A4 أنيق ومطابق لمعايير الطبع والنشر
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) {
-            alert('يرجى السماح بالنوافذ المنبثقة لمعاينة وطباعة الكشف الرسمي.');
-            return;
-        }
+        const esc = (s) => String(s ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
 
         const rowsHtml = metrics.collectiveIncidents.map((inc, i) => `
             <tr style="border-bottom: 1px solid #cbd5e1; height: 24px;">
                 <td style="text-align: center; border: 1px solid #94a3b8; font-weight: 700;">${i + 1}</td>
-                <td style="text-align: center; border: 1px solid #94a3b8; font-weight: 800;">${inc.date}</td>
-                <td style="text-align: center; border: 1px solid #94a3b8;">${inc.weekdayName} (${inc.timeSlot})</td>
-                <td style="text-align: center; border: 1px solid #94a3b8; font-weight: 800;">${inc.className}</td>
-                <td style="text-align: center; border: 1px solid #94a3b8;">${inc.absentCount} / ${inc.totalEnrolled}</td>
-                <td style="text-align: center; border: 1px solid #94a3b8; font-weight: 900; color: #b91c1c;">${inc.absencePct}%</td>
-                <td style="text-align: right; border: 1px solid #94a3b8; font-size: 7.5pt;">${inc.calendarContext.label}</td>
+                <td style="text-align: center; border: 1px solid #94a3b8; font-weight: 800;">${esc(inc.date)}</td>
+                <td style="text-align: center; border: 1px solid #94a3b8;">${esc(inc.weekdayName)} (${esc(inc.timeSlot)})</td>
+                <td style="text-align: center; border: 1px solid #94a3b8; font-weight: 800;">${esc(inc.className)}</td>
+                <td style="text-align: center; border: 1px solid #94a3b8;">${esc(inc.absentCount)} / ${esc(inc.totalEnrolled)}</td>
+                <td style="text-align: center; border: 1px solid #94a3b8; font-weight: 900; color: #b91c1c;">${esc(inc.absencePct)}%</td>
+                <td style="text-align: right; border: 1px solid #94a3b8; font-size: 7.5pt;">${esc(inc.calendarContext && inc.calendarContext.label)}</td>
             </tr>
         `).join('');
 
-        printWindow.document.write(`
+        const reportHtml = `
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
             <head>
                 <meta charset="UTF-8">
-                <title>كشف تتبع وقائع التغيب الجماعي - ${pYear}</title>
+                <title>كشف تتبع وقائع التغيب الجماعي - ${esc(pYear)}</title>
                 <style>
                     @page { size: A4 portrait; margin: 10mm 12mm; }
                     body { font-family: 'Cairo', 'Amiri', Tahoma, sans-serif; direction: rtl; font-size: 8.5pt; color: #0f172a; margin: 0; }
@@ -1030,24 +1030,24 @@
                     <div style="text-align: right; line-height: 1.4; font-size: 8pt;">
                         <div style="font-weight: 900;">المملكة المغربية</div>
                         <div style="color: #1e3a8a; font-weight: 800;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
-                        <div>المؤسسة: <strong>${pSchool}</strong></div>
+                        <div>المؤسسة: <strong>${esc(pSchool)}</strong></div>
                     </div>
                     <div style="text-align: center;">
                         <h2 style="margin: 0; font-size: 1.15rem; color: #1e3a8a; font-weight: 900;">كشف تتبع وقائع التغيب الجماعي</h2>
-                        <div style="font-size: 0.75rem; color: #475569; margin-top: 2px;">الموسم الدراسي: ${pYear} | المذكرة الوزارية 142-08</div>
+                        <div style="font-size: 0.75rem; color: #475569; margin-top: 2px;">الموسم الدراسي: ${esc(pYear)} | المذكرة الوزارية 142-08</div>
                     </div>
                     <div style="text-align: left; line-height: 1.4; font-size: 8pt;">
                         <div>المادة: <strong>الرياضيات</strong></div>
-                        <div>الأستاذ: <strong>${pName}</strong></div>
+                        <div>الأستاذ: <strong>${esc(pName)}</strong></div>
                         <div>تاريخ الإصدار: <strong>${new Date().toISOString().split('T')[0]}</strong></div>
                     </div>
                 </div>
 
                 <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; font-weight: 800; font-size: 8pt;">
-                    <div>معدل التغيب الجماعي العام: <span style="color: #b91c1c;">${metrics.overallRate}%</span></div>
-                    <div>مجموع الحصص الحرجة: <span style="color: #b91c1c;">${metrics.totalIncidentsCount}</span></div>
-                    <div>القسم الأكثر تسجيلاً: <span style="color: #1e3a8a;">${metrics.mostVulnerableClass}</span></div>
-                    <div>مؤشر الخطورة (IGC): <span style="color: #ea580c;">${metrics.gravityIndex}/100</span></div>
+                    <div>معدل التغيب الجماعي العام: <span style="color: #b91c1c;">${esc(metrics.overallRate)}%</span></div>
+                    <div>مجموع الحصص الحرجة: <span style="color: #b91c1c;">${esc(metrics.totalIncidentsCount)}</span></div>
+                    <div>القسم الأكثر تسجيلاً: <span style="color: #1e3a8a;">${esc(metrics.mostVulnerableClass)}</span></div>
+                    <div>مؤشر الخطورة (IGC): <span style="color: #ea580c;">${esc(metrics.gravityIndex)}/100</span></div>
                 </div>
 
                 <table>
@@ -1080,12 +1080,22 @@
                 </div>
             </body>
             </html>
-        `);
-        printWindow.document.close();
-        setTimeout(() => {
-            printWindow.focus();
-            printWindow.print();
-        }, 300);
+        `;
+
+        if (typeof window.printHtmlViaHiddenIframe === 'function') {
+            window.printHtmlViaHiddenIframe(reportHtml);
+        } else {
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+            iframe.srcdoc = reportHtml;
+            iframe.onload = () => {
+                setTimeout(() => {
+                    try { iframe.contentWindow && iframe.contentWindow.print(); } catch (e) {}
+                    setTimeout(() => iframe.remove(), 60000);
+                }, 200);
+            };
+            document.body.appendChild(iframe);
+        }
     }
 
     // إتاحة الدوال على كائن window العام

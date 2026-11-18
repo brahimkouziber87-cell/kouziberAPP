@@ -1015,7 +1015,7 @@
             const category = categorySelect ? categorySelect.value : (typeof inferResourceCategory === 'function' ? inferResourceCategory({title: title}) : 'درس');
 
             if (!title || !url) {
-                alert('يرجى إدخال عنوان المورد والرابط.');
+                window.notifySafeToast('يرجى إدخال عنوان المورد والرابط.');
                 return;
             }
             if (!/^https?:\/\//i.test(url)) {
@@ -1041,7 +1041,7 @@
             if (urlInput) urlInput.value = '';
             if (topicInput) topicInput.value = '';
             renderLibrary();
-            showLibraryToast('تم حفظ الرابط في المكتبة بنجاح!');
+            showLibraryToast('تم حفظ الرابط في المكتبة الرقمية بنجاح!');
         }
 
         function formatLibFileSize(bytes) {
@@ -1153,7 +1153,7 @@
 
             if (currentLibMode === 'local') {
                 if (!currentSelectedLibFile) {
-                    alert('يرجى اختيار ملف محلي من جهازك أو سحبه وإفلاته أولاً.');
+                    window.notifySafeToast('يرجى اختيار ملف محلي من جهازك أو سحبه وإفلاته أولاً.');
                     return;
                 }
                 const resourceTitle = title || currentSelectedLibFile.name;
@@ -1185,10 +1185,10 @@
                     if (titleInput) titleInput.value = '';
                     if (topicInput) topicInput.value = '';
 
-                    alert('تم حفظ المورد الرقمي محلياً بنجاح!');
+                    window.notifySafeToast('تم حفظ المورد الرقمي في المكتبة بنجاح!');
                     renderLibrary();
                 } catch(err) {
-                    alert('حدث خطأ أثناء حفظ الملف محلياً: ' + err.message);
+                    window.notifySafeToast('حدث خطأ أثناء حفظ الملف محلياً: ' + err.message);
                 } finally {
                     const btn = document.getElementById('btnSaveLibResource');
                     if (btn) btn.disabled = false;
@@ -1196,7 +1196,7 @@
             } else {
                 let url = document.getElementById('libUrl') ? document.getElementById('libUrl').value.trim() : '';
                 if (!title || !url) {
-                    alert('يرجى إدخال عنوان المورد والرابط.');
+                    window.notifySafeToast('يرجى إدخال عنوان المورد والرابط.');
                     return;
                 }
                 if (!/^https?:\/\//i.test(url)) {
@@ -1422,10 +1422,16 @@
 
         function onPdfPrint() {
             if (currentPdfState.blobUrl) {
-                const printWindow = window.open(currentPdfState.blobUrl, '_blank');
-                if (printWindow) {
-                    printWindow.focus();
-                    printWindow.print();
+                const iframe = document.getElementById('inAppPdfNativeIframe');
+                if (iframe && iframe.contentWindow) {
+                    try {
+                        iframe.contentWindow.focus();
+                        iframe.contentWindow.print();
+                        return;
+                    } catch (e) {}
+                }
+                if (typeof window.openSafeExternalUrl === 'function') {
+                    window.openSafeExternalUrl(currentPdfState.blobUrl);
                 }
             }
         }
@@ -1527,15 +1533,27 @@
             };
 
             if (!window.pdfjsLib) {
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-                script.onload = loadAndInit;
-                script.onerror = () => {
-                    currentPdfState.engine = 'native';
-                    updatePdfToolbarUI();
-                    renderPdfNative(container, currentPdfState.blobUrl);
-                };
-                document.head.appendChild(script);
+                if (typeof window.ensurePdfJsLoaded === 'function') {
+                    window.ensurePdfJsLoaded().then((lib) => {
+                        if (lib) {
+                            loadAndInit();
+                        } else {
+                            currentPdfState.engine = 'native';
+                            updatePdfToolbarUI();
+                            renderPdfNative(container, currentPdfState.blobUrl);
+                        }
+                    });
+                } else {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                    script.onload = loadAndInit;
+                    script.onerror = () => {
+                        currentPdfState.engine = 'native';
+                        updatePdfToolbarUI();
+                        renderPdfNative(container, currentPdfState.blobUrl);
+                    };
+                    document.head.appendChild(script);
+                }
             } else {
                 loadAndInit();
             }
@@ -1865,7 +1883,7 @@
                 if (options.type === 'local') {
                     const record = await ResourceDB.getFile(options.id);
                     if (!record || !record.data) {
-                        alert('عذراً، لم يتم العثور على الملف المحلي في ذاكرة هذا المتصفح.');
+                        window.notifySafeToast('عذراً، لم يتم العثور على الملف المحلي في ذاكرة هذا المتصفح.');
                         closeFilePreviewModal();
                         return;
                     }
@@ -1974,7 +1992,7 @@
                     if (downloadBtn && options.downloadUrl) {
                         downloadBtn.style.display = 'inline-flex';
                         downloadBtn.title = 'تنزيل من Drive';
-                        downloadBtn.onclick = () => window.open(options.downloadUrl, '_blank');
+                        downloadBtn.onclick = () => window.openSafeExternalUrl(options.downloadUrl, '_blank');
                     }
 
                     const isVideo = options.fileType === 'video' || (title && /\.(mp4|webm|mov|mkv)$/i.test(title));
@@ -2137,7 +2155,7 @@
             try {
                 const record = await ResourceDB.getFile(id);
                 if (!record || !record.data) {
-                    alert('عذراً، لم يتم العثور على الملف المحلي في ذاكرة هذا المتصفح. قد يكون تم تنظيف بيانات الموقع أو حفظه من جهاز آخر.');
+                    window.notifySafeToast('عذراً، لم يتم العثور على الملف المحلي في ذاكرة هذا المتصفح. قد يكون تم تنظيف بيانات الموقع أو حفظه من جهاز آخر.');
                     return;
                 }
                 const blobUrl = URL.createObjectURL(record.data);
@@ -2149,7 +2167,7 @@
                 document.body.removeChild(a);
                 setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
             } catch (err) {
-                alert('خطأ أثناء فتح الملف: ' + err.message);
+                window.notifySafeToast('خطأ أثناء فتح الملف: ' + err.message);
             }
         }
 
@@ -2157,7 +2175,7 @@
         function copyResourceLink(url, title = '') {
             if (!url || url === '#' || url.startsWith('javascript:')) {
                 if (typeof showAppToast === 'function') showAppToast('لا يتوفر رابط مباشر لهذا المورد للنسخ', 'warning');
-                else alert('لا يتوفر رابط مباشر لهذا المورد للنسخ');
+                else window.notifySafeToast('لا يتوفر رابط مباشر لهذا المورد للنسخ');
                 return;
             }
             const cleanUrl = url.replace(/&quot;/g, '"');
@@ -2165,7 +2183,7 @@
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(cleanUrl).then(() => {
                     if (typeof showAppToast === 'function') showAppToast(toastMsg, 'success');
-                    else alert(toastMsg);
+                    else window.notifySafeToast(toastMsg);
                 }).catch(() => {
                     promptCopyFallback(cleanUrl);
                 });
@@ -2202,6 +2220,10 @@
         }
 
         function promptCopyFallback(text) {
+            if (typeof window.safeCopyTextToClipboard === 'function') {
+                window.safeCopyTextToClipboard(text, 'تم نسخ الرابط إلى الحافظة 📋');
+                return;
+            }
             const el = document.createElement('textarea');
             el.value = text;
             document.body.appendChild(el);
@@ -2210,7 +2232,7 @@
                 document.execCommand('copy');
                 if (typeof showAppToast === 'function') showAppToast('تم نسخ الرابط إلى الحافظة 📋', 'success');
             } catch(e) {
-                prompt('يرجى نسخ النص يدوياً:', text);
+                if (typeof window.notifySafeToast === 'function') window.notifySafeToast(text);
             }
             document.body.removeChild(el);
         }
@@ -2544,6 +2566,7 @@
 
         function inferResourceCategory(item) {
             if (!item) return 'درس';
+            if (item.isLessonTemplate || item.category === 'قالب درس') return 'قالب درس';
             if (item.category && typeof item.category === 'string' && item.category.trim()) {
                 const c = item.category.trim();
                 if (c === 'جذاذة') return 'بطاقة تقنية';
@@ -2555,6 +2578,7 @@
             }
             const text = ((item.title || '') + ' ' + (item.topic || '') + ' ' + (item.fileName || '')).toLowerCase();
             const url = (item.url || '').toLowerCase();
+            if (/قالب درس|قوالب دروس|قالب بيداغوجي/i.test(text)) return 'قالب درس';
             if (/مذكرة وزارية|مذكرات وزارية|مقرر وزاري|قرار وزاري|ظهير|مرسوم|دورية وزارية/i.test(text)) return 'مذكرات وزارية';
             // تصنيف نماذج الامتحانات الإشهادية (الوطني، الجهوي، البكالوريا الموحدة)
             if (/إشهادي|اشهادي|امتحان وطني|الامتحان الوطني|امتحان جهوي|الامتحان الجهوي|امتحانات إشهادية|امتحانات اشهادية|نماذج إشهادية|نماذج اشهادية|باكالوريا دورة|بكالوريا دورة|دورة عادية|دورة استدراكية|examen national|examen régional|certificatif|epreuve nationale|baccalauréat|bac|شهادة البكالوريا/i.test(text)) return 'نماذج امتحانات إشهادية';
@@ -2594,7 +2618,7 @@
         window.setLibraryItemCategory = setLibraryItemCategory;
 
         function promptChangeItemCategory(itemId, currentCat) {
-            const categories = ['درس', 'سلسلة تمارين', 'فرض منزلي', 'فرض محروس', 'نماذج امتحانات إشهادية', 'بطاقة تقنية', 'مذكرات وزارية', 'رابط رسمي', 'عرض ووسائط'];
+            const categories = ['درس', 'قالب درس', 'سلسلة تمارين', 'فرض منزلي', 'فرض محروس', 'نماذج امتحانات إشهادية', 'بطاقة تقنية', 'مذكرات وزارية', 'رابط رسمي', 'عرض ووسائط'];
             const nextIdx = (categories.indexOf(currentCat) + 1) % categories.length;
             const nextCat = categories[nextIdx];
             setLibraryItemCategory(itemId, nextCat);
@@ -2697,6 +2721,15 @@
             renderLinkedDriveFolders();
             checkAndAutoSyncDriveFolders(false);
 
+            if (window.db) {
+                let cleaned = false;
+                if ('libraryVirtualFolders' in window.db) { delete window.db.libraryVirtualFolders; cleaned = true; }
+                if ('librarySmartFolders' in window.db) { delete window.db.librarySmartFolders; cleaned = true; }
+                if (cleaned && typeof saveDB === 'function') {
+                    try { saveDB(); } catch (e) {}
+                }
+            }
+
             const sidebar = document.getElementById('libSidebarAnalytics');
             if (sidebar && !sidebar.dataset.initDone) {
                 sidebar.dataset.initDone = 'true';
@@ -2711,6 +2744,7 @@
             const catCounts = {
                 'all': (db.library || []).length,
                 'درس': 0,
+                'قالب درس': 0,
                 'سلسلة تمارين': 0,
                 'فرض منزلي': 0,
                 'فرض محروس': 0,
@@ -2721,7 +2755,7 @@
                 'عرض ووسائط': 0
             };
             (db.library || []).forEach(item => {
-                const cat = inferResourceCategory(item);
+                const cat = item.isLessonTemplate || item.category === 'قالب درس' ? 'قالب درس' : inferResourceCategory(item);
                 if (catCounts[cat] !== undefined) {
                     catCounts[cat]++;
                 } else {
@@ -2734,6 +2768,7 @@
             if (pillsContainer) {
                 const pillsData = [
                     { id: 'all', label: 'جميع التصنيفات', icon: '📚', count: catCounts['all'], color: '#2563eb' },
+                    { id: 'قالب درس', label: 'قوالب الدروس', icon: '📐', count: catCounts['قالب درس'], color: '#0d9488' },
                     { id: 'درس', label: 'درس', icon: '📖', count: catCounts['درس'], color: '#1d4ed8' },
                     { id: 'سلسلة تمارين', label: 'سلسلة تمارين', icon: '📝', count: catCounts['سلسلة تمارين'], color: '#047857' },
                     { id: 'فرض منزلي', label: 'فرض منزلي', icon: '🏠', count: catCounts['فرض منزلي'], color: '#b45309' },
@@ -2806,7 +2841,10 @@
 
             // Apply category filter
             if (currentLibCategoryFilter !== 'all') {
-                filtered = filtered.filter(item => inferResourceCategory(item) === currentLibCategoryFilter);
+                filtered = filtered.filter(item => {
+                    const cat = (item.isLessonTemplate || item.category === 'قالب درس') ? 'قالب درس' : inferResourceCategory(item);
+                    return cat === currentLibCategoryFilter;
+                });
             }
 
             if (filterType === 'local') {
@@ -2830,16 +2868,18 @@
                     (item.title && item.title.toLowerCase().includes(searchTerm)) ||
                     (item.topic && item.topic.toLowerCase().includes(searchTerm)) ||
                     (item.fileName && item.fileName.toLowerCase().includes(searchTerm)) ||
-                    (item.driveFolderName && item.driveFolderName.toLowerCase().includes(searchTerm))
+                    (item.driveFolderName && item.driveFolderName.toLowerCase().includes(searchTerm)) ||
+                    (item.templateObjectives && item.templateObjectives.toLowerCase().includes(searchTerm))
                 );
             }
 
-            // Render Active Filter Banner above #libraryContainer when filtered by category, level, or type
+            // Render Active Filter Banner above #libraryContainer when filtered
             const activeBannerEl = document.getElementById('libActiveFilterBanner');
             if (activeBannerEl) {
-                const hasActiveFilter = (currentLibCategoryFilter !== 'all') || (filterLevel !== 'all') || (filterType !== 'all') || !!searchTerm;
+                const hasActiveFilter = (currentLibCategoryFilter !== 'all') || (filterLevel !== 'all') || (filterType !== 'all') || (filterTopic !== 'all') || !!searchTerm;
                 if (hasActiveFilter) {
                     const catNames = {
+                        'قالب درس': { label: '📐 قوالب الدروس البيداغوجية', color: '#0f766e', bg: '#f0fdfa', border: '#5eead4' },
                         'درس': { label: '📖 الدروس والشروحات', color: '#1d4ed8', bg: '#eff6ff', border: '#93c5fd' },
                         'سلسلة تمارين': { label: '📝 سلاسل التمارين والأنشطة', color: '#047857', bg: '#ecfdf5', border: '#6ee7b7' },
                         'فرض منزلي': { label: '🏠 الفروض المنزلية', color: '#b45309', bg: '#fffbeb', border: '#fcd34d' },
@@ -2850,7 +2890,9 @@
                         'رابط رسمي': { label: '🌐 الروابط والمواقع الرسمية', color: '#0f766e', bg: '#f0fdfa', border: '#99f6e4' },
                         'عرض ووسائط': { label: '🎬 العروض التقديمية والوسائط', color: '#a21caf', bg: '#fdf4ff', border: '#f0abfc' }
                     };
-                    const activeMeta = catNames[currentLibCategoryFilter] || { label: currentLibCategoryFilter === 'all' ? 'تصفية مخصصة للموارد' : currentLibCategoryFilter, color: '#1e3a8a', bg: '#eff6ff', border: '#93c5fd' };
+                    const activeMeta = catNames[currentLibCategoryFilter]
+                        || (filterTopic !== 'all' ? { label: '📖 المحور: ' + filterTopic, color: '#1d4ed8', bg: '#eff6ff', border: '#93c5fd' } : null)
+                        || { label: currentLibCategoryFilter === 'all' ? 'تصفية مخصصة للموارد' : currentLibCategoryFilter, color: '#1e3a8a', bg: '#eff6ff', border: '#93c5fd' };
                     activeBannerEl.style.display = 'block';
                     activeBannerEl.innerHTML = `
                         <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 10px 14px; border-radius: 10px; background: ${activeMeta.bg}; border: 1.5px solid ${activeMeta.border}; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
@@ -2864,7 +2906,7 @@
                                     ${filtered.length} مورد مطابق
                                 </span>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                 ${currentLibCategoryFilter !== 'all' ? `
                                     <button type="button" onclick="openAddResourceForCategory('${currentLibCategoryFilter}')" style="background: #ffffff; color: ${activeMeta.color}; border: 1px solid ${activeMeta.border}; padding: 4px 10px; border-radius: 7px; font-size: 0.74rem; font-weight: 800; cursor: pointer;">
                                         ➕ إضافة مورد في هذه الفئة
@@ -2872,7 +2914,7 @@
                                 ` : ''}
                                 <button type="button" onclick="resetAllLibraryFilters()" style="background: #ef4444; color: #ffffff; border: none; padding: 4px 11px; border-radius: 7px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                                     <span>✕</span>
-                                    <span>عرض جميع الفئات (${(db.library || []).length})</span>
+                                    <span>عرض جميع الموارد (${(db.library || []).length})</span>
                                 </button>
                             </div>
                         </div>
@@ -2889,24 +2931,24 @@
                         <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 35px 20px; background: var(--bg); border-radius: 12px; border: 1px dashed var(--border);">
                             <div style="margin-bottom: 10px; color: var(--text-muted);">${lucideIcon('bookopen', {size: 42})}</div>
                             <h4 style="color: var(--primary); margin: 0 0 8px 0; font-family: 'Cairo', sans-serif;">المكتبة الرقمية فارغة حالياً</h4>
-                            <p style="font-size: 0.9rem; margin: 0 0 16px 0; max-width: 500px; margin-inline: auto;">يمكنك ربط مجلد من Google Drive لمكتبة الرياضيات ليتم استيراد ملفاته فوراً، أو إضافة ملفاتك الخاصة، أو إدراج المواقع والروابط الرسمية المعتمدة بضغطة زر واحدة:</p>
-                            <button type="button" onclick="loadOfficialCuratedResources()" style="padding: 10px 18px; border-radius: 8px; font-weight: 700; background: #059669; color: white; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 6px rgba(5,150,105,0.25);">
-                                <span>${lucideIcon('landmark', {size: 13})}</span> إدراج الروابط والمواقع التربوية الرسمية المعتمدة
-                            </button>
+                            <p style="font-size: 0.9rem; margin: 0 0 16px 0; max-width: 520px; margin-inline: auto;">يمكنك رفع ملفات PDF أو روابط فيديوهات توضيحية وربطها بالدروس، أو إدراج قوالب الدروس والروابط التربوية المعتمدة:</p>
+                            <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+                                <button type="button" onclick="seedStarterLessonTemplates()" style="padding: 10px 18px; border-radius: 8px; font-weight: 800; background: #0d9488; color: white; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 6px rgba(13,148,136,0.25);">
+                                    <span>📐</span> توليد قوالب الدروس النموذجية
+                                </button>
+                                <button type="button" onclick="loadOfficialCuratedResources()" style="padding: 10px 18px; border-radius: 8px; font-weight: 700; background: #059669; color: white; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 6px rgba(5,150,105,0.25);">
+                                    <span>${lucideIcon('landmark', {size: 13})}</span> إدراج الروابط والمواقع التربوية الرسمية
+                                </button>
+                            </div>
                         </div>
                     `;
                 } else {
                     container.innerHTML = `
                         <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 28px 20px; background: var(--bg); border-radius: 10px; border: 1.5px dashed var(--border);">
-                            <div style="font-weight: 800; color: #334155; font-size: 0.92rem; margin-bottom: 6px;">لا توجد موارد مسجلة حالياً ضمن الفئة أو التصفية المحددة (${currentLibCategoryFilter === 'all' ? 'الكل' : currentLibCategoryFilter}).</div>
+                            <div style="font-weight: 800; color: #334155; font-size: 0.92rem; margin-bottom: 6px;">لا توجد موارد مسجلة حالياً ضمن التصفية المحددة.</div>
                             <div style="display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
-                                ${currentLibCategoryFilter !== 'all' ? `
-                                    <button type="button" onclick="openAddResourceForCategory('${currentLibCategoryFilter}')" style="padding: 7px 14px; border-radius: 7px; font-weight: 800; font-size: 0.8rem; background: #2563eb; color: #ffffff; border: none; cursor: pointer;">
-                                        ➕ إضافة مورد جديد في فئة "${currentLibCategoryFilter}"
-                                    </button>
-                                ` : ''}
-                                <button type="button" onclick="loadOfficialCuratedResources()" style="padding: 7px 14px; border-radius: 7px; font-weight: 800; font-size: 0.8rem; background: #059669; color: #ffffff; border: none; cursor: pointer;">
-                                    📚 إدراج حزمة الموارد التربوية الرسمية
+                                <button type="button" onclick="openCreateLessonTemplateModal()" style="padding: 7px 14px; border-radius: 7px; font-weight: 800; font-size: 0.8rem; background: #0d9488; color: #ffffff; border: none; cursor: pointer;">
+                                    📐 + إنشاء قالب درس جديد
                                 </button>
                                 <button type="button" onclick="resetAllLibraryFilters()" style="padding: 7px 14px; border-radius: 7px; font-weight: 800; font-size: 0.8rem; background: #ffffff; color: #334155; border: 1px solid #cbd5e1; cursor: pointer;">
                                     🔄 عرض كافة موارد المكتبة
@@ -2916,14 +2958,24 @@
                     `;
                 }
                 renderLibraryGrowthAnalytics();
+                if (typeof renderBrowseLessonSidePanel === 'function') renderBrowseLessonSidePanel();
+                if (currentLibSubTab === 'lesson_resources' && typeof renderLessonLinkedResourcesView === 'function') {
+                    renderLessonLinkedResourcesView();
+                }
                 return;
             }
 
             container.innerHTML = buildLibraryResourceCardsHtml(filtered);
             if (window.lucide) window.lucide.createIcons();
 
-            // Automatically update library growth analytics & sidebar
+            // Automatically update library growth analytics & sidebars
             renderLibraryGrowthAnalytics();
+            if (typeof renderBrowseLessonSidePanel === 'function') {
+                renderBrowseLessonSidePanel();
+            }
+            if (currentLibSubTab === 'lesson_resources' && typeof renderLessonLinkedResourcesView === 'function') {
+                renderLessonLinkedResourcesView();
+            }
         }
         window.renderLibrary = renderLibrary;
 
@@ -2939,12 +2991,16 @@
             (itemsList || []).forEach(item => {
                 const isDrive = !!item.isDriveFile;
                 const isLocal = !!item.isLocalFile;
+                const isTemplate = !!item.isLessonTemplate || item.category === 'قالب درس';
                 const meta = getResourceFileMeta(item);
-                const icon = isDrive ? lucideIcon('cloud', {size: 18}) : (typeIcons[item.type] || (isLocal ? lucideIcon('folder', {size: 18}) : lucideIcon('link', {size: 18})));
+                const icon = isTemplate ? lucideIcon('layout-template', {size: 18}) : (isDrive ? lucideIcon('cloud', {size: 18}) : (typeIcons[item.type] || (isLocal ? lucideIcon('folder', {size: 18}) : lucideIcon('link', {size: 18}))));
                 const safeUrl = safeWebUrl(item.url);
                 const isNewlyAdded = item.isNew || (item.addedTimestamp && (Date.now() - item.addedTimestamp < 2 * 60 * 60 * 1000));
-                const itemCat = inferResourceCategory(item);
+                const itemCat = isTemplate ? 'قالب درس' : inferResourceCategory(item);
+                const linkedLessonsPreview = (typeof findCurriculumLessonsForLibraryItem === 'function') ? findCurriculumLessonsForLibraryItem(item).slice(0, 1) : [];
+                const primaryLinkedLesson = linkedLessonsPreview[0] || null;
                 const catBadgeMap = {
+                    'قالب درس': { label: '📐 قالب درس بيداغوجي', bg: '#f0fdfa', color: '#115e59', border: '#5eead4', accent: '#0d9488' },
                     'درس': { label: '📖 درس', bg: '#eff6ff', color: '#1e3a8a', border: '#93c5fd', accent: '#1d4ed8' },
                     'سلسلة تمارين': { label: '📝 تمارين وأنشطة', bg: '#ecfdf5', color: '#064e3b', border: '#6ee7b7', accent: '#047857' },
                     'فرض منزلي': { label: '🏠 فرض منزلي', bg: '#fffbeb', color: '#78350f', border: '#fcd34d', accent: '#b45309' },
@@ -2979,8 +3035,8 @@
                                 <!-- Quick Preview Tooltip Trigger Badge -->
                                 <div class="lib-preview-tooltip-wrapper">
                                     <span class="lib-file-meta-pill" tabindex="0" title="معاينة نوع وحجم ومواصفات الملف (انقر أو مرر الفأرة)">
-                                        <span style="font-size: 0.68rem; font-weight: 900; background: ${catBadge.accent}; color: #ffffff; padding: 2px 6px; border-radius: 5px; letter-spacing: 0.3px;">${meta.ext}</span>
-                                        <span>${meta.sizeLabel}</span>
+                                        <span style="font-size: 0.68rem; font-weight: 900; background: ${catBadge.accent}; color: #ffffff; padding: 2px 6px; border-radius: 5px; letter-spacing: 0.3px;">${isTemplate ? 'TEMPLATE' : meta.ext}</span>
+                                        <span>${item.templateDuration ? item.templateDuration + ' س' : meta.sizeLabel}</span>
                                         <span style="font-size: 0.72rem; color: ${catBadge.accent}; font-weight: bold;">ℹ️</span>
                                     </span>
 
@@ -2988,28 +3044,20 @@
                                     <div class="lib-card-tooltip" role="tooltip">
                                         <div class="lib-tooltip-title">
                                             <span style="display: flex; align-items: center; gap: 5px;">🔍 معاينة مواصفات المورد</span>
-                                            <span style="font-size: 0.7rem; font-weight: 900; background: rgba(56, 189, 248, 0.25); color: #38bdf8; padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.4);">${meta.ext}</span>
+                                            <span style="font-size: 0.7rem; font-weight: 900; background: rgba(56, 189, 248, 0.25); color: #38bdf8; padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.4);">${isTemplate ? 'TEMPLATE' : meta.ext}</span>
                                         </div>
                                         <div class="lib-tooltip-grid">
                                             <div class="lib-tooltip-row">
                                                 <span class="label">نوع المورد:</span>
-                                                <span class="val" style="direction: rtl; text-align: right; color: #38bdf8; font-weight: 700;">${meta.typeLabel}</span>
+                                                <span class="val" style="direction: rtl; text-align: right; color: #38bdf8; font-weight: 700;">${isTemplate ? 'قالب درس مهيكل' : meta.typeLabel}</span>
                                             </div>
                                             <div class="lib-tooltip-row">
-                                                <span class="label">حجم الملف:</span>
-                                                <span class="val" style="color: #4ade80; font-weight: 800;">${meta.sizeLabel}</span>
-                                            </div>
-                                            <div class="lib-tooltip-row">
-                                                <span class="label">صيغة الملف:</span>
-                                                <span class="val" style="color: #fbbf24; font-weight: 800;">.${meta.ext.toLowerCase()}</span>
+                                                <span class="label">حجم / مدة:</span>
+                                                <span class="val" style="color: #4ade80; font-weight: 800;">${item.templateDuration ? item.templateDuration + ' ساعات' : meta.sizeLabel}</span>
                                             </div>
                                             <div class="lib-tooltip-row">
                                                 <span class="label">التصنيف البيداغوجي:</span>
                                                 <span class="val" style="direction: rtl; text-align: right; color: #ffffff; font-weight: 700;">${catBadge.label}</span>
-                                            </div>
-                                            <div class="lib-tooltip-row">
-                                                <span class="label">المصدر ومقر الحفظ:</span>
-                                                <span class="val" style="direction: rtl; text-align: right; color: #e2e8f0; font-size: 0.72rem;">${meta.sourceLabel}</span>
                                             </div>
                                             ${item.level && item.level !== 'عام' ? `
                                                 <div class="lib-tooltip-row">
@@ -3017,63 +3065,82 @@
                                                     <span class="val" style="direction: rtl; text-align: right; color: #f472b6; font-weight: 700;">${item.level}</span>
                                                 </div>
                                             ` : ''}
-                                            ${item.dateAdded ? `
-                                                <div class="lib-tooltip-row" style="border-top: 1px dashed rgba(255,255,255,0.18); padding-top: 5px; margin-top: 3px;">
-                                                    <span class="label">تاريخ الإدراج:</span>
-                                                    <span class="val" style="color: #94a3b8; font-size: 0.72rem;">${item.dateAdded}</span>
-                                                </div>
-                                            ` : ''}
                                         </div>
                                     </div>
                                 </div>
 
+                                <button class="hide-in-presentation" onclick="openLinkResourceToLessonModal('', '', '${item.id}')" style="background: none; border: none; color: #0d9488; cursor: pointer; font-size: 0.85rem; padding: 2px 4px; line-height: 1; display: inline-flex; align-items: center;" title="ربط المورد بدرس ومحور دراسي">${lucideIcon('link-2', {size: 13})}</button>
                                 <button class="hide-in-presentation" onclick="aiClassifySingleResource('${item.id}')" style="background: none; border: none; color: #7c3aed; cursor: pointer; font-size: 0.85rem; padding: 2px 4px; line-height: 1; display: inline-flex; align-items: center;" title="تصنيف ذكي بالذكاء الاصطناعي">${lucideIcon('sparkles', {size: 13})}</button>
                                 <button class="hide-in-presentation" onclick="deleteLibraryItem('${item.id}')" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.85rem; padding: 2px; line-height: 1;" title="حذف المورد">${lucideIcon('trash2', {size: 12})}</button>
                             </div>
                         </div>
 
-                        <!-- Classification Badges & Tags Strip (High Contrast) -->
+                        <!-- Classification Badges & Linked Lesson Strip -->
                         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                             <span class="lib-card-badge" onclick="promptChangeItemCategory('${item.id}', '${itemCat}')" style="background: ${catBadge.bg}; color: ${catBadge.color}; border: 1.5px solid ${catBadge.border}; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);" title="انقر للتبديل السريع بين التصنيفات">
                                 <span>${catBadge.label}</span>
                                 <span style="font-size: 0.65rem; opacity: 0.8;" title="تبديل التصنيف">↻</span>
                             </span>
+                            ${primaryLinkedLesson ? `
+                                <span class="lib-card-badge" onclick="openBrowseLessonSidePanel('${primaryLinkedLesson.lesson.id}', '${escapeHtml(primaryLinkedLesson.matchedAxis || '')}')" style="background: #f0fdfa; color: #0f766e; border: 1px solid #5eead4; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="انقر لعرض موارد هذا الدرس في اللوحة الجانبية">
+                                    <span>📚 ${escapeHtml(primaryLinkedLesson.lesson.title)}</span>
+                                </span>
+                            ` : `
+                                <button type="button" class="hide-in-presentation" onclick="openLinkResourceToLessonModal('', '', '${item.id}')" style="background: #f0fdfa; color: #0f766e; border: 1px dashed #5eead4; cursor: pointer; border-radius: 5px; padding: 2px 7px; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 3px; font-weight: 700;" title="ربط هذا المورد بدرس ومحور دراسي">
+                                    🔗 + ربط بدرس
+                                </button>
+                            `}
                             ${isNewlyAdded ? `
                                 <span class="lib-card-badge" style="background: linear-gradient(135deg, #fef08a, #fde047); color: #854d0e; border: 1px solid #facc15; font-weight: 800; box-shadow: 0 1px 3px rgba(234,179,8,0.25);">
                                     ✦ جديد
                                 </span>
                             ` : ''}
                             ${item.level && item.level !== 'عام' ? `<span class="lib-card-badge" style="background: #fdf2f8; color: #9d174d; border: 1px solid #fbcfe8; font-weight: 700;">${lucideIcon('graduationcap', {size: 11})} ${item.level}</span>` : ''}
-                            ${!item.topic ? `
-                                <button type="button" class="hide-in-presentation" onclick="aiClassifySingleResource('${item.id}')" style="background: #faf5ff; color: #6b21a8; border: 1px dashed #d8b4fe; cursor: pointer; border-radius: 4px; padding: 2px 7px; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 3px; font-weight: 700;" title="اقتراح محور مناسب بالذكاء الاصطناعي">
-                                    ${lucideIcon('sparkles', {size: 11})} اقتراح محور (AI)
-                                </button>
-                            ` : ''}
                         </div>
 
-                        <!-- Quick File Details Strip (Revealed / Enhanced on Hover) -->
-                        <div class="lib-card-hover-strip">
-                            <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                <span style="font-weight: 700; color: ${catBadge.accent};">${meta.typeLabel}</span>
-                                ${isDrive && item.driveFolderName ? `
-                                    <span style="color: #64748b;">• مجلد: <b style="color: #1e293b;">${item.driveFolderName}</b></span>
-                                ` : (isLocal && item.fileName) ? `
-                                    <span style="color: #64748b; direction: ltr;" title="${item.fileName}">• ${item.fileName}</span>
-                                ` : ''}
+                        ${isTemplate && item.templateObjectives ? `
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-right: 3px solid #0d9488; border-radius: 6px; padding: 7px 9px; font-size: 0.75rem; color: #334155; line-height: 1.45;">
+                                <div style="font-weight: 800; color: #0f766e; margin-bottom: 2px;">🎯 الأهداف التربوية للقالب:</div>
+                                <div style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${item.templateObjectives}</div>
                             </div>
-                            <span style="font-weight: 800; font-size: 0.72rem; color: #0f172a; white-space: nowrap; margin-right: 6px;">
-                                📦 ${meta.sizeLabel}
-                            </span>
-                        </div>
+                        ` : `
+                            <!-- Quick File Details Strip (Revealed / Enhanced on Hover) -->
+                            <div class="lib-card-hover-strip">
+                                <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    <span style="font-weight: 700; color: ${catBadge.accent};">${meta.typeLabel}</span>
+                                    ${isDrive && item.driveFolderName ? `
+                                        <span style="color: #64748b;">• مجلد: <b style="color: #1e293b;">${item.driveFolderName}</b></span>
+                                    ` : (isLocal && item.fileName) ? `
+                                        <span style="color: #64748b; direction: ltr;" title="${item.fileName}">• ${item.fileName}</span>
+                                    ` : ''}
+                                </div>
+                                <span style="font-weight: 800; font-size: 0.72rem; color: #0f172a; white-space: nowrap; margin-right: 6px;">
+                                    📦 ${meta.sizeLabel}
+                                </span>
+                            </div>
+                        `}
 
                         <!-- Date Added Tag -->
                         <div style="font-size: 0.74rem; color: #94a3b8; margin-top: auto; padding-top: 2px; display: flex; justify-content: space-between; align-items: center;">
                             <span>أضيف في: ${item.dateAdded || '-'}</span>
-                            <span style="font-size: 0.7rem; color: #64748b; font-weight: 600;">صيغة: <b>.${meta.ext.toLowerCase()}</b></span>
+                            <span style="font-size: 0.7rem; color: #64748b; font-weight: 600;">${isTemplate ? `⏱️ الحيز الزمني: <b>${item.templateDuration || 4} ساعات</b>` : `صيغة: <b>.${meta.ext.toLowerCase()}</b>`}</span>
                         </div>
 
                         <!-- Interactive Action Buttons -->
                         ${(() => {
+                            if (isTemplate && !item.url && !isLocal && !isDrive) {
+                                return `
+                                    <div style="display: flex; gap: 6px; margin-top: 4px;">
+                                        <button type="button" onclick="openLessonTemplateViewerModal('${item.id}')" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; background: linear-gradient(135deg, #0d9488, #0f766e); color: white; border: none; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-weight: 800;">
+                                            <span>📐</span>
+                                            <span>معاينة وطباعة قالب الدرس</span>
+                                        </button>
+                                        <button type="button" onclick="openCreateLessonTemplateModal('', '${item.id}')" style="display: flex; align-items: center; justify-content: center; gap: 4px; background: #f8fafc; color: #0f766e; border: 1px solid #99f6e4; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 700;" title="تعديل قالب الدرس">
+                                            <span>✏️</span>
+                                        </button>
+                                    </div>
+                                `;
+                            }
                             const isPdf = meta.isPdf;
                             const isVideo = meta.isVideo;
 
@@ -3119,6 +3186,11 @@
                                             <span>${isVideo ? lucideIcon('play', {size: 13}) : (isPdf ? lucideIcon('file-text', {size: 13}) : lucideIcon('eye', {size: 13}))}</span>
                                             <span>${isVideo ? 'تشغيل الفيديو' : (isPdf ? 'معاينة PDF' : 'معاينة')}</span>
                                         </button>
+                                        ${isTemplate ? `
+                                            <button type="button" onclick="openLessonTemplateViewerModal('${item.id}')" style="display: flex; align-items: center; justify-content: center; gap: 4px; background: #f0fdfa; color: #0f766e; border: 1px solid #5eead4; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-weight: 800;" title="بطاقة قالب الدرس">
+                                                <span>📐</span>
+                                            </button>
+                                        ` : ''}
                                         <button type="button" onclick="copyResourceLink('${safeUrl}', '${escapeHtml(item.title)}')" style="display: flex; align-items: center; justify-content: center; gap: 4px; background: #f8fafc; color: #1e293b; border: 1px solid #cbd5e1; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-weight: 600;" title="نسخ رابط المورد">
                                             <span>${lucideIcon('copy', {size: 12})}</span>
                                         </button>
@@ -3164,7 +3236,7 @@
                 btn.style.color = isOpen ? '#1d4ed8' : '#64748b';
             }
             if (txt) {
-                txt.textContent = isOpen ? 'إخفاء الشريط' : 'الشريط الجانبي للنمو';
+                txt.textContent = isOpen ? 'إخفاء اللوحة الجانبية' : 'اللوحة الجانبية';
             }
             try {
                 localStorage.setItem('lib_sidebar_open', isOpen ? 'true' : 'false');
@@ -3172,7 +3244,11 @@
 
             if (isOpen) {
                 setTimeout(() => {
-                    renderLibraryGrowthAnalytics();
+                    if (window.currentBrowseSidebarMode === 'analytics') {
+                        renderLibraryGrowthAnalytics();
+                    } else if (typeof renderBrowseLessonSidePanel === 'function') {
+                        renderBrowseLessonSidePanel();
+                    }
                 }, 50);
             }
         }
@@ -3181,72 +3257,56 @@
         function switchLibrarySubTab(tab) {
             currentLibSubTab = tab || 'browse';
             const browsePane = document.getElementById('libBrowseTabPane');
+            const lessonResourcesPane = document.getElementById('libLessonResourcesTabPane');
+            const curPane = document.getElementById("libCurriculumTabPane");
             const analyticsPane = document.getElementById('libAnalyticsTabPane');
+
             const btnBrowse = document.getElementById('btnLibTabBrowse');
+            const btnLessonRes = document.getElementById('btnLibTabLessonResources');
+            const btnCur = document.getElementById("btnLibTabCurriculum");
             const btnAnalytics = document.getElementById('btnLibTabAnalytics');
             const sidebarBtn = document.getElementById('btnToggleLibSidebar');
+            const lessonSideBtn = document.getElementById('btnToggleLibLessonSidePanel');
 
-            const curPane = document.getElementById("libCurriculumTabPane");
-            const btnCur = document.getElementById("btnLibTabCurriculum");
-            if (curPane) curPane.style.display = (tab === "curriculum") ? "block" : "none";
-            if (btnCur) {
-                const isCur = (tab === "curriculum");
-                btnCur.style.background = isCur ? "#0284c7" : "transparent";
-                btnCur.style.color = isCur ? "#ffffff" : "#475569";
-                btnCur.style.boxShadow = isCur ? "0 2px 6px rgba(2,132,199,0.25)" : "none";
-                btnCur.style.fontWeight = isCur ? "800" : "700";
+            const setBtnState = (btn, active, activeBg, activeShadow, inactiveColor) => {
+                if (!btn) return;
+                btn.style.background = active ? activeBg : 'transparent';
+                btn.style.color = active ? '#ffffff' : (inactiveColor || '#475569');
+                btn.style.boxShadow = active ? activeShadow : 'none';
+                btn.style.fontWeight = active ? '800' : '700';
+            };
+
+            if (browsePane) browsePane.style.display = (currentLibSubTab === 'browse') ? 'block' : 'none';
+            if (lessonResourcesPane) lessonResourcesPane.style.display = (currentLibSubTab === 'lesson_resources') ? 'block' : 'none';
+            if (curPane) curPane.style.display = (currentLibSubTab === 'curriculum') ? 'block' : 'none';
+            if (analyticsPane) analyticsPane.style.display = (currentLibSubTab === 'analytics') ? 'block' : 'none';
+
+            setBtnState(btnBrowse, currentLibSubTab === 'browse', '#2563eb', '0 2px 6px rgba(37,99,235,0.25)');
+            setBtnState(btnLessonRes, currentLibSubTab === 'lesson_resources', '#0d9488', '0 2px 6px rgba(13,148,136,0.28)', '#0f766e');
+            setBtnState(btnCur, currentLibSubTab === 'curriculum', '#0284c7', '0 2px 6px rgba(2,132,199,0.25)');
+            setBtnState(btnAnalytics, currentLibSubTab === 'analytics', '#2563eb', '0 2px 6px rgba(37,99,235,0.25)');
+
+            if (sidebarBtn) {
+                sidebarBtn.style.display = (currentLibSubTab === 'browse') ? 'inline-flex' : 'none';
             }
-            if (tab === "curriculum") {
-                if (browsePane) browsePane.style.display = "none";
-                if (analyticsPane) analyticsPane.style.display = "none";
-                if (btnBrowse) { btnBrowse.style.background = "transparent"; btnBrowse.style.color = "#475569"; btnBrowse.style.boxShadow = "none"; btnBrowse.style.fontWeight = "700"; }
-                if (btnAnalytics) { btnAnalytics.style.background = "transparent"; btnAnalytics.style.color = "#475569"; btnAnalytics.style.boxShadow = "none"; btnAnalytics.style.fontWeight = "700"; }
-                if (sidebarBtn) sidebarBtn.style.display = "none";
-                if (typeof window.renderAnnualCurriculumView === "function") {
+            if (lessonSideBtn) {
+                lessonSideBtn.style.display = (currentLibSubTab === 'browse') ? 'inline-flex' : 'none';
+            }
+
+            if (currentLibSubTab === 'curriculum') {
+                if (typeof window.renderAnnualCurriculumView === 'function') {
                     window.renderAnnualCurriculumView();
                 }
-                if (window.lucide) window.lucide.createIcons();
-                return;
-            }
-            if (currentLibSubTab === 'analytics') {
-                if (browsePane) browsePane.style.display = 'none';
-                if (analyticsPane) analyticsPane.style.display = 'block';
-
-                if (btnBrowse) {
-                    btnBrowse.style.background = 'transparent';
-                    btnBrowse.style.color = '#475569';
-                    btnBrowse.style.boxShadow = 'none';
-                    btnBrowse.style.fontWeight = '700';
-                }
-                if (btnAnalytics) {
-                    btnAnalytics.style.background = '#2563eb';
-                    btnAnalytics.style.color = '#ffffff';
-                    btnAnalytics.style.boxShadow = '0 2px 6px rgba(37,99,235,0.25)';
-                    btnAnalytics.style.fontWeight = '800';
-                }
-                if (sidebarBtn) sidebarBtn.style.display = 'none';
-
+            } else if (currentLibSubTab === 'analytics') {
                 renderLibraryGrowthAnalytics();
+            } else if (currentLibSubTab === 'lesson_resources') {
+                if (typeof renderLessonLinkedResourcesView === 'function') {
+                    renderLessonLinkedResourcesView();
+                }
             } else {
-                if (browsePane) browsePane.style.display = 'block';
-                if (analyticsPane) analyticsPane.style.display = 'none';
-
-                if (btnBrowse) {
-                    btnBrowse.style.background = '#2563eb';
-                    btnBrowse.style.color = '#ffffff';
-                    btnBrowse.style.boxShadow = '0 2px 6px rgba(37,99,235,0.25)';
-                    btnBrowse.style.fontWeight = '800';
-                }
-                if (btnAnalytics) {
-                    btnAnalytics.style.background = 'transparent';
-                    btnAnalytics.style.color = '#475569';
-                    btnAnalytics.style.boxShadow = 'none';
-                    btnAnalytics.style.fontWeight = '700';
-                }
-                if (sidebarBtn) sidebarBtn.style.display = 'inline-flex';
-
                 renderLibrary();
             }
+
             if (window.lucide) window.lucide.createIcons();
         }
         window.switchLibrarySubTab = switchLibrarySubTab;
@@ -3598,6 +3658,13 @@
 
             // 4. Sidebar Chart.js (Interactive Doughnut / Bar)
             const sidebarCanvas = document.getElementById('libSidebarCategoryChart');
+            if (typeof Chart === 'undefined' && (sidebarCanvas || document.getElementById('libGrowthCategoryChart') || document.getElementById('libGrowthLevelsChart'))) {
+                const hostCanvas = sidebarCanvas || document.getElementById('libGrowthCategoryChart') || document.getElementById('libGrowthLevelsChart');
+                if (hostCanvas && typeof window.ensureChartJsLoaded === 'function' && !hostCanvas.dataset.chartLoading) {
+                    hostCanvas.dataset.chartLoading = '1';
+                    window.ensureChartJsLoaded().then(c => { if (c) renderLibraryGrowthAnalytics(); });
+                }
+            }
             if (sidebarCanvas && typeof Chart !== 'undefined') {
                 if (libSidebarChartInst && (libSidebarChartInst.canvas !== sidebarCanvas || libSidebarChartInst.config.type !== libGrowthVisualType)) {
                     try { libSidebarChartInst.destroy(); } catch (e) {}
@@ -4124,7 +4191,7 @@
             const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
 
             if (!isJson && !isExcel) {
-                alert('يرجى اختيار ملف بصيغة JSON أو Excel (.xlsx / .xls)');
+                window.notifySafeToast('يرجى اختيار ملف بصيغة JSON أو Excel (.xlsx / .xls)');
                 input.value = '';
                 return;
             }
@@ -4137,7 +4204,7 @@
                         const parsed = JSON.parse(e.target.result);
                         const items = Array.isArray(parsed) ? parsed : (parsed.library || parsed.resources || []);
                         if (!Array.isArray(items) || items.length === 0) {
-                            alert('لم يتم العثور على قائمة موارد صالحة في ملف JSON.');
+                            window.notifySafeToast('لم يتم العثور على قائمة موارد صالحة في ملف JSON.');
                             return;
                         }
                         let addedCount = 0;
@@ -4160,17 +4227,24 @@
                         });
                         saveDB();
                         renderLibrary();
-                        alert(`تم استيراد ${addedCount} مورد تعليمي بنجاح من ملف JSON.`);
+                        window.notifySafeToast(`تم استيراد ${addedCount} مورد تعليمي بنجاح من ملف JSON.`);
                     } catch(err) {
-                        alert('حدث خطأ أثناء قراءة ملف JSON: ' + err.message);
+                        window.notifySafeToast('حدث خطأ أثناء قراءة ملف JSON: ' + err.message);
                     } finally {
                         input.value = '';
                     }
                 };
                 reader.readAsText(file);
             } else if (isExcel) {
-                reader.onload = function(e) {
+                reader.onload = async function(e) {
                     try {
+                        if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                            await window.ensureXlsxLoaded();
+                        }
+                        if (typeof XLSX === 'undefined') {
+                            window.notifySafeToast('مكتبة معالجة Excel غير متوفرة حالياً.');
+                            return;
+                        }
                         const data = new Uint8Array(e.target.result);
                         const workbook = XLSX.read(data, { type: 'array' });
                         const firstSheetName = workbook.SheetNames[0];
@@ -4178,7 +4252,7 @@
                         const rows = XLSX.utils.sheet_to_json(worksheet);
 
                         if (!rows || rows.length === 0) {
-                            alert('ورقة Excel فارغة.');
+                            window.notifySafeToast('ورقة Excel فارغة.');
                             return;
                         }
 
@@ -4212,9 +4286,9 @@
 
                         saveDB();
                         renderLibrary();
-                        alert(`تم استيراد ${addedCount} مورد تعليمي بنجاح من جدول Excel.`);
+                        window.notifySafeToast(`تم استيراد ${addedCount} مورد تعليمي بنجاح من جدول Excel.`);
                     } catch(err) {
-                        alert('حدث خطأ أثناء قراءة ملف Excel: ' + err.message);
+                        window.notifySafeToast('حدث خطأ أثناء قراءة ملف Excel: ' + err.message);
                     } finally {
                         input.value = '';
                     }
@@ -4251,7 +4325,7 @@
 
             if (!title && !fileName) {
                 if (forceManual) {
-                    alert('يرجى كتابة عنوان المورد أو اختيار ملف أولاً ليتمكن الذكاء الاصطناعي من تحليله واقتراح المحور المناسب.');
+                    window.notifySafeToast('يرجى كتابة عنوان المورد أو اختيار ملف أولاً ليتمكن الذكاء الاصطناعي من تحليله واقتراح المحور المناسب.');
                 }
                 return;
             }
@@ -4451,27 +4525,30 @@
                 const res = data.result;
 
                 if (!res || !res.suggestedTopic) {
-                    alert('لم يتم التوصل إلى اقتراح مناسب لهذا المورد.');
+                    window.notifySafeToast('لم يتم التوصل إلى اقتراح مناسب لهذا المورد.');
                     return;
                 }
 
-                const userTopic = prompt(
-                    `✨ نتيجة التحليل الذكي للمورد:\n"${item.title}"\n\nالمحور المقترح: ${res.suggestedTopic}\nالمستوى المقترح: ${res.suggestedLevel || 'عام'}\n\nيمكنك تأكيد المحور أو كتابة محور بديل:`,
-                    res.suggestedTopic
-                );
-
-                if (userTopic !== null && userTopic.trim() !== '') {
-                    item.topic = userTopic.trim();
-                    if (res.suggestedLevel && res.suggestedLevel !== 'عام' && (!item.level || item.level === 'عام')) {
-                        item.level = res.suggestedLevel;
+                const applySuggestedTopic = (userTopic) => {
+                    if (userTopic !== null && userTopic !== undefined && String(userTopic).trim() !== '') {
+                        item.topic = String(userTopic).trim();
+                        if (res.suggestedLevel && res.suggestedLevel !== 'عام' && (!item.level || item.level === 'عام')) {
+                            item.level = res.suggestedLevel;
+                        }
+                        saveDB();
+                        renderLibrary();
+                        window.notifySafeToast(`✓ تم تحديث تصنيف المورد بنجاح: "${item.topic}"`);
                     }
-                    saveDB();
-                    renderLibrary();
-                    alert(`✓ تم تحديث تصنيف المورد بنجاح: "${item.topic}"`);
+                };
+                const msg = `✨ نتيجة التحليل الذكي للمورد:\n"${item.title}"\n\nالمحور المقترح: ${res.suggestedTopic}\nالمستوى المقترح: ${res.suggestedLevel || 'عام'}\n\nيمكنك تأكيد المحور أو كتابة محور بديل:`;
+                if (typeof window.showInputDialog === 'function') {
+                    window.showInputDialog(msg, res.suggestedTopic, applySuggestedTopic, { title: 'تأكيد التصنيف الذكي للمورد' });
+                } else {
+                    applySuggestedTopic(res.suggestedTopic);
                 }
             } catch (err) {
                 console.error(err);
-                alert('حدث خطأ أثناء التصنيف الذكي: ' + err.message);
+                window.notifySafeToast('حدث خطأ أثناء التصنيف الذكي: ' + err.message);
             }
         }
 
@@ -4609,7 +4686,7 @@
             const selectedIds = Array.from(checkboxes).map(cb => cb.getAttribute('data-id'));
 
             if (selectedIds.length === 0) {
-                alert('يرجى تحديد مورد واحد على الأقل من الجدول لبدء التحليل والتصنيف.');
+                window.notifySafeToast('يرجى تحديد مورد واحد على الأقل من الجدول لبدء التحليل والتصنيف.');
                 return;
             }
 
@@ -4745,9 +4822,9 @@
                 saveDB();
                 renderLibrary();
                 closeBatchAiClassificationModal();
-                alert(`✓ تم بنجاح اعتماد وتطبيق التصنيف الذكي لـ ${updatedCount} مورد في المكتبة!`);
+                window.notifySafeToast(`✓ تم بنجاح اعتماد وتطبيق التصنيف الذكي لـ ${updatedCount} مورد في المكتبة!`);
             } else {
-                alert('لم يتم تحديد أي تصنيفات لحفظها.');
+                window.notifySafeToast('لم يتم تحديد أي تصنيفات لحفظها.');
             }
         }
 
@@ -4888,6 +4965,76 @@
             return months;
         };
 
+        window.getStudentPackStatus = function(std, refMonth) {
+            if (!std || (std.billingMode || std.billingType) !== 'session_pack') return null;
+            const packSize = Math.max(1, parseInt(std.packSessions, 10) || 4);
+            const packPrice = parseFloat(std.packPrice) || ((parseFloat(std.fee) || 0) * packSize);
+            const targetMonth = refMonth || (document.getElementById('tutoringMonth') ? document.getElementById('tutoringMonth').value : (window.formatLocalMonth ? window.formatLocalMonth() : new Date().toISOString().slice(0, 7)));
+            const cutoffEnd = targetMonth ? (targetMonth + '-31') : '9999-12-31';
+            const cutoffPrev = targetMonth ? (targetMonth + '-01') : '0000-01-01';
+            const startDate = (std.packStartDate && /^\d{4}-\d{2}-\d{2}$/.test(std.packStartDate)) ? std.packStartDate : '';
+            const archivedSet = new Set(Array.isArray(std.packArchivedIds) ? std.packArchivedIds : []);
+
+            const allValidSessions = (std.sessions || [])
+                .filter(s => s && s.date && s.attendance !== 'absent' && !archivedSet.has(s.id) && (!startDate || s.date >= startDate))
+                .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || ''));
+
+            const upToMonth = allValidSessions.filter(s => s.date <= cutoffEnd);
+            const beforeMonth = allValidSessions.filter(s => s.date < cutoffPrev);
+
+            const cumAttended = upToMonth.length;
+            const prevAttended = beforeMonth.length;
+            const cumCycles = cumAttended > 0 ? Math.ceil(cumAttended / packSize) : 0;
+            const prevCycles = prevAttended > 0 ? Math.ceil(prevAttended / packSize) : 0;
+            const cyclesStartedInMonth = Math.max(0, cumCycles - prevCycles);
+
+            const usedInCurrentPack = cumAttended === 0 ? 0 : (((cumAttended - 1) % packSize) + 1);
+            const remaining = cumAttended === 0 ? packSize : Math.max(0, packSize - usedInCurrentPack);
+            const currentCycle = Math.max(1, cumCycles || 1);
+
+            return {
+                packSize,
+                packPrice,
+                startDate,
+                cumAttended,
+                usedInCurrentPack,
+                remaining,
+                currentCycle,
+                cyclesStartedInMonth,
+                isLow: remaining <= 1,
+                isDepleted: cumAttended > 0 && remaining === 0
+            };
+        };
+
+        window.renewStudentSessionPack = function(studentId, openPaymentAfter = false) {
+            if (!db || !db.tutoring || !Array.isArray(db.tutoring.students)) return;
+            const std = db.tutoring.students.find(s => s.id === studentId);
+            if (!std) return;
+            const todayStr = window.formatLocalDate ? window.formatLocalDate() : new Date().toISOString().slice(0, 10);
+            const archived = new Set(Array.isArray(std.packArchivedIds) ? std.packArchivedIds : []);
+            (std.sessions || []).forEach(s => {
+                if (s && s.id && s.date && s.date <= todayStr) {
+                    archived.add(s.id);
+                }
+            });
+            std.packArchivedIds = Array.from(archived);
+            std.packStartDate = todayStr;
+            std.packRenewedAt = new Date().toISOString();
+            if (typeof saveDB === 'function') saveDB();
+            if (typeof renderTutoringStudents === 'function') renderTutoringStudents();
+            const profileModal = document.getElementById('tutoringStudentProfileModal');
+            if (profileModal && profileModal.style.display !== 'none' && window.currentViewingStudentId === studentId && typeof window.openTutoringStudentProfileModal === 'function') {
+                window.openTutoringStudentProfileModal(studentId);
+            }
+            if (typeof window.notifySafeToast === 'function') {
+                window.notifySafeToast(`📦 تم تجديد باقة الحصص للتلميذ(ة) ${std.name} (${std.packSessions || 4} حصص جديدة اعتباراً من ${todayStr})`);
+            }
+            if (openPaymentAfter && typeof window.openTutoringPaymentModal === 'function') {
+                const curMonth = (document.getElementById('tutoringMonth') && document.getElementById('tutoringMonth').value) || todayStr.slice(0, 7);
+                window.openTutoringPaymentModal(studentId, curMonth);
+            }
+        };
+
         window.computeTutoringStudentMonthDue = function(std, month) {
             if (!std || !month) return 0;
             const sessions = (std.sessions || []).filter(s => s && s.date && s.date.startsWith(month) && s.attendance !== 'absent');
@@ -4910,8 +5057,20 @@
             } else if (mode === 'session_pack') {
                 const packSize = Math.max(1, parseInt(std.packSessions, 10) || 4);
                 const basePack = parseFloat(std.packPrice) || ((parseFloat(std.fee) || 0) * packSize);
-                const packsCount = attendedSessionsCount > 0 ? Math.ceil(attendedSessionsCount / packSize) : (hasPayRecord ? 1 : 0);
-                baseDue = basePack * packsCount;
+                const packStatus = window.getStudentPackStatus(std, month);
+                const startDate = (std.packStartDate && /^\d{4}-\d{2}-\d{2}$/.test(std.packStartDate)) ? std.packStartDate : '';
+                if (startDate && (month + '-31') < startDate) {
+                    const historicalPacks = attendedSessionsCount > 0 ? Math.ceil(attendedSessionsCount / packSize) : (hasPayRecord ? 1 : 0);
+                    baseDue = basePack * historicalPacks;
+                } else if (packStatus) {
+                    const packsCount = packStatus.cyclesStartedInMonth > 0
+                        ? packStatus.cyclesStartedInMonth
+                        : (hasPayRecord && packStatus.cumAttended === 0 ? 1 : 0);
+                    baseDue = basePack * packsCount;
+                } else {
+                    const packsCount = attendedSessionsCount > 0 ? Math.ceil(attendedSessionsCount / packSize) : (hasPayRecord ? 1 : 0);
+                    baseDue = basePack * packsCount;
+                }
             } else {
                 baseDue = monthHours * (parseFloat(std.fee) || 0);
             }
@@ -5051,9 +5210,12 @@
             };
 
             if (mode === 'session_pack') {
-                const packSize = Math.max(1, parseInt(std.packSessions, 10) || 4);
-                result.packSize = packSize;
-                result.packRemaining = Math.max(0, packSize - (attendedSessionsCount % packSize || (attendedSessionsCount > 0 ? packSize : 0)));
+                const packStatus = window.getStudentPackStatus(std, month);
+                result.packSize = packStatus ? packStatus.packSize : Math.max(1, parseInt(std.packSessions, 10) || 4);
+                result.packRemaining = packStatus ? packStatus.remaining : Math.max(0, result.packSize - attendedSessionsCount);
+                result.packUsed = packStatus ? packStatus.usedInCurrentPack : attendedSessionsCount;
+                result.packCycle = packStatus ? packStatus.currentCycle : 1;
+                result.packIsLow = packStatus ? packStatus.isLow : (result.packRemaining <= 1);
             }
 
             return result;
@@ -5224,7 +5386,8 @@
                 const currentGroupValue = filterGroupSelect.value;
                 let groupOptions = '<option value="all">كل المجموعات</option>';
                 Array.from(groups).sort().forEach(grp => {
-                    groupOptions += `<option value="${grp}">${grp}</option>`;
+                    const safeGrp = escapeTutoringHtml(grp);
+                    groupOptions += `<option value="${safeGrp}">${safeGrp}</option>`;
                 });
 
                 filterGroupSelect.innerHTML = groupOptions;
@@ -5233,7 +5396,7 @@
                 }
             }
             if (groupDatalist) {
-                groupDatalist.innerHTML = Array.from(groups).sort().map(grp => `<option value="${grp}">`).join('');
+                groupDatalist.innerHTML = Array.from(groups).sort().map(grp => `<option value="${escapeTutoringHtml(grp)}">`).join('');
             }
 
             const searchInput = document.getElementById('tutoringSearchInput');
@@ -5262,7 +5425,7 @@
                 allStudentsInScope = allStudentsInScope.filter(s => s.group === groupFilter);
             }
 
-            // Calculate overall counts for group in this month (for quick filter badges)
+            // Calculate overall counts and global KPIs for Group+Month scope (unaffected by search/payment filters)
             let totalGroupCount = allStudentsInScope.length;
             let unpaidGroupCount = 0;
             let partialGroupCount = 0;
@@ -5273,7 +5436,19 @@
                 if (pInfo.status === 'paid') paidGroupCount++;
                 else if (pInfo.status === 'partial') partialGroupCount++;
                 else unpaidGroupCount++;
+
+                grandTotal += pInfo.totalDue || 0;
+                collectedTotal += pInfo.paidAmount || 0;
+                unpaidTotal += pInfo.remaining || 0;
+                totalStudentsCount++;
+                totalHoursAll += pInfo.monthHours || 0;
+                if (pInfo.remaining > 0) pendingStudentsCount++;
             });
+
+            grandTotal = Math.round(grandTotal * 100) / 100;
+            collectedTotal = Math.round(collectedTotal * 100) / 100;
+            unpaidTotal = Math.round(unpaidTotal * 100) / 100;
+            totalHoursAll = Math.round(totalHoursAll * 100) / 100;
 
             // Update Quick Filter Count Badges
             const pillCountAll = document.getElementById('tutoringPillCountAll');
@@ -5431,21 +5606,69 @@
             const cardsContainer = document.getElementById('tutoringCardsContainer');
             if (cardsContainer) cardsContainer.innerHTML = '';
 
+            const filteredStrip = document.getElementById('tutoringFilteredSummaryStrip');
+            const isNarrowFilterActive = Boolean(searchVal || paymentFilter !== 'all');
+            if (filteredStrip) {
+                if (isNarrowFilterActive) {
+                    const filtDue = Math.round(studentStats.reduce((s, it) => s + (it.due || 0), 0) * 100) / 100;
+                    const filtPaid = Math.round(studentStats.reduce((s, it) => s + (it.payInfo.paidAmount || 0), 0) * 100) / 100;
+                    const filtRem = Math.round(studentStats.reduce((s, it) => s + (it.payInfo.remaining || 0), 0) * 100) / 100;
+                    const filtHours = Math.round(studentStats.reduce((s, it) => s + (it.hours || 0), 0) * 100) / 100;
+                    filteredStrip.style.display = 'flex';
+                    filteredStrip.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <span style="font-weight:900; color:#1d4ed8;">🔍 نتائج التصفية الحالية: <b>${studentStats.length}</b> من أصل ${totalGroupCount} تلميذ</span>
+                            <span style="color:#64748b;">•</span>
+                            <span>الساعات: <b>${filtHours} س</b></span>
+                            <span style="color:#64748b;">•</span>
+                            <span>المستحق: <b>${filtDue} د.م</b></span>
+                            <span style="color:#64748b;">•</span>
+                            <span style="color:#15803d;">المؤدى: <b>${filtPaid} د.م</b></span>
+                            <span style="color:#64748b;">•</span>
+                            <span style="color:#b91c1c;">المتبقي: <b>${filtRem} د.م</b></span>
+                        </div>
+                        <button type="button" onclick="const si=document.getElementById('tutoringSearchInput'); if(si) si.value=''; const pf=document.getElementById('tutoringPaymentFilter'); if(pf) pf.value='all'; renderTutoringStudents();" style="background:#fff; border:1px solid #93c5fd; color:#1d4ed8; padding:3px 10px; border-radius:6px; font-size:0.75rem; font-weight:800; cursor:pointer;">✕ مسح التصفية</button>
+                    `;
+                } else {
+                    filteredStrip.style.display = 'none';
+                    filteredStrip.innerHTML = '';
+                }
+            }
+
             if (studentStats.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:45px 20px; color:#64748b; font-size:1.05rem;"><span class="ui-icon" style="margin-bottom:10px; opacity:0.5;"><span data-lucide="inbox" data-size="36"></span></span><br>لا يوجد أي تلميذ مطابق للمعايير المحددة لهذا الشهر.</td></tr>`;
                 if (cardsContainer) cardsContainer.innerHTML = `<div style="text-align:center; padding:45px 20px; color:#64748b; font-size:1.05rem; background: #fff; border-radius: 12px; border: 1px solid #e2e8f0;"><span class="ui-icon" style="margin-bottom:10px; opacity:0.5;"><span data-lucide="inbox" data-size="36"></span></span><br>لا يوجد أي تلميذ مطابق للمعايير المحددة لهذا الشهر.</div>`;
 
-                if (revenueElement) revenueElement.textContent = '0';
-                if (collectedRevenueElement) collectedRevenueElement.textContent = '0';
-                if (unpaidRevenueElement) unpaidRevenueElement.textContent = '0';
-                if (unpaidCountBadge) unpaidCountBadge.textContent = '(0 تلميذ)';
-                if (totalStudentsElement) totalStudentsElement.textContent = '0';
-                if (totalHoursElement) totalHoursElement.textContent = '0';
-                if (collectionRateLabel) collectionRateLabel.textContent = '0%';
-                if (progressBarFill) progressBarFill.style.width = '0%';
+                const collectionRateEmpty = grandTotal > 0 ? Math.round((collectedTotal / grandTotal) * 100) : 0;
+                if (revenueElement) revenueElement.textContent = grandTotal;
+                if (collectedRevenueElement) collectedRevenueElement.textContent = collectedTotal;
+                if (unpaidRevenueElement) unpaidRevenueElement.textContent = unpaidTotal;
+                if (unpaidCountBadge) unpaidCountBadge.textContent = '(' + pendingStudentsCount + ' تلميذ)';
+                if (totalStudentsElement) totalStudentsElement.textContent = totalStudentsCount;
+                if (totalHoursElement) totalHoursElement.textContent = totalHoursAll;
+                if (collectionRateLabel) collectionRateLabel.textContent = collectionRateEmpty + '%';
+                if (progressBarFill) progressBarFill.style.width = collectionRateEmpty + '%';
+
+                const allTimeRevenueElement = document.getElementById('tutoringAllTimeCollectedRevenue');
+                if (allTimeRevenueElement) {
+                    const summary = window.computeTutoringNetProfitSummary ? window.computeTutoringNetProfitSummary(month) : { allTimeCollected: 0 };
+                    allTimeRevenueElement.textContent = summary.allTimeCollected;
+                }
 
                 const alertBanner = document.getElementById('tutoringOutstandingAlertBanner');
-                if (alertBanner) alertBanner.style.display = 'none';
+                const alertText = document.getElementById('tutoringOutstandingAlertText');
+                if (alertBanner && alertText) {
+                    if (unpaidTotal > 0) {
+                        alertBanner.style.display = 'flex';
+                        alertText.textContent = `توجد مبالغ مستحقة ومتبقية بذمة ${pendingStudentsCount} تلاميذ بمجموع ${unpaidTotal} درهم لهذا الشهر (${month}) لم يتم استخلاصها بعد.`;
+                    } else {
+                        alertBanner.style.display = 'none';
+                    }
+                }
+
+                if (typeof window.updateTutoringBatchBar === 'function') {
+                    window.updateTutoringBatchBar();
+                }
 
                 setTimeout(() => { if (window.renderLucide) window.renderLucide(); }, 50);
                 return;
@@ -5459,15 +5682,21 @@
                 const totalDue = item.due;
                 const payInfo = item.payInfo;
 
-                // Update totals
-                grandTotal += totalDue;
-                totalStudentsCount++;
-                totalHoursAll += totalHours;
-                collectedTotal += payInfo.paidAmount;
-                unpaidTotal += payInfo.remaining;
-                if (payInfo.remaining > 0) {
-                    pendingStudentsCount++;
-                }
+                const safeName = escapeTutoringHtml(std.name || '');
+                const safeGroup = escapeTutoringHtml(std.group || '-');
+                const safePhone = escapeTutoringHtml(std.phone || '');
+                const monthResourcesCount = (std.sessions || [])
+                    .filter(s => s && s.date && s.date.startsWith(month) && Array.isArray(s.attachedResources))
+                    .reduce((cnt, s) => cnt + s.attachedResources.length, 0);
+                const lastNotifiedChip = std.lastNotifiedAt
+                    ? `<span style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0; padding:1px 6px; border-radius:99px; font-size:0.66rem; font-weight:700;" title="آخر إشعار واتساب بتاريخ ${escapeTutoringHtml(String(std.lastNotifiedAt).slice(0, 10))}">📲 أُشعر ${escapeTutoringHtml(String(std.lastNotifiedAt).slice(5, 10))}</span>`
+                    : '';
+                const renewPackChip = (payInfo.billingMode === 'session_pack' && payInfo.packIsLow)
+                    ? `<button type="button" onclick="event.stopPropagation(); if(window.renewStudentSessionPack) window.renewStudentSessionPack('${std.id}');" style="background:#fef2f2; color:#dc2626; border:1px solid #fca5a5; padding:1px 7px; border-radius:99px; font-size:0.67rem; font-weight:800; cursor:pointer;" title="تجديد باقة الحصص وبدء دورة جديدة من اليوم">🔄 تجديد الباقة</button>`
+                    : '';
+                const resChip = monthResourcesCount > 0
+                    ? `<span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:1px 6px; border-radius:99px; font-size:0.66rem; font-weight:800;" title="موارد رقمية مرفقة بحصص هذا الشهر">📚 ${monthResourcesCount} مورد</span>`
+                    : '';
 
                 // Table row
                 const tr = document.createElement('tr');
@@ -5545,7 +5774,7 @@
                         <div style="display:flex; align-items:center; gap:12px;">
                             <div style="position:relative; width:40px; height:40px; flex-shrink:0;">
                                 <div style="width:100%; height:100%; border-radius:50%; background:${statusCfg.avatarBg}; color:${statusCfg.avatarColor}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.15rem; border:2px solid ${statusCfg.borderColor}; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-                                    ${(std.name || 'ت').charAt(0)}
+                                    ${escapeTutoringHtml((std.name || 'ت').charAt(0))}
                                 </div>
                                 <span style="position:absolute; bottom:-3px; left:-3px; width:18px; height:18px; border-radius:50%; background:${statusCfg.accentColor}; color:#ffffff; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.25); border:2px solid #ffffff;" title="حالة الأداء المالي: ${statusCfg.longLabel}">
                                     <span class="ui-icon" style="margin:0; color:#ffffff;"><span data-lucide="${statusCfg.subIcon}" data-size="10"></span></span>
@@ -5553,21 +5782,24 @@
                             </div>
                             <div style="min-width:0;">
                                 <div style="display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
-                                    <a href="javascript:void(0)" onclick="openTutoringStudentProfileModal('${std.id}')" style="font-weight:800; font-size:0.96rem; color:#1e293b; text-decoration:none;" onmouseover="this.style.color='#2563eb'" onmouseout="this.style.color='#1e293b'">${std.name}</a>
+                                    <a href="javascript:void(0)" onclick="openTutoringStudentProfileModal('${std.id}')" style="font-weight:800; font-size:0.96rem; color:#1e293b; text-decoration:none;" onmouseover="this.style.color='#2563eb'" onmouseout="this.style.color='#1e293b'">${safeName}</a>
                                     <span class="tutoring-status-tag ${statusCfg.key}" style="display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:0.72rem; font-weight:800; background:${statusCfg.bgColor}; color:${statusCfg.color}; border:1px solid ${statusCfg.borderColor}; white-space:nowrap;" title="حالة الأداء المالي لشهر ${month}: ${statusCfg.longLabel}">
                                         <span class="ui-icon" style="margin:0; color:${statusCfg.accentColor};"><span data-lucide="${statusCfg.icon}" data-size="12"></span></span>
                                         <span>${statusCfg.label}</span>
                                         ${statusCfg.key === 'partial' ? `<span style="font-size:0.68rem; opacity:0.9; font-family:monospace;">${payInfo.progressPercent}%</span>` : ''}
                                     </span>
+                                    ${lastNotifiedChip}
+                                    ${resChip}
+                                    ${renewPackChip}
                                 </div>
-                                <div style="font-size:0.75rem; color:#64748b; margin-top:2px;" dir="ltr">${std.phone || ''}</div>
+                                <div style="font-size:0.75rem; color:#64748b; margin-top:2px;" dir="ltr">${safePhone}</div>
                             </div>
                         </div>
                     </td>
                     <td style="padding: 12px 14px; color:#475569;">
-                        <span class="tutoring-chip" style="background: #f1f5f9; color:#334155; font-size: 0.85rem;">${std.group || '-'}</span>
+                        <span class="tutoring-chip" style="background: #f1f5f9; color:#334155; font-size: 0.85rem;">${safeGroup}</span>
                     </td>
-                    <td style="padding: 12px 14px; text-align: center; color:#475569; font-family:monospace; font-size:0.92rem;" dir="ltr">${std.phone || '-'}</td>
+                    <td style="padding: 12px 14px; text-align: center; color:#475569; font-family:monospace; font-size:0.92rem;" dir="ltr">${safePhone || '-'}</td>
                     <td style="padding: 12px 14px; text-align: center; font-weight:bold; color:#0f172a;">${hourlyRate} د.م</td>
                     <td style="padding: 12px 14px; text-align: center; font-weight:bold; color:#3b82f6;">
                         <span style="background: #eff6ff; padding: 4px 10px; border-radius: 20px; font-size:0.85rem;">${totalHours} س</span>
@@ -5603,9 +5835,9 @@
                         let cleanP = std.phone.replace(/[^0-9]/g, '');
                         if (cleanP.startsWith('0')) cleanP = '212' + cleanP.substring(1);
                         cardPhoneDisplay = `
-                            <a href="tel:${std.phone}" style="color: #64748b; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem;" dir="ltr">
+                            <a href="tel:${safePhone}" style="color: #64748b; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem;" dir="ltr">
                                 <span class="ui-icon" style="color: #3b82f6;"><span data-lucide="phone" data-size="12"></span></span>
-                                ${std.phone}
+                                ${safePhone}
                             </a>
                         `;
                     }
@@ -5653,7 +5885,7 @@
                         <div class="tutoring-card-header">
                             <div style="position: relative; width: 44px; height: 44px; flex-shrink: 0;">
                                 <div style="width: 100%; height: 100%; border-radius: 50%; background: ${statusCfg.avatarBg}; color: ${statusCfg.avatarColor}; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.25rem; border: 2px solid ${statusCfg.borderColor}; box-shadow: 0 2px 4px rgba(0,0,0,0.06);">
-                                    ${(std.name || 'ت').charAt(0)}
+                                    ${escapeTutoringHtml((std.name || 'ت').charAt(0))}
                                 </div>
                                 <span style="position: absolute; bottom: -3px; left: -3px; width: 20px; height: 20px; border-radius: 50%; background: ${statusCfg.accentColor}; color: #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.25); border: 2px solid #ffffff;" title="حالة الأداء: ${statusCfg.longLabel}">
                                     <span class="ui-icon" style="margin: 0; color: #ffffff;"><span data-lucide="${statusCfg.subIcon}" data-size="11"></span></span>
@@ -5662,14 +5894,17 @@
                             <div style="flex: 1; min-width: 0;">
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
                                     <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                        <a href="javascript:void(0)" onclick="openTutoringStudentProfileModal('${std.id}')" style="font-weight: 800; color: #0f172a; font-size: 1.05rem; text-decoration: none;">${std.name}</a>
+                                        <a href="javascript:void(0)" onclick="openTutoringStudentProfileModal('${std.id}')" style="font-weight: 800; color: #0f172a; font-size: 1.05rem; text-decoration: none;">${safeName}</a>
                                         <span class="tutoring-status-tag ${statusCfg.key}" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 0.72rem; font-weight: 800; background: ${statusCfg.bgColor}; color: ${statusCfg.color}; border: 1px solid ${statusCfg.borderColor};" title="حالة الأداء المالي: ${statusCfg.longLabel}">
                                             <span class="ui-icon" style="margin: 0; color: ${statusCfg.accentColor};"><span data-lucide="${statusCfg.icon}" data-size="12"></span></span>
                                             <span>${statusCfg.label}</span>
                                             ${statusCfg.key === 'partial' ? `<span style="font-size: 0.68rem; opacity: 0.9; font-family: monospace;">(${payInfo.progressPercent}%)</span>` : ''}
                                         </span>
+                                        ${lastNotifiedChip}
+                                        ${resChip}
+                                        ${renewPackChip}
                                     </div>
-                                    <span class="tutoring-chip" style="background: #f1f5f9; color: #334155; font-size: 0.78rem; padding: 2px 8px; border-radius: 6px; font-weight: 700; flex-shrink: 0;">${std.group || 'عام'}</span>
+                                    <span class="tutoring-chip" style="background: #f1f5f9; color: #334155; font-size: 0.78rem; padding: 2px 8px; border-radius: 6px; font-weight: 700; flex-shrink: 0;">${escapeTutoringHtml(std.group || 'عام')}</span>
                                 </div>
                                 <div style="margin-top: 3px;">
                                     ${cardPhoneDisplay}
@@ -6122,7 +6357,7 @@
 
             const enteredAmount = parseFloat(amountInput ? amountInput.value : 0) || 0;
             if (enteredAmount <= 0) {
-                alert('يرجى إدخال مبلغ صحيح أكبر من الصفر');
+                window.notifySafeToast('يرجى إدخال مبلغ صحيح أكبر من الصفر');
                 return;
             }
 
@@ -6309,7 +6544,7 @@
         }
 
         function escapeTutoringHtml(str) {
-            if (!str) return '';
+            if (str === undefined || str === null) return '';
             return String(str)
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
@@ -6317,6 +6552,112 @@
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
         }
+        window.escapeTutoringHtml = escapeTutoringHtml;
+
+        // Digital Library Resource Linker for Tutoring Sessions
+        window.renderTutoringLibraryLinker = function(containerId, preselectedResources, levelHint, searchTerm) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const currentDb = window.db || (typeof db !== 'undefined' ? db : null);
+            const libItems = (currentDb && Array.isArray(currentDb.library)) ? currentDb.library : [];
+            const selectedMap = new Map();
+            (Array.isArray(preselectedResources) ? preselectedResources : []).forEach(r => {
+                if (r && r.id) selectedMap.set(r.id, r);
+            });
+
+            // Preserve any currently checked items if re-rendering on search
+            container.querySelectorAll('input.tut-lib-res-cb:checked').forEach(cb => {
+                const id = cb.value;
+                if (!selectedMap.has(id)) {
+                    selectedMap.set(id, {
+                        id,
+                        title: cb.getAttribute('data-title') || '',
+                        url: cb.getAttribute('data-url') || '',
+                        category: cb.getAttribute('data-category') || 'مورد'
+                    });
+                }
+            });
+
+            const q = (searchTerm || '').trim().toLowerCase();
+            const lvl = (levelHint || '').trim().toLowerCase();
+            let filtered = libItems.filter(item => item && (item.title || item.fileName));
+            if (q) {
+                filtered = filtered.filter(item =>
+                    ((item.title || '') + ' ' + (item.course || '') + ' ' + (item.category || '') + ' ' + (item.level || '')).toLowerCase().includes(q)
+                );
+            } else if (lvl) {
+                // Prioritize matching level first
+                filtered = [...filtered].sort((a, b) => {
+                    const aMatch = (a.level || '').toLowerCase().includes(lvl) || (a.course || '').toLowerCase().includes(lvl) ? 0 : 1;
+                    const bMatch = (b.level || '').toLowerCase().includes(lvl) || (b.course || '').toLowerCase().includes(lvl) ? 0 : 1;
+                    return aMatch - bMatch;
+                });
+            }
+
+            const visibleItems = filtered.slice(0, 24);
+            const selectedArr = Array.from(selectedMap.values());
+
+            container.innerHTML = `
+                <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                        <div style="font-size: 0.82rem; font-weight: 800; color: #1e3a8a; display: flex; align-items: center; gap: 6px;">
+                            <span>📚 ربط موارد من المكتبة الرقمية (${selectedArr.length} محدد):</span>
+                        </div>
+                        <input type="text" placeholder="🔍 بحث في المكتبة (سلسلة، درس، ملخص...)" value="${escapeTutoringHtml(searchTerm || '')}"
+                            oninput="window.renderTutoringLibraryLinker('${containerId}', window.getSelectedTutoringLibraryResources('${containerId}'), '${escapeTutoringHtml(levelHint || '')}', this.value)"
+                            style="margin: 0; padding: 4px 10px; font-size: 0.76rem; border: 1px solid #cbd5e1; border-radius: 6px; min-width: 210px; background: #fff;">
+                    </div>
+                    ${selectedArr.length > 0 ? `
+                        <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px;">
+                            ${selectedArr.map(r => `<span style="background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; padding: 2px 8px; border-radius: 99px; font-size: 0.72rem; font-weight: 800;">📎 ${escapeTutoringHtml(r.title)}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    ${visibleItems.length === 0 ? `
+                        <div style="font-size: 0.76rem; color: #64748b; text-align: center; padding: 8px;">
+                            ${libItems.length === 0 ? 'المكتبة الرقمية فارغة حالياً — أضف ملفات أو روابط من تبويب المكتبة الرقمية.' : 'لا توجد موارد مطابقة للبحث.'}
+                        </div>
+                    ` : `
+                        <div style="max-height: 125px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; padding-left: 2px;">
+                            ${visibleItems.map(item => {
+                                const isChecked = selectedMap.has(item.id);
+                                const title = item.title || item.fileName || 'مورد بدون عنوان';
+                                const url = item.url || item.downloadUrl || '';
+                                const cat = item.category || item.type || 'مورد';
+                                return `
+                                    <label style="display: flex; align-items: center; gap: 6px; background: ${isChecked ? '#eff6ff' : '#fff'}; border: 1px solid ${isChecked ? '#60a5fa' : '#e2e8f0'}; padding: 5px 8px; border-radius: 7px; cursor: pointer; font-size: 0.75rem; margin: 0;">
+                                        <input type="checkbox" class="tut-lib-res-cb" value="${escapeTutoringHtml(item.id)}"
+                                            data-title="${escapeTutoringHtml(title)}"
+                                            data-url="${escapeTutoringHtml(url)}"
+                                            data-category="${escapeTutoringHtml(cat)}"
+                                            ${isChecked ? 'checked' : ''}
+                                            onchange="const box=this.closest('label'); if(box){ box.style.background=this.checked?'#eff6ff':'#fff'; box.style.borderColor=this.checked?'#60a5fa':'#e2e8f0'; }"
+                                            style="width: 14px; height: 14px; accent-color: #2563eb; flex-shrink: 0;">
+                                        <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: #1e293b;" title="${escapeTutoringHtml(title)}">${escapeTutoringHtml(title)}</span>
+                                        <span style="font-size: 0.66rem; background: #f1f5f9; color: #475569; padding: 1px 5px; border-radius: 4px; flex-shrink: 0;">${escapeTutoringHtml(cat)}</span>
+                                    </label>
+                                `;
+                            }).join('')}
+                        </div>
+                    `}
+                </div>
+            `;
+        };
+
+        window.getSelectedTutoringLibraryResources = function(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return [];
+            const res = [];
+            container.querySelectorAll('input.tut-lib-res-cb:checked').forEach(cb => {
+                res.push({
+                    id: cb.value,
+                    title: cb.getAttribute('data-title') || '',
+                    url: cb.getAttribute('data-url') || '',
+                    category: cb.getAttribute('data-category') || 'مورد'
+                });
+            });
+            return res;
+        };
 
         function setSessionHours(val) {
             const input = document.getElementById('sessionHours');
@@ -6462,8 +6803,8 @@
 
             let options = '';
             filtered.forEach(std => {
-                const grp = std.group ? ` (${std.group})` : '';
-                options += `<option value="${std.id}">${std.name}${grp}</option>`;
+                const grp = std.group ? ` (${escapeTutoringHtml(std.group)})` : '';
+                options += `<option value="${escapeTutoringHtml(std.id)}">${escapeTutoringHtml(std.name)}${grp}</option>`;
             });
 
             if (filtered.length === 0) {
@@ -6507,7 +6848,7 @@
             }
 
             if (modalTitle) {
-                if (sessionToEdit) {
+                if (sessionToEdit && sessionToEdit.id) {
                     modalTitle.innerHTML = '<span class="ui-icon" style="color: #3b82f6;"><span data-lucide="edit-3" data-size="20"></span></span> تعديل بيانات حصة الدعم الفردية';
                 } else {
                     modalTitle.innerHTML = '<span class="ui-icon" style="color: #f59e0b;"><span data-lucide="clock" data-size="20"></span></span> تسجيل حصة دعم فردية مباشرة (مستقلة)';
@@ -6536,7 +6877,7 @@
                 let grpHtml = '<option value="all">كل المجموعات (' + students.length + ')</option>';
                 Array.from(groups).sort().forEach(g => {
                     const count = students.filter(s => s.group === g).length;
-                    grpHtml += `<option value="${g}">${g} (${count})</option>`;
+                    grpHtml += `<option value="${escapeTutoringHtml(g)}">${escapeTutoringHtml(g)} (${count})</option>`;
                 });
                 groupFilter.innerHTML = grpHtml;
                 groupFilter.value = 'all';
@@ -6547,8 +6888,8 @@
                 let options = '';
                 const sorted = [...students].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
                 sorted.forEach(std => {
-                    const grp = std.group ? ` (${std.group})` : '';
-                    options += `<option value="${std.id}">${std.name}${grp}</option>`;
+                    const grp = std.group ? ` (${escapeTutoringHtml(std.group)})` : '';
+                    options += `<option value="${escapeTutoringHtml(std.id)}">${escapeTutoringHtml(std.name)}${grp}</option>`;
                 });
                 select.innerHTML = options;
 
@@ -6601,6 +6942,14 @@
             modal.style.display = 'flex';
             onIndividualSessionAttendanceChange();
             onTutoringSessionStudentChange();
+            const chosenStdObj = students.find(s => s.id === chosenStudentId);
+            if (typeof window.renderTutoringLibraryLinker === 'function') {
+                window.renderTutoringLibraryLinker(
+                    'sessionLibraryLinkerContainer',
+                    (sessionToEdit && Array.isArray(sessionToEdit.attachedResources)) ? sessionToEdit.attachedResources : [],
+                    chosenStdObj ? (chosenStdObj.level || '') : ''
+                );
+            }
             updateSessionLiveCalc();
             if (window.renderLucide) window.renderLucide();
         }
@@ -6640,7 +6989,7 @@
                 badge.style.display = 'flex';
                 badge.innerHTML = `
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <span style="font-weight: 800;">المجموعة: <span style="color: #1e293b;">${std.group || 'عام'}</span></span>
+                        <span style="font-weight: 800;">المجموعة: <span style="color: #1e293b;">${escapeTutoringHtml(std.group || 'عام')}</span></span>
                         <span>•</span>
                         <span style="font-weight: 800;">سعر الساعة: <span style="color: #059669;">${rate} د.م</span></span>
                     </div>
@@ -6651,6 +7000,12 @@
                         </span>
                     </div>
                 `;
+            }
+
+            const editHidden = document.getElementById('editingSessionId');
+            if ((!editHidden || !editHidden.value) && typeof window.renderTutoringLibraryLinker === 'function') {
+                const currentlySelected = window.getSelectedTutoringLibraryResources ? window.getSelectedTutoringLibraryResources('sessionLibraryLinkerContainer') : [];
+                window.renderTutoringLibraryLinker('sessionLibraryLinkerContainer', currentlySelected, std.level || '');
             }
 
             renderStudentSessionsList(studentId);
@@ -6748,6 +7103,14 @@
                                     <span style="color:#854d0e;">${escapeTutoringHtml(s.homework)}</span>
                                 </div>
                             ` : ''}
+                            ${Array.isArray(s.attachedResources) && s.attachedResources.length > 0 ? `
+                                <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:3px;">
+                                    ${s.attachedResources.map(r => r.url
+                                        ? `<a href="${escapeTutoringHtml(r.url)}" target="_blank" rel="noopener" style="background:#eef2ff; color:#4338ca; border:1px solid #c7d2fe; border-radius:4px; padding:1px 6px; font-size:0.71rem; font-weight:bold; text-decoration:none;">📎 ${escapeTutoringHtml(r.title)}</a>`
+                                        : `<span style="background:#eef2ff; color:#4338ca; border:1px solid #c7d2fe; border-radius:4px; padding:1px 6px; font-size:0.71rem; font-weight:bold;">📎 ${escapeTutoringHtml(r.title)}</span>`
+                                    ).join('')}
+                                </div>
+                            ` : ''}
                         </div>
                         <div style="display:flex; align-items:center; gap:5px; flex-shrink:0;">
                             <button type="button" class="btn-action" onclick="shareTutoringSessionWhatsApp('${studentId}', '${s.id}')" style="background:#25D366; color:#fff; border:none; padding:4px 8px; border-radius:6px; font-size:0.73rem; font-weight:bold; display:inline-flex; align-items:center; gap:3px; cursor:pointer;" title="إرسال تقرير وملخص الحصة لولي الأمر عبر واتساب">
@@ -6835,7 +7198,7 @@
                 const newFeeInput = document.getElementById('sessionNewStudentFee');
                 const newName = newNameInput ? newNameInput.value.trim() : '';
                 if (!newName) {
-                    alert('يرجى كتابة اسم التلميذ(ة) للدعم الفردي');
+                    window.notifySafeToast('يرجى كتابة اسم التلميذ(ة) للدعم الفردي');
                     unlock();
                     return;
                 }
@@ -6864,7 +7227,7 @@
                 studentId = std.id;
             } else {
                 if (!studentId) {
-                    alert('يرجى اختيار التلميذ أولاً');
+                    window.notifySafeToast('يرجى اختيار التلميذ أولاً');
                     unlock();
                     return;
                 }
@@ -6872,23 +7235,26 @@
             }
 
             if (!date) {
-                alert('يرجى تحديد تاريخ الحصة');
+                window.notifySafeToast('يرجى تحديد تاريخ الحصة');
                 unlock();
                 return;
             }
             if (isNaN(hours) || hours <= 0) {
-                alert('يرجى إدخال عدد ساعات صحيح أكبر من 0');
+                window.notifySafeToast('يرجى إدخال عدد ساعات صحيح أكبر من 0');
                 unlock();
                 return;
             }
 
             if (!std) {
-                alert('لم يتم العثور على التلميذ المحدد');
+                window.notifySafeToast('لم يتم العثور على التلميذ المحدد');
                 unlock();
                 return;
             }
 
             if (!std.sessions) std.sessions = [];
+            const attachedResources = (typeof window.getSelectedTutoringLibraryResources === 'function')
+                ? window.getSelectedTutoringLibraryResources('sessionLibraryLinkerContainer')
+                : [];
 
             if (editingId) {
                 const sessIndex = std.sessions.findIndex(s => s.id === editingId);
@@ -6901,6 +7267,7 @@
                     std.sessions[sessIndex].homework = homework;
                     std.sessions[sessIndex].evaluation = evaluation;
                     std.sessions[sessIndex].evaluationNotes = evaluationNotes;
+                    std.sessions[sessIndex].attachedResources = attachedResources;
                 } else {
                     std.sessions.push({
                         id: editingId,
@@ -6911,7 +7278,8 @@
                         attendance: attendance,
                         homework: homework,
                         evaluation: evaluation,
-                        evaluationNotes: evaluationNotes
+                        evaluationNotes: evaluationNotes,
+                        attachedResources: attachedResources
                     });
                 }
                 if (editHiddenId) editHiddenId.value = '';
@@ -6925,7 +7293,8 @@
                     attendance: attendance,
                     homework: homework,
                     evaluation: evaluation,
-                    evaluationNotes: evaluationNotes
+                    evaluationNotes: evaluationNotes,
+                    attachedResources: attachedResources
                 });
             }
 
@@ -6935,6 +7304,9 @@
             if (topicInput) topicInput.value = '';
             if (homeworkInput) homeworkInput.value = '';
             if (evalNotesInput) evalNotesInput.value = '';
+            if (keepOpen && typeof window.renderTutoringLibraryLinker === 'function') {
+                window.renderTutoringLibraryLinker('sessionLibraryLinkerContainer', [], std.level || '');
+            }
 
             renderStudentSessionsList(studentId);
             onTutoringSessionStudentChange();
@@ -6993,6 +7365,11 @@
             else if (sess.evaluation === 'good') evalText = 'حسن، مع بعض الملاحظات ⭐';
             else if (sess.evaluation === 'needs_support') evalText = 'يحتاج دعماً وتركيزاً إضافياً ⚠️';
 
+            const resList = Array.isArray(sess.attachedResources) ? sess.attachedResources : [];
+            const resText = resList.length > 0
+                ? `\n📚 *الموارد والتمارين المرفقة:*\n` + resList.map(r => `  - ${r.title}${r.url ? ' (' + r.url + ')' : ''}`).join('\n') + '\n'
+                : '';
+
             let msg = `السلام عليكم ورحمة الله ولي أمر التلميذ(ة) *${std.name}*،\n\n` +
                       `نوافيكم بتقرير حصة الدعم والتقوية المنعقدة بتاريخ *${sess.date}*:\n` +
                       `• *التوقيت والمدة:* ${sess.time || '18:00'} (${sess.hours} س)\n` +
@@ -7001,16 +7378,17 @@
                       (evalText ? `• *تقييم الاستيعاب والتفاعل:* ${evalText}\n` : '') +
                       (sess.evaluationNotes ? `• *ملاحظة الأستاذ:* ${sess.evaluationNotes}\n` : '') +
                       (sess.homework ? `• *الواجب المنزلي والتكليف:* ${sess.homework}\n` : '') +
+                      resText +
                       `\nشكراً لحرصكم ومتابعتكم المستمرة لما فيه مصلحة التلميذ(ة).`;
 
             const encoded = encodeURIComponent(msg);
             if (phone) {
-                window.open(`https://wa.me/${phone}?text=${encoded}`, '_blank');
+                window.openSafeExternalUrl(`https://wa.me/${phone}?text=${encoded}`, '_blank');
             } else {
                 navigator.clipboard.writeText(msg).then(() => {
-                    alert('تم نسخ تقرير الحصة للحافظة بنجاح، يمكنك لصقه في واتساب ولي الأمر (لم يتم تسجيل رقم الهاتف في بيانات التلميذ).');
+                    window.notifySafeToast('تم نسخ تقرير الحصة للحافظة بنجاح، يمكنك لصقه في واتساب ولي الأمر (لم يتم تسجيل رقم الهاتف في بيانات التلميذ).');
                 }).catch(() => {
-                    alert('يرجى تسجيل رقم هاتف التلميذ لإرسال التقرير مباشرة عبر واتساب.');
+                    window.notifySafeToast('يرجى تسجيل رقم هاتف التلميذ لإرسال التقرير مباشرة عبر واتساب.');
                 });
             }
         }
@@ -7019,7 +7397,7 @@
             const select = document.getElementById('sessionStudentSelect');
             const studentId = select ? select.value : '';
             if (!studentId) {
-                alert('يرجى اختيار التلميذ أولاً');
+                window.notifySafeToast('يرجى اختيار التلميذ أولاً');
                 return;
             }
             const std = (db.tutoring.students || []).find(s => s.id === studentId);
@@ -7045,6 +7423,13 @@
             else if (evalVal === 'good') evalText = 'حسن، مع بعض الملاحظات ⭐';
             else if (evalVal === 'needs_support') evalText = 'يحتاج دعماً وتركيزاً إضافياً ⚠️';
 
+            const resList = (typeof window.getSelectedTutoringLibraryResources === 'function')
+                ? window.getSelectedTutoringLibraryResources('sessionLibraryLinkerContainer')
+                : [];
+            const resText = resList.length > 0
+                ? `\n📚 *الموارد والتمارين المرفقة:*\n` + resList.map(r => `  - ${r.title}${r.url ? ' (' + r.url + ')' : ''}`).join('\n') + '\n'
+                : '';
+
             let msg = `السلام عليكم ورحمة الله ولي أمر التلميذ(ة) *${std.name}*،\n\n` +
                       `نوافيكم بتقرير حصة الدعم والتقوية المنعقدة بتاريخ *${date}*:\n` +
                       `• *التوقيت والمدة:* ${time} (${hours} س)\n` +
@@ -7053,6 +7438,7 @@
                       (evalText ? `• *تقييم الاستيعاب والتفاعل:* ${evalText}\n` : '') +
                       (evalNotes ? `• *ملاحظة الأستاذ:* ${evalNotes}\n` : '') +
                       (homework ? `• *الواجب المنزلي والتكليف:* ${homework}\n` : '') +
+                      resText +
                       `\nشكراً لحرصكم ومتابعتكم المستمرة.`;
 
             let phone = (std.phone || '').trim().replace(/[^0-9]/g, '');
@@ -7060,12 +7446,12 @@
 
             const encoded = encodeURIComponent(msg);
             if (phone) {
-                window.open(`https://wa.me/${phone}?text=${encoded}`, '_blank');
+                window.openSafeExternalUrl(`https://wa.me/${phone}?text=${encoded}`, '_blank');
             } else {
                 navigator.clipboard.writeText(msg).then(() => {
-                    alert('تم نسخ تقرير الحصة للحافظة بنجاح، يمكنك لصقه في واتساب ولي الأمر (لم يتم تسجيل رقم الهاتف في بيانات التلميذ).');
+                    window.notifySafeToast('تم نسخ تقرير الحصة للحافظة بنجاح، يمكنك لصقه في واتساب ولي الأمر (لم يتم تسجيل رقم الهاتف في بيانات التلميذ).');
                 }).catch(() => {
-                    alert('يرجى تسجيل رقم هاتف التلميذ لإرسال التقرير مباشرة عبر واتساب.');
+                    window.notifySafeToast('يرجى تسجيل رقم هاتف التلميذ لإرسال التقرير مباشرة عبر واتساب.');
                 });
             }
         }
@@ -7073,8 +7459,6 @@
         window.shareTutoringSessionWhatsApp = shareTutoringSessionWhatsApp;
         window.shareCurrentSessionViaWhatsApp = shareCurrentSessionViaWhatsApp;
         window.onIndividualSessionAttendanceChange = onIndividualSessionAttendanceChange;
-        window.onTutoringImportClassChange = onTutoringImportClassChange;
-        window.onTutoringImportStudentSelect = onTutoringImportStudentSelect;
 
         // Export tutoring functions to window
         window.openTutoringSessionModal = openTutoringSessionModal;
@@ -7093,13 +7477,37 @@
         window.renderTutoringStudents = renderTutoringStudents;
 
 
+        function getFilteredTutoringStudentsForExport() {
+            const groupFilter = document.getElementById('tutoringGroupFilter')?.value || 'all';
+            const paymentFilter = document.getElementById('tutoringPaymentFilter')?.value || 'all';
+            const searchVal = (document.getElementById('tutoringSearchInput')?.value || '').trim().toLowerCase();
+            const month = document.getElementById('tutoringMonth')?.value || '';
+            return (db.tutoring.students || []).filter(std => {
+                if (groupFilter !== 'all' && std.group !== groupFilter) return false;
+                if (searchVal) {
+                    const nMatch = (std.name || '').toLowerCase().includes(searchVal);
+                    const pMatch = (std.phone || '').toLowerCase().includes(searchVal);
+                    const gMatch = (std.group || '').toLowerCase().includes(searchVal);
+                    if (!nMatch && !pMatch && !gMatch) return false;
+                }
+                if (paymentFilter !== 'all') {
+                    const payInfo = window.getTutoringPaymentInfo(std, month);
+                    if (paymentFilter === 'paid' && payInfo.status !== 'paid') return false;
+                    if (paymentFilter === 'unpaid' && payInfo.status === 'paid') return false;
+                    if (paymentFilter === 'partial' && payInfo.status !== 'partial') return false;
+                }
+                return true;
+            });
+        }
+
         function exportTutoringCSV() {
-            const month = document.getElementById('tutoringMonth').value;
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-            csvContent += "الاسم,المجموعة,الهاتف,الثمن (درهم),ساعات الشهر,المبلغ المستحق,المبلغ المؤدى,المبلغ المتبقي,الحالة\r\n";
+            const month = document.getElementById('tutoringMonth')?.value || (window.formatLocalMonth ? window.formatLocalMonth() : new Date().toISOString().slice(0, 7));
+            const csvEsc = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+            const rows = [
+                ['الاسم', 'المجموعة', 'المستوى', 'الهاتف', 'نمط الفوترة', 'الثمن المرجعي (درهم)', 'التخفيض (%)', 'ساعات الشهر', 'حالة الباقة', 'المبلغ المستحق', 'المبلغ المؤدى', 'المبلغ المتبقي', 'الحالة']
+            ];
 
-            let filteredStudents = db.tutoring.students || [];
-
+            const filteredStudents = getFilteredTutoringStudentsForExport();
             filteredStudents.forEach(std => {
                 const sessions = std.sessions || [];
                 let totalHours = 0;
@@ -7110,57 +7518,176 @@
                     }
                 });
 
-                const hourlyRate = parseFloat(std.fee) || 0;
+                const mode = std.billingMode || 'hourly';
+                const modeLabel = mode === 'monthly_fixed' ? 'شهري ثابت' : (mode === 'session_pack' ? 'باقة حصص' : 'بالساعة');
+                const refPrice = mode === 'monthly_fixed' ? (parseFloat(std.monthlyFixedFee) || 0) : (mode === 'session_pack' ? (parseFloat(std.packPrice) || 0) : (parseFloat(std.fee) || 0));
+                const discount = parseFloat(std.discountPercent) || 0;
+                const packInfo = (mode === 'session_pack' && typeof window.getStudentPackStatus === 'function')
+                    ? window.getStudentPackStatus(std, month)
+                    : null;
+                const packLabel = packInfo ? `${packInfo.usedInCycle}/${packInfo.totalSessions} (باقٍ ${packInfo.remainingSessions})` : '—';
+
                 const payInfo = window.getTutoringPaymentInfo(std, month);
-                const totalDue = payInfo.totalDue;
                 let statusStr = "غير مؤدى";
                 if (payInfo.status === 'paid') statusStr = "تم الأداء بالكامل";
                 else if (payInfo.status === 'partial') statusStr = `أداء جزئي (باقٍ ${payInfo.remaining} د.م)`;
 
-                csvContent += `"${std.name}","${std.group || ''}","${std.phone || ''}",${hourlyRate},${totalHours},${totalDue},${payInfo.paidAmount},${payInfo.remaining},"${statusStr}"\r\n`;
+                rows.push([
+                    std.name || '',
+                    std.group || '',
+                    std.level || '',
+                    std.phone || '',
+                    modeLabel,
+                    refPrice,
+                    discount,
+                    totalHours,
+                    packLabel,
+                    payInfo.totalDue,
+                    payInfo.paidAmount,
+                    payInfo.remaining,
+                    statusStr
+                ]);
             });
 
-            const encodedUri = encodeURI(csvContent);
+            const csvBody = '\uFEFF' + rows.map(r => r.map(csvEsc).join(',')).join('\r\n');
+            const blob = new Blob([csvBody], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
+            link.setAttribute("href", url);
             link.setAttribute("download", `تقرير_الدعم_الخصوصي_${month}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
+        window.exportTutoringCSV = exportTutoringCSV;
+
+        window.exportTutoringExcel = async function() {
+            const month = document.getElementById('tutoringMonth')?.value || (window.formatLocalMonth ? window.formatLocalMonth() : new Date().toISOString().slice(0, 7));
+            if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
+                await window.ensureXlsxLoaded();
+            }
+            if (typeof XLSX === 'undefined') {
+                window.notifySafeToast('تعذر تحميل مكتبة Excel، تم تصدير ملف CSV كبديل.');
+                exportTutoringCSV();
+                return;
+            }
+
+            const filteredStudents = getFilteredTutoringStudentsForExport();
+            const studentRows = filteredStudents.map((std, i) => {
+                let totalHours = 0;
+                (std.sessions || []).forEach(s => {
+                    if (s.date && s.date.startsWith(month) && s.attendance !== 'absent') {
+                        totalHours += parseFloat(s.hours) || 0;
+                    }
+                });
+                const mode = std.billingMode || 'hourly';
+                const modeLabel = mode === 'monthly_fixed' ? 'شهري ثابت' : (mode === 'session_pack' ? 'باقة حصص' : 'بالساعة');
+                const refPrice = mode === 'monthly_fixed' ? (parseFloat(std.monthlyFixedFee) || 0) : (mode === 'session_pack' ? (parseFloat(std.packPrice) || 0) : (parseFloat(std.fee) || 0));
+                const packInfo = (mode === 'session_pack' && typeof window.getStudentPackStatus === 'function')
+                    ? window.getStudentPackStatus(std, month)
+                    : null;
+                const payInfo = window.getTutoringPaymentInfo(std, month);
+                const statusStr = payInfo.status === 'paid' ? 'مؤدى بالكامل' : (payInfo.status === 'partial' ? 'أداء جزئي' : 'غير مؤدى');
+                return {
+                    '#': i + 1,
+                    'الاسم الكامل': std.name || '',
+                    'المجموعة': std.group || 'عام',
+                    'المستوى': std.level || '',
+                    'الهاتف': std.phone || '',
+                    'نمط الفوترة': modeLabel,
+                    'التعريفة (د.م)': refPrice,
+                    'التخفيض (%)': parseFloat(std.discountPercent) || 0,
+                    'ساعات الشهر': totalHours,
+                    'حالة الباقة': packInfo ? `${packInfo.usedInCycle}/${packInfo.totalSessions}` : '—',
+                    'المستحق (د.م)': payInfo.totalDue,
+                    'المؤدى (د.م)': payInfo.paidAmount,
+                    'المتبقي (د.م)': payInfo.remaining,
+                    'الحالة': statusStr
+                };
+            });
+
+            const grpMap = new Map();
+            (db.tutoring.students || []).forEach(std => {
+                const gName = (std.group || 'عام').trim() || 'عام';
+                if (!grpMap.has(gName)) grpMap.set(gName, { 'المجموعة': gName, 'عدد التلاميذ': 0, 'الساعات': 0, 'المستحق (د.م)': 0, 'المؤدى (د.م)': 0, 'المتبقي (د.م)': 0, 'مصاريف المجموعة (د.م)': 0 });
+                const g = grpMap.get(gName);
+                g['عدد التلاميذ'] += 1;
+                (std.sessions || []).forEach(s => {
+                    if (s.date && s.date.startsWith(month) && s.attendance !== 'absent') g['الساعات'] += parseFloat(s.hours) || 0;
+                });
+                const pi = window.getTutoringPaymentInfo(std, month);
+                g['المستحق (د.م)'] += pi.totalDue;
+                g['المؤدى (د.م)'] += pi.paidAmount;
+                g['المتبقي (د.م)'] += pi.remaining;
+            });
+            ((db.tutoring && db.tutoring.expenses) || []).forEach(e => {
+                if (e.month === month && e.group && grpMap.has(e.group)) {
+                    grpMap.get(e.group)['مصاريف المجموعة (د.م)'] += parseFloat(e.amount) || 0;
+                }
+            });
+            const groupRows = Array.from(grpMap.values()).map(g => ({
+                ...g,
+                'صافي الربح المحصل (د.م)': Math.max(0, g['المؤدى (د.م)'] - g['مصاريف المجموعة (د.م)'])
+            }));
+
+            const wb = XLSX.utils.book_new();
+            wb.Workbook = { Views: [{ RTL: true }] };
+            const ws1 = XLSX.utils.json_to_sheet(studentRows.length ? studentRows : [{ 'تنبيه': 'لا توجد بيانات مطابقة' }]);
+            const ws2 = XLSX.utils.json_to_sheet(groupRows.length ? groupRows : [{ 'تنبيه': 'لا توجد مجموعات' }]);
+            XLSX.utils.book_append_sheet(wb, ws1, 'ملخص التلاميذ');
+            XLSX.utils.book_append_sheet(wb, ws2, 'ملخص المجموعات');
+            XLSX.writeFile(wb, `تقرير_الدعم_الخصوصي_${month}.xlsx`);
+            window.notifySafeToast('✓ تم تصدير ملف Excel بنجاح');
+        };
 
         function printTutoringReport() {
-            const month = document.getElementById('tutoringMonth').value;
-            let tableHtml = document.getElementById('tutoringTable').outerHTML;
-            // Remove the "Actions" column before printing
-            tableHtml = tableHtml.replace(/<th[^>]*>إجراءات<\/th>/gi, '');
-            tableHtml = tableHtml.replace(/<td[^>]*>.*?<button.*?<\/td>/gi, '');
-            tableHtml = tableHtml.replace(/<td[^>]*>.*?<a href="https:\/\/wa.me.*?<\/td>/gi, '');
+            const month = document.getElementById('tutoringMonth')?.value || '';
+            const origTable = document.getElementById('tutoringTable');
+            let tableHtml = '';
+            if (origTable) {
+                const clonedTable = origTable.cloneNode(true);
+                clonedTable.querySelectorAll('tr').forEach(tr => {
+                    const cells = tr.children;
+                    if (cells.length > 0 && (cells[0].querySelector('input[type="checkbox"]') || cells[0].querySelector('#tutoringMasterSelectCb'))) {
+                        cells[0].remove();
+                    }
+                    if (tr.children.length > 0) {
+                        const lastCell = tr.children[tr.children.length - 1];
+                        if (lastCell && (lastCell.textContent.trim() === 'إجراءات' || lastCell.querySelector('button'))) {
+                            lastCell.remove();
+                        }
+                    }
+                });
+                tableHtml = clonedTable.outerHTML;
+            }
 
-            let html = `
+            const unpaidText = document.getElementById('tutoringUnpaidCountBadge')?.textContent || document.getElementById('tutoringUnpaidCount')?.textContent || '(0 تلميذ)';
+            const teacherName = escapeTutoringHtml((db.teacherProfile && db.teacherProfile.name) || 'الأستاذ(ة)');
+            const subjectName = escapeTutoringHtml((db.teacherProfile && db.teacherProfile.subject) || '');
+
+            const html = `
             <${'html'} dir="rtl" lang="ar">
             <${'head'}>
                 <meta charset="UTF-8">
-                <title>تقرير الدعم الخصوصي - ${month}</title>
+                <title>تقرير الدعم الخصوصي - ${escapeTutoringHtml(month)}</title>
                 <style>
                     body { font-family: 'Cairo', sans-serif; padding: 20px; color: #0f172a; direction: rtl; }
-                    h2 { text-align: center; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px; }
-                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-                    th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: center; }
+                    h2 { text-align: center; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 16px; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.86rem; }
+                    th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: center; }
                     th { background-color: #f1f5f9; font-weight: bold; }
-                    .stats { display: flex; justify-content: space-around; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px; font-weight: bold; }
-                    @media print {
-                        .stats { background: none; border: none; padding: 0; margin-bottom: 15px; }
-                    }
+                    .stats { display: flex; justify-content: space-around; flex-wrap: wrap; gap: 10px; background: #f8fafc; padding: 14px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px; font-weight: bold; }
                 </style>
             <${'/head'}>
             <${'body'}>
-                <h2>تقرير الدعم الخصوصي - شهر ${month}</h2>
+                <h2>تقرير الدعم الخصوصي - شهر ${escapeTutoringHtml(month)}</h2>
+                <div style="text-align:center; color:#475569; font-size:0.85rem; margin-bottom:12px;">الأستاذ(ة): ${teacherName}${subjectName ? ' | المادة: ' + subjectName : ''}</div>
                 <div class="stats">
-                    <div>إجمالي التلاميذ: ${document.getElementById('tutoringTotalStudents')?.textContent || '0'}</div>
-                    <div>الأرباح المتوقعة: ${document.getElementById('tutoringTotalRevenue')?.textContent || '0'} درهم</div>
-                    <div>مجموع الساعات: ${document.getElementById('tutoringTotalHours')?.textContent || '0'} س</div>
-                    <div style="color: #ef4444;">الدفعات غير المؤداة: ${document.getElementById('tutoringUnpaidCount')?.textContent || '0'}</div>
+                    <div>إجمالي التلاميذ: ${escapeTutoringHtml(document.getElementById('tutoringTotalStudents')?.textContent || '0')}</div>
+                    <div>الأرباح المتوقعة: ${escapeTutoringHtml(document.getElementById('tutoringTotalRevenue')?.textContent || '0')} درهم</div>
+                    <div>مجموع الساعات: ${escapeTutoringHtml(document.getElementById('tutoringTotalHours')?.textContent || '0')} س</div>
+                    <div style="color: #ef4444;">المتبقي غير المؤدى: ${escapeTutoringHtml(unpaidText)}</div>
                 </div>
                 ${tableHtml}
                 <div style="text-align:left; margin-top:30px; font-size:0.9rem; color:#64748b;">طبع بتاريخ: ${new Date().toLocaleDateString('ar-MA')}</div>
@@ -7200,7 +7727,7 @@
             <${'html'} dir="rtl" lang="ar">
             <${'head'}>
                 <meta charset="UTF-8">
-                <title>وصل أداء الدعم الخصوصي - ${std.name}</title>
+                <title>وصل أداء الدعم الخصوصي - ${escapeTutoringHtml(std.name)}</title>
                 <style>
                     body { font-family: 'Cairo', 'Tajawal', sans-serif; padding: 25px; color: #0f172a; max-width: 600px; margin: 0 auto; direction: rtl; }
                     .receipt { border: 2px dashed #64748b; padding: 25px; border-radius: 12px; position: relative; background: #fff; }
@@ -7232,26 +7759,26 @@
                 <div class="receipt">
                     <div class="header">
                         <h2>وصل أداء الدعم والدروس الخصوصية</h2>
-                        <p>${pTeacherName ? 'الأستاذ(ة): ' + pTeacherName : ''} ${pSchool ? ' - ' + pSchool : ''}</p>
+                        <p>${pTeacherName ? 'الأستاذ(ة): ' + escapeTutoringHtml(pTeacherName) : ''} ${pSchool ? ' - ' + escapeTutoringHtml(pSchool) : ''}</p>
                     </div>
 
                     <div class="meta-bar">
-                        <span><strong>رقم الوصل:</strong> ${receiptNumber}</span>
-                        <span><strong>تاريخ الإصدار:</strong> ${issueDate}</span>
+                        <span><strong>رقم الوصل:</strong> ${escapeTutoringHtml(receiptNumber)}</span>
+                        <span><strong>تاريخ الإصدار:</strong> ${escapeTutoringHtml(issueDate)}</span>
                     </div>
 
                     <div class="info-grid">
                         <div class="info-item">
                             <div class="info-label">اسم التلميذ(ة):</div>
-                            <div class="info-val">${std.name}</div>
+                            <div class="info-val">${escapeTutoringHtml(std.name)}</div>
                         </div>
                         <div class="info-item">
                             <div class="info-label">المجموعة / المستوى:</div>
-                            <div class="info-val">${std.group || 'غير محدد'}</div>
+                            <div class="info-val">${escapeTutoringHtml(std.group || 'غير محدد')}</div>
                         </div>
                         <div class="info-item">
                             <div class="info-label">عن شهر:</div>
-                            <div class="info-val" dir="ltr">${month}</div>
+                            <div class="info-val" dir="ltr">${escapeTutoringHtml(month)}</div>
                         </div>
                         <div class="info-item">
                             <div class="info-label">واجب الساعة:</div>
@@ -7272,10 +7799,10 @@
                         <tbody>
                             ${sessions.map(s => `
                                 <tr>
-                                    <td dir="ltr">${s.date}</td>
-                                    <td dir="ltr">${s.time || '-'}</td>
+                                    <td dir="ltr">${escapeTutoringHtml(s.date)}</td>
+                                    <td dir="ltr">${escapeTutoringHtml(s.time || '-')}</td>
                                     <td>${s.hours} س</td>
-                                    <td>${s.topic || 'حصة دعم ومراجعة'}</td>
+                                    <td>${escapeTutoringHtml(s.topic || 'حصة دعم ومراجعة')}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -7314,8 +7841,8 @@
                                     <tr>
                                         <td>دفعة #${idx + 1}</td>
                                         <td style="font-weight: bold; color: #15803d;">${inst.amount} درهم</td>
-                                        <td dir="ltr">${inst.date || '-'}</td>
-                                        <td>${inst.note || '-'}</td>
+                                        <td dir="ltr">${escapeTutoringHtml(inst.date || '-')}</td>
+                                        <td>${escapeTutoringHtml(inst.note || '-')}</td>
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -7327,7 +7854,7 @@
 
                     <div class="footer-sig">
                         <div><strong>توقيع ولي الأمر:</strong></div>
-                        <div><strong>توقيع الأستاذ(ة):</strong> ${pTeacherName}</div>
+                        <div><strong>توقيع الأستاذ(ة):</strong> ${escapeTutoringHtml(pTeacherName)}</div>
                     </div>
                 </div>
             <${'/body'}>
@@ -7359,691 +7886,45 @@
             }, 400);
         }
 
-        // ========================================================
-        // Consolidated Group Monthly Performance Report (Bulk PDF)
-        // ========================================================
-        var currentBatchReportLayout = 'one_per_page';
+        // Consolidated Group Monthly Performance Report lives in public/tutoring-advanced.js
 
-        function openTutoringGroupBatchPerformanceReportModal(defaultGroup) {
-            initTutoring();
-            const modal = document.getElementById('tutoringGroupBatchReportModal');
-            if (!modal) return;
+        function applyGroupDefaultsToStudentModal(groupName, onlyIfEmpty) {
+            const name = (groupName || '').trim();
+            if (!name || !db.tutoring || !Array.isArray(db.tutoring.groups)) return;
+            const grpObj = db.tutoring.groups.find(g => g.name === name);
+            if (!grpObj) return;
 
-            const curMonth = (document.getElementById('tutoringMonth') && document.getElementById('tutoringMonth').value)
-                ? document.getElementById('tutoringMonth').value
-                : (window.formatLocalMonth ? window.formatLocalMonth() : (window.formatLocalDate ? window.formatLocalDate().slice(0, 7) : new Date().toISOString().slice(0, 7)));
+            const modeEl = document.getElementById('tutoringBillingMode');
+            const feeEl = document.getElementById('tutoringFee');
+            const monthlyEl = document.getElementById('tutoringMonthlyFixedFee');
+            const packSessEl = document.getElementById('tutoringPackSessions');
+            const packPriceEl = document.getElementById('tutoringPackPrice');
+            const levelEl = document.getElementById('tutoringLevel');
 
-            const monthInput = document.getElementById('batchReportMonthSelect');
-            if (monthInput) monthInput.value = curMonth;
-
-            // Populate groups dropdown
-            const groupSelect = document.getElementById('batchReportGroupSelect');
-            const students = (db.tutoring && db.tutoring.students) ? db.tutoring.students : [];
-
-            if (groupSelect) {
-                const uniqueGroups = Array.from(new Set(students.map(s => (s.group || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ar'));
-                let options = `<option value="all">🌟 جميع المجموعات (${students.length} تلميذ)</option>`;
-                uniqueGroups.forEach(grp => {
-                    const count = students.filter(s => (s.group || '').trim() === grp).length;
-                    options += `<option value="${escapeTutoringHtml(grp)}">👥 ${escapeTutoringHtml(grp)} (${count} تلاميذ)</option>`;
-                });
-                groupSelect.innerHTML = options;
-
-                if (defaultGroup && (defaultGroup === 'all' || uniqueGroups.includes(defaultGroup))) {
-                    groupSelect.value = defaultGroup;
-                } else {
-                    const activeFilter = document.getElementById('tutoringGroupFilter');
-                    if (activeFilter && activeFilter.value && (activeFilter.value === 'all' || uniqueGroups.includes(activeFilter.value))) {
-                        groupSelect.value = activeFilter.value;
-                    } else if (uniqueGroups.length > 0) {
-                        groupSelect.value = uniqueGroups[0];
-                    } else {
-                        groupSelect.value = 'all';
-                    }
+            if (grpObj.level && levelEl && (!onlyIfEmpty || !levelEl.value)) {
+                levelEl.value = grpObj.level;
+            }
+            const gMode = grpObj.billingMode || 'hourly';
+            if (modeEl && (!onlyIfEmpty || modeEl.dataset.userChanged !== '1')) {
+                modeEl.value = gMode;
+                if (typeof window.toggleTutoringBillingModeFields === 'function') {
+                    window.toggleTutoringBillingModeFields(gMode);
                 }
             }
-
-            setBatchReportLayout(currentBatchReportLayout || 'one_per_page');
-            updateBatchReportPreviewSummary();
-
-            modal.style.display = 'flex';
-            if (window.renderLucide) window.renderLucide();
-        }
-
-        function closeTutoringGroupBatchPerformanceReportModal() {
-            const modal = document.getElementById('tutoringGroupBatchReportModal');
-            if (modal) modal.style.display = 'none';
-        }
-
-        function setBatchReportLayout(mode) {
-            currentBatchReportLayout = mode;
-            const optOne = document.getElementById('batchLayoutOptOne');
-            const optTwo = document.getElementById('batchLayoutOptTwo');
-            if (optOne && optTwo) {
-                if (mode === 'two_per_page') {
-                    optOne.classList.remove('active');
-                    optTwo.classList.add('active');
-                } else {
-                    optTwo.classList.remove('active');
-                    optOne.classList.add('active');
-                }
+            if (feeEl && grpObj.defaultFee != null && grpObj.defaultFee !== '') {
+                if (!onlyIfEmpty || !feeEl.value || feeEl.value === '100') feeEl.value = grpObj.defaultFee;
             }
-            updateBatchReportPreviewSummary();
-        }
-
-        function changeBatchReportMonth(delta) {
-            const input = document.getElementById('batchReportMonthSelect');
-            if (!input || !input.value) return;
-            const parts = input.value.split('-');
-            let year = parseInt(parts[0], 10);
-            let month = parseInt(parts[1], 10);
-
-            month += delta;
-            if (month > 12) {
-                month = 1;
-                year++;
-            } else if (month < 1) {
-                month = 12;
-                year--;
+            if (monthlyEl && grpObj.monthlyFixedFee != null && grpObj.monthlyFixedFee !== '') {
+                if (!onlyIfEmpty || !monthlyEl.value) monthlyEl.value = grpObj.monthlyFixedFee;
             }
-            input.value = `${year}-${String(month).padStart(2, '0')}`;
-            updateBatchReportPreviewSummary();
-        }
-
-        function getFilteredBatchStudents(groupVal) {
-            const students = (db.tutoring && db.tutoring.students) ? db.tutoring.students : [];
-            if (!groupVal || groupVal === 'all') {
-                return [...students].sort((a, b) => {
-                    const grpComp = (a.group || '').localeCompare(b.group || '', 'ar');
-                    if (grpComp !== 0) return grpComp;
-                    return (a.name || '').localeCompare(b.name || '', 'ar');
-                });
+            if (packSessEl && grpObj.packSessions) {
+                if (!onlyIfEmpty || !packSessEl.value || packSessEl.value === '4') packSessEl.value = grpObj.packSessions;
             }
-            return students.filter(s => (s.group || '').trim() === groupVal.trim())
-                .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
-        }
-
-        function updateBatchReportPreviewSummary() {
-            const summaryCard = document.getElementById('batchReportSummaryCard');
-            if (!summaryCard) return;
-
-            const groupSelect = document.getElementById('batchReportGroupSelect');
-            const monthInput = document.getElementById('batchReportMonthSelect');
-            const groupVal = groupSelect ? groupSelect.value : 'all';
-            const monthVal = monthInput ? monthInput.value : '';
-
-            const filteredStudents = getFilteredBatchStudents(groupVal);
-            const studentCount = filteredStudents.length;
-
-            if (studentCount === 0) {
-                summaryCard.style.background = '#fff1f2';
-                summaryCard.style.borderColor = '#fecdd3';
-                summaryCard.innerHTML = `
-                    <div style="display:flex; align-items:center; gap:10px; color:#be123c;">
-                        <span class="ui-icon" style="margin:0;"><span data-lucide="alert-circle" data-size="20"></span></span>
-                        <div>
-                            <strong style="font-size:0.9rem;">لا يوجد تلاميذ مسجلين في هذه المجموعة حالياً</strong>
-                            <div style="font-size:0.78rem; margin-top:2px;">يرجى اختيار مجموعة أخرى أو إضافة تلاميذ للمجموعة من زر "إضافة تلميذ".</div>
-                        </div>
-                    </div>
-                `;
-                if (window.renderLucide) window.renderLucide();
-                return;
-            }
-
-            let totalHours = 0;
-            let totalDueAll = 0;
-            let totalPaidAll = 0;
-            let totalRemainingAll = 0;
-
-            filteredStudents.forEach(std => {
-                let stdHours = 0;
-                (std.sessions || []).forEach(s => {
-                    if (s.date && s.date.startsWith(monthVal)) {
-                        if (s.attendance !== 'absent') {
-                            stdHours += parseFloat(s.hours) || 0;
-                        }
-                    }
-                });
-                totalHours += stdHours;
-                const payInfo = window.getTutoringPaymentInfo(std, monthVal);
-                totalDueAll += payInfo.totalDue;
-                totalPaidAll += payInfo.paidAmount;
-                totalRemainingAll += payInfo.remaining;
-            });
-
-            totalHours = Math.round(totalHours * 10) / 10;
-            totalDueAll = Math.round(totalDueAll);
-            totalPaidAll = Math.round(totalPaidAll);
-            totalRemainingAll = Math.round(totalRemainingAll);
-
-            const isTwoUp = currentBatchReportLayout === 'two_per_page';
-            const expectedPages = isTwoUp ? Math.ceil(studentCount / 2) : studentCount;
-            const collectionRate = totalDueAll > 0 ? Math.round((totalPaidAll / totalDueAll) * 100) : 100;
-
-            summaryCard.style.background = 'linear-gradient(135deg, #f0fdf4, #ecfdf5)';
-            summaryCard.style.borderColor = '#a7f3d0';
-            summaryCard.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span class="ui-icon" style="margin:0; color:#15803d;"><span data-lucide="check-circle-2" data-size="18"></span></span>
-                        <span style="font-weight:800; font-size:0.92rem; color:#065f46;">
-                            ملخص المجموعة لشهر (${monthVal}):
-                        </span>
-                    </div>
-                    <span style="background:#e0e7ff; color:#3730a3; font-weight:800; font-size:0.78rem; padding:3px 10px; border-radius:20px; display:inline-flex; align-items:center; gap:4px;">
-                        <span class="ui-icon" style="margin:0;"><span data-lucide="files" data-size="14"></span></span> عدد الصفحات المتوقعة: ${expectedPages} ${expectedPages === 1 ? 'صفحة' : 'صفحات'} (${isTwoUp ? 'وصلان/صفحة مع خط قص' : 'صفحة مستقلة/تلميذ'})
-                    </span>
-                </div>
-                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; text-align:center;">
-                    <div style="background:#ffffff; border:1px solid #bbf7d0; border-radius:8px; padding:6px 4px;">
-                        <div style="font-size:0.72rem; color:#64748b; font-weight:bold;">عدد التلاميذ</div>
-                        <div style="font-size:1.1rem; font-weight:900; color:#0f172a;">${studentCount}</div>
-                    </div>
-                    <div style="background:#ffffff; border:1px solid #bbf7d0; border-radius:8px; padding:6px 4px;">
-                        <div style="font-size:0.72rem; color:#64748b; font-weight:bold;">ساعات الشهر</div>
-                        <div style="font-size:1.1rem; font-weight:900; color:#2563eb;">${totalHours} <span style="font-size:0.75rem;">س</span></div>
-                    </div>
-                    <div style="background:#ffffff; border:1px solid #bbf7d0; border-radius:8px; padding:6px 4px;">
-                        <div style="font-size:0.72rem; color:#64748b; font-weight:bold;">إجمالي المستحق</div>
-                        <div style="font-size:1.1rem; font-weight:900; color:#0f172a;">${totalDueAll} <span style="font-size:0.72rem;">د.م</span></div>
-                    </div>
-                    <div style="background:#ffffff; border:1px solid #bbf7d0; border-radius:8px; padding:6px 4px;">
-                        <div style="font-size:0.72rem; color:#64748b; font-weight:bold;">نسبة الأداء والمداخيل</div>
-                        <div style="font-size:1.1rem; font-weight:900; color:${collectionRate >= 80 ? '#15803d' : '#b45309'};">${collectionRate}%</div>
-                    </div>
-                </div>
-            `;
-            if (window.renderLucide) window.renderLucide();
-        }
-
-        function formatArabicMonthName(monthStr) {
-            if (!monthStr) return '';
-            try {
-                const parts = monthStr.split('-');
-                const year = parts[0];
-                const monthNum = parseInt(parts[1], 10);
-                const arabicMonths = [
-                    'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-                    'يوليوز / يوليو', 'غشت / أغسطس', 'شتنبر / سبتمبر', 'أكتوبر', 'نونبر / نوفمبر', 'دجنبر / ديسمبر'
-                ];
-                return `${arabicMonths[monthNum - 1] || parts[1]} ${year}`;
-            } catch(e) {
-                return monthStr;
+            if (packPriceEl && grpObj.packPrice != null && grpObj.packPrice !== '') {
+                if (!onlyIfEmpty || !packPriceEl.value) packPriceEl.value = grpObj.packPrice;
             }
         }
-
-        function buildStudentPerformanceSlipHtml(std, monthVal, options, isCompact) {
-            const pTeacherName = (db.teacherProfile && db.teacherProfile.name) || 'الأستاذ(ة)';
-            const pSchool = (db.teacherProfile && db.teacherProfile.school) || 'المؤسسة التعليمية';
-            const pSubject = (db.teacherProfile && db.teacherProfile.subject) || '';
-            const issueDate = new Date().toLocaleDateString('ar-MA', { year: 'numeric', month: 'numeric', day: 'numeric' });
-            const monthArabic = formatArabicMonthName(monthVal);
-            const hourlyRate = parseFloat(std.fee) || 0;
-
-            // Sessions in target month
-            const sessions = (std.sessions || []).filter(s => s.date && s.date.startsWith(monthVal))
-                .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-            let totalHours = 0;
-            let presentCount = 0;
-            let absentCount = 0;
-            let lateCount = 0;
-
-            sessions.forEach(s => {
-                if (s.attendance === 'absent') {
-                    absentCount++;
-                } else {
-                    totalHours += parseFloat(s.hours) || 0;
-                    if (s.attendance === 'late') lateCount++;
-                    presentCount++;
-                }
-            });
-
-            totalHours = Math.round(totalHours * 10) / 10;
-            const payInfo = window.getTutoringPaymentInfo(std, monthVal);
-            const totalDue = payInfo.totalDue;
-
-            const totalScheduledSessions = sessions.length;
-            let attendanceRate = 100;
-            if (totalScheduledSessions > 0) {
-                attendanceRate = Math.round((presentCount / totalScheduledSessions) * 100);
-            }
-
-            // Status Stamp
-            let stampBadgeHtml = '';
-            if (payInfo.status === 'paid') {
-                stampBadgeHtml = '<span class="stamp-badge paid" style="font-size:0.8rem; padding:3px 8px; border-radius:6px; font-weight:bold;">✓ مؤدى بالكامل</span>';
-            } else if (payInfo.status === 'partial') {
-                stampBadgeHtml = `<span class="stamp-badge partial" style="font-size:0.8rem; padding:3px 8px; border-radius:6px; font-weight:bold;">⚠️ أداء جزئي (باقٍ: ${payInfo.remaining} د.م)</span>`;
-            } else {
-                stampBadgeHtml = '<span class="stamp-badge unpaid" style="font-size:0.8rem; padding:3px 8px; border-radius:6px; font-weight:bold;">! في انتظار الأداء</span>';
-            }
-
-            const customNote = options.customNote
-                || std.notes
-                || (attendanceRate >= 90
-                    ? 'تلميذ(ة) مواظب(ة) ومنضبط(ة)، مشاركة إيجابية واستيعاب ممتاز للمفاهيم والتمارين.'
-                    : 'يُرجى مزيد من الحرص على المواظبة وعدم تفويت الحصص لضمان التدرج ومسايرة الدروس.');
-
-            const slipId = 'PERF-' + monthVal.replace('-', '') + '-' + (std.id.replace(/[^0-9]/g, '').slice(-4) || '01');
-
-            return `
-                <div class="tutoring-slip-container ${isCompact ? 'compact' : ''}" style="box-sizing:border-box; background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:${isCompact ? '10px 14px' : '16px 20px'}; font-family:'Cairo','Tajawal',sans-serif; color:#0f172a; direction:rtl; text-align:right;">
-
-                    <!-- Header -->
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #0f172a; padding-bottom:${isCompact ? '6px' : '10px'}; margin-bottom:${isCompact ? '8px' : '12px'};">
-                        <div style="flex:1;">
-                            <div style="font-weight:800; font-size:${isCompact ? '0.92rem' : '1.05rem'}; color:#1e293b;">${escapeTutoringHtml(pSchool)}</div>
-                            <div style="font-size:${isCompact ? '0.74rem' : '0.82rem'}; color:#475569;">${pTeacherName ? 'الأستاذ(ة): ' + escapeTutoringHtml(pTeacherName) : 'أستاذ المادة'} ${pSubject ? ' | مادة: ' + escapeTutoringHtml(pSubject) : ''}</div>
-                        </div>
-                        <div style="text-align:center; border:2px solid #1e293b; border-radius:8px; padding:${isCompact ? '2px 10px' : '4px 16px'}; background:#f8fafc;">
-                            <div style="font-weight:900; font-size:${isCompact ? '1rem' : '1.15rem'}; color:#0f172a;">كشف الأداء والمتابعة الشهرية</div>
-                            <div style="font-size:${isCompact ? '0.72rem' : '0.78rem'}; color:#475569; font-weight:bold;">دروس الدعم والتقوية الخصوصية</div>
-                        </div>
-                        <div style="flex:1; text-align:left; font-size:${isCompact ? '0.74rem' : '0.82rem'}; color:#475569;">
-                            <div><strong>الشهر:</strong> <span style="font-weight:800; color:#0f172a;">${monthArabic}</span></div>
-                            <div><strong>تاريخ الإصدار:</strong> ${issueDate}</div>
-                            <div><strong>رقم الكشف:</strong> <span dir="ltr" style="font-family:monospace; font-weight:bold;">${slipId}</span></div>
-                        </div>
-                    </div>
-
-                    <!-- Student Identity -->
-                    <div style="display:grid; grid-template-columns: 2fr 1.2fr 1fr; gap:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:${isCompact ? '5px 10px' : '8px 12px'}; margin-bottom:${isCompact ? '8px' : '12px'}; font-size:${isCompact ? '0.8rem' : '0.86rem'};">
-                        <div><span style="color:#64748b; font-weight:bold;">اسم التلميذ(ة):</span> <strong style="color:#0f172a; font-size:${isCompact ? '0.9rem' : '1rem'};">${escapeTutoringHtml(std.name)}</strong></div>
-                        <div><span style="color:#64748b; font-weight:bold;">المجموعة / المستوى:</span> <strong style="color:#1d4ed8;">${escapeTutoringHtml(std.group || 'الدعم الخصوصي')}</strong></div>
-                        <div><span style="color:#64748b; font-weight:bold;">هاتف التواصل:</span> <span dir="ltr" style="font-weight:bold;">${escapeTutoringHtml(std.phone || 'غير مسجل')}</span></div>
-                    </div>
-
-                    <!-- Performance Stats Chips -->
-                    ${options.includeStats ? `
-                    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-bottom:${isCompact ? '8px' : '12px'}; text-align:center;">
-                        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:${isCompact ? '4px' : '6px'};">
-                            <div style="font-size:${isCompact ? '0.68rem' : '0.72rem'}; color:#1d4ed8; font-weight:bold;">الساعات المنجزة</div>
-                            <div style="font-size:${isCompact ? '0.95rem' : '1.1rem'}; font-weight:900; color:#1e40af;">${totalHours} <span style="font-size:0.72rem;">س</span></div>
-                        </div>
-                        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:${isCompact ? '4px' : '6px'};">
-                            <div style="font-size:${isCompact ? '0.68rem' : '0.72rem'}; color:#166534; font-weight:bold;">الحصص المحضورة</div>
-                            <div style="font-size:${isCompact ? '0.95rem' : '1.1rem'}; font-weight:900; color:#15803d;">${presentCount} <span style="font-size:0.72rem;">حصص</span></div>
-                        </div>
-                        <div style="background:${absentCount > 0 ? '#fef2f2' : '#f8fafc'}; border:1px solid ${absentCount > 0 ? '#fecdd3' : '#e2e8f0'}; border-radius:6px; padding:${isCompact ? '4px' : '6px'};">
-                            <div style="font-size:${isCompact ? '0.68rem' : '0.72rem'}; color:${absentCount > 0 ? '#991b1b' : '#64748b'}; font-weight:bold;">الغيابات</div>
-                            <div style="font-size:${isCompact ? '0.95rem' : '1.1rem'}; font-weight:900; color:${absentCount > 0 ? '#b91c1c' : '#475569'};">${absentCount}</div>
-                        </div>
-                        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:${isCompact ? '4px' : '6px'};">
-                            <div style="font-size:${isCompact ? '0.68rem' : '0.72rem'}; color:#475569; font-weight:bold;">نسبة المواظبة</div>
-                            <div style="font-size:${isCompact ? '0.95rem' : '1.1rem'}; font-weight:900; color:#0f172a;">${attendanceRate}%</div>
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    <!-- Sessions Log Table -->
-                    ${options.includeSessions ? `
-                    <div style="margin-bottom:${isCompact ? '8px' : '12px'};">
-                        <table style="width:100%; border-collapse:collapse; font-size:${isCompact ? '0.72rem' : '0.78rem'}; text-align:center;">
-                            <thead>
-                                <tr style="background:#f1f5f9; color:#334155;">
-                                    <th style="border:1px solid #cbd5e1; padding:4px 6px; width:28px;">#</th>
-                                    <th style="border:1px solid #cbd5e1; padding:4px 6px; width:90px;">تاريخ الحصة</th>
-                                    <th style="border:1px solid #cbd5e1; padding:4px 6px; width:60px;">التوقيت</th>
-                                    <th style="border:1px solid #cbd5e1; padding:4px 6px; width:45px;">المدة</th>
-                                    <th style="border:1px solid #cbd5e1; padding:4px 8px; text-align:right;">موضوع الحصة والأنشطة المنجزة</th>
-                                    <th style="border:1px solid #cbd5e1; padding:4px 6px; width:65px;">الحضور</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${sessions.length > 0 ? sessions.map((s, idx) => {
-                                    let attendBadge = '<span style="color:#15803d; font-weight:bold;">حاضر ✓</span>';
-                                    if (s.attendance === 'absent') attendBadge = '<span style="color:#b91c1c; font-weight:bold;">غائب ✗</span>';
-                                    else if (s.attendance === 'late') attendBadge = '<span style="color:#b45309; font-weight:bold;">متأخر ⏱</span>';
-
-                                    let dayName = '';
-                                    try {
-                                        const d = new Date(s.date + 'T00:00:00');
-                                        dayName = d.toLocaleDateString('ar-MA', { weekday: 'short' });
-                                    } catch(e) {}
-
-                                    return `
-                                        <tr style="background:${idx % 2 === 1 ? '#f8fafc' : '#ffffff'};">
-                                            <td style="border:1px solid #cbd5e1; padding:4px 6px;">${idx + 1}</td>
-                                            <td style="border:1px solid #cbd5e1; padding:4px 6px;"><span dir="ltr" style="font-weight:bold;">${s.date}</span> ${dayName ? `(${dayName})` : ''}</td>
-                                            <td style="border:1px solid #cbd5e1; padding:4px 6px;" dir="ltr">${s.time || '-'}</td>
-                                            <td style="border:1px solid #cbd5e1; padding:4px 6px; font-weight:bold;">${s.hours} س</td>
-                                            <td style="border:1px solid #cbd5e1; padding:4px 8px; text-align:right;">${escapeTutoringHtml(s.topic || 'حصة دعم وتقوية ومراجعة تمارين')}</td>
-                                            <td style="border:1px solid #cbd5e1; padding:4px 6px;">${attendBadge}</td>
-                                        </tr>
-                                    `;
-                                }).join('') : `
-                                    <tr>
-                                        <td colspan="6" style="border:1px solid #cbd5e1; padding:8px; color:#64748b; font-style:italic;">لا توجد حصص مسجلة لهذا التلميذ خلال شهر ${monthVal}</td>
-                                    </tr>
-                                `}
-                            </tbody>
-                        </table>
-                    </div>
-                    ` : ''}
-
-                    <!-- Financial Breakdown & Stamp -->
-                    ${options.includeFinance ? `
-                    <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:${isCompact ? '6px 10px' : '8px 14px'}; margin-bottom:${isCompact ? '8px' : '12px'}; flex-wrap:wrap; gap:8px;">
-                        <div style="display:flex; gap:14px; font-size:${isCompact ? '0.76rem' : '0.84rem'}; flex-wrap:wrap;">
-                            <div><span style="color:#64748b; display:block; font-size:0.7rem; font-weight:bold;">واجب الساعة:</span> <strong>${hourlyRate} د.م/س</strong></div>
-                            <div><span style="color:#64748b; display:block; font-size:0.7rem; font-weight:bold;">إجمالي المستحق:</span> <strong style="color:#0f172a;">${payInfo.totalDue} درهم</strong></div>
-                            <div><span style="color:#166534; display:block; font-size:0.7rem; font-weight:bold;">المبلغ المؤدى:</span> <strong style="color:#15803d;">${payInfo.paidAmount} درهم</strong></div>
-                            <div><span style="color:${payInfo.remaining > 0 ? '#991b1b' : '#64748b'}; display:block; font-size:0.7rem; font-weight:bold;">المبلغ المتبقي:</span> <strong style="color:${payInfo.remaining > 0 ? '#b91c1c' : '#15803d'};">${payInfo.remaining} درهم</strong></div>
-                        </div>
-                        <div>
-                            ${stampBadgeHtml}
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    <!-- Pedagogical Observation & Signatures -->
-                    ${options.includeNotesAndSign ? `
-                    <div style="display:grid; grid-template-columns: 1.8fr 1fr 1fr; gap:8px; border-top:1px dashed #cbd5e1; padding-top:${isCompact ? '6px' : '10px'}; font-size:${isCompact ? '0.72rem' : '0.78rem'};">
-                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:${isCompact ? '5px 8px' : '6px 10px'};">
-                            <span style="font-weight:bold; color:#475569; display:block; margin-bottom:2px;">ملاحظات الأستاذ حول الأداء والمواظبة:</span>
-                            <span style="color:#1e293b; line-height:1.4;">${escapeTutoringHtml(customNote)}</span>
-                        </div>
-                        <div style="text-align:center; border:1px solid #e2e8f0; border-radius:6px; padding:${isCompact ? '5px' : '6px'}; background:#ffffff;">
-                            <span style="font-weight:bold; color:#64748b; display:block; margin-bottom:${isCompact ? '16px' : '24px'};">توقيع وختم الأستاذ:</span>
-                            <span style="font-size:0.7rem; color:#94a3b8;">${escapeTutoringHtml(pTeacherName)}</span>
-                        </div>
-                        <div style="text-align:center; border:1px solid #e2e8f0; border-radius:6px; padding:${isCompact ? '5px' : '6px'}; background:#ffffff;">
-                            <span style="font-weight:bold; color:#64748b; display:block; margin-bottom:${isCompact ? '16px' : '24px'};">تأشيرة وتوقيع ولي الأمر:</span>
-                            <span style="font-size:0.7rem; color:#94a3b8;">(للتأكيد والمتابعة)</span>
-                        </div>
-                    </div>
-                    ` : ''}
-
-                </div>
-            `;
-        }
-
-        function buildGroupPerformanceReportContainer(groupVal, monthVal, options) {
-            const container = document.createElement('div');
-            container.className = 'tutoring-batch-report-wrapper';
-            container.dir = 'rtl';
-            container.style.width = '100%';
-            container.style.maxWidth = '210mm';
-            container.style.margin = '0 auto';
-            container.style.background = '#ffffff';
-
-            const filteredStudents = getFilteredBatchStudents(groupVal);
-            const isTwoUp = options.layout === 'two_per_page';
-
-            if (isTwoUp) {
-                for (let i = 0; i < filteredStudents.length; i += 2) {
-                    const s1 = filteredStudents[i];
-                    const s2 = filteredStudents[i + 1];
-                    const isLastPage = (i + 2 >= filteredStudents.length);
-
-                    const pageDiv = document.createElement('div');
-                    pageDiv.className = 'tutoring-batch-page two-up html2pdf__page-break';
-                    pageDiv.style.cssText = `box-sizing:border-box; background:#ffffff; min-height:280mm; padding:8mm 10mm; display:flex; flex-direction:column; justify-content:space-between; ${isLastPage ? 'page-break-after:auto; break-after:auto;' : 'page-break-after:always; break-after:page;'}`;
-
-                    let contentHtml = buildStudentPerformanceSlipHtml(s1, monthVal, options, true);
-
-                    if (s2) {
-                        contentHtml += `
-                            <div class="tutoring-cut-separator" style="text-align:center; margin:8px 0; position:relative; border-top:2px dashed #94a3b8; height:1px;">
-                                <span class="tutoring-cut-label" style="position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:#ffffff; padding:0 12px; font-size:0.72rem; color:#64748b; font-weight:800;">
-                                    ✂ خط القص للفصل والتوزيع الفردي
-                                </span>
-                            </div>
-                        `;
-                        contentHtml += buildStudentPerformanceSlipHtml(s2, monthVal, options, true);
-                    } else {
-                        contentHtml += `<div style="flex:1;"></div>`;
-                    }
-
-                    pageDiv.innerHTML = contentHtml;
-                    container.appendChild(pageDiv);
-                }
-            } else {
-                filteredStudents.forEach((std, idx) => {
-                    const isLastPage = (idx === filteredStudents.length - 1);
-                    const pageDiv = document.createElement('div');
-                    pageDiv.className = 'tutoring-batch-page full-page html2pdf__page-break';
-                    pageDiv.style.cssText = `box-sizing:border-box; background:#ffffff; min-height:280mm; padding:12mm 14mm; display:flex; flex-direction:column; justify-content:space-between; ${isLastPage ? 'page-break-after:auto; break-after:auto;' : 'page-break-after:always; break-after:page;'}`;
-                    pageDiv.innerHTML = buildStudentPerformanceSlipHtml(std, monthVal, options, false);
-                    container.appendChild(pageDiv);
-                });
-            }
-
-            return container;
-        }
-
-        function exportBatchPerformancePdf() {
-            const groupSelect = document.getElementById('batchReportGroupSelect');
-            const monthInput = document.getElementById('batchReportMonthSelect');
-            const groupVal = groupSelect ? groupSelect.value : 'all';
-            const monthVal = monthInput ? monthInput.value : '';
-
-            const filteredStudents = getFilteredBatchStudents(groupVal);
-            if (filteredStudents.length === 0) {
-                alert('لا يوجد تلاميذ في هذه المجموعة لتصدير كشف الأداء.');
-                return;
-            }
-
-            if (typeof html2pdf === 'undefined') {
-                alert('مكتبة تصدير PDF غير متوفرة حالياً، يمكنك استخدام زر الطباعة المباشرة.');
-                return;
-            }
-
-            const options = {
-                layout: currentBatchReportLayout || 'one_per_page',
-                includeSessions: document.getElementById('batchOptSessionsTable') ? document.getElementById('batchOptSessionsTable').checked : true,
-                includeStats: document.getElementById('batchOptAttendanceStats') ? document.getElementById('batchOptAttendanceStats').checked : true,
-                includeFinance: document.getElementById('batchOptFinance') ? document.getElementById('batchOptFinance').checked : true,
-                includeNotesAndSign: document.getElementById('batchOptNotesAndSign') ? document.getElementById('batchOptNotesAndSign').checked : true,
-                customNote: document.getElementById('batchReportCustomNote') ? document.getElementById('batchReportCustomNote').value.trim() : ''
-            };
-
-            const container = buildGroupPerformanceReportContainer(groupVal, monthVal, options);
-            container.style.position = 'fixed';
-            container.style.top = '-99999px';
-            container.style.left = '0';
-            container.style.zIndex = '-1';
-            document.body.appendChild(container);
-
-            const btn = document.getElementById('btnExportBatchPdf');
-            const origHtml = btn ? btn.innerHTML : '';
-            if (btn) {
-                btn.innerHTML = '⏳ جاري إنشاء ملف PDF المجمع...';
-                btn.disabled = true;
-            }
-
-            const cleanGroupName = groupVal === 'all' ? 'جميع_المجموعات' : groupVal.replace(/[^a-zA-Z0-9\u0600-\u06FF_-]/g, '_');
-            const filename = `كشف_أداء_شهري_${cleanGroupName}_${monthVal}.pdf`;
-
-            const opt = {
-                margin: [4, 4, 4, 4],
-                filename: filename,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak: { mode: ['css', 'legacy'] }
-            };
-
-            html2pdf().set(opt).from(container).save().then(() => {
-                if (container.parentNode) container.parentNode.removeChild(container);
-                if (btn) {
-                    btn.innerHTML = origHtml;
-                    btn.disabled = false;
-                }
-            }).catch(err => {
-                console.error('Error generating batch PDF:', err);
-                alert('حدث خطأ أثناء إنشاء ملف PDF، يرجى تجربة زر الطباعة الفورية.');
-                if (container.parentNode) container.parentNode.removeChild(container);
-                if (btn) {
-                    btn.innerHTML = origHtml;
-                    btn.disabled = false;
-                }
-            });
-        }
-
-        function previewBatchPerformancePdfInApp() {
-            const groupSelect = document.getElementById('batchReportGroupSelect');
-            const monthInput = document.getElementById('batchReportMonthSelect');
-            const groupVal = groupSelect ? groupSelect.value : 'all';
-            const monthVal = monthInput ? monthInput.value : '';
-
-            const filteredStudents = getFilteredBatchStudents(groupVal);
-            if (filteredStudents.length === 0) {
-                alert('لا يوجد تلاميذ في هذه المجموعة لمعاينة كشف الأداء.');
-                return;
-            }
-
-            if (typeof html2pdf === 'undefined') {
-                alert('مكتبة PDF غير متوفرة للمعالجة التلقائية.');
-                return;
-            }
-
-            const options = {
-                layout: currentBatchReportLayout || 'one_per_page',
-                includeSessions: document.getElementById('batchOptSessionsTable') ? document.getElementById('batchOptSessionsTable').checked : true,
-                includeStats: document.getElementById('batchOptAttendanceStats') ? document.getElementById('batchOptAttendanceStats').checked : true,
-                includeFinance: document.getElementById('batchOptFinance') ? document.getElementById('batchOptFinance').checked : true,
-                includeNotesAndSign: document.getElementById('batchOptNotesAndSign') ? document.getElementById('batchOptNotesAndSign').checked : true,
-                customNote: document.getElementById('batchReportCustomNote') ? document.getElementById('batchReportCustomNote').value.trim() : ''
-            };
-
-            const container = buildGroupPerformanceReportContainer(groupVal, monthVal, options);
-            container.style.position = 'fixed';
-            container.style.top = '-99999px';
-            container.style.left = '0';
-            container.style.zIndex = '-1';
-            document.body.appendChild(container);
-
-            const btn = document.getElementById('btnPreviewBatchPdfInApp');
-            const origHtml = btn ? btn.innerHTML : '';
-            if (btn) {
-                btn.innerHTML = '⏳ جاري تجهيز المعاينة...';
-                btn.disabled = true;
-            }
-
-            const cleanGroupName = groupVal === 'all' ? 'جميع المجموعات' : groupVal;
-            const opt = {
-                margin: [4, 4, 4, 4],
-                filename: `معاينة_كشف_أداء_${cleanGroupName}_${monthVal}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak: { mode: ['css', 'legacy'] }
-            };
-
-            html2pdf().set(opt).from(container).output('blob').then(blob => {
-                if (container.parentNode) container.parentNode.removeChild(container);
-                if (btn) {
-                    btn.innerHTML = origHtml;
-                    btn.disabled = false;
-                }
-                const blobUrl = URL.createObjectURL(blob);
-                closeTutoringGroupBatchPerformanceReportModal();
-                if (typeof window.openInAppFileViewer === 'function') {
-                    window.openInAppFileViewer({
-                        type: 'drive',
-                        url: blobUrl,
-                        title: `كشف أداء شهري مجمع - ${cleanGroupName} (${monthVal})`,
-                        fileType: 'doc'
-                    });
-                } else {
-                    window.open(blobUrl, '_blank');
-                }
-            }).catch(err => {
-                console.error('Error in batch PDF preview:', err);
-                if (container.parentNode) container.parentNode.removeChild(container);
-                if (btn) {
-                    btn.innerHTML = origHtml;
-                    btn.disabled = false;
-                }
-                alert('تعذر إنشاء المعاينة المباشرة.');
-            });
-        }
-
-        function printBatchPerformanceReportDirect() {
-            const groupSelect = document.getElementById('batchReportGroupSelect');
-            const monthInput = document.getElementById('batchReportMonthSelect');
-            const groupVal = groupSelect ? groupSelect.value : 'all';
-            const monthVal = monthInput ? monthInput.value : '';
-
-            const filteredStudents = getFilteredBatchStudents(groupVal);
-            if (filteredStudents.length === 0) {
-                alert('لا يوجد تلاميذ في هذه المجموعة للطباعة.');
-                return;
-            }
-
-            const options = {
-                layout: currentBatchReportLayout || 'one_per_page',
-                includeSessions: document.getElementById('batchOptSessionsTable') ? document.getElementById('batchOptSessionsTable').checked : true,
-                includeStats: document.getElementById('batchOptAttendanceStats') ? document.getElementById('batchOptAttendanceStats').checked : true,
-                includeFinance: document.getElementById('batchOptFinance') ? document.getElementById('batchOptFinance').checked : true,
-                includeNotesAndSign: document.getElementById('batchOptNotesAndSign') ? document.getElementById('batchOptNotesAndSign').checked : true,
-                customNote: document.getElementById('batchReportCustomNote') ? document.getElementById('batchReportCustomNote').value.trim() : ''
-            };
-
-            const container = buildGroupPerformanceReportContainer(groupVal, monthVal, options);
-
-            let iframe = document.getElementById('batchReportPrintFrame');
-            if (!iframe) {
-                iframe = document.createElement('iframe');
-                iframe.id = 'batchReportPrintFrame';
-                iframe.style.position = 'fixed';
-                iframe.style.right = '0';
-                iframe.style.bottom = '0';
-                iframe.style.width = '0';
-                iframe.style.height = '0';
-                iframe.style.border = '0';
-                document.body.appendChild(iframe);
-            }
-
-            const printHtml = `<!DOCTYPE html>
-            <${'html'} dir="rtl" lang="ar">
-            <${'head'}>
-                <meta charset="UTF-8">
-                <title>كشف أداء شهري مجمع - ${groupVal} - ${monthVal}</title>
-                <link rel="stylesheet" href="style.css">
-                <style>
-                    @page { size: A4 portrait; margin: 6mm; }
-                    body { font-family: 'Cairo', 'Tajawal', system-ui, sans-serif; margin: 0; padding: 0; background: #fff; color: #0f172a; direction: rtl; }
-                    .tutoring-batch-page { page-break-after: always; break-after: page; }
-                    .tutoring-batch-page:last-child { page-break-after: auto; break-after: auto; }
-                    @media print {
-                        body { margin: 0; padding: 0; }
-                        .tutoring-batch-page { box-shadow: none !important; border: none !important; }
-                    }
-                </style>
-            <${'/head'}>
-            <${'body'}>
-                ${container.innerHTML}
-            <${'/body'}>
-            <${'/html'}>`;
-
-            const doc = iframe.contentWindow.document;
-            doc.open();
-            doc.write(printHtml);
-            doc.close();
-            iframe.contentWindow.focus();
-            setTimeout(() => {
-                try {
-                    iframe.contentWindow.print();
-                } catch(e) {
-                    window.print();
-                }
-            }, 450);
-        }
-
-        // Export functions to window
-        window.openTutoringGroupBatchPerformanceReportModal = openTutoringGroupBatchPerformanceReportModal;
-        window.closeTutoringGroupBatchPerformanceReportModal = closeTutoringGroupBatchPerformanceReportModal;
-        window.setBatchReportLayout = setBatchReportLayout;
-        window.changeBatchReportMonth = changeBatchReportMonth;
-        window.updateBatchReportPreviewSummary = updateBatchReportPreviewSummary;
-        window.exportBatchPerformancePdf = exportBatchPerformancePdf;
-        window.previewBatchPerformancePdfInApp = previewBatchPerformancePdfInApp;
-        window.printBatchPerformanceReportDirect = printBatchPerformanceReportDirect;
-        window.openTutoringStatementSelectorModal = openTutoringGroupBatchPerformanceReportModal;
+        window.applyGroupDefaultsToStudentModal = applyGroupDefaultsToStudentModal;
 
         function openAddTutoringStudentModal() {
             initTutoring();
@@ -8059,6 +7940,13 @@
             if (groupInput) {
                 const curFilter = document.getElementById('tutoringGroupFilter');
                 groupInput.value = (curFilter && curFilter.value !== 'all') ? curFilter.value : '';
+                if (!groupInput.dataset.defaultsBound) {
+                    groupInput.dataset.defaultsBound = '1';
+                    groupInput.addEventListener('change', () => {
+                        const isNew = !(document.getElementById('tutoringStudentId')?.value);
+                        if (isNew) applyGroupDefaultsToStudentModal(groupInput.value, true);
+                    });
+                }
             }
             const phoneInput = document.getElementById('tutoringPhone');
             if (phoneInput) phoneInput.value = '';
@@ -8068,6 +7956,35 @@
             if (levelInput) levelInput.value = '';
             const notesInput = document.getElementById('tutoringNotes');
             if (notesInput) notesInput.value = '';
+
+            // Reset Axis 1 (Billing) & Axis 2 (ROI) fields natively
+            const modeEl = document.getElementById('tutoringBillingMode');
+            if (modeEl) {
+                modeEl.value = 'hourly';
+                delete modeEl.dataset.userChanged;
+                if (!modeEl.dataset.changeBound) {
+                    modeEl.dataset.changeBound = '1';
+                    modeEl.addEventListener('change', () => { modeEl.dataset.userChanged = '1'; });
+                }
+            }
+            if (typeof window.toggleTutoringBillingModeFields === 'function') {
+                window.toggleTutoringBillingModeFields('hourly');
+            }
+            const todayStr = window.formatLocalDate ? window.formatLocalDate() : new Date().toISOString().slice(0, 10);
+            const setVal = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val; };
+            setVal('tutoringMonthlyFixedFee', '');
+            setVal('tutoringPackSessions', '4');
+            setVal('tutoringPackPrice', '');
+            setVal('tutoringPackStartDate', todayStr);
+            setVal('tutoringDiscountPercent', '0');
+            setVal('tutoringGradeBefore', '');
+            setVal('tutoringGradeAfter', '');
+            setVal('tutoringNextExamDate', '');
+            setVal('tutoringNextExamTopic', '');
+
+            if (groupInput && groupInput.value) {
+                applyGroupDefaultsToStudentModal(groupInput.value, true);
+            }
 
             // Populate tutoring group datalist with independent groups
             const dl = document.getElementById('tutoringGroupDatalist');
@@ -8084,73 +8001,42 @@
             }, 100);
         }
 
-        function onTutoringImportClassChange() {
-            const classSel = document.getElementById('tutoringImportClassSelect');
-            const studentSel = document.getElementById('tutoringImportStudentSelect');
-            if (!classSel || !studentSel) return;
-            const cls = classSel.value;
-            if (!cls || !db.classes || !db.classes[cls]) {
-                studentSel.innerHTML = '<option value="">-- اختر التلميذ --</option>';
-                studentSel.disabled = true;
-                return;
-            }
-            const students = db.classes[cls] || [];
-            let opts = '<option value="">-- اختر التلميذ (' + students.length + ') --</option>';
-            students.forEach((s, idx) => {
-                opts += `<option value="${idx}">${s.name || ('تلميذ ' + (idx + 1))}</option>`;
-            });
-            studentSel.innerHTML = opts;
-            studentSel.disabled = false;
-        }
-
-        function onTutoringImportStudentSelect() {
-            const classSel = document.getElementById('tutoringImportClassSelect');
-            const studentSel = document.getElementById('tutoringImportStudentSelect');
-            if (!classSel || !studentSel) return;
-            const cls = classSel.value;
-            const idx = studentSel.value;
-            if (!cls || idx === '' || !db.classes || !db.classes[cls]) return;
-
-            const std = db.classes[cls][idx];
-            if (!std) return;
-
-            const nameInput = document.getElementById('tutoringName');
-            const phoneInput = document.getElementById('tutoringPhone');
-            const groupInput = document.getElementById('tutoringGroup');
-            const levelSel = document.getElementById('tutoringLevel');
-
-            if (nameInput) nameInput.value = std.name || '';
-            if (phoneInput) phoneInput.value = std.phone || std.parentPhone || '';
-            if (groupInput && !groupInput.value) groupInput.value = 'مجموعة ' + cls;
-
-            if (levelSel && !levelSel.value) {
-                const cLower = cls.toUpperCase();
-                for (let opt of levelSel.options) {
-                    if (opt.value && cLower.includes(opt.value.toUpperCase())) {
-                        levelSel.value = opt.value;
-                        break;
-                    }
-                }
-            }
-        }
-
         function editTutoringStudent(studentId) {
-            const std = db.tutoring.students.find(s => s.id === studentId);
-            if (std) {
-                document.getElementById('tutoringModalTitle').textContent = 'تعديل بيانات التلميذ';
-                document.getElementById('tutoringStudentId').value = std.id;
-                document.getElementById('tutoringName').value = std.name;
-                document.getElementById('tutoringGroup').value = std.group || '';
-                document.getElementById('tutoringPhone').value = std.phone || '';
-                document.getElementById('tutoringFee').value = std.fee || '';
-                if (document.getElementById('tutoringLevel')) document.getElementById('tutoringLevel').value = std.level || '';
-                if (document.getElementById('tutoringNotes')) document.getElementById('tutoringNotes').value = std.notes || '';
+            const std = (db.tutoring.students || []).find(s => s.id === studentId);
+            if (!std) return;
+            document.getElementById('tutoringModalTitle').textContent = 'تعديل بيانات التلميذ';
+            document.getElementById('tutoringStudentId').value = std.id;
+            document.getElementById('tutoringName').value = std.name || '';
+            document.getElementById('tutoringGroup').value = std.group || '';
+            document.getElementById('tutoringPhone').value = std.phone || '';
+            document.getElementById('tutoringFee').value = std.fee || '';
+            if (document.getElementById('tutoringLevel')) document.getElementById('tutoringLevel').value = std.level || '';
+            if (document.getElementById('tutoringNotes')) document.getElementById('tutoringNotes').value = std.notes || '';
 
-                const importBox = document.getElementById('tutoringQuickClassImportBox');
-                if (importBox) importBox.style.display = 'none';
-
-                document.getElementById('tutoringModal').style.display = 'flex';
+            const mode = std.billingMode || 'hourly';
+            const modeEl = document.getElementById('tutoringBillingMode');
+            if (modeEl) {
+                modeEl.value = mode;
+                modeEl.dataset.userChanged = '1';
             }
+            if (typeof window.toggleTutoringBillingModeFields === 'function') {
+                window.toggleTutoringBillingModeFields(mode);
+            }
+            const setVal = (elId, val) => { const el = document.getElementById(elId); if (el) el.value = val; };
+            setVal('tutoringMonthlyFixedFee', std.monthlyFixedFee ?? '');
+            setVal('tutoringPackSessions', std.packSessions || 4);
+            setVal('tutoringPackPrice', std.packPrice ?? '');
+            setVal('tutoringPackStartDate', std.packStartDate || '');
+            setVal('tutoringDiscountPercent', std.discountPercent ?? 0);
+            setVal('tutoringGradeBefore', std.gradeBefore ?? '');
+            setVal('tutoringGradeAfter', std.gradeAfter ?? '');
+            setVal('tutoringNextExamDate', std.nextExamDate || '');
+            setVal('tutoringNextExamTopic', std.nextExamTopic || '');
+
+            const importBox = document.getElementById('tutoringQuickClassImportBox');
+            if (importBox) importBox.style.display = 'none';
+
+            document.getElementById('tutoringModal').style.display = 'flex';
         }
 
         function closeTutoringModal() {
@@ -8167,17 +8053,36 @@
             const name = document.getElementById('tutoringName').value.trim();
             const group = document.getElementById('tutoringGroup').value.trim();
             const phone = document.getElementById('tutoringPhone').value.trim();
-            const fee = document.getElementById('tutoringFee').value.trim();
+            let fee = document.getElementById('tutoringFee').value.trim();
             const level = document.getElementById('tutoringLevel') ? document.getElementById('tutoringLevel').value : '';
             const notes = document.getElementById('tutoringNotes') ? document.getElementById('tutoringNotes').value.trim() : '';
 
+            const billingMode = document.getElementById('tutoringBillingMode')?.value || 'hourly';
+            const monthlyFixedFee = parseFloat(document.getElementById('tutoringMonthlyFixedFee')?.value) || 0;
+            const packSessions = Math.max(1, parseInt(document.getElementById('tutoringPackSessions')?.value, 10) || 4);
+            const packPrice = parseFloat(document.getElementById('tutoringPackPrice')?.value) || 0;
+            const packStartDate = document.getElementById('tutoringPackStartDate')?.value || '';
+            const discountPercent = Math.max(0, Math.min(100, parseFloat(document.getElementById('tutoringDiscountPercent')?.value) || 0));
+            const gradeBeforeRaw = document.getElementById('tutoringGradeBefore')?.value;
+            const gradeAfterRaw = document.getElementById('tutoringGradeAfter')?.value;
+            const gradeBefore = (gradeBeforeRaw !== undefined && gradeBeforeRaw !== '') ? parseFloat(gradeBeforeRaw) : '';
+            const gradeAfter = (gradeAfterRaw !== undefined && gradeAfterRaw !== '') ? parseFloat(gradeAfterRaw) : '';
+            const nextExamDate = document.getElementById('tutoringNextExamDate')?.value || '';
+            const nextExamTopic = (document.getElementById('tutoringNextExamTopic')?.value || '').trim();
+
+            if (!fee || parseFloat(fee) === 0) {
+                if (billingMode === 'monthly_fixed' && monthlyFixedFee > 0) fee = String(monthlyFixedFee);
+                else if (billingMode === 'session_pack' && packPrice > 0) fee = String(Math.round(packPrice / packSessions));
+            }
+
             if (!name) {
-                alert('يرجى إدخال اسم التلميذ');
+                window.notifySafeToast('يرجى إدخال اسم التلميذ');
                 unlock();
                 return;
             }
 
-            if (!db.tutoring) db.tutoring = { students: [] };
+            if (!db.tutoring) db.tutoring = { students: [], groups: [], expenses: [] };
+            if (!Array.isArray(db.tutoring.students)) db.tutoring.students = [];
 
             if (id) {
                 const std = db.tutoring.students.find(s => s.id === id);
@@ -8188,6 +8093,16 @@
                     std.fee = fee;
                     std.level = level;
                     std.notes = notes;
+                    std.billingMode = billingMode;
+                    std.monthlyFixedFee = monthlyFixedFee;
+                    std.packSessions = packSessions;
+                    std.packPrice = packPrice;
+                    std.packStartDate = packStartDate || std.packStartDate || '';
+                    std.discountPercent = discountPercent;
+                    std.gradeBefore = gradeBefore;
+                    std.gradeAfter = gradeAfter;
+                    std.nextExamDate = nextExamDate;
+                    std.nextExamTopic = nextExamTopic;
                 }
             } else {
                 // منع التكرار في مجموعات الدعم
@@ -8198,7 +8113,7 @@
                     ((s.group || '').trim().toLowerCase() === cleanGroup)
                 );
                 if (dup) {
-                    alert(`تنبيه لمنع التكرار: التلميذ(ة) "${name}" مسجل(ة) بالفعل في مجموعة "${group || 'العامة'}"! تم إلغاء الإضافة.`);
+                    window.notifySafeToast(`تنبيه لمنع التكرار: التلميذ(ة) "${name}" مسجل(ة) بالفعل في مجموعة "${group || 'العامة'}"! تم إلغاء الإضافة.`);
                     unlock();
                     return;
                 }
@@ -8211,6 +8126,18 @@
                     fee: fee,
                     level: level,
                     notes: notes,
+                    billingMode: billingMode,
+                    monthlyFixedFee: monthlyFixedFee,
+                    packSessions: packSessions,
+                    packPrice: packPrice,
+                    packStartDate: packStartDate || (window.formatLocalDate ? window.formatLocalDate() : new Date().toISOString().slice(0, 10)),
+                    packArchivedIds: [],
+                    discountPercent: discountPercent,
+                    gradeBefore: gradeBefore,
+                    gradeAfter: gradeAfter,
+                    nextExamDate: nextExamDate,
+                    nextExamTopic: nextExamTopic,
+                    sessions: [],
                     payments: {}
                 });
             }
@@ -8606,7 +8533,7 @@
             const currentDb = window.db || (typeof db !== 'undefined' ? db : {});
             const data = (currentDb.timetable && currentDb.timetable[dayName]) ? currentDb.timetable[dayName] : null;
             if (!data) {
-                alert('لا توجد بيانات لهذا اليوم.');
+                window.notifySafeToast('لا توجد بيانات لهذا اليوم.');
                 return;
             }
 
@@ -8643,7 +8570,7 @@
             text += `\n🎓 *منظومة التدبير التربوي*`;
 
             const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-            window.open(url, '_blank');
+            window.openSafeExternalUrl(url, '_blank');
         }
 
         async function exportDayCard(cardElement, dayName) {
@@ -8708,7 +8635,7 @@
                     if (wasExpanded) cardElement.classList.add('expanded');
                 }
                 console.error('Error exporting day card image:', err?.message || String(err));
-                alert('حدث خطأ أثناء تصدير الصورة: ' + (err.message || err));
+                window.notifySafeToast('حدث خطأ أثناء تصدير الصورة: ' + (err.message || err));
             }
         }
 
@@ -8842,8 +8769,8 @@
                     sessionsRows += `
                         <tr style="border-bottom: 1px solid #f1f5f9;">
                             <td style="padding: 7px 10px; text-align: center;">${idx + 1}</td>
-                            <td style="padding: 7px 10px;">${s.date || '—'}</td>
-                            <td style="padding: 7px 10px;">${s.title || s.topic || 'حصة دعم وتقوية'}</td>
+                            <td style="padding: 7px 10px;">${escapeTutoringHtml(s.date || '—')}</td>
+                            <td style="padding: 7px 10px;">${escapeTutoringHtml(s.title || s.topic || 'حصة دعم وتقوية')}</td>
                             <td style="padding: 7px 10px; text-align: center;">${s.hours || 1} س</td>
                             <td style="padding: 7px 10px; text-align: center; font-weight: bold; color: ${isAttended ? '#16a34a' : '#dc2626'};">
                                 ${isAttended ? 'حاضر(ة)' : 'غائب(ة)'}
@@ -8861,10 +8788,10 @@
                     installmentsRows += `
                         <tr style="border-bottom: 1px solid #f1f5f9;">
                             <td style="padding: 7px 10px; text-align: center;">${idx + 1}</td>
-                            <td style="padding: 7px 10px;">${inst.date || '—'}</td>
+                            <td style="padding: 7px 10px;">${escapeTutoringHtml(inst.date || '—')}</td>
                             <td style="padding: 7px 10px; font-weight: bold; color: #15803d;">${inst.amount || 0} د.م</td>
-                            <td style="padding: 7px 10px;">${inst.method || 'نقداً'}</td>
-                            <td style="padding: 7px 10px; color: #64748b;">${inst.note || '—'}</td>
+                            <td style="padding: 7px 10px;">${escapeTutoringHtml(inst.method || 'نقداً')}</td>
+                            <td style="padding: 7px 10px; color: #64748b;">${escapeTutoringHtml(inst.note || '—')}</td>
                         </tr>
                     `;
                 });
@@ -8878,7 +8805,7 @@
                             <h2 style="margin: 0; color: #1e3a8a; font-size: 1.35rem; font-weight: 800;">المملكة المغربية</h2>
                             <h3 style="margin: 3px 0 0 0; color: #3b82f6; font-size: 1.05rem; font-weight: 700;">كشف حساب شهري - دروس الدعم والتقوية</h3>
                             <div style="margin-top: 4px; font-size: 0.8rem; color: #64748b;">
-                                المؤسسة / المركز: ${school || 'مركز الدعم والتقوية'} | الأستاذ(ة): ${teacher}
+                                المؤسسة / المركز: ${escapeTutoringHtml(school || 'مركز الدعم والتقوية')} | الأستاذ(ة): ${escapeTutoringHtml(teacher)}
                             </div>
                         </div>
                         <div style="text-align: left; direction: ltr;">
@@ -8891,10 +8818,10 @@
 
                     <!-- Student Info Card -->
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; font-size: 0.84rem;">
-                        <div><span style="color:#64748b;">اسم التلميذ(ة):</span> <strong>${std.name}</strong></div>
-                        <div><span style="color:#64748b;">المجموعة:</span> <strong>${groupName}</strong></div>
-                        <div><span style="color:#64748b;">شهر الأداء:</span> <strong>${activeMonth}</strong></div>
-                        <div><span style="color:#64748b;">الهاتف:</span> <span dir="ltr">${std.phone || '—'}</span></div>
+                        <div><span style="color:#64748b;">اسم التلميذ(ة):</span> <strong>${escapeTutoringHtml(std.name)}</strong></div>
+                        <div><span style="color:#64748b;">المجموعة:</span> <strong>${escapeTutoringHtml(groupName)}</strong></div>
+                        <div><span style="color:#64748b;">شهر الأداء:</span> <strong>${escapeTutoringHtml(activeMonth)}</strong></div>
+                        <div><span style="color:#64748b;">الهاتف:</span> <span dir="ltr">${escapeTutoringHtml(std.phone || '—')}</span></div>
                     </div>
 
                     <!-- Financial Summary Box -->
@@ -9021,7 +8948,7 @@
             const month = monthInput ? monthInput.value : '';
 
             if (!studentId) {
-                alert('يرجى اختيار تلميذ أولاً');
+                window.notifySafeToast('يرجى اختيار تلميذ أولاً');
                 return;
             }
 
@@ -9029,13 +8956,16 @@
             window.openTutoringStatementModal(studentId, month);
         };
 
-        window.downloadActiveStatementPDF = function() {
+        window.downloadActiveStatementPDF = async function() {
             const element = document.getElementById('tutoringStatementDocument');
             if (!element) return;
             const stdName = (currentActiveStatementStudent && currentActiveStatementStudent.name) ? currentActiveStatementStudent.name.replace(/\s+/g, '_') : 'تلميذ';
             const month = currentActiveStatementMonth || 'شهر';
             const filename = `كشف_حساب_${stdName}_${month}.pdf`;
 
+            if (typeof html2pdf === 'undefined' && typeof window.ensureHtml2PdfLoaded === 'function') {
+                await window.ensureHtml2PdfLoaded();
+            }
             if (typeof html2pdf !== 'undefined') {
                 const opt = {
                     margin: [8, 8, 8, 8],
@@ -9074,3 +9004,1361 @@
                 window.printDocumentDirectly(htmlDoc, 'كشف حساب شهري', 'portrait');
             }
         };
+
+        // =========================================================================
+        // Pedagogical Lesson Templates (Direct by Level & Academic Axis)
+        // =========================================================================
+        function _libEscHtml(val) {
+            if (typeof escapeHtml === 'function') return escapeHtml(val);
+            return String(val == null ? '' : val)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function _libDecodeAxis(encoded) {
+            if (!encoded || encoded === 'all') return encoded || 'all';
+            try { return decodeURIComponent(encoded); } catch (e) { return encoded; }
+        }
+
+        function openCreateLessonTemplateModal(defaultTopic, editItemId) {
+            const existingItem = editItemId && window.db && Array.isArray(window.db.library)
+                ? window.db.library.find(i => i.id === editItemId)
+                : null;
+
+            let modal = document.getElementById('libLessonTemplateModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'libLessonTemplateModal';
+                modal.className = 'modal-overlay';
+                modal.style.cssText = 'display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); z-index: 9999; align-items: center; justify-content: center; padding: 16px; overflow-y: auto;';
+                document.body.appendChild(modal);
+            }
+
+            const currentLevel = existingItem ? (existingItem.level || 'عام') : '2BAC-PC';
+            const currentTopic = existingItem ? (existingItem.topic || '') : (defaultTopic || '');
+
+            const levelOptions = [
+                { val: 'عام', label: 'عام / مشترك لجميع المستويات' },
+                { val: 'TC-SC', label: 'الجذع المشترك العلمي (TCS)' },
+                { val: 'TC-TECH', label: 'الجذع المشترك التكنولوجي (TCT)' },
+                { val: 'TC-LSH', label: 'الجذع المشترك للآداب والعلوم الإنسانية' },
+                { val: '1BAC-SM', label: 'الأولى باك علوم رياضية (1BAC SM)' },
+                { val: '1BAC-EXP', label: 'الأولى باك علوم تجريبية (1BAC SE)' },
+                { val: '1BAC-ECO', label: 'الأولى باك علوم اقتصادية' },
+                { val: '1BAC-LSH', label: 'الأولى باك آداب وعلوم إنسانية' },
+                { val: '2BAC-SM', label: 'الثانية باك علوم رياضية (2BAC SM)' },
+                { val: '2BAC-PC', label: 'الثانية باك علوم فيزيائية / ح أ (PC/SVT)' },
+                { val: '2BAC-ECO', label: 'الثانية باك علوم اقتصادية' },
+                { val: '2BAC-LSH', label: 'الثانية باك آداب وعلوم إنسانية' }
+            ];
+
+            modal.innerHTML = `
+                <div style="background: #ffffff; width: 100%; max-width: 640px; border-radius: 14px; padding: 22px; box-shadow: 0 20px 45px rgba(0,0,0,0.25); border: 1.5px solid #5eead4; direction: rtl; text-align: right; font-family: 'Cairo', sans-serif; max-height: 92vh; overflow-y: auto;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 14px;">
+                        <h3 style="margin: 0; font-size: 1.08rem; font-weight: 900; color: #0f766e;">📐 ${existingItem ? 'تعديل قالب الدرس البيداغوجي' : 'إنشاء قالب درس بيداغوجي جديد'}</h3>
+                        <button type="button" onclick="document.getElementById('libLessonTemplateModal').style.display='none'" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #64748b;">✕</button>
+                    </div>
+                    <input type="hidden" id="tplEditItemId" value="${existingItem ? existingItem.id : ''}">
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <div style="flex: 1.3; min-width: 210px;">
+                                <label style="font-size: 0.82rem; font-weight: 800; color: #0f766e;">🎓 المستوى الدراسي والشعبة:</label>
+                                <select id="tplLevelSelect" style="width: 100%; padding: 9px 10px; border-radius: 8px; border: 1.5px solid #2dd4bf; background: #f0fdfa; font-weight: 800; color: #115e59; margin-top: 4px;">
+                                    ${levelOptions.map(o => `<option value="${o.val}" ${o.val === currentLevel ? 'selected' : ''}>${o.label}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div style="flex: 1; min-width: 150px;">
+                                <label style="font-size: 0.82rem; font-weight: 800; color: #334155;">⏱️ الغلاف الزمني (ساعات):</label>
+                                <input type="number" id="tplDurationHours" min="1" max="30" value="${existingItem && existingItem.templateDuration ? existingItem.templateDuration : 6}" style="width: 100%; padding: 9px 10px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 4px;">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.82rem; font-weight: 800; color: #334155;">📚 المحور الدراسي المرتبط:</label>
+                            <input type="text" id="tplLessonTopic" value="${_libEscHtml(currentTopic)}" placeholder="مثال: الاتصال ومبرهنة القيم الوسيطية / الأعداد العقدية" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 4px;">
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.82rem; font-weight: 800; color: #334155;">عنوان قالب الدرس:</label>
+                            <input type="text" id="tplLessonTitle" value="${existingItem ? _libEscHtml(existingItem.title) : ''}" placeholder="مثال: قالب درس: الاتصال ومبرهنة القيم الوسيطية" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 4px;">
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.82rem; font-weight: 800; color: #334155;">🎯 القدرات المنتظرة والأهداف البيداغوجية:</label>
+                            <textarea id="tplObjectives" rows="2" placeholder="مثال: دراسة اتصال دالة عددية في نقطة وعلى مجال، وتوظيف مبرهنة القيم الوسيطية..." style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 4px; font-family: inherit;">${existingItem && existingItem.templateObjectives ? _libEscHtml(existingItem.templateObjectives) : ''}</textarea>
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.82rem; font-weight: 800; color: #334155;">🔗 المكتسبات القبلية اللازمة:</label>
+                            <input type="text" id="tplPrerequisites" value="${existingItem && existingItem.templatePrerequisites ? _libEscHtml(existingItem.templatePrerequisites) : ''}" placeholder="مثال: نهايات الدوال العددية، الترتيب في IR" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 4px;">
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.82rem; font-weight: 800; color: #334155;">📋 هيكلة فقرات الدرس والسيناريو البيداغوجي:</label>
+                            <textarea id="tplStructurePlan" rows="4" placeholder="1. نشاط بنائي تمهيدي&#10;2. الفقرة الأولى: تعاريف وخاصيات أساسية&#10;3. أمثلة وتطبيقات&#10;4. تمارين الدعم والتقويم" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 4px; font-family: inherit;">${existingItem && existingItem.templatePlan ? _libEscHtml(existingItem.templatePlan) : ''}</textarea>
+                        </div>
+
+                        <div>
+                            <label style="font-size: 0.82rem; font-weight: 800; color: #334155;">🌐 رابط ملف PDF أو فيديو مرفق (اختياري):</label>
+                            <input type="url" id="tplExternalUrl" dir="ltr" value="${existingItem && existingItem.url ? _libEscHtml(existingItem.url) : ''}" placeholder="https://..." style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 4px;">
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
+                            <button type="button" onclick="document.getElementById('libLessonTemplateModal').style.display='none'" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #334155; font-weight: 700; cursor: pointer;">إلغاء</button>
+                            <button type="button" onclick="saveLibraryLessonTemplate()" style="padding: 8px 20px; border-radius: 8px; border: none; background: linear-gradient(135deg, #0d9488, #0f766e); color: #ffffff; font-weight: 800; cursor: pointer;">💾 حفظ قالب الدرس</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            modal.style.display = 'flex';
+        }
+        window.openCreateLessonTemplateModal = openCreateLessonTemplateModal;
+
+        function saveLibraryLessonTemplate() {
+            const editId = document.getElementById('tplEditItemId') ? document.getElementById('tplEditItemId').value.trim() : '';
+            const resolvedLevel = document.getElementById('tplLevelSelect') ? document.getElementById('tplLevelSelect').value : 'عام';
+            const resolvedTopic = document.getElementById('tplLessonTopic') ? document.getElementById('tplLessonTopic').value.trim() : '';
+            const title = document.getElementById('tplLessonTitle') ? document.getElementById('tplLessonTitle').value.trim() : '';
+            const duration = document.getElementById('tplDurationHours') ? parseInt(document.getElementById('tplDurationHours').value, 10) || 4 : 4;
+            const objectives = document.getElementById('tplObjectives') ? document.getElementById('tplObjectives').value.trim() : '';
+            const prerequisites = document.getElementById('tplPrerequisites') ? document.getElementById('tplPrerequisites').value.trim() : '';
+            const plan = document.getElementById('tplStructurePlan') ? document.getElementById('tplStructurePlan').value.trim() : '';
+            const extUrl = document.getElementById('tplExternalUrl') ? document.getElementById('tplExternalUrl').value.trim() : '';
+
+            if (!title) {
+                window.notifySafeToast('يرجى إدخال عنوان قالب الدرس.');
+                return;
+            }
+
+            if (!window.db.library) window.db.library = [];
+
+            if (editId) {
+                const existing = window.db.library.find(i => i.id === editId);
+                if (existing) {
+                    existing.title = title;
+                    existing.level = resolvedLevel;
+                    existing.topic = resolvedTopic;
+                    existing.category = 'قالب درس';
+                    existing.isLessonTemplate = true;
+                    existing.templateDuration = duration;
+                    existing.templateObjectives = objectives;
+                    existing.templatePrerequisites = prerequisites;
+                    existing.templatePlan = plan;
+                    if (extUrl) existing.url = extUrl;
+                }
+            } else {
+                window.db.library.unshift({
+                    id: 'tpl_' + Date.now(),
+                    title: title,
+                    url: extUrl || '',
+                    isLocalFile: false,
+                    isDriveFile: false,
+                    isLessonTemplate: true,
+                    category: 'قالب درس',
+                    type: extUrl ? 'link' : 'doc',
+                    topic: resolvedTopic || title,
+                    level: resolvedLevel,
+                    templateDuration: duration,
+                    templateObjectives: objectives,
+                    templatePrerequisites: prerequisites,
+                    templatePlan: plan,
+                    isNew: true,
+                    addedTimestamp: Date.now(),
+                    dateAdded: window.formatLocalDate ? window.formatLocalDate() : new Date().toLocaleDateString('en-CA')
+                });
+            }
+
+            if (typeof saveDB === 'function') saveDB();
+            const modal = document.getElementById('libLessonTemplateModal');
+            if (modal) modal.style.display = 'none';
+
+            renderLibrary();
+            if (typeof showLibraryToast === 'function') {
+                showLibraryToast(`✓ تم حفظ قالب الدرس «${title}» بنجاح!`);
+            }
+        }
+        window.saveLibraryLessonTemplate = saveLibraryLessonTemplate;
+
+        function openLessonTemplateViewerModal(itemId) {
+            const item = (window.db && Array.isArray(window.db.library)) ? window.db.library.find(i => i.id === itemId) : null;
+            if (!item) return;
+
+            let modal = document.getElementById('libLessonTemplateViewerModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'libLessonTemplateViewerModal';
+                modal.className = 'modal-overlay';
+                modal.style.cssText = 'display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); z-index: 9999; align-items: center; justify-content: center; padding: 16px; overflow-y: auto;';
+                document.body.appendChild(modal);
+            }
+
+            modal.innerHTML = `
+                <div style="background: #ffffff; width: 100%; max-width: 680px; border-radius: 14px; padding: 24px; box-shadow: 0 20px 45px rgba(0,0,0,0.25); border: 2px solid #0d9488; direction: rtl; text-align: right; font-family: 'Cairo', sans-serif; max-height: 92vh; overflow-y: auto;">
+                    <div id="printableLessonTemplateCard">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0d9488; padding-bottom: 12px; margin-bottom: 16px;">
+                            <div>
+                                <div style="font-size: 0.76rem; font-weight: 800; color: #0f766e;">📐 بطاقة قالب درس بيداغوجي مهيكل • مادة الرياضيات</div>
+                                <h3 style="margin: 4px 0 0 0; font-size: 1.2rem; font-weight: 900; color: #0f172a;">${_libEscHtml(item.title)}</h3>
+                            </div>
+                            <span style="background: #f0fdfa; color: #0f766e; border: 1px solid #5eead4; padding: 4px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 800;">
+                                ${_libEscHtml(item.topic || item.level || 'عام')}
+                            </span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px;">
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px;">
+                                <div style="font-size: 0.72rem; color: #64748b; font-weight: 700;">المستوى الدراسي</div>
+                                <div style="font-size: 0.9rem; font-weight: 800; color: #0f172a;">${_libEscHtml(item.level || 'عام')}</div>
+                            </div>
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px;">
+                                <div style="font-size: 0.72rem; color: #64748b; font-weight: 700;">الغلاف الزمني المقدر</div>
+                                <div style="font-size: 0.9rem; font-weight: 800; color: #0f766e;">${item.templateDuration || 6} ساعات تدريسية</div>
+                            </div>
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px;">
+                                <div style="font-size: 0.72rem; color: #64748b; font-weight: 700;">تاريخ الإعداد</div>
+                                <div style="font-size: 0.9rem; font-weight: 800; color: #334155;">${_libEscHtml(item.dateAdded || '-')}</div>
+                            </div>
+                        </div>
+
+                        <div style="background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;">
+                            <div style="font-weight: 900; color: #115e59; font-size: 0.86rem; margin-bottom: 4px;">🎯 القدرات المنتظرة والأهداف البيداغوجية:</div>
+                            <div style="font-size: 0.85rem; color: #134e4a; line-height: 1.6; white-space: pre-line;">${_libEscHtml(item.templateObjectives || 'تحقيق الكفايات المنهجية والتواصلية المرتبطة بمحور الدرس وفق التوجيهات التربوية الرسمية.')}</div>
+                        </div>
+
+                        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;">
+                            <div style="font-weight: 900; color: #1e3a8a; font-size: 0.86rem; margin-bottom: 4px;">🔗 المكتسبات القبلية اللازمة:</div>
+                            <div style="font-size: 0.85rem; color: #1e40af; line-height: 1.6;">${_libEscHtml(item.templatePrerequisites || 'المفاهيم والخاصيات الأساسية المدروسة في الوحدات السابقة.')}</div>
+                        </div>
+
+                        <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px 14px;">
+                            <div style="font-weight: 900; color: #0f172a; font-size: 0.86rem; margin-bottom: 6px;">📋 هيكلة فقرات الدرس والسيناريو البيداغوجي:</div>
+                            <div style="font-size: 0.85rem; color: #334155; line-height: 1.7; white-space: pre-line;">${_libEscHtml(item.templatePlan || '1. نشاط تشخيصي وبنائي\n2. صياغة التعاريف والخاصيات الأساسية\n3. أمثلة وتمارين تطبيقية مرحلية\n4. تقويم تكويني ودعم وقائي')}</div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+                        <button type="button" onclick="document.getElementById('libLessonTemplateViewerModal').style.display='none'" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #334155; font-weight: 700; cursor: pointer;">إغلاق</button>
+                        <button type="button" onclick="document.getElementById('libLessonTemplateViewerModal').style.display='none'; openCreateLessonTemplateModal('', '${item.id}')" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #5eead4; background: #f0fdfa; color: #0f766e; font-weight: 800; cursor: pointer;">✏️ تعديل القالب</button>
+                        <button type="button" onclick="printLessonTemplateCard()" style="padding: 8px 18px; border-radius: 8px; border: none; background: #0d9488; color: #ffffff; font-weight: 800; cursor: pointer;">🖨️ طباعة بطاقة القالب</button>
+                    </div>
+                </div>
+            `;
+            modal.style.display = 'flex';
+        }
+        window.openLessonTemplateViewerModal = openLessonTemplateViewerModal;
+
+        function printLessonTemplateCard() {
+            const cardEl = document.getElementById('printableLessonTemplateCard');
+            if (!cardEl) return;
+            const htmlDoc = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>بطاقة قالب درس بيداغوجي</title><style>body{font-family:'Cairo',sans-serif;padding:24px;direction:rtl;color:#0f172a;}</style></head><body>${cardEl.innerHTML}</body></html>`;
+            if (typeof window.printDocumentDirectly === 'function') {
+                window.printDocumentDirectly(htmlDoc, 'بطاقة قالب درس بيداغوجي', 'portrait');
+            }
+        }
+        window.printLessonTemplateCard = printLessonTemplateCard;
+
+        function seedStarterLessonTemplates() {
+            if (!window.db.library) window.db.library = [];
+
+            const starterTemplates = [
+                {
+                    id: 'tpl_starter_tc_1',
+                    title: 'قالب درس: المجموعات IR و Q و D والترتيب في المجموعة IR',
+                    level: 'TC-SC',
+                    topic: 'الترتيب في IR والمجموعات',
+                    templateDuration: 7,
+                    templateObjectives: 'التمييز بين مجموعات الأعداد، التمكن من قواعد الترتيب والعمليات في IR، تأطير تعابير جبرية واستعمال القيمة المطلقة والمجالات.',
+                    templatePrerequisites: 'العمليات الأربع في Q، القوى والجذور المربعة بالسلك الإعدادي.',
+                    templatePlan: '1. نشاط تمهيدي لتصنيف الأعداد وبناء مجموعات الأعداد\n2. الترتيب في IR والعمليات والتأطير\n3. المجالات والقيمة المطلقة والمسافة بين عددين\n4. تمارين تطبيقية وتوليفية للدعم'
+                },
+                {
+                    id: 'tpl_starter_tc_2',
+                    title: 'قالب درس: الحساب المتجهي والمستقيم في المستوى',
+                    level: 'TC-SC',
+                    topic: 'الحساب المتجهي والمستقيم في المستوى',
+                    templateDuration: 8,
+                    templateObjectives: 'التحكم في علاقة شال، استقامية متجهتين، تحديد معادلة ديكارتية وتمثيل بارامتري لمستقيم في معلم.',
+                    templatePrerequisites: 'الإزاحة والمتجهات ومعادلة مستقيم بالسنة الثالثة إعدادي.',
+                    templatePlan: '1. تذكير بعلاقة شال وضرب متجهة في عدد حقيقي\n2. المعلم في المستوى وإحداثيات متجهة\n3. التمثيل البارامتري والمعادلة الديكارتية لمستقيم\n4. الأوضاع النسبية لمستقيمين'
+                },
+                {
+                    id: 'tpl_starter_1bac_1',
+                    title: 'قالب درس: مبادئ في المنطق الرياضي وأنماط الاستدلال',
+                    level: '1BAC-EXP',
+                    topic: 'مبادئ في المنطق',
+                    templateDuration: 6,
+                    templateObjectives: 'التعرف على العبارات والروابط المنطقية والمكممات، وتوظيف الاستدلال بالخلف، بفصل الحالات، وبالترجع في براهين رياضية.',
+                    templatePrerequisites: 'الحساب العددي، المعادلات والمتراجحات، قابلية القسمة في IN.',
+                    templatePlan: '1. العبارة والدالة العبارية والمكممات الكونية والوجودية\n2. الروابط المنطقية (النفي، العطف، الفصل، الاستلزام، التكافؤ)\n3. طرق الاستدلال الرياضي (المباشر، المضاد للعكس، الخلف، الترجع)\n4. تمارين نموذجية للفروض المحروسة'
+                },
+                {
+                    id: 'tpl_starter_1bac_2',
+                    title: 'قالب درس: المتتاليات العددية (الحسابية والهندسية)',
+                    level: '1BAC-EXP',
+                    topic: 'المتتاليات العددية',
+                    templateDuration: 7,
+                    templateObjectives: 'دراسة رتابة متتالية عددية، التعرف على المتتالية الحسابية والهندسية، وحساب الحد العام ومجموع حدود متتابعة.',
+                    templatePrerequisites: 'عموميات حول الدوال، الاستدلال بالترجع، الحساب العددي.',
+                    templatePlan: '1. تعريف متتالية عددية وطرق توليدها (صيغة صريحة / ترجعية)\n2. المتتالية المكبورة والمصغورة ورتابة متتالية\n3. المتتاليات الحسابية (الحد العام والمجموع)\n4. المتتاليات الهندسية وتطبيقاتها'
+                },
+                {
+                    id: 'tpl_starter_2bac_1',
+                    title: 'قالب درس: الاتصال والاشتقاق ودراسة الدوال العددية',
+                    level: '2BAC-PC',
+                    topic: 'الاتصال ومبرهنة القيم الوسيطية',
+                    templateDuration: 10,
+                    templateObjectives: 'دراسة اتصال دالة على مجال، تطبيق مبرهنة القيم الوسيطية، قابلية الاشتقاق ودراسة الدالة العكسية ومشتقتها.',
+                    templatePrerequisites: 'النهايات والاشتقاق بالسنة الأولى باكالوريا.',
+                    templatePlan: '1. الاتصال في نقطة وعلى مجال وصورة مجال بدالة متصلة\n2. مبرهنة القيم الوسيطية وطريقة التفرع الثنائي\n3. الدالة العكسية لدالة متصلة ورتيبة قطعا\n4. اشتقاق دالة مركبة واشتقاق الدالة العكسية ودراسة الفروع اللانهائية'
+                },
+                {
+                    id: 'tpl_starter_2bac_2',
+                    title: 'قالب درس: الأعداد العقدية وتطبيقاتها الهندسية',
+                    level: '2BAC-PC',
+                    topic: 'الأعداد العقدية',
+                    templateDuration: 9,
+                    templateObjectives: 'التحكم في الشكل الجبري والمثلثي والأسي لعدد عقدي، حل معادلات من الدرجة الثانية في C، وتأويل الإزاحة والتحاكي والدوران عقدياً.',
+                    templatePrerequisites: 'الحساب المثلثي، المتجهات والتحويلات الهندسية في المستوى.',
+                    templatePlan: '1. المجموعة C والشكل الجبري والمرافق والمعيار\n2. الشكل المثلثي والعمدة والترميز الأسي وصيغة موافر وأولير\n3. التأويل الهندسي (المسافة، قياس الزوايا، استقامية وتداور النقط)\n4. التمثيل العقدي للإزاحة والتحاكي والدوران (تمارين الامتحان الوطني)'
+                }
+            ];
+
+            let addedCount = 0;
+            starterTemplates.forEach(tpl => {
+                if (!window.db.library.some(i => i.id === tpl.id || i.title === tpl.title)) {
+                    window.db.library.unshift(Object.assign({}, tpl, {
+                        url: '',
+                        isLocalFile: false,
+                        isDriveFile: false,
+                        isLessonTemplate: true,
+                        category: 'قالب درس',
+                        type: 'doc',
+                        isNew: true,
+                        addedTimestamp: Date.now(),
+                        dateAdded: window.formatLocalDate ? window.formatLocalDate() : new Date().toLocaleDateString('en-CA')
+                    }));
+                    addedCount++;
+                }
+            });
+
+            if (typeof saveDB === 'function') saveDB();
+            renderLibrary();
+            if (typeof showLibraryToast === 'function') {
+                if (addedCount > 0) {
+                    showLibraryToast(`✓ تم إدراج ${addedCount} قوالب دروس نموذجية بنجاح!`);
+                } else {
+                    showLibraryToast('ℹ️ قوالب الدروس النموذجية مدرجة وموجودة بالفعل في مكتبتك.');
+                }
+            }
+        }
+        window.seedStarterLessonTemplates = seedStarterLessonTemplates;
+
+        // =========================================================================
+        // Lesson-Linked Resources Engine (الموارد المرتبطة بالدروس: PDF وفيديوهات توضيحية)
+        // ربط كل درس بملفات PDF وفيديوهات توضيحية من المكتبة بناءً على المحور الدراسي المرتبط
+        // مع عرضها في لوحة جانبية داخل تبويب المكتبة وتبويب الموارد المرتبطة بالدروس
+        // =========================================================================
+        window.currentBrowseSidebarMode = window.currentBrowseSidebarMode || 'lessons'; // 'lessons' | 'analytics'
+        window.currentSelectedLessonForResources = window.currentSelectedLessonForResources || '';
+        window.currentSelectedAxisFilter = window.currentSelectedAxisFilter || 'all';
+        window.currentBrowseSideLevelId = window.currentBrowseSideLevelId || 'TCS';
+        window.currentBrowseSideLessonId = window.currentBrowseSideLessonId || '';
+        window.currentBrowseSideAxisFilter = window.currentBrowseSideAxisFilter || 'all';
+
+        const MATH_STOPWORDS_SET = new Set([
+            'في', 'من', 'على', 'الى', 'إلى', 'عن', 'مع', 'حول', 'بين', 'او', 'أو', 'ثم', 'بعد', 'قبل',
+            'الدرس', 'درس', 'محور', 'المحور', 'تمارين', 'سلسله', 'سلسلة', 'ملخص', 'فيديو', 'شرح', 'ملف',
+            'داله', 'دالة', 'دوال', 'العدديه', 'العددية', 'تطبيقات', 'تطبيقاتها', 'مفهوم', 'تعريف', 'خاصيات',
+            'حساب', 'دراسه', 'دراسة', 'مبادئ', 'اساسيه', 'أساسية', 'عامه', 'عامة', 'الجزء', 'الاول', 'الثاني',
+            'pdf', 'doc', 'docx', 'mp4', 'video', 'youtube', 'drive', 'dans', 'les', 'des', 'sur', 'pour', 'avec', 'une'
+        ]);
+
+        function normalizeMathAxisText(str) {
+            if (!str) return '';
+            return String(str)
+                .toLowerCase()
+                .replace(/[\u064B-\u065F\u0670]/g, '')
+                .replace(/[أإآ]/g, 'ا')
+                .replace(/ة/g, 'ه')
+                .replace(/ى/g, 'ي')
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^\p{L}\p{N}\s]+/gu, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+        window.normalizeMathAxisText = normalizeMathAxisText;
+
+        function tokenizeMathAxisKeywords(str) {
+            const norm = normalizeMathAxisText(str);
+            if (!norm) return [];
+            return Array.from(new Set(
+                norm.split(' ').filter(w => w.length >= 3 && !MATH_STOPWORDS_SET.has(w))
+            ));
+        }
+
+        function isLibraryItemVideo(item) {
+            if (!item) return false;
+            if (typeof getResourceFileMeta === 'function') {
+                const meta = getResourceFileMeta(item);
+                if (meta && meta.isVideo) return true;
+            }
+            const t = (item.type || '').toLowerCase();
+            const fn = (item.fileName || '').toLowerCase();
+            const url = (item.url || '').toLowerCase();
+            const cat = (item.category || '').toLowerCase();
+            return t === 'video'
+                || /\.(mp4|webm|mov|mkv|avi)(?:$|\?)/i.test(fn)
+                || /\.(mp4|webm|mov|mkv|avi)(?:$|\?)/i.test(url)
+                || /youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com/i.test(url)
+                || (cat === 'عرض ووسائط' && /فيديو|شريط|مرئي|video/i.test(`${item.title || ''} ${url}`));
+        }
+
+        function isLibraryItemPdfOrDoc(item) {
+            if (!item) return false;
+            if (isLibraryItemVideo(item)) return false;
+            if (typeof getResourceFileMeta === 'function') {
+                const meta = getResourceFileMeta(item);
+                if (meta && meta.isPdf) return true;
+                if (meta && ['PDF', 'DOC', 'DOCX', 'PPT', 'PPTX'].includes(meta.ext)) return true;
+            }
+            const t = (item.type || '').toLowerCase();
+            const fn = (item.fileName || '').toLowerCase();
+            const url = (item.url || '').toLowerCase();
+            if (/\.pdf(?:$|\?)/i.test(fn) || /\.pdf(?:$|\?)/i.test(url)) return true;
+            if (t === 'doc' && (item.isLocalFile || item.isDriveFile || item.url)) return true;
+            if (item.isDriveFile && /pdf|doc|word|ppt|slide|document/i.test(item.fileType || '')) return true;
+            return false;
+        }
+
+        function normalizeCurriculumLevelId(lvlId) {
+            if (!lvlId || lvlId === 'all') return 'all';
+            const map = {
+                'TCLSH': 'TCL',
+                '1BACSM': '1BAC_SM',
+                '1BACSE': '1BAC_EXP',
+                '1BACECO': '1BAC_ECO',
+                '1BACLSH': '1BAC_LSH',
+                '2BACSM': '2BAC_SM',
+                '2BACPC': '2BAC_EXP',
+                '2BACECO': '2BAC_ECO',
+                '2BACLSH': '2BAC_LSH'
+            };
+            return map[lvlId] || lvlId;
+        }
+
+        function getCurriculumLevelGroupCode(lvlStr) {
+            const s = String(lvlStr || '').toUpperCase();
+            if (!s || s === 'عام' || s === 'ALL') return 'GENERAL';
+            if (s.includes('2BAC') || s.includes('الثانية باك') || s.includes('2 باك')) return '2BAC';
+            if (s.includes('1BAC') || s.includes('الأولى باك') || s.includes('1 باك')) return '1BAC';
+            if (s.includes('TC') || s.includes('جذع')) return 'TC';
+            return 'GENERAL';
+        }
+
+        function isItemLevelCompatibleWithLesson(itemLevel, lessonLevelId) {
+            const itemGrp = getCurriculumLevelGroupCode(itemLevel);
+            if (itemGrp === 'GENERAL') return true;
+            const lessonGrp = getCurriculumLevelGroupCode(lessonLevelId);
+            if (lessonGrp === 'GENERAL') return true;
+            return itemGrp === lessonGrp;
+        }
+
+        function getAllCurriculumLessonsList(levelFilter, semesterFilter, searchTerm) {
+            const cur = window.MOROCCAN_SECONDARY_MATH_CURRICULUM || {};
+            const normLvl = normalizeCurriculumLevelId(levelFilter || 'all');
+            const normSem = semesterFilter || 'all';
+            const normSearch = normalizeMathAxisText(searchTerm || '');
+            const lessonsList = [];
+
+            Object.keys(cur).forEach(lvlId => {
+                if (normLvl !== 'all' && lvlId !== normLvl) return;
+                const lvlObj = cur[lvlId];
+                if (!lvlObj || !lvlObj.semesters) return;
+
+                Object.keys(lvlObj.semesters).forEach(semKey => {
+                    if (normSem !== 'all' && semKey !== normSem) return;
+                    const semObj = lvlObj.semesters[semKey];
+                    if (!semObj || !Array.isArray(semObj.lessons)) return;
+
+                    semObj.lessons.forEach(lesson => {
+                        const wrapped = {
+                            id: lesson.id,
+                            order: lesson.order || 0,
+                            title: lesson.title || '',
+                            frenchTitle: lesson.frenchTitle || '',
+                            hours: lesson.hours || lesson.plannedHours || 0,
+                            competency: lesson.competency || '',
+                            examTarget: lesson.examTarget || '',
+                            axes: Array.isArray(lesson.axes) ? lesson.axes : [],
+                            levelId: lvlId,
+                            levelName: lvlObj.shortName || lvlObj.name || lvlId,
+                            semesterId: semKey,
+                            semesterName: semObj.name || (semKey === 's1' ? 'الأسدوس 1' : 'الأسدوس 2')
+                        };
+
+                        if (normSearch) {
+                            const hay = normalizeMathAxisText(
+                                `${wrapped.title} ${wrapped.frenchTitle} ${wrapped.levelName} ` +
+                                wrapped.axes.map(a => `${a.title || ''} ${a.desc || ''}`).join(' ')
+                            );
+                            if (!hay.includes(normSearch)) return;
+                        }
+                        lessonsList.push(wrapped);
+                    });
+                });
+            });
+
+            return lessonsList;
+        }
+        window.getAllCurriculumLessonsList = getAllCurriculumLessonsList;
+
+        function matchLibraryItemToLessonWithAxis(item, lesson) {
+            if (!item || !lesson) return null;
+
+            // 1. Explicit manual link saved on the item
+            const isManualLinked = Array.isArray(item.linkedLessonIds) && item.linkedLessonIds.includes(lesson.id);
+            const manualAxis = (item.linkedAxisByLesson && item.linkedAxisByLesson[lesson.id]) ? item.linkedAxisByLesson[lesson.id] : '';
+
+            const itemTextNorm = normalizeMathAxisText(
+                `${item.title || ''} ${item.topic || ''} ${item.fileName || ''} ${item.templateObjectives || ''}`
+            );
+
+            // Find best matching axis among lesson.axes
+            let bestAxisTitle = manualAxis || '';
+            let bestAxisScore = 0;
+
+            (lesson.axes || []).forEach(ax => {
+                const axTitle = ax.title || '';
+                const axTitleNorm = normalizeMathAxisText(axTitle);
+                const axDescNorm = normalizeMathAxisText(ax.desc || '');
+                const axTokens = tokenizeMathAxisKeywords(`${axTitle} ${ax.desc || ''}`);
+
+                let score = 0;
+                if (axTitleNorm && itemTextNorm.includes(axTitleNorm)) {
+                    score += 12;
+                }
+                if (item.topic) {
+                    const topicNorm = normalizeMathAxisText(item.topic);
+                    if (topicNorm && (axTitleNorm.includes(topicNorm) || axDescNorm.includes(topicNorm))) {
+                        score += 6;
+                    }
+                }
+                let tokenHits = 0;
+                axTokens.forEach(tok => {
+                    if (itemTextNorm.includes(tok)) {
+                        tokenHits++;
+                    }
+                });
+                score += tokenHits * 2.5;
+
+                if (score > bestAxisScore) {
+                    bestAxisScore = score;
+                    if (!manualAxis) bestAxisTitle = axTitle;
+                }
+            });
+
+            if (isManualLinked) {
+                return {
+                    item,
+                    lesson,
+                    isManual: true,
+                    matchedAxis: bestAxisTitle || ((lesson.axes && lesson.axes[0]) ? lesson.axes[0].title : lesson.title),
+                    score: 100 + bestAxisScore
+                };
+            }
+
+            // 2. Automatic matching by associated academic axis & level compatibility
+            if (!isItemLevelCompatibleWithLesson(item.level, lesson.levelId)) {
+                return null;
+            }
+
+            const lessonTitleClean = (lesson.title || '').replace(/\([^)]*\)/g, '');
+            const lessonTitleNorm = normalizeMathAxisText(lessonTitleClean);
+            const frenchTitleNorm = normalizeMathAxisText(lesson.frenchTitle || '');
+            const lessonTokens = tokenizeMathAxisKeywords(`${lessonTitleClean} ${lesson.frenchTitle || ''}`);
+
+            let lessonScore = 0;
+            if (lessonTitleNorm && lessonTitleNorm.length >= 4 && itemTextNorm.includes(lessonTitleNorm)) {
+                lessonScore += 14;
+            }
+            if (frenchTitleNorm && frenchTitleNorm.length >= 4 && itemTextNorm.includes(frenchTitleNorm)) {
+                lessonScore += 12;
+            }
+            if (item.topic) {
+                const topicNorm = normalizeMathAxisText(item.topic);
+                if (topicNorm && topicNorm.length >= 4 && (lessonTitleNorm.includes(topicNorm) || topicNorm.includes(lessonTitleNorm))) {
+                    lessonScore += 8;
+                }
+            }
+
+            let lessonTokenHits = 0;
+            lessonTokens.forEach(tok => {
+                if (itemTextNorm.includes(tok)) {
+                    lessonTokenHits++;
+                }
+            });
+            lessonScore += lessonTokenHits * 3;
+
+            const totalScore = bestAxisScore + lessonScore;
+
+            if (totalScore >= 5 && (bestAxisScore >= 5 || lessonScore >= 5 || (lessonTokenHits + (bestAxisScore / 2.5)) >= 2)) {
+                return {
+                    item,
+                    lesson,
+                    isManual: false,
+                    matchedAxis: bestAxisTitle || ((lesson.axes && lesson.axes[0]) ? lesson.axes[0].title : lesson.title),
+                    score: totalScore
+                };
+            }
+
+            return null;
+        }
+
+        function getResourcesLinkedToLesson(lesson, axisFilterTitle) {
+            const emptyRes = { pdfs: [], videos: [], others: [], all: [], totalBeforeAxisFilter: 0, axisCounts: {} };
+            if (!lesson) return emptyRes;
+
+            const items = (window.db && Array.isArray(window.db.library)) ? window.db.library : [];
+            const matched = [];
+
+            items.forEach(item => {
+                const m = matchLibraryItemToLessonWithAxis(item, lesson);
+                if (m) matched.push(m);
+            });
+
+            matched.sort((a, b) => (b.score - a.score));
+
+            const axisCounts = {};
+            (lesson.axes || []).forEach(ax => { axisCounts[ax.title] = 0; });
+            matched.forEach(m => {
+                if (m.matchedAxis && axisCounts[m.matchedAxis] !== undefined) {
+                    axisCounts[m.matchedAxis]++;
+                }
+            });
+
+            const activeAxis = (axisFilterTitle && axisFilterTitle !== 'all') ? axisFilterTitle : 'all';
+            const filteredMatches = activeAxis === 'all'
+                ? matched
+                : matched.filter(m => m.matchedAxis === activeAxis);
+
+            const pdfs = [];
+            const videos = [];
+            const others = [];
+
+            filteredMatches.forEach(m => {
+                if (isLibraryItemVideo(m.item)) {
+                    videos.push(m);
+                } else if (isLibraryItemPdfOrDoc(m.item)) {
+                    pdfs.push(m);
+                } else {
+                    others.push(m);
+                }
+            });
+
+            return {
+                pdfs,
+                videos,
+                others,
+                all: filteredMatches,
+                totalBeforeAxisFilter: matched.length,
+                axisCounts
+            };
+        }
+        window.getResourcesLinkedToLesson = getResourcesLinkedToLesson;
+
+        function findCurriculumLessonsForLibraryItem(item) {
+            if (!item) return [];
+            const lessons = getAllCurriculumLessonsList('all', 'all', '');
+            const hits = [];
+            lessons.forEach(lesson => {
+                const m = matchLibraryItemToLessonWithAxis(item, lesson);
+                if (m) hits.push(m);
+            });
+            hits.sort((a, b) => b.score - a.score);
+            return hits;
+        }
+        window.findCurriculumLessonsForLibraryItem = findCurriculumLessonsForLibraryItem;
+
+        function buildSingleLinkedResourceSideCardHtml(matchObj, kind, lessonId) {
+            const item = matchObj.item;
+            const safeUrl = typeof safeWebUrl === 'function' ? safeWebUrl(item.url) : (item.url || '#');
+            const isVideo = kind === 'video';
+            const isPdf = !isVideo && isLibraryItemPdfOrDoc(item);
+            const isDrive = !!item.isDriveFile;
+            const isLocal = !!item.isLocalFile;
+            const meta = typeof getResourceFileMeta === 'function' ? getResourceFileMeta(item) : { ext: isVideo ? 'VIDEO' : 'PDF', sizeLabel: '' };
+
+            let playClick = '';
+            if (isDrive) {
+                playClick = `openInAppFileViewer({ type: 'drive', driveFileId: '${item.driveFileId}', title: '${encodeURIComponent(item.title || '')}', url: '${safeUrl}', downloadUrl: '${item.downloadUrl || ''}', fileType: '${isVideo ? 'video' : 'doc'}' })`;
+            } else if (isLocal) {
+                playClick = `openInAppFileViewer({ type: 'local', id: '${item.id}' })`;
+            } else if (item.isLessonTemplate && !item.url) {
+                playClick = `openLessonTemplateViewerModal('${item.id}')`;
+            } else {
+                playClick = `openInAppFileViewer({ type: 'url', url: '${safeUrl}', title: '${encodeURIComponent(item.title || '')}', category: '${isVideo ? 'video' : (isPdf ? 'doc' : 'link')}' })`;
+            }
+
+            const borderColor = isVideo ? '#bfdbfe' : '#fecaca';
+            const badgeBg = isVideo ? '#eff6ff' : '#fef2f2';
+            const badgeColor = isVideo ? '#1d4ed8' : '#b91c1c';
+            const btnBg = isVideo ? '#2563eb' : '#dc2626';
+
+            return `
+                <div style="background: #ffffff; border: 1.5px solid ${borderColor}; border-radius: 9px; padding: 9px 10px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
+                        <div style="min-width: 0; flex: 1;">
+                            <div style="font-size: 0.81rem; font-weight: 800; color: #0f172a; line-height: 1.35; word-break: break-word;">${_libEscHtml(item.title)}</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; align-items: center;">
+                                <span style="font-size: 0.66rem; font-weight: 800; background: ${badgeBg}; color: ${badgeColor}; padding: 1px 6px; border-radius: 5px;">${meta.ext}</span>
+                                ${matchObj.matchedAxis ? `<span style="font-size: 0.67rem; font-weight: 700; background: #f0fdfa; color: #0f766e; border: 1px solid #99f6e4; padding: 1px 6px; border-radius: 5px; max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${_libEscHtml(matchObj.matchedAxis)}">📌 ${_libEscHtml(matchObj.matchedAxis)}</span>` : ''}
+                                ${matchObj.isManual ? `<span style="font-size: 0.65rem; font-weight: 800; background: #f5f3ff; color: #6d28d9; padding: 1px 5px; border-radius: 5px;">ربط يدوي</span>` : ''}
+                            </div>
+                        </div>
+                        ${matchObj.isManual ? `
+                            <button type="button" onclick="unlinkResourceFromLesson('${item.id}', '${lessonId}')" style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.78rem; padding: 2px 4px;" title="فك الارتباط اليدوي عن هذا الدرس">✕</button>
+                        ` : ''}
+                    </div>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <button type="button" onclick="${playClick}" style="flex: 1; background: ${btnBg}; color: #ffffff; border: none; border-radius: 6px; padding: 5px 8px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                            <span>${isVideo ? '▶ تشغيل الفيديو' : '📄 معاينة PDF'}</span>
+                        </button>
+                        ${!isLocal && safeUrl && safeUrl !== '#' ? `
+                            <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" style="background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 8px; font-size: 0.72rem; font-weight: 700; text-decoration: none;" title="فتح خارجياً">↗</a>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildLessonSidePanelInnerHtml(lesson, axisFilter, contextMode) {
+            if (!lesson) {
+                return `
+                    <div style="text-align: center; padding: 24px 12px; color: #64748b; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1;">
+                        <div style="font-size: 1.5rem; margin-bottom: 6px;">📚🎬</div>
+                        <div style="font-weight: 800; font-size: 0.85rem; color: #334155;">اختر درساً لعرض موارده المرتبطة</div>
+                        <div style="font-size: 0.74rem; margin-top: 4px;">ستظهر هنا ملفات PDF والفيديوهات التوضيحية المرتبطة بالمحور الدراسي.</div>
+                    </div>
+                `;
+            }
+
+            const activeAxis = axisFilter || 'all';
+            const res = getResourcesLinkedToLesson(lesson, activeAxis);
+            const axes = lesson.axes || [];
+            const selectAxisFn = contextMode === 'browse' ? 'selectBrowseSideAxisFilter' : 'selectLessonSideAxisFilter';
+            const encodedActiveAxis = encodeURIComponent(activeAxis === 'all' ? '' : activeAxis);
+
+            return `
+                <div style="background: linear-gradient(135deg, #f0fdfa, #ecfdf5); border: 1.5px solid #5eead4; border-radius: 10px; padding: 11px 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 4px;">
+                        <span style="font-size: 0.7rem; font-weight: 800; background: #0d9488; color: #ffffff; padding: 2px 8px; border-radius: 9999px;">${_libEscHtml(lesson.levelName)}</span>
+                        <span style="font-size: 0.7rem; font-weight: 800; color: #0f766e;">${_libEscHtml(lesson.semesterName)} • ${lesson.hours || 0} س</span>
+                    </div>
+                    <h4 style="margin: 2px 0 3px 0; font-size: 0.94rem; font-weight: 900; color: #0f172a; line-height: 1.35;">${_libEscHtml(lesson.title)}</h4>
+                    ${lesson.frenchTitle ? `<div style="font-size: 0.72rem; color: #475569; direction: ltr; text-align: right;">${_libEscHtml(lesson.frenchTitle)}</div>` : ''}
+                    ${lesson.competency ? `<p style="margin: 6px 0 0 0; font-size: 0.73rem; color: #134e4a; line-height: 1.45;">🎯 ${_libEscHtml(lesson.competency)}</p>` : ''}
+                </div>
+
+                ${axes.length > 0 ? `
+                    <div>
+                        <div style="font-size: 0.74rem; font-weight: 800; color: #334155; margin-bottom: 5px; display: flex; align-items: center; justify-content: space-between;">
+                            <span>📌 المحور الدراسي المرتبط:</span>
+                            <span style="font-size: 0.69rem; color: #64748b;">(${res.totalBeforeAxisFilter} مورد إجمالاً)</span>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                            <button type="button" onclick="${selectAxisFn}('all')" style="padding: 4px 9px; border-radius: 9999px; font-size: 0.71rem; font-weight: 800; cursor: pointer; border: 1px solid ${activeAxis === 'all' ? '#0d9488' : '#cbd5e1'}; background: ${activeAxis === 'all' ? '#0d9488' : '#ffffff'}; color: ${activeAxis === 'all' ? '#ffffff' : '#334155'};">
+                                الكل (${res.totalBeforeAxisFilter})
+                            </button>
+                            ${axes.map(ax => {
+                                const isSel = activeAxis === ax.title;
+                                const cnt = res.axisCounts[ax.title] || 0;
+                                const encAx = encodeURIComponent(ax.title);
+                                return `
+                                    <button type="button" onclick="${selectAxisFn}('${encAx}')" style="padding: 4px 9px; border-radius: 9999px; font-size: 0.71rem; font-weight: 800; cursor: pointer; border: 1px solid ${isSel ? '#0d9488' : '#99f6e4'}; background: ${isSel ? '#0d9488' : '#f0fdfa'}; color: ${isSel ? '#ffffff' : '#0f766e'}; text-align: right;" title="${_libEscHtml(ax.desc || ax.title)}">
+                                        ${_libEscHtml(ax.title)} (${cnt})
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- PDF Files Section -->
+                <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 0.8rem; font-weight: 900; color: #991b1b;">📄 ملفات PDF والوثائق (${res.pdfs.length})</span>
+                        <button type="button" onclick="openAddNewResourceForLesson('${lesson.id}', '${encodedActiveAxis}', 'doc')" style="background: #ffffff; color: #b91c1c; border: 1px solid #fca5a5; border-radius: 6px; padding: 2px 7px; font-size: 0.69rem; font-weight: 800; cursor: pointer;">+ رفع PDF</button>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 7px; max-height: 220px; overflow-y: auto;">
+                        ${res.pdfs.length > 0
+                            ? res.pdfs.map(m => buildSingleLinkedResourceSideCardHtml(m, 'pdf', lesson.id)).join('')
+                            : `<div style="font-size: 0.74rem; color: #7f1d1d; background: rgba(255,255,255,0.75); border-radius: 7px; padding: 8px; text-align: center;">لا توجد ملفات PDF مرتبطة بهذا المحور حالياً.</div>`
+                        }
+                    </div>
+                </div>
+
+                <!-- Explanatory Videos Section -->
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 0.8rem; font-weight: 900; color: #1e3a8a;">🎬 الفيديوهات التوضيحية (${res.videos.length})</span>
+                        <button type="button" onclick="openAddNewResourceForLesson('${lesson.id}', '${encodedActiveAxis}', 'video')" style="background: #ffffff; color: #1d4ed8; border: 1px solid #93c5fd; border-radius: 6px; padding: 2px 7px; font-size: 0.69rem; font-weight: 800; cursor: pointer;">+ إضافة فيديو</button>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 7px; max-height: 220px; overflow-y: auto;">
+                        ${res.videos.length > 0
+                            ? res.videos.map(m => buildSingleLinkedResourceSideCardHtml(m, 'video', lesson.id)).join('')
+                            : `<div style="font-size: 0.74rem; color: #1e40af; background: rgba(255,255,255,0.75); border-radius: 7px; padding: 8px; text-align: center;">لا توجد فيديوهات توضيحية مرتبطة بهذا المحور حالياً.</div>`
+                        }
+                    </div>
+                </div>
+
+                ${res.others.length > 0 ? `
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px;">
+                        <div style="font-size: 0.78rem; font-weight: 900; color: #334155; margin-bottom: 7px;">🔗 موارد وروابط وقوالب إضافية (${res.others.length})</div>
+                        <div style="display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto;">
+                            ${res.others.map(m => buildSingleLinkedResourceSideCardHtml(m, 'other', lesson.id)).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button type="button" onclick="openLinkResourceToLessonModal('${lesson.id}', '${encodedActiveAxis}', '')" style="flex: 1; background: linear-gradient(135deg, #0d9488, #0f766e); color: #ffffff; border: none; border-radius: 8px; padding: 8px 10px; font-size: 0.76rem; font-weight: 800; cursor: pointer;">
+                        🔗 ربط ملفات أو فيديوهات من المكتبة
+                    </button>
+                </div>
+            `;
+        }
+
+        // Dedicated Tab: الموارد المرتبطة بالدروس (#libLessonResourcesTabPane)
+        function selectLessonForResourcesPanel(lessonId, axisTitleEncoded) {
+            window.currentSelectedLessonForResources = lessonId || '';
+            window.currentSelectedAxisFilter = _libDecodeAxis(axisTitleEncoded || 'all');
+            renderLessonLinkedResourcesView();
+        }
+        window.selectLessonForResourcesPanel = selectLessonForResourcesPanel;
+
+        function selectLessonSideAxisFilter(axisTitleEncoded) {
+            window.currentSelectedAxisFilter = _libDecodeAxis(axisTitleEncoded || 'all');
+            renderLessonResourcesSidePanel();
+        }
+        window.selectLessonSideAxisFilter = selectLessonSideAxisFilter;
+
+        function renderLessonResourcesSidePanel() {
+            const panel = document.getElementById('libLessonResourcesSidePanel');
+            if (!panel) return;
+            const allLessons = getAllCurriculumLessonsList('all', 'all', '');
+            const selectedLesson = allLessons.find(l => l.id === window.currentSelectedLessonForResources) || allLessons[0] || null;
+            if (selectedLesson && !window.currentSelectedLessonForResources) {
+                window.currentSelectedLessonForResources = selectedLesson.id;
+            }
+            panel.innerHTML = buildLessonSidePanelInnerHtml(selectedLesson, window.currentSelectedAxisFilter || 'all', 'tab');
+        }
+        window.renderLessonResourcesSidePanel = renderLessonResourcesSidePanel;
+
+        function renderLessonLinkedResourcesView() {
+            const gridEl = document.getElementById('libLessonResourcesGrid');
+            const summaryEl = document.getElementById('libLessonResourcesSummaryBar');
+            if (!gridEl) return;
+
+            const lvlSel = document.getElementById('libLrLevelSelect');
+            const semSel = document.getElementById('libLrSemesterSelect');
+            const searchIn = document.getElementById('libLrSearchInput');
+
+            const levelVal = lvlSel ? lvlSel.value : 'all';
+            const semVal = semSel ? semSel.value : 'all';
+            const searchVal = searchIn ? searchIn.value : '';
+
+            const lessons = getAllCurriculumLessonsList(levelVal, semVal, searchVal);
+
+            let selectedLesson = lessons.find(l => l.id === window.currentSelectedLessonForResources);
+            if (!selectedLesson && lessons.length > 0) {
+                selectedLesson = lessons[0];
+                window.currentSelectedLessonForResources = selectedLesson.id;
+                window.currentSelectedAxisFilter = 'all';
+            }
+
+            let totalPdfs = 0;
+            let totalVideos = 0;
+            let coveredLessons = 0;
+
+            const cardsData = lessons.map(lesson => {
+                const res = getResourcesLinkedToLesson(lesson, 'all');
+                if (res.pdfs.length > 0 || res.videos.length > 0 || res.others.length > 0) coveredLessons++;
+                totalPdfs += res.pdfs.length;
+                totalVideos += res.videos.length;
+                return { lesson, res };
+            });
+
+            if (summaryEl) {
+                summaryEl.innerHTML = `
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; background: #ffffff; border: 1px solid #ccfbf1; border-radius: 10px; padding: 10px 14px;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                            <span style="font-size: 0.78rem; font-weight: 900; color: #134e4a; background: #f0fdfa; padding: 3px 10px; border-radius: 9999px; border: 1px solid #99f6e4;">📚 ${lessons.length} درساً</span>
+                            <span style="font-size: 0.78rem; font-weight: 800; color: #047857; background: #ecfdf5; padding: 3px 10px; border-radius: 9999px; border: 1px solid #a7f3d0;">✅ ${coveredLessons} درس مزود بموارد</span>
+                            <span style="font-size: 0.78rem; font-weight: 800; color: #b91c1c; background: #fef2f2; padding: 3px 10px; border-radius: 9999px; border: 1px solid #fecaca;">📄 ${totalPdfs} ملف PDF</span>
+                            <span style="font-size: 0.78rem; font-weight: 800; color: #1d4ed8; background: #eff6ff; padding: 3px 10px; border-radius: 9999px; border: 1px solid #bfdbfe;">🎬 ${totalVideos} فيديو توضيحي</span>
+                        </div>
+                        <span style="font-size: 0.74rem; color: #475569; font-weight: 700;">انقر على أي درس أو محور لعرض ملفات PDF والفيديوهات في اللوحة الجانبية ⬅️</span>
+                    </div>
+                `;
+            }
+
+            if (lessons.length === 0) {
+                gridEl.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 32px 16px; background: #ffffff; border-radius: 12px; border: 1.5px dashed #cbd5e1; color: #64748b;">
+                        <div style="font-weight: 800; color: #334155; font-size: 0.94rem;">لم يتم العثور على دروس مطابقة للبحث الحالي.</div>
+                    </div>
+                `;
+                renderLessonResourcesSidePanel();
+                return;
+            }
+
+            gridEl.innerHTML = cardsData.map(({ lesson, res }) => {
+                const isSelected = window.currentSelectedLessonForResources === lesson.id;
+                const totalCount = res.pdfs.length + res.videos.length + res.others.length;
+
+                return `
+                    <div onclick="selectLessonForResourcesPanel('${lesson.id}', 'all')" style="cursor: pointer; background: ${isSelected ? '#f0fdfa' : '#ffffff'}; border: ${isSelected ? '2px solid #0d9488' : '1.5px solid #e2e8f0'}; border-radius: 12px; padding: 13px 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; transition: all 0.18s; box-shadow: ${isSelected ? '0 4px 14px rgba(13,148,136,0.14)' : '0 1px 3px rgba(0,0,0,0.03)'};">
+                        <div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px;">
+                                <span style="font-size: 0.69rem; font-weight: 800; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 8px; border-radius: 9999px;">${_libEscHtml(lesson.levelName)}</span>
+                                <span style="font-size: 0.7rem; font-weight: 700; color: #64748b;">${_libEscHtml(lesson.semesterName)} • ${lesson.hours || 0} س</span>
+                            </div>
+                            <h4 style="margin: 0 0 3px 0; font-size: 0.93rem; font-weight: 900; color: #0f172a; line-height: 1.35;">${_libEscHtml(lesson.title)}</h4>
+                            ${lesson.frenchTitle ? `<div style="font-size: 0.71rem; color: #64748b; direction: ltr; text-align: right; margin-bottom: 6px;">${_libEscHtml(lesson.frenchTitle)}</div>` : ''}
+
+                            ${(lesson.axes && lesson.axes.length > 0) ? `
+                                <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">
+                                    ${lesson.axes.slice(0, 4).map(ax => {
+                                        const axCount = res.axisCounts[ax.title] || 0;
+                                        const encAx = encodeURIComponent(ax.title);
+                                        return `
+                                            <button type="button" onclick="event.stopPropagation(); selectLessonForResourcesPanel('${lesson.id}', '${encAx}')" style="font-size: 0.68rem; font-weight: 700; padding: 2px 7px; border-radius: 6px; border: 1px solid ${axCount > 0 ? '#5eead4' : '#e2e8f0'}; background: ${axCount > 0 ? '#ccfbf1' : '#f8fafc'}; color: ${axCount > 0 ? '#115e59' : '#475569'}; cursor: pointer; text-align: right;" title="عرض موارد هذا المحور في اللوحة الجانبية">
+                                                📌 ${_libEscHtml(ax.title)}${axCount > 0 ? ` (${axCount})` : ''}
+                                            </button>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #e2e8f0; padding-top: 8px; gap: 6px; flex-wrap: wrap;">
+                            <div style="display: flex; gap: 5px; align-items: center;">
+                                <span style="font-size: 0.71rem; font-weight: 800; background: ${res.pdfs.length > 0 ? '#fef2f2' : '#f8fafc'}; color: ${res.pdfs.length > 0 ? '#b91c1c' : '#94a3b8'}; border: 1px solid ${res.pdfs.length > 0 ? '#fecaca' : '#e2e8f0'}; padding: 2px 7px; border-radius: 6px;">📄 ${res.pdfs.length} PDF</span>
+                                <span style="font-size: 0.71rem; font-weight: 800; background: ${res.videos.length > 0 ? '#eff6ff' : '#f8fafc'}; color: ${res.videos.length > 0 ? '#1d4ed8' : '#94a3b8'}; border: 1px solid ${res.videos.length > 0 ? '#bfdbfe' : '#e2e8f0'}; padding: 2px 7px; border-radius: 6px;">🎬 ${res.videos.length} فيديو</span>
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button type="button" onclick="event.stopPropagation(); openLinkResourceToLessonModal('${lesson.id}', '', '')" style="background: #f8fafc; color: #0f766e; border: 1px solid #99f6e4; border-radius: 6px; padding: 3px 8px; font-size: 0.7rem; font-weight: 800; cursor: pointer;" title="ربط ملف PDF أو فيديو من المكتبة">
+                                    🔗 ربط
+                                </button>
+                                <span style="font-size: 0.71rem; font-weight: 800; color: ${isSelected ? '#ffffff' : '#0d9488'}; background: ${isSelected ? '#0d9488' : '#f0fdfa'}; border: 1px solid #5eead4; padding: 3px 8px; border-radius: 6px;">
+                                    ${totalCount > 0 ? 'عرض الجانبي ⬅️' : 'فتح اللوحة'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            renderLessonResourcesSidePanel();
+            if (window.lucide) window.lucide.createIcons();
+        }
+        window.renderLessonLinkedResourcesView = renderLessonLinkedResourcesView;
+
+        // =========================================================================
+        // Browse Tab Sticky Side Panel (لوحة موارد الدروس الجانبية داخل تبويب المكتبة)
+        // =========================================================================
+        function switchBrowseSidebarMode(mode) {
+            window.currentBrowseSidebarMode = (mode === 'analytics') ? 'analytics' : 'lessons';
+            const lessonsBox = document.getElementById('libBrowseSideLessonResourcesBox');
+            const analyticsBox = document.getElementById('libBrowseSideAnalyticsBox');
+            const btnLessons = document.getElementById('btnSideModeLessonResources');
+            const btnAnalytics = document.getElementById('btnSideModeAnalytics');
+
+            const isLessons = window.currentBrowseSidebarMode === 'lessons';
+            if (lessonsBox) lessonsBox.style.display = isLessons ? 'flex' : 'none';
+            if (analyticsBox) analyticsBox.style.display = isLessons ? 'none' : 'flex';
+
+            if (btnLessons) {
+                btnLessons.style.background = isLessons ? '#0d9488' : 'transparent';
+                btnLessons.style.color = isLessons ? '#ffffff' : '#475569';
+                btnLessons.style.fontWeight = isLessons ? '800' : '700';
+            }
+            if (btnAnalytics) {
+                btnAnalytics.style.background = !isLessons ? '#2563eb' : 'transparent';
+                btnAnalytics.style.color = !isLessons ? '#ffffff' : '#475569';
+                btnAnalytics.style.fontWeight = !isLessons ? '800' : '700';
+            }
+
+            if (isLessons) {
+                renderBrowseLessonSidePanel();
+            } else if (typeof renderLibraryGrowthAnalytics === 'function') {
+                renderLibraryGrowthAnalytics();
+            }
+        }
+        window.switchBrowseSidebarMode = switchBrowseSidebarMode;
+
+        function openBrowseLessonSidePanel(lessonId, axisTitleEncoded) {
+            if (typeof currentLibSubTab !== 'undefined' && currentLibSubTab !== 'browse') {
+                switchLibrarySubTab('browse');
+            }
+            if (lessonId) {
+                const allLessons = getAllCurriculumLessonsList('all', 'all', '');
+                const found = allLessons.find(l => l.id === lessonId);
+                if (found) {
+                    window.currentBrowseSideLevelId = found.levelId;
+                    window.currentBrowseSideLessonId = found.id;
+                }
+            }
+            window.currentBrowseSideAxisFilter = _libDecodeAxis(axisTitleEncoded || 'all');
+            toggleLibrarySidebar(true);
+            switchBrowseSidebarMode('lessons');
+            const sidebarEl = document.getElementById('libSidebarAnalytics');
+            if (sidebarEl && window.innerWidth <= 992) {
+                sidebarEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+        window.openBrowseLessonSidePanel = openBrowseLessonSidePanel;
+
+        function onBrowseSideLevelChanged(lvlId) {
+            window.currentBrowseSideLevelId = lvlId || 'TCS';
+            window.currentBrowseSideLessonId = '';
+            window.currentBrowseSideAxisFilter = 'all';
+            renderBrowseLessonSidePanel();
+        }
+        window.onBrowseSideLevelChanged = onBrowseSideLevelChanged;
+
+        function onBrowseSideLessonChanged(lessonId) {
+            window.currentBrowseSideLessonId = lessonId || '';
+            window.currentBrowseSideAxisFilter = 'all';
+            renderBrowseLessonSidePanel();
+        }
+        window.onBrowseSideLessonChanged = onBrowseSideLessonChanged;
+
+        function selectBrowseSideAxisFilter(axisTitleEncoded) {
+            window.currentBrowseSideAxisFilter = _libDecodeAxis(axisTitleEncoded || 'all');
+            renderBrowseLessonSidePanel();
+        }
+        window.selectBrowseSideAxisFilter = selectBrowseSideAxisFilter;
+
+        function renderBrowseLessonSidePanel() {
+            const box = document.getElementById('libBrowseSideLessonResourcesBox');
+            if (!box) return;
+
+            const cur = window.MOROCCAN_SECONDARY_MATH_CURRICULUM || {};
+            const levelKeys = Object.keys(cur);
+            if (!levelKeys.length) {
+                box.innerHTML = `<div style="font-size: 0.78rem; color: #64748b; padding: 12px; text-align: center;">جاري تحميل بيانات المقرر...</div>`;
+                return;
+            }
+
+            if (!cur[window.currentBrowseSideLevelId]) {
+                window.currentBrowseSideLevelId = levelKeys[0];
+            }
+
+            const levelLessons = getAllCurriculumLessonsList(window.currentBrowseSideLevelId, 'all', '');
+            let selectedLesson = levelLessons.find(l => l.id === window.currentBrowseSideLessonId) || levelLessons[0] || null;
+            if (selectedLesson) {
+                window.currentBrowseSideLessonId = selectedLesson.id;
+            }
+
+            box.innerHTML = `
+                <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 9px; padding: 9px; display: flex; flex-direction: column; gap: 7px;">
+                    <div>
+                        <label style="display: block; font-size: 0.71rem; font-weight: 800; color: #0f766e; margin-bottom: 3px;">🎓 المستوى الدراسي:</label>
+                        <select onchange="onBrowseSideLevelChanged(this.value)" style="width: 100%; padding: 6px 8px; border-radius: 7px; border: 1px solid #5eead4; background: #ffffff; font-size: 0.78rem; font-weight: 800; color: #115e59; margin-bottom: 0;">
+                            ${levelKeys.map(k => `<option value="${k}" ${k === window.currentBrowseSideLevelId ? 'selected' : ''}>${_libEscHtml(cur[k].shortName || cur[k].name || k)}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.71rem; font-weight: 800; color: #334155; margin-bottom: 3px;">📖 الدرس والمحور الدراسي:</label>
+                        <select onchange="onBrowseSideLessonChanged(this.value)" style="width: 100%; padding: 6px 8px; border-radius: 7px; border: 1px solid #cbd5e1; background: #ffffff; font-size: 0.78rem; font-weight: 700; color: #0f172a; margin-bottom: 0;">
+                            ${levelLessons.map(l => {
+                                const c = getResourcesLinkedToLesson(l, 'all');
+                                const total = c.pdfs.length + c.videos.length + c.others.length;
+                                return `<option value="${l.id}" ${selectedLesson && l.id === selectedLesson.id ? 'selected' : ''}>${_libEscHtml(l.title)} ${total > 0 ? `(${total})` : ''}</option>`;
+                            }).join('')}
+                        </select>
+                    </div>
+                </div>
+
+                ${buildLessonSidePanelInnerHtml(selectedLesson, window.currentBrowseSideAxisFilter || 'all', 'browse')}
+
+                <button type="button" onclick="selectLessonForResourcesPanel('${selectedLesson ? selectedLesson.id : ''}', 'all'); switchLibrarySubTab('lesson_resources');" style="background: #f0fdfa; color: #0f766e; border: 1.5px solid #5eead4; border-radius: 8px; padding: 7px 10px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <span>📚 فتح عرض «الموارد المرتبطة بالدروس» الكامل</span>
+                </button>
+            `;
+        }
+        window.renderBrowseLessonSidePanel = renderBrowseLessonSidePanel;
+
+        // =========================================================================
+        // Quick Add & Manual Link / Unlink Between Library Resources & Lessons
+        // =========================================================================
+        function openAddNewResourceForLesson(lessonId, axisTitleEncoded, kind) {
+            const axisTitle = _libDecodeAxis(axisTitleEncoded || '');
+            const allLessons = getAllCurriculumLessonsList('all', 'all', '');
+            const lesson = allLessons.find(l => l.id === lessonId);
+            if (!lesson) return;
+
+            if (typeof currentLibSubTab !== 'undefined' && currentLibSubTab !== 'browse') {
+                switchLibrarySubTab('browse');
+            }
+
+            const levelMap = {
+                'TCS': 'TC-SC',
+                'TCL': 'TC-LSH',
+                '1BAC_SM': '1BAC-SM',
+                '1BAC_EXP': '1BAC-EXP',
+                '1BAC_ECO': '1BAC-ECO',
+                '1BAC_LSH': '1BAC-LSH',
+                '2BAC_SM': '2BAC-SM',
+                '2BAC_EXP': '2BAC-PC',
+                '2BAC_ECO': '2BAC-ECO',
+                '2BAC_LSH': '2BAC-LSH'
+            };
+            const mappedLevel = levelMap[lesson.levelId] || 'عام';
+            const prefillTopic = axisTitle || lesson.title;
+
+            if (kind === 'video') {
+                if (typeof switchLibMode === 'function') switchLibMode('link');
+                const urlLvl = document.getElementById('libUrlLevel');
+                const urlTopic = document.getElementById('libUrlTopic');
+                const urlType = document.getElementById('libUrlType');
+                const urlCat = document.getElementById('libUrlCategory');
+                const urlTitle = document.getElementById('libUrlTitle');
+                if (urlLvl) urlLvl.value = mappedLevel;
+                if (urlTopic) urlTopic.value = prefillTopic;
+                if (urlType) urlType.value = 'video';
+                if (urlCat) urlCat.value = 'عرض ووسائط';
+                if (urlTitle && !urlTitle.value) urlTitle.value = `فيديو توضيحي: ${prefillTopic}`;
+            } else {
+                if (typeof switchLibMode === 'function') switchLibMode('local');
+                const locLvl = document.getElementById('libLevel');
+                const locTopic = document.getElementById('libTopic');
+                const locType = document.getElementById('libType');
+                const locCat = document.getElementById('libLocalCategory');
+                if (locLvl) locLvl.value = mappedLevel;
+                if (locTopic) locTopic.value = prefillTopic;
+                if (locType) locType.value = 'doc';
+                if (locCat) locCat.value = 'درس';
+            }
+
+            const addBox = document.getElementById('libDriveSection')?.closest('.card');
+            if (addBox) {
+                addBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                addBox.style.outline = '3px solid #0d9488';
+                setTimeout(() => { if (addBox) addBox.style.outline = ''; }, 1800);
+            }
+        }
+        window.openAddNewResourceForLesson = openAddNewResourceForLesson;
+
+        function unlinkResourceFromLesson(itemId, lessonId) {
+            const item = (window.db && Array.isArray(window.db.library)) ? window.db.library.find(i => i.id === itemId) : null;
+            if (!item) return;
+            if (Array.isArray(item.linkedLessonIds)) {
+                item.linkedLessonIds = item.linkedLessonIds.filter(id => id !== lessonId);
+            }
+            if (item.linkedAxisByLesson && item.linkedAxisByLesson[lessonId]) {
+                delete item.linkedAxisByLesson[lessonId];
+            }
+            if (typeof saveDB === 'function') saveDB();
+            renderLibrary();
+            if (typeof showLibraryToast === 'function') {
+                showLibraryToast('تم فك الارتباط اليدوي للمورد عن الدرس.');
+            }
+        }
+        window.unlinkResourceFromLesson = unlinkResourceFromLesson;
+
+        function openLinkResourceToLessonModal(lessonId, axisTitleEncoded, preselectedItemId) {
+            const axisTitle = _libDecodeAxis(axisTitleEncoded || '');
+            let modal = document.getElementById('libLinkResourceToLessonModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'libLinkResourceToLessonModal';
+                modal.className = 'modal-overlay';
+                modal.style.cssText = 'display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); z-index: 9999; align-items: center; justify-content: center; padding: 16px; overflow-y: auto;';
+                document.body.appendChild(modal);
+            }
+
+            const allLessons = getAllCurriculumLessonsList('all', 'all', '');
+            const items = (window.db && Array.isArray(window.db.library)) ? window.db.library : [];
+
+            if (preselectedItemId) {
+                const item = items.find(i => i.id === preselectedItemId);
+                if (!item) return;
+                const firstLesson = allLessons.find(l => Array.isArray(item.linkedLessonIds) && item.linkedLessonIds.includes(l.id))
+                    || findCurriculumLessonsForLibraryItem(item)[0]?.lesson
+                    || allLessons[0];
+
+                modal.innerHTML = `
+                    <div style="background: #ffffff; width: 100%; max-width: 520px; border-radius: 14px; padding: 22px; box-shadow: 0 20px 45px rgba(0,0,0,0.25); border: 1.5px solid #5eead4; direction: rtl; text-align: right; font-family: 'Cairo', sans-serif;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 12px;">
+                            <h3 style="margin: 0; font-size: 1rem; font-weight: 900; color: #0f766e;">🔗 ربط المورد بدرس ومحور دراسي</h3>
+                            <button type="button" onclick="document.getElementById('libLinkResourceToLessonModal').style.display='none'" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #64748b;">✕</button>
+                        </div>
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px; margin-bottom: 12px; font-size: 0.84rem; font-weight: 800; color: #0f172a;">
+                            المورد: ${_libEscHtml(item.title)}
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: 800; color: #334155;">📖 اختر الدرس من المنهاج:</label>
+                                <select id="linkModalLessonSelect" onchange="updateLinkModalAxisOptions(this.value)" style="width: 100%; padding: 9px; border-radius: 8px; border: 1.5px solid #2dd4bf; background: #f0fdfa; font-weight: 700; margin-top: 4px;">
+                                    ${allLessons.map(l => `<option value="${l.id}" ${firstLesson && l.id === firstLesson.id ? 'selected' : ''}>[${_libEscHtml(l.levelName)}] ${_libEscHtml(l.title)}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8rem; font-weight: 800; color: #334155;">📌 المحور الدراسي المرتبط:</label>
+                                <select id="linkModalAxisSelect" style="width: 100%; padding: 9px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 4px; font-weight: 700;">
+                                </select>
+                            </div>
+                            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+                                <button type="button" onclick="document.getElementById('libLinkResourceToLessonModal').style.display='none'" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #334155; font-weight: 700; cursor: pointer;">إلغاء</button>
+                                <button type="button" onclick="confirmSingleItemLinkToLesson('${item.id}')" style="padding: 8px 18px; border-radius: 8px; border: none; background: #0d9488; color: #ffffff; font-weight: 800; cursor: pointer;">✓ حفظ الربط بالدرس</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                modal.style.display = 'flex';
+                if (firstLesson) updateLinkModalAxisOptions(firstLesson.id, (item.linkedAxisByLesson && item.linkedAxisByLesson[firstLesson.id]) || '');
+                return;
+            }
+
+            const targetLesson = allLessons.find(l => l.id === lessonId) || allLessons[0];
+            if (!targetLesson) return;
+
+            const targetAxes = targetLesson.axes || [];
+            const selectedAxis = (axisTitle && axisTitle !== 'all') ? axisTitle : (targetAxes[0] ? targetAxes[0].title : '');
+            const pdfAndVideoItems = items.filter(it => isLibraryItemVideo(it) || isLibraryItemPdfOrDoc(it) || !!it.url);
+
+            modal.innerHTML = `
+                <div style="background: #ffffff; width: 100%; max-width: 620px; border-radius: 14px; padding: 22px; box-shadow: 0 20px 45px rgba(0,0,0,0.25); border: 1.5px solid #5eead4; direction: rtl; text-align: right; font-family: 'Cairo', sans-serif; max-height: 90vh; display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 10px;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 1rem; font-weight: 900; color: #0f766e;">🔗 ربط ملفات PDF وفيديوهات من المكتبة بالدرس</h3>
+                            <div style="font-size: 0.78rem; color: #475569; margin-top: 2px;">${_libEscHtml(targetLesson.title)} (${_libEscHtml(targetLesson.levelName)})</div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('libLinkResourceToLessonModal').style.display='none'" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #64748b;">✕</button>
+                    </div>
+
+                    ${targetAxes.length > 0 ? `
+                        <div>
+                            <label style="font-size: 0.78rem; font-weight: 800; color: #334155;">📌 المحور الدراسي المراد الربط به:</label>
+                            <select id="batchLinkAxisSelect" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1.5px solid #2dd4bf; background: #f0fdfa; font-weight: 700; margin-top: 4px;">
+                                ${targetAxes.map(ax => `<option value="${_libEscHtml(ax.title)}" ${ax.title === selectedAxis ? 'selected' : ''}>${_libEscHtml(ax.title)}</option>`).join('')}
+                            </select>
+                        </div>
+                    ` : ''}
+
+                    <input type="text" id="batchLinkSearchInput" oninput="filterBatchLinkModalItems(this.value)" placeholder="ابحث داخل ملفات PDF وفيديوهات المكتبة..." style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 0;">
+
+                    <div id="batchLinkItemsList" style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 4px;">
+                        ${pdfAndVideoItems.length === 0 ? `
+                            <div style="text-align: center; padding: 20px; color: #64748b; font-size: 0.82rem;">لا توجد ملفات PDF أو فيديوهات في المكتبة حالياً.</div>
+                        ` : pdfAndVideoItems.map(it => {
+                            const isVid = isLibraryItemVideo(it);
+                            const checked = Array.isArray(it.linkedLessonIds) && it.linkedLessonIds.includes(targetLesson.id);
+                            return `
+                                <label class="batch-link-item-row" data-search="${_libEscHtml(normalizeMathAxisText((it.title || '') + ' ' + (it.topic || '') + ' ' + (it.fileName || '')))}" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; border: 1px solid ${checked ? '#0d9488' : '#e2e8f0'}; background: ${checked ? '#f0fdfa' : '#ffffff'}; cursor: pointer;">
+                                    <input type="checkbox" class="batch-link-checkbox" value="${it.id}" ${checked ? 'checked' : ''} style="width: 17px; height: 17px; accent-color: #0d9488;">
+                                    <span style="font-size: 0.72rem; font-weight: 800; padding: 2px 7px; border-radius: 5px; background: ${isVid ? '#eff6ff' : '#fef2f2'}; color: ${isVid ? '#1d4ed8' : '#b91c1c'};">${isVid ? '🎬 فيديو' : '📄 PDF'}</span>
+                                    <div style="min-width: 0; flex: 1;">
+                                        <div style="font-size: 0.82rem; font-weight: 800; color: #0f172a;">${_libEscHtml(it.title)}</div>
+                                        ${it.topic ? `<div style="font-size: 0.7rem; color: #64748b;">المحور: ${_libEscHtml(it.topic)}</div>` : ''}
+                                    </div>
+                                </label>
+                            `;
+                        }).join('')}
+                    </div>
+
+                    <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #f1f5f9; padding-top: 10px;">
+                        <button type="button" onclick="document.getElementById('libLinkResourceToLessonModal').style.display='none'" style="padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #334155; font-weight: 700; cursor: pointer;">إلغاء</button>
+                        <button type="button" onclick="saveBatchLessonResourceLinks('${targetLesson.id}')" style="padding: 8px 20px; border-radius: 8px; border: none; background: #0d9488; color: #ffffff; font-weight: 800; cursor: pointer;">✓ حفظ الموارد المرتبطة</button>
+                    </div>
+                </div>
+            `;
+            modal.style.display = 'flex';
+        }
+        window.openLinkResourceToLessonModal = openLinkResourceToLessonModal;
+
+        function updateLinkModalAxisOptions(lessonId, preferredAxis) {
+            const sel = document.getElementById('linkModalAxisSelect');
+            if (!sel) return;
+            const allLessons = getAllCurriculumLessonsList('all', 'all', '');
+            const lesson = allLessons.find(l => l.id === lessonId);
+            const axes = lesson && Array.isArray(lesson.axes) ? lesson.axes : [];
+            if (axes.length === 0) {
+                sel.innerHTML = `<option value="${_libEscHtml(lesson ? lesson.title : '')}">${_libEscHtml(lesson ? lesson.title : 'المحور العام')}</option>`;
+            } else {
+                sel.innerHTML = axes.map(ax => `<option value="${_libEscHtml(ax.title)}" ${preferredAxis === ax.title ? 'selected' : ''}>${_libEscHtml(ax.title)}</option>`).join('');
+            }
+        }
+        window.updateLinkModalAxisOptions = updateLinkModalAxisOptions;
+
+        function confirmSingleItemLinkToLesson(itemId) {
+            const item = (window.db && Array.isArray(window.db.library)) ? window.db.library.find(i => i.id === itemId) : null;
+            const lSel = document.getElementById('linkModalLessonSelect');
+            const aSel = document.getElementById('linkModalAxisSelect');
+            if (!item || !lSel) return;
+
+            const lessonId = lSel.value;
+            const axisTitle = aSel ? aSel.value : '';
+
+            if (!Array.isArray(item.linkedLessonIds)) item.linkedLessonIds = [];
+            if (!item.linkedLessonIds.includes(lessonId)) item.linkedLessonIds.push(lessonId);
+            if (!item.linkedAxisByLesson) item.linkedAxisByLesson = {};
+            if (axisTitle) item.linkedAxisByLesson[lessonId] = axisTitle;
+            if (!item.topic && axisTitle) item.topic = axisTitle;
+
+            if (typeof saveDB === 'function') saveDB();
+            const modal = document.getElementById('libLinkResourceToLessonModal');
+            if (modal) modal.style.display = 'none';
+
+            window.currentBrowseSideLessonId = lessonId;
+            window.currentSelectedLessonForResources = lessonId;
+            renderLibrary();
+            if (typeof showLibraryToast === 'function') {
+                showLibraryToast('✓ تم ربط المورد بالدرس والمحور الدراسي بنجاح!');
+            }
+        }
+        window.confirmSingleItemLinkToLesson = confirmSingleItemLinkToLesson;
+
+        function filterBatchLinkModalItems(q) {
+            const norm = normalizeMathAxisText(q || '');
+            document.querySelectorAll('#batchLinkItemsList .batch-link-item-row').forEach(row => {
+                const hay = row.getAttribute('data-search') || '';
+                row.style.display = (!norm || hay.includes(norm)) ? 'flex' : 'none';
+            });
+        }
+        window.filterBatchLinkModalItems = filterBatchLinkModalItems;
+
+        function saveBatchLessonResourceLinks(lessonId) {
+            const items = (window.db && Array.isArray(window.db.library)) ? window.db.library : [];
+            const axisSel = document.getElementById('batchLinkAxisSelect');
+            const chosenAxis = axisSel ? axisSel.value : '';
+            const checkboxes = Array.from(document.querySelectorAll('#batchLinkItemsList .batch-link-checkbox'));
+            const checkedIds = new Set(checkboxes.filter(c => c.checked).map(c => c.value));
+
+            items.forEach(item => {
+                if (checkedIds.has(item.id)) {
+                    if (!Array.isArray(item.linkedLessonIds)) item.linkedLessonIds = [];
+                    if (!item.linkedLessonIds.includes(lessonId)) item.linkedLessonIds.push(lessonId);
+                    if (!item.linkedAxisByLesson) item.linkedAxisByLesson = {};
+                    if (chosenAxis) item.linkedAxisByLesson[lessonId] = chosenAxis;
+                } else if (Array.isArray(item.linkedLessonIds) && item.linkedLessonIds.includes(lessonId)) {
+                    item.linkedLessonIds = item.linkedLessonIds.filter(id => id !== lessonId);
+                    if (item.linkedAxisByLesson) delete item.linkedAxisByLesson[lessonId];
+                }
+            });
+
+            if (typeof saveDB === 'function') saveDB();
+            const modal = document.getElementById('libLinkResourceToLessonModal');
+            if (modal) modal.style.display = 'none';
+
+            renderLibrary();
+            if (typeof showLibraryToast === 'function') {
+                showLibraryToast('✓ تم تحديث الموارد المرتبطة بالدرس في المكتبة واللوحة الجانبية!');
+            }
+        }
+        window.saveBatchLessonResourceLinks = saveBatchLessonResourceLinks;

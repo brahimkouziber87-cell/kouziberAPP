@@ -27,8 +27,22 @@ const MIME_TYPES = {
     '.webmanifest': 'application/manifest+json'
 };
 
+const PUBLIC_DIR = path.join(__dirname, 'public');
+
+function safeResolveStaticPath(rootDir, reqPath) {
+    const cleanRel = String(reqPath || '').replace(/^\/+/, '');
+    const resolved = path.resolve(rootDir, cleanRel);
+    const rootWithSep = rootDir.endsWith(path.sep) ? rootDir : rootDir + path.sep;
+    if (resolved !== rootDir && !resolved.startsWith(rootWithSep)) {
+        return null;
+    }
+    return resolved;
+}
+
 const server = http.createServer((req, res) => {
-    // CORS headers
+    // Security & CORS headers
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -39,17 +53,35 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    const parsedUrl = url.parse(req.url, true);
-    let pathname = decodeURIComponent(parsedUrl.pathname);
+    const parsedUrl = url.parse(req.url || '/', true);
+    let pathname = '/';
+    try {
+        pathname = decodeURIComponent(parsedUrl.pathname || '/');
+    } catch {
+        res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('400 Bad Request');
+        return;
+    }
 
-    // API route mock / fallback
+    // API route mock / fallback with 5MB body cap
     if (pathname === '/api/analyze-class' && req.method === 'POST') {
         let body = '';
-        req.on('data', chunk => { body += chunk; });
+        let aborted = false;
+        req.on('data', chunk => {
+            if (aborted) return;
+            body += chunk;
+            if (body.length > 5 * 1024 * 1024) {
+                aborted = true;
+                res.writeHead(413, { 'Content-Type': 'application/json; charset=utf-8' });
+                res.end(JSON.stringify({ error: 'حجم الطلب كبير جداً' }));
+                req.destroy();
+            }
+        });
         req.on('end', () => {
+            if (aborted) return;
             res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-            res.end(JSON.stringify({ 
-                result: '<div style="padding:15px; background:#f0fdf4; border:1px solid #86efac; border-radius:8px;"><h4 style="color:#15803d; margin:0 0 8px 0;">تحليل تربوي آلي</h4><p style="margin:0; font-size:0.85rem; color:#334155;">تم تحليل بيانات القسم بنجاح. أداء المجموعة مستقر ومعظم التلاميذ يحققون نتائج إيجابية في فروض المراقبة المستمرة.</p></div>' 
+            res.end(JSON.stringify({
+                result: '<div style="padding:15px; background:#f0fdf4; border:1px solid #86efac; border-radius:8px;"><h4 style="color:#15803d; margin:0 0 8px 0;">تحليل تربوي آلي</h4><p style="margin:0; font-size:0.85rem; color:#334155;">تم تحليل بيانات القسم بنجاح. أداء المجموعة مستقر ومعظم التلاميذ يحققون نتائج إيجابية في فروض المراقبة المستمرة.</p></div>'
             }));
         });
         return;
@@ -59,24 +91,20 @@ const server = http.createServer((req, res) => {
         pathname = '/index.html';
     }
 
-    // Try finding the file in dist first, then in public, then in root
-    let filePath = path.join(DIST_DIR, pathname);
-    if (!fs.existsSync(filePath)) {
-        filePath = path.join(BASE_DIR, 'public', pathname);
-    }
-    if (!fs.existsSync(filePath)) {
-        filePath = path.join(BASE_DIR, pathname);
+    // Serve strictly from dist/ or public/ (never expose project root or data/)
+    let filePath = safeResolveStaticPath(DIST_DIR, pathname);
+    if (!filePath || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+        filePath = safeResolveStaticPath(PUBLIC_DIR, pathname);
     }
 
-    // If still not found and pathname looks like an SPA route, fallback to dist/index.html
-    if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-        filePath = path.join(DIST_DIR, 'index.html');
-        if (!fs.existsSync(filePath)) {
-            filePath = path.join(BASE_DIR, 'index.html');
-        }
+    // SPA fallback to dist/index.html or root index.html only
+    if (!filePath || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+        const distIndex = path.join(DIST_DIR, 'index.html');
+        const rootIndex = path.join(BASE_DIR, 'index.html');
+        filePath = fs.existsSync(distIndex) ? distIndex : rootIndex;
     }
 
-    if (!fs.existsSync(filePath)) {
+    if (!filePath || !fs.existsSync(filePath)) {
         res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end('404 Not Found');
         return;

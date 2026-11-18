@@ -515,7 +515,8 @@
         }
 
         #headerCommandPaletteBtn,
-        #headerQuickLockBtn {
+        #headerQuickLockBtn,
+        #headerAdminComprehensivePdfBtn {
             padding: 0 4px !important;
             width: 23px !important;
             min-width: 23px !important;
@@ -3987,10 +3988,46 @@
         .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 1rem; border-radius: var(--radius-sm); }
         .table-responsive table { min-width: 650px; }
         table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
-        th, td { padding: 14px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+        th, td { padding: 14px 12px; text-align: right; border-bottom: 1px solid var(--border); vertical-align: middle; }
         th { background-color: var(--bg); font-weight: 700; color: var(--primary); font-family: 'Cairo', sans-serif; font-size: 0.95rem; white-space: nowrap; }
         tr:last-child td { border-bottom: none; }
         tbody tr:hover { background-color: var(--card-hover); }
+
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: auto;
+            font-variant-numeric: tabular-nums;
+        }
+        .report-table th,
+        .report-table td {
+            padding: 9px 10px;
+            vertical-align: middle;
+            text-align: center;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .report-table th {
+            font-size: 0.82rem;
+            font-weight: 800;
+            white-space: nowrap;
+            background-color: #f8fafc;
+            color: #1e293b;
+            border-bottom: 2px solid #cbd5e1;
+        }
+        .report-table th:first-child,
+        .report-table td:first-child {
+            width: 44px;
+            min-width: 40px;
+            max-width: 56px;
+            white-space: nowrap;
+            text-align: center;
+        }
+        .report-table th.th-name,
+        .report-table td.td-name {
+            text-align: right !important;
+            min-width: 180px;
+            width: auto;
+        }
 
         @media (max-width: 768px) {
             th, td { padding: 10px 8px; font-size: 0.85rem; }
@@ -5565,17 +5602,26 @@
     .report-table {
         width: 100% !important;
         border-collapse: collapse !important;
+        table-layout: auto !important;
     }
 
     .report-table th, .report-table td {
         border: 1px solid #000 !important;
         color: #000 !important;
-        padding: 8px !important;
+        padding: 5px 6px !important;
         background: transparent !important;
+        vertical-align: middle !important;
+    }
+
+    .report-table th.th-name,
+    .report-table td.td-name {
+        text-align: right !important;
+        min-width: 150px !important;
     }
 
     .report-table th {
         background-color: #f0f0f0 !important;
+        white-space: nowrap !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
@@ -12777,3 +12823,213 @@ body.dark-mode #whiteboardDesktopHubModal .wb-desk-tab-btn.active {
         filter: none !important;
     }
 }
+
+/* ============================================================================
+   Prompt Template Editor Live Syntax Highlighting ({{variable}} Overlay)
+   NOTE: Backdrop and Textarea share IDENTICAL font/spacing/padding/border metrics.
+   Never alter font-weight or horizontal padding on token spans to preserve 1:1
+   Arabic RTL + English LTR caret alignment.
+   ============================================================================ */
+.prompt-syntax-legend-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 5px 9px;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    font-size: 0.7rem;
+}
+
+.prompt-syntax-legend-items {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: #475569;
+    font-weight: 700;
+}
+
+.prompt-syntax-legend-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.prompt-syntax-legend-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.prompt-syntax-editor-wrap {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    min-height: 235px;
+    border-radius: 0 0 8px 8px;
+    border: 1.5px solid #94a3b8;
+    background: #ffffff;
+    overflow: hidden;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.prompt-syntax-editor-wrap.is-inline {
+    min-height: 155px;
+}
+
+.prompt-syntax-editor-wrap:focus-within {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.prompt-syntax-backdrop,
+.prompt-syntax-textarea {
+    margin: 0 !important;
+    padding: 11px 12px !important;
+    border: 0 !important;
+    font-family: 'Cairo', system-ui, sans-serif !important;
+    font-size: 0.84rem !important;
+    font-weight: 400 !important;
+    line-height: 1.65 !important;
+    letter-spacing: 0px !important;
+    word-spacing: 0px !important;
+    tab-size: 4 !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    box-sizing: border-box !important;
+    direction: rtl;
+    text-align: start;
+}
+
+.prompt-syntax-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: auto;
+    pointer-events: none;
+    background: #ffffff;
+    color: #0f172a;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+}
+
+.prompt-syntax-backdrop::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    background: transparent;
+}
+
+.prompt-syntax-backdrop::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+.prompt-syntax-backdrop code {
+    font-family: inherit !important;
+    font-size: inherit !important;
+    font-weight: inherit !important;
+    line-height: inherit !important;
+    letter-spacing: inherit !important;
+    word-spacing: inherit !important;
+    display: block;
+    min-height: 100%;
+    color: #0f172a;
+}
+
+.prompt-syntax-textarea {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    min-height: inherit;
+    background: transparent !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent;
+    caret-color: #1d4ed8 !important;
+    resize: vertical;
+    outline: none;
+    overflow: auto;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+}
+
+.prompt-syntax-textarea::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.prompt-syntax-textarea::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.55);
+    border-radius: 999px;
+}
+
+.prompt-syntax-textarea::placeholder {
+    color: #94a3b8 !important;
+    -webkit-text-fill-color: #94a3b8;
+}
+
+.prompt-syntax-textarea::selection {
+    background: rgba(37, 99, 235, 0.25);
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+}
+
+.prompt-syntax-editor-wrap.syntax-disabled .prompt-syntax-backdrop {
+    display: none !important;
+}
+
+.prompt-syntax-editor-wrap.syntax-disabled .prompt-syntax-textarea {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a;
+}
+
+.prompt-syn-token {
+    border-radius: 4px;
+}
+
+.prompt-syn-known {
+    background: rgba(37, 99, 235, 0.13);
+    color: #1e40af;
+    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.42);
+}
+
+.prompt-syn-known .prompt-syn-delim {
+    color: #7c3aed;
+}
+
+.prompt-syn-custom {
+    background: rgba(217, 119, 6, 0.14);
+    color: #92400e;
+    box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.45);
+}
+
+.prompt-syn-custom .prompt-syn-delim {
+    color: #b45309;
+}
+
+.prompt-syn-spotlight {
+    background: rgba(99, 102, 241, 0.24) !important;
+    color: #312e81 !important;
+    box-shadow: inset 0 0 0 1.5px #4f46e5, 0 0 8px rgba(79, 70, 229, 0.25) !important;
+}
+
+.prompt-syn-error {
+    background: rgba(239, 68, 68, 0.16);
+    color: #b91c1c;
+    box-shadow: inset 0 -2px 0 0 #ef4444;
+}
+
+.prompt-syn-heading {
+    color: #0369a1;
+}
+

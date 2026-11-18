@@ -56,9 +56,9 @@ import {
   ChevronUp,
   FileText
 } from 'lucide-react';
-import html2canvas from 'html2canvas';
 import AttendanceAndBehaviorHub from './AttendanceAndBehaviorHub.tsx';
 import AcademicYearPerformanceTrends from './AcademicYearPerformanceTrends.tsx';
+import StrategicRoadmapSuite from './StrategicRoadmapSuite.tsx';
 
 interface Student {
   id: string;
@@ -525,9 +525,11 @@ export default function DashboardView() {
 
   const classNames = useMemo(() => {
     if (!db || !db.classes) return [];
-    return Object.keys(db.classes).filter(
-      (c) => Array.isArray(db.classes[c]) && db.classes[c].length > 0
-    );
+    return Object.keys(db.classes).filter((c) => {
+      const raw = db.classes[c];
+      const arr = Array.isArray(raw) ? raw : raw?.students;
+      return Array.isArray(arr) && arr.length > 0;
+    });
   }, [db]);
 
   const parseValidGrade = (raw: any): number | null => {
@@ -628,9 +630,13 @@ export default function DashboardView() {
     const expectedSessionsHoursPerStudent = 48; // ~24 weeks * 2h baseline for attendance %
 
     return classNames.map((className) => {
-      const students: Student[] = db.classes[className] || [];
+      const rawCls = db.classes[className];
+      const students: Student[] = Array.isArray(rawCls) ? rawCls : (rawCls?.students || []);
       const meta = detectStreamMeta(className, db);
       const classRecords = recordsIndex.byClass.get(className) || [];
+      const getDur = typeof (window as any).getRecordAbsenceDuration === 'function'
+        ? (r: any) => Number((window as any).getRecordAbsenceDuration(r)) || (Number(r.duration) || 1)
+        : (r: any) => Number(r.duration) || 1;
 
       let totalAbsenceHours = 0;
       let justifiedHours = 0;
@@ -643,7 +649,7 @@ export default function DashboardView() {
       // Single pass over classRecords instead of two separate loops
       for (let i = 0; i < classRecords.length; i++) {
         const r = classRecords[i];
-        const dur = Number(r.duration) || 1;
+        const dur = getDur(r);
         if (r.status === 'غائب' || r.status === 'مبرر') {
           totalAbsenceHours += dur;
           if (r.status === 'مبرر') {
@@ -1518,7 +1524,10 @@ export default function DashboardView() {
           for (let i = 0; i < stdRecords.length; i++) {
             const r = stdRecords[i];
             if (r.date && typeof r.date === 'string') {
-              const dur = Number(r.duration) || 1;
+              const dur =
+                typeof (window as any).getRecordAbsenceDuration === 'function'
+                  ? Number((window as any).getRecordAbsenceDuration(r)) || (Number(r.duration) || 1)
+                  : Number(r.duration) || 1;
               if (r.date.startsWith(absenceCompPreviousMonth)) {
                 if (r.status === 'غائب' || r.status === 'مبرر') {
                   prevTotalHours += dur;
@@ -1734,6 +1743,7 @@ export default function DashboardView() {
     if (!dashboardRef.current) return;
     try {
       setIsExporting(true);
+      const { default: html2canvas } = await import('html2canvas');
       const canvas = await html2canvas(dashboardRef.current, {
         scale: 2,
         useCORS: true,
@@ -4145,6 +4155,11 @@ export default function DashboardView() {
         classNames={classNames}
         onRefreshDb={() => syncWithGlobalDb(true)}
       />
+
+      {/* ========================================================================= */}
+      {/* 2.35 Strategic Roadmap Suite: Early Warning, Massar Validator & Audit Log */}
+      {/* ========================================================================= */}
+      <StrategicRoadmapSuite dbProp={db} classNamesProp={classNames} />
 
       {/* ========================================================================= */}
       {/* 2.5 New Widget: Monthly Student Absences Comparative Recharts Widget      */}

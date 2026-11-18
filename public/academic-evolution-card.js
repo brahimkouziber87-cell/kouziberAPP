@@ -586,18 +586,16 @@
 مع أطيب التحيات والتقدير،
 ${teacherName}`;
 
-        if (navigator.clipboard && navigator.clipboard.writeText) {
+        if (typeof window.safeCopyTextToClipboard === 'function') {
+            window.safeCopyTextToClipboard(msg, 'تم نسخ نص رسالة التهنئة التشجيعية بنجاح 📋');
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(msg).then(() => {
-                if (typeof window.showNotification === 'function') {
-                    window.showNotification('تم نسخ نص رسالة التهنئة التشجيعية بنجاح 📋', 'success');
-                } else {
-                    alert('تم نسخ رسالة التهنئة لواتساب ولي الأمر بنجاح!');
-                }
+                window.notifySafeToast('تم نسخ رسالة التهنئة لواتساب ولي الأمر بنجاح!');
             }).catch(() => {
-                prompt('انسخ نص التهنئة التالي لإرساله لولي الأمر:', msg);
+                window.notifySafeToast(msg);
             });
         } else {
-            prompt('انسخ نص التهنئة التالي لإرساله لولي الأمر:', msg);
+            window.notifySafeToast(msg);
         }
     }
 
@@ -607,7 +605,7 @@ ${teacherName}`;
     function printAcademicEvolutionReport() {
         var data = calculateAcademicEvolution();
         if (data.totalEvaluated === 0) {
-            alert('لا توجد معطيات نقط كافية للطباعة حالياً');
+            window.notifySafeToast('لا توجد معطيات نقط كافية للطباعة حالياً');
             return;
         }
 
