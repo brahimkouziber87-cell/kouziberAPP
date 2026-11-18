@@ -486,7 +486,7 @@ test('Phase 3 Core Engines (6..9): TimetableEngine, BehaviorHomeworkEngine, Arch
     assert.ok(dossierHtml.includes('يوسف العلمي'));
 });
 
-test('End-to-End Companion Document Bridge UI & Moroccan Qualifying Secondary Stream Matrix', () => {
+test('End-to-End Companion Document Bridge UI & Moroccan Qualifying Secondary Stream Matrix', async () => {
     const { dom, win, sandbox } = createDomSandbox();
     runPublicScript(sandbox, 'public/core/grades-calculator.js');
     runPublicScript(sandbox, 'public/core/lesson-log-engine.js');
@@ -557,6 +557,43 @@ test('End-to-End Companion Document Bridge UI & Moroccan Qualifying Secondary St
     assert.equal(win.db.lessonLogs['2BAC-SM-1'][0].type, 'فرض محروس');
     assert.equal(win.db.customResources.length, 1);
     assert.equal(win.db.customResources[0].category, 'فرض محروس');
+
+    // Verify .json file import UI elements exist in the modal
+    const fileInputEl = dom.window.document.getElementById('companionImportJsonFileInput');
+    const selectFileBtnEl = dom.window.document.getElementById('btnSelectCompanionJsonFile');
+    const dropzoneEl = dom.window.document.getElementById('companionImportJsonDropzone');
+    assert.ok(fileInputEl && fileInputEl.accept.includes('.json'), 'JSON file input should exist with .json accept filter');
+    assert.ok(selectFileBtnEl, 'Select JSON file button should exist');
+    assert.ok(dropzoneEl, 'JSON dropzone should exist');
+
+    // Verify importing a batch .json file (bundle with multiple produced documents)
+    const bundleJson = JSON.stringify({
+        protocol: 'PEDAGOGICAL_COMPANION_BRIDGE_V1',
+        className: '2BAC-SM-1',
+        semester: 's1',
+        documents: [
+            { title: 'سلسلة تمارين الدوال اللوغاريتمية', type: 'series', axis: 'الدوال اللوغاريتمية', durationHours: 2, exercisesCount: 8 },
+            { title: 'درس الحسابيات في Z', type: 'lesson', axis: 'الحسابيات', durationHours: 4, notes: 'التطابقات بترديد n' }
+        ]
+    });
+    const fakeJsonFile = {
+        name: 'companion-pack.json',
+        text: async () => bundleJson
+    };
+    const fileOutcome = await win.LessonLogEngine.readAndImportCompanionJsonFile(fakeJsonFile, '2BAC-SM-1');
+    assert.equal(fileOutcome.ok, true);
+    assert.equal(fileOutcome.count, 2);
+    assert.equal(win.db.lessonLogs['2BAC-SM-1'].length, 3);
+    assert.equal(win.db.customResources.length, 3);
+
+    // Verify invalid JSON & exported-brief-only rejection messages
+    const invalidOutcome = win.LessonLogEngine.importCompanionJsonFileContent('{not-valid-json', '2BAC-SM-1');
+    assert.equal(invalidOutcome.ok, false);
+    assert.ok(invalidOutcome.error.includes('غير صالحة'));
+
+    const briefOnlyOutcome = win.LessonLogEngine.importCompanionJsonFileContent(exportTextarea.value, '2BAC-SM-1');
+    assert.equal(briefOnlyOutcome.ok, false);
+    assert.ok(briefOnlyOutcome.error.includes('بطاقة تشخيصية مصدرة'));
 });
 
 test('AI Pedagogical Notes Generator & Qualitative Report Summarizer in notesView', async () => {
