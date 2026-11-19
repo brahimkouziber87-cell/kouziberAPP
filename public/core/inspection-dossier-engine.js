@@ -154,7 +154,7 @@
                 <div style="border:2px solid #1e3a8a;border-radius:12px;padding:14px 18px;margin-bottom:16px;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;">
                     <div style="font-size:0.82rem;font-weight:800;line-height:1.6;color:#1e293b;">
                         <div>المملكة المغربية</div>
-                        <div>وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                        <div>وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                         <div>${escapeText(model.teacher.academy)}</div>
                         <div>${escapeText(model.teacher.directorate)} — ${escapeText(model.teacher.school)}</div>
                     </div>

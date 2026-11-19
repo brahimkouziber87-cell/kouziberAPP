@@ -686,6 +686,527 @@ test('AI Pedagogical Notes Generator & Qualitative Report Summarizer in notesVie
     assert.equal(win.db.notes['2BAC-PC-1'][0].isAiSummaryReport, true);
 });
 
+test('Supervised Exams & Exam Report: bug fixes, makeup normalization, dispersion stats, progression & auto-diagnostics', async () => {
+    const indexHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    assert.equal(indexHtml.includes('id="examReportStreamNormBadge"'), true);
+    assert.equal(indexHtml.includes('id="examStatMedian"'), true);
+    assert.equal(indexHtml.includes('id="examStatStdDev"'), true);
+    assert.equal(indexHtml.includes('id="examStatCV"'), true);
+    assert.equal(indexHtml.includes('id="examReportProgressionStrip"'), true);
+    assert.equal(indexHtml.includes('id="btnAutoGenerateExamDiagnostics"'), true);
 
+    const { dom, win, sandbox } = createDomSandbox(`<!DOCTYPE html><html><body>
+        <select id="reportClassSelect"><option value="2BAC-SM-1" selected>2BAC-SM-1</option></select>
+        <select id="examReportSemester"><option value="s1" selected>s1</option><option value="s2">s2</option></select>
+        <select id="examReportNumber">
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+        </select>
+        <span id="examReportStatusBadge"></span>
+        <span id="examReportStreamNormBadge"></span>
+        <input id="examReportPassDate" value="2026-11-10" />
+        <input id="examReportCorrectionDate" value="2026-11-17" />
+        <select id="examReportDuration"><option value="2h" selected>2h</option></select>
+        <input id="examReportCoef" value="9" />
+        <textarea id="examReportTopics">الاتصال والاشتقاق</textarea>
+        <input id="examReportGradingScale" value="" />
+        <textarea id="examReportDifficulties"></textarea>
+        <textarea id="examReportRemediation"></textarea>
+        <div id="examStatTotal"></div><div id="examStatPresent"></div><div id="examStatAbsent"></div>
+        <div id="examStatMax"></div><div id="examStatMin"></div><div id="examStatAvg"></div>
+        <div id="examStatPassRate"></div><div id="examStatFailRate"></div>
+        <div id="examStatMedian"></div><div id="examStatStdDev"></div><div id="examStatCV"></div>
+        <div id="distCount_veryLow"></div><div id="distPct_veryLow"></div><div id="distBar_veryLow"></div>
+        <div id="distCount_low"></div><div id="distPct_low"></div><div id="distBar_low"></div>
+        <div id="distCount_medium"></div><div id="distPct_medium"></div><div id="distBar_medium"></div>
+        <div id="distCount_good"></div><div id="distPct_good"></div><div id="distBar_good"></div>
+        <div id="distCount_excellent"></div><div id="distPct_excellent"></div><div id="distBar_excellent"></div>
+        <div id="examReportPieChartContainer"></div>
+        <div id="examReportProgressionStrip"></div>
+        <table><tbody id="examReportRosterTbody"></tbody></table>
+        <table><tbody id="examReportRankedTbody"></tbody></table>
+        <div id="examReportAbsentsContainer"></div>
+        <span id="examReportAbsentsCountBadge"></span>
+    </body></html>`);
 
+    let capturedPrintHtml = '';
+    win.openCustomPrintPreviewModal = (html) => { capturedPrintHtml = html; };
+    win.showNotification = () => {};
+    win.showToast = () => {};
+    win.saveDB = () => {};
+    win.saveData = () => {};
+
+    runPublicScript(sandbox, 'public/core/grades-calculator.js');
+    runPublicScript(sandbox, 'public/exam-report.js');
+
+    win.db = {
+        currentClass: '2BAC-SM-1',
+        teacherProfile: { name: 'ذ. إبراهيم قزيبر', school: 'الثانوية التأهيلية المرجعية' },
+        classes: {
+            '2BAC-SM-1': [
+                { id: 's1', name: 'تلميذ 1', massar: 'M1001' },
+                { id: 's2', name: 'تلميذ 2', massarCode: 'M1002' },
+                { id: 's3', name: 'تلميذ 3', cne: 'M1003' },
+                { id: 's4', name: 'تلميذ 4', massar: 'M1004' }
+            ]
+        },
+        grades: {
+            '2BAC-SM-1': {
+                s1: { s1: { f1: '16,5', f2: 17 } },
+                s2: { s1: { f1: 12, f2: 14 } },
+                s3: { s1: { f1: '7,5', f2: 9 } },
+                s4: { s1: { f1: 'غ', f2: 11 } }
+            }
+        }
+    };
+
+    win.loadOrBuildReportForForm('2BAC-SM-1');
+
+    // Verify comma decimal parsing & stats + dispersion metrics
+    assert.equal(dom.window.document.getElementById('examStatPresent').textContent, '3');
+    assert.equal(dom.window.document.getElementById('examStatAbsent').textContent, '1');
+    assert.equal(dom.window.document.getElementById('examStatAvg').textContent, '12/20');
+    assert.equal(dom.window.document.getElementById('examStatMedian').textContent, '12/20');
+    assert.ok(dom.window.document.getElementById('examStatStdDev').textContent !== '--');
+    assert.ok(dom.window.document.getElementById('examStatCV').textContent.includes('%'));
+    assert.ok(dom.window.document.getElementById('examReportStreamNormBadge').textContent.includes('4 فروض/دورة'));
+    assert.ok(dom.window.document.getElementById('examReportStreamNormBadge').textContent.includes('معامل 9'));
+
+    // Verify progression strip shows F1..F4 for 2BAC-SM-1
+    const prog = win.computeExamProgressionForClass('2BAC-SM-1', 's1');
+    assert.equal(prog.length, 4);
+    assert.equal(prog[0].avgMark, 12);
+    assert.equal(prog[1].avgMark, 12.75);
+    assert.equal(prog[1].delta, 0.75);
+
+    // Verify auto diagnostics generator fills difficulties and remediation
+    const diag = win.generateAutoExamPedagogicalDiagnostics();
+    assert.ok(diag.difficulties.includes('12/20'));
+    assert.ok(diag.remediation.includes('فرض محروس تعويضي'));
+    assert.equal(dom.window.document.getElementById('examReportDifficulties').value, diag.difficulties);
+
+    // Verify makeup exam key normalization ('1' -> 'f1') & convocation print without ReferenceError
+    win.quickUpdateMakeupJustification('s4', 'justified_admin');
+    const makeupKeyExpected = '2BAC-SM-1__s1__f1__s4';
+    assert.ok(win.db.makeupExams[makeupKeyExpected], 'Makeup registry should store under normalized f1 key');
+    assert.equal(win.db.makeupExams[makeupKeyExpected].justification, 'justified_admin');
+
+    win.printOfficialMakeupExamConvocation();
+    assert.ok(capturedPrintHtml.includes('محضر واستدعاء اجتياز الفرض المحروس التعويضي رقم 1'));
+    assert.ok(capturedPrintHtml.includes('وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل'));
+    assert.ok(capturedPrintHtml.includes('تلميذ 4'));
+
+    // Apply makeup mark via inline input (selecting '1' in #examReportNumber must write to 'f1')
+    const inlineInput = dom.window.document.getElementById('inlineMakeupMark_s4');
+    assert.ok(inlineInput);
+    inlineInput.value = '13.5';
+    win.applyMakeupExamMarkInline('s4');
+    assert.equal(win.db.grades['2BAC-SM-1'].s4.s1.f1, 13.5);
+    assert.equal(dom.window.document.getElementById('examStatAbsent').textContent, '0');
+    assert.equal(dom.window.document.getElementById('examStatPresent').textContent, '4');
+
+    // Verify companion JSON export payload & cleanup safety
+    const companionPayload = win.exportExamFeedbackToCompanionJson();
+    assert.equal(companionPayload.protocol, 'PEDAGOGICAL_COMPANION_BRIDGE_V1');
+    assert.equal(companionPayload.kind, 'exam_feedback');
+    assert.equal(companionPayload.examKey, 'f1');
+
+    win.cleanupExamReportMemory();
+    win.printOfficialExamReport();
+    assert.ok(capturedPrintHtml.includes('بطاقة تقرير وتتبع الفرض المحروس رقم 1'));
+    assert.ok(capturedPrintHtml.includes('وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل'));
+});
+
+test('Tablet Report Pane & Custom Print Preview: auto-opens print preview modal, applies selected margins live & in @page, and prevents XSS', () => {
+    const appCode = fs.readFileSync(path.join(ROOT, 'public/app.js'), 'utf8');
+
+    // Extract key self-contained functions from public/app.js for direct VM execution
+    const extractFnBlock = (startMarker, endMarker) => {
+        const startIdx = appCode.indexOf(startMarker);
+        assert.ok(startIdx !== -1, `Missing marker: ${startMarker}`);
+        const endIdx = appCode.indexOf(endMarker, startIdx);
+        assert.ok(endIdx !== -1, `Missing end marker: ${endMarker}`);
+        return appCode.slice(startIdx, endIdx);
+    };
+
+    const marginsHelpersBlock = extractFnBlock(
+        'function getStudentPrintModeOptions()',
+        'function resolveSelectedReportStudent()'
+    );
+    const tabletReportBlock = extractFnBlock(
+        'function onTabletReportMarginPresetChange(',
+        'function closeTabletReport()'
+    );
+    const printPreviewBlock = extractFnBlock(
+        'function printDocumentDirectly(',
+        '// محول اعتراض نوافذ الطباعة الفارغة'
+    );
+
+    const { dom, win, sandbox } = createDomSandbox(`<!DOCTYPE html><html dir="rtl" lang="ar"><body>
+        <select id="reportClassSelect"><option value="2BAC-PC-1" selected>2BAC-PC-1</option></select>
+        <select id="reportStudentSelect"><option value="st_42" selected>st_42</option></select>
+        <div id="studentBehaviorDetails">
+            <div id="printBehaviorArea">
+                <div class="student-print-official-header" style="display:none;">الترويسة الرسمية</div>
+                <div class="student-unified-identity-card">التلميذ التجريبي</div>
+                <div class="student-print-inline-chart-box" style="display:none;"><svg><polyline points="0,0 10,10" /></svg><span>مبيان تطور نقط الفروض</span></div>
+                <div class="student-print-visas-section" style="display:none;">التأشيرات</div>
+                <button class="no-print">زر لا يُطبع</button>
+            </div>
+        </div>
+        <div id="tabletReportPane"><div id="tabletReportContent"></div></div>
+    </body></html>`);
+
+    Object.defineProperty(win, 'innerWidth', { value: 1280, configurable: true });
+    const mockDb = {
+        settings: {
+            printModePageSize: 'a4',
+            printModeMarginsPreset: 'normal',
+            printModeMarginTop: 10,
+            printModeMarginRight: 10,
+            printModeMarginBottom: 10,
+            printModeMarginLeft: 10,
+            printModeOptProgressChart: true,
+            printModeOptAbsenceChart: true
+        },
+        classes: {
+            '2BAC-PC-1': [
+                { id: 'st_42', name: 'ياسين <img src=x onerror=alert(1)>', orderNum: 7, massar: 'R130042424' }
+            ]
+        },
+        behaviors: {
+            '2BAC-PC-1': {
+                st_42: { status: 'منضبط', note: 'ملاحظة <script>evil()</script> جيدة' }
+            }
+        },
+        grades: {
+            '2BAC-PC-1': {
+                st_42: { f1: 15, f2: 16 }
+            }
+        }
+    };
+
+    const escapeHtmlImpl = (str) => String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    Object.assign(sandbox, {
+        db: mockDb,
+        MOROCCAN_GOOGLE_FONTS_LINK: 'https://fonts.googleapis.com/css2?family=Cairo',
+        escapeHtml: escapeHtmlImpl,
+        saveDB: () => {},
+        saveData: () => {},
+        applyTypographySettings: () => {},
+        getSelectedPrintFontFamily: () => "'Cairo', 'Amiri', sans-serif",
+        getSelectedHandwritingFontFamily: () => "'Aref Ruqaa', serif",
+        getStudentClassRecordsFast: () => [],
+        getRecordAbsenceDuration: () => 0,
+        calculateStudentAvg: () => 15.5,
+        getSubjectCoefForClass: () => 7,
+        renderReport: () => {},
+        updateStudentProgressChart: () => {},
+        showAppToast: () => {}
+    });
+    win.db = mockDb;
+    win.escapeHtml = escapeHtmlImpl;
+
+    vm.runInContext(marginsHelpersBlock + '\n' + tabletReportBlock + '\n' + printPreviewBlock, sandbox, {
+        filename: 'tablet-report-print-preview.vm.js'
+    });
+
+    // 1. Render tabletReportPane and verify XSS escaping + new print button, margin selector, and include-charts toggle
+    win.showTabletReport('2BAC-PC-1', 'st_42');
+    const contentEl = dom.window.document.getElementById('tabletReportContent');
+    assert.ok(contentEl.innerHTML.includes('&lt;img src=x onerror=alert(1)&gt;'), 'Student name should be HTML-escaped in tabletReportPane');
+    assert.ok(contentEl.innerHTML.includes('&lt;script&gt;evil()&lt;/script&gt;'), 'Behavior note should be HTML-escaped in tabletReportPane');
+    assert.equal(contentEl.querySelector('img'), null, 'No raw injected <img> element should exist');
+
+    const tabletMarginSel = dom.window.document.getElementById('tabletReportPrintMarginsSelect');
+    const tabletPrintBtn = dom.window.document.getElementById('btnTabletPrintIndividualReport');
+    const tabletChartsChk = dom.window.document.getElementById('tabletReportIncludeChartsCheckbox');
+    assert.ok(tabletMarginSel, 'Margin selector should exist inside tabletReportPane');
+    assert.ok(tabletPrintBtn, 'Print individual report button should exist inside tabletReportPane');
+    assert.ok(tabletPrintBtn.textContent.includes('طباعة التقرير الفردي'));
+    assert.ok(tabletChartsChk, 'Include charts checkbox should exist inside tabletReportPane');
+    assert.equal(tabletChartsChk.checked, true, 'Include charts should default to checked');
+    assert.ok(contentEl.textContent.includes('تضمين المخططات البيانية'));
+
+    // 2. Uncheck 'تضمين المخططات البيانية' and choose narrow margins (6mm) before opening preview
+    tabletChartsChk.checked = false;
+    win.onTabletReportIncludeChartsChange(false);
+    assert.equal(mockDb.settings.printModeOptProgressChart, false);
+    assert.equal(mockDb.settings.printModeOptAbsenceChart, false);
+
+    tabletMarginSel.value = 'narrow';
+    win.onTabletReportMarginPresetChange('narrow');
+    assert.equal(mockDb.settings.printModeMarginsPreset, 'narrow');
+
+    const opened = win.openTabletIndividualReportPrintPreview('2BAC-PC-1', 'st_42');
+    assert.equal(opened, true, 'openTabletIndividualReportPrintPreview should open preview modal');
+
+    const modalEl = dom.window.document.getElementById('customReportPreviewModal');
+    assert.ok(modalEl, 'Custom Print Preview Modal should open automatically');
+
+    const previewMarginSel = dom.window.document.getElementById('selCustomPreviewMargins');
+    const previewChartsChk = dom.window.document.getElementById('chkCustomPreviewIncludeCharts');
+    const sheetEl = dom.window.document.getElementById('customReportPrintableSheet');
+    const chartBoxInSheet = sheetEl.querySelector('.student-print-inline-chart-box');
+    assert.ok(previewMarginSel, 'Margin selector should exist inside Print Preview Modal');
+    assert.ok(previewChartsChk, 'Include charts checkbox should exist inside Print Preview Modal toolbar');
+    assert.equal(previewChartsChk.checked, false, 'Preview charts toggle should inherit unchecked state from tabletReportPane');
+    assert.equal(chartBoxInSheet.style.display, 'none', 'Chart box should be hidden when include-charts is unchecked');
+    assert.equal(previewMarginSel.value, 'narrow', 'Preview margin selector should inherit tabletReportPane preset');
+    assert.equal(sheetEl.style.paddingTop, '6mm', 'Live preview sheet top padding should reflect 6mm narrow margin');
+    assert.equal(sheetEl.style.paddingRight, '6mm', 'Live preview sheet right padding should reflect 6mm narrow margin');
+    assert.equal(sheetEl.style.paddingBottom, '6mm', 'Live preview sheet bottom padding should reflect 6mm narrow margin');
+    assert.equal(sheetEl.style.paddingLeft, '6mm', 'Live preview sheet left padding should reflect 6mm narrow margin');
+    assert.equal(sheetEl.querySelector('.no-print'), null, 'No-print buttons must be stripped from preview clone');
+
+    // 3. Switch to custom margins inside preview modal and verify live sheet update + @page injection + chart exclusion
+    previewMarginSel.value = 'custom';
+    previewMarginSel.onchange();
+    const topInp = dom.window.document.getElementById('inpCustomPreviewMarginTop');
+    const rightInp = dom.window.document.getElementById('inpCustomPreviewMarginRight');
+    const bottomInp = dom.window.document.getElementById('inpCustomPreviewMarginBottom');
+    const leftInp = dom.window.document.getElementById('inpCustomPreviewMarginLeft');
+    topInp.value = '12';
+    topInp.onchange();
+    rightInp.value = '8';
+    rightInp.onchange();
+    bottomInp.value = '14';
+    bottomInp.onchange();
+    leftInp.value = '9';
+    leftInp.onchange();
+
+    assert.equal(sheetEl.style.padding, '12mm 8mm 14mm 9mm', 'Sheet padding should update live for custom margins');
+    assert.equal(mockDb.settings.printModeMarginTop, 12);
+    assert.equal(mockDb.settings.printModeMarginLeft, 9);
+
+    // Capture written HTML in print iframe (charts excluded)
+    let printedDocHtml = '';
+    const fakeIframe = dom.window.document.createElement('iframe');
+    fakeIframe.id = 'globalAppPrintIframe';
+    Object.defineProperty(fakeIframe, 'contentWindow', {
+        value: {
+            document: {
+                open() {},
+                write(str) { printedDocHtml = str; },
+                close() {}
+            },
+            focus() {},
+            print() {}
+        }
+    });
+    dom.window.document.body.appendChild(fakeIframe);
+
+    dom.window.document.getElementById('btnDirectPrintCustomPreview').click();
+    assert.ok(printedDocHtml.includes('margin: 12mm 8mm 14mm 9mm !important;'), 'printDocumentDirectly must emit exact custom @page margins');
+    assert.equal(printedDocHtml.includes('student-print-inline-chart-box'), false, 'Disabled chart block must be stripped from printed document');
+
+    // 4. Re-enable 'تضمين المخططات البيانية' live inside preview modal and verify sync + inclusion in printed HTML
+    previewChartsChk.checked = true;
+    previewChartsChk.onchange();
+    assert.equal(chartBoxInSheet.style.display, 'block', 'Chart box should become visible live when re-enabled');
+    assert.equal(tabletChartsChk.checked, true, 'tabletReportPane checkbox should sync back to checked');
+    assert.equal(mockDb.settings.printModeOptProgressChart, true);
+
+    // 5. Verify Official Header & Official Visas toggles between tabletReportPane and Print Preview Modal
+    const tabletHeaderChk = dom.window.document.getElementById('tabletReportOfficialHeaderCheckbox');
+    const tabletVisasChk = dom.window.document.getElementById('tabletReportOfficialVisasCheckbox');
+    const previewHeaderChk = dom.window.document.getElementById('chkCustomPreviewOfficialHeader');
+    const previewVisasChk = dom.window.document.getElementById('chkCustomPreviewOfficialVisas');
+    assert.ok(tabletHeaderChk && tabletVisasChk, 'Official header and visas checkboxes must exist in tabletReportPane');
+    assert.ok(previewHeaderChk && previewVisasChk, 'Official header and visas checkboxes must exist in Print Preview Modal toolbar');
+
+    previewHeaderChk.checked = false;
+    previewHeaderChk.onchange();
+    previewVisasChk.checked = false;
+    previewVisasChk.onchange();
+    assert.equal(tabletHeaderChk.checked, false, 'tabletReportPane header checkbox should sync with preview');
+    assert.equal(tabletVisasChk.checked, false, 'tabletReportPane visas checkbox should sync with preview');
+
+    dom.window.document.getElementById('btnDirectPrintCustomPreview').click();
+    assert.equal(printedDocHtml.includes('student-print-inline-chart-box'), true, 'Re-enabled chart block must be included in printed document');
+    assert.equal(printedDocHtml.includes('student-print-official-header'), false, 'Disabled official header must be stripped from printed document');
+    assert.equal(printedDocHtml.includes('student-print-visas-section'), false, 'Disabled official visas section must be stripped from printed document');
+
+    // 6. Verify #studentPrintModeControlBar in index.html contains #barPrintOptProgressChart ('تضمين المخططات البيانية للأداء')
+    const indexHtmlCode = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    assert.ok(indexHtmlCode.includes('id="barPrintOptProgressChart"'), '#barPrintOptProgressChart must exist inside #studentPrintModeControlBar in index.html');
+    assert.ok(indexHtmlCode.includes('تضمين المخططات البيانية للأداء'), 'Label تضمين المخططات البيانية للأداء must exist in #studentPrintModeControlBar');
+
+    // 7. Verify toggleStudentAttendancePrintComponent automatic chart & section rearrangement (zero empty spaces)
+    const reflowBlock = extractFnBlock(
+        'function applyPrintModePageSetupToDOM()',
+        'function setStudentAttendancePrintPreset('
+    );
+    vm.runInContext(reflowBlock, sandbox, { filename: 'toggle-reflow.vm.js' });
+
+    const chartCont = dom.window.document.createElement('div');
+    chartCont.id = 'studentChartContainer';
+    chartCont.innerHTML = `
+        <div id="studentChartsGrid" style="display:grid;">
+            <div id="studentProgressChartCard"></div>
+            <div id="studentAttendanceChartCard"></div>
+        </div>
+    `;
+    dom.window.document.body.appendChild(chartCont);
+
+    // Hide progressChart only -> attendanceCard moves to order 1 and grid becomes 1fr (no empty column)
+    mockDb.settings.printModeOptProgressChart = false;
+    mockDb.settings.printModeOptAbsenceChart = true;
+    win.reflowStudentReportChartsAndSections();
+    assert.equal(dom.window.document.getElementById('studentProgressChartCard').style.display, 'none');
+    assert.equal(dom.window.document.getElementById('studentAttendanceChartCard').style.display, 'block');
+    assert.equal(dom.window.document.getElementById('studentAttendanceChartCard').style.order, '1');
+    assert.equal(dom.window.document.getElementById('studentChartsGrid').style.gridTemplateColumns, '1fr');
+
+    // Hide both charts via toggleStudentAttendancePrintComponent('progressChart', false) -> entire container collapses with 0px margin
+    win.toggleStudentAttendancePrintComponent('progressChart', false);
+    assert.equal(chartCont.style.display, 'none');
+    assert.equal(chartCont.style.marginBottom, '0px');
+    const inlineChartInPrintArea = dom.window.document.querySelector('#printBehaviorArea .student-print-inline-chart-box');
+    assert.equal(inlineChartInPrintArea.style.display, 'none');
+    assert.equal(inlineChartInPrintArea.style.marginBottom, '0px');
+
+    // Re-enable via toggleStudentAttendancePrintComponent('progressChart', true) -> charts expand & rearrange back
+    win.toggleStudentAttendancePrintComponent('progressChart', true);
+    assert.equal(chartCont.style.display, 'block');
+    assert.equal(chartCont.style.marginBottom, '18px');
+    assert.equal(inlineChartInPrintArea.style.display, 'block');
+});
+
+test('Dashboard AI Class Diagnostics & Classroom Privacy Mode (Law 09-08): computes class comparisons, opens printable modal, and toggles privacy blur', () => {
+    const appJsCode = fs.readFileSync(path.join(ROOT, 'public/app.js'), 'utf8');
+    const startIdx = appJsCode.indexOf('function toggleClassroomPrivacyMode(');
+    assert.ok(startIdx !== -1, 'toggleClassroomPrivacyMode must exist in app.js');
+    const endIdx = appJsCode.indexOf('window.printDashboardAiClassDiagnostics = printDashboardAiClassDiagnostics;');
+    assert.ok(endIdx !== -1, 'printDashboardAiClassDiagnostics must exist in app.js');
+    const blockCode = appJsCode.slice(startIdx, endIdx + 'window.printDashboardAiClassDiagnostics = printDashboardAiClassDiagnostics;'.length);
+
+    const { dom, win, sandbox } = createDomSandbox(`<!DOCTYPE html><html dir="rtl" lang="ar"><body>
+        <button id="btnPrivacy" onclick="window.toggleClassroomPrivacyMode && window.toggleClassroomPrivacyMode()">خصوصية 09-08</button>
+    </body></html>`);
+
+    const mockDb = {
+        settings: {},
+        classes: {
+            '2BAC-SM-1': [
+                { id: 's1', name: 'سلمى العلوي', massar: 'R110011001' },
+                { id: 's2', name: 'يوسف الإدريسي', massar: 'R110011002' }
+            ],
+            'TCS-1': [
+                { id: 's3', name: 'أمين التازي', massar: 'R110011003' }
+            ]
+        },
+        grades: {
+            '2BAC-SM-1': { s1: { avg: 16.5 }, s2: { avg: 14.5 } },
+            'TCS-1': { s3: { avg: 8.5 } }
+        },
+        records: [
+            { class: 'TCS-1', studentId: 's3', status: 'غائب' }
+        ],
+        behaviors: {}
+    };
+
+    let previewCalledWith = null;
+    Object.assign(sandbox, {
+        db: mockDb,
+        activeSemester: 's1',
+        escapeHtml: (s) => String(s ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;'),
+        saveDB: () => {},
+        showAppToast: () => {},
+        calculateStudentAvg: (gObj) => (gObj && typeof gObj.avg === 'number' ? gObj.avg : null),
+        getRecordAbsenceDuration: () => 2,
+        openCustomPrintPreviewModal: (html, opts) => { previewCalledWith = { html, opts }; }
+    });
+    win.db = mockDb;
+
+    vm.runInContext(blockCode, sandbox, { filename: 'diagnostics-privacy.vm.js' });
+
+    // 1. Verify Law 09-08 Classroom Privacy Mode toggle
+    const active1 = win.toggleClassroomPrivacyMode();
+    assert.equal(active1, true);
+    assert.equal(dom.window.document.body.classList.contains('classroom-privacy-0908-active'), true);
+    assert.equal(mockDb.settings.classroomPrivacyMode0908, true);
+    assert.ok(dom.window.document.getElementById('classroomPrivacy0908Style'), 'Privacy CSS style tag should be injected');
+
+    const active2 = win.toggleClassroomPrivacyMode();
+    assert.equal(active2, false);
+    assert.equal(dom.window.document.body.classList.contains('classroom-privacy-0908-active'), false);
+
+    // 2. Verify AI Class Diagnostics computation, modal rendering, and print preview integration
+    const diagnostics = win.openDashboardAiClassDiagnostics();
+    assert.equal(diagnostics.length, 2);
+    const sm1 = diagnostics.find(d => d.className === '2BAC-SM-1');
+    const tcs1 = diagnostics.find(d => d.className === 'TCS-1');
+    assert.equal(sm1.mean, 15.5);
+    assert.equal(sm1.passRate, 100);
+    assert.equal(tcs1.mean, 8.5);
+    assert.equal(tcs1.strugglingCount, 1);
+    assert.equal(tcs1.totalAbsentHours, 2);
+
+    const diagModal = dom.window.document.getElementById('dashboardAiClassDiagnosticsModal');
+    assert.ok(diagModal, 'Diagnostics modal must render in DOM');
+    assert.ok(diagModal.textContent.includes('2BAC-SM-1'));
+    assert.ok(diagModal.textContent.includes('TCS-1'));
+
+    const printed = win.printDashboardAiClassDiagnostics();
+    assert.equal(printed, true);
+    assert.ok(previewCalledWith, 'printDashboardAiClassDiagnostics should open Custom Print Preview Modal');
+    assert.ok(previewCalledWith.html.includes('وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل'));
+});
+
+test('Student Print Report: renders empty incident dates with unified formatting in studentAttendancePrintComponent and AI Trend Indicator above print chart', () => {
+    const appJsCode = fs.readFileSync(path.join(ROOT, 'public/app.js'), 'utf8');
+    assert.ok(appJsCode.includes('id="studentAttendancePrintComponent"'), 'studentAttendancePrintComponent ID must exist in app.js');
+    assert.ok(appJsCode.includes('class="incident-log-empty-date-row"'), 'incident-log-empty-date-row class must exist in app.js');
+    assert.ok(appJsCode.includes('id="studentPrintAiTrendIndicator"'), 'studentPrintAiTrendIndicator ID must exist in app.js');
+    assert.ok(appJsCode.includes('مؤشر الأداء الذكي (AI Trend Indicator)'), 'AI Trend Indicator title must exist in app.js');
+
+    // Extract computeAiTrendAnalysis logic and verify upward, downward, fluctuating, and single-point cases
+    const fnStart = appJsCode.indexOf('const computeAiTrendAnalysis = (pts, studentAvg, clsAvg) => {');
+    const fnEnd = appJsCode.indexOf('window.computeStudentAiTrendIndicator = computeAiTrendAnalysis;');
+    assert.ok(fnStart !== -1 && fnEnd !== -1, 'computeAiTrendAnalysis must be defined and exposed');
+    const fnCode = appJsCode.slice(fnStart, fnEnd + 'window.computeStudentAiTrendIndicator = computeAiTrendAnalysis;'.length);
+
+    const { win, sandbox } = createDomSandbox('<!DOCTYPE html><html dir="rtl" lang="ar"><body></body></html>');
+    vm.runInContext(fnCode, sandbox, { filename: 'ai-trend-indicator.vm.js' });
+
+    assert.equal(typeof win.computeStudentAiTrendIndicator, 'function');
+
+    // 1. Upward trajectory
+    const upward = win.computeStudentAiTrendIndicator(
+        [{ label: 'الفرض الأول', val: 12.0 }, { label: 'الفرض الثاني', val: 15.5 }, { label: 'الفرض الثالث', val: 17.0 }],
+        14.83,
+        13.0
+    );
+    assert.equal(upward.direction, 'upward');
+    assert.ok(upward.badgeText.includes('اتجاه تصاعدي مستمر'));
+    assert.ok(upward.noteText.includes('+5.00'));
+
+    // 2. Downward trajectory
+    const downward = win.computeStudentAiTrendIndicator(
+        [{ label: 'الفرض الأول', val: 14.0 }, { label: 'الفرض الثاني', val: 10.5 }],
+        12.25,
+        12.5
+    );
+    assert.equal(downward.direction, 'downward');
+    assert.ok(downward.badgeText.includes('اتجاه تنازلي'));
+    assert.ok(downward.noteText.includes('3.50'));
+
+    // 3. Fluctuating trajectory
+    const fluctuating = win.computeStudentAiTrendIndicator(
+        [{ label: 'الفرض الأول', val: 11.0 }, { label: 'الفرض الثاني', val: 15.0 }, { label: 'الفرض الثالث', val: 12.0 }],
+        12.67,
+        12.0
+    );
+    assert.equal(fluctuating.direction, 'fluctuating');
+    assert.ok(fluctuating.badgeText.includes('أداء متذبذب'));
+});
 

@@ -494,7 +494,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
                         <div style="font-size: 10px; font-weight: 800; line-height: 1.5; color: #334155;">
                             <div style="font-size: 11.5px; font-weight: 900; color: #0f172a;">المملكة المغربية</div>
-                            <div style="color: #1e3a8a;">وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                            <div style="color: #1e3a8a;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                             <div>${escapeHtml(m.academy)}</div>
                             <div>${escapeHtml(m.directorate)} · المؤسسة: <strong>${escapeHtml(m.school)}</strong></div>
                         </div>

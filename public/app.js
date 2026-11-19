@@ -2219,8 +2219,39 @@
             if (setRight) setRight.value = opts.marginRight;
             if (setLeft) setLeft.value = opts.marginLeft;
 
+            // Sync selectors in Tablet Report Pane (if open)
+            const tabMarginSel = document.getElementById('tabletReportPrintMarginsSelect');
+            const tabCustomRow = document.getElementById('tabletReportCustomMarginsRow');
+            const tabTop = document.getElementById('tabletReportMarginTop');
+            const tabRight = document.getElementById('tabletReportMarginRight');
+            const tabBottom = document.getElementById('tabletReportMarginBottom');
+            const tabLeft = document.getElementById('tabletReportMarginLeft');
+            const tabIncludeCharts = document.getElementById('tabletReportIncludeChartsCheckbox');
+            const tabOfficialHeader = document.getElementById('tabletReportOfficialHeaderCheckbox');
+            const tabOfficialVisas = document.getElementById('tabletReportOfficialVisasCheckbox');
+            if (tabMarginSel) tabMarginSel.value = opts.marginPreset;
+            if (tabCustomRow) tabCustomRow.style.display = opts.marginPreset === 'custom' ? 'grid' : 'none';
+            if (tabTop) tabTop.value = opts.marginTop;
+            if (tabRight) tabRight.value = opts.marginRight;
+            if (tabBottom) tabBottom.value = opts.marginBottom;
+            if (tabLeft) tabLeft.value = opts.marginLeft;
+            if (tabIncludeCharts) tabIncludeCharts.checked = !!opts.progressChart;
+            if (tabOfficialHeader) tabOfficialHeader.checked = !!opts.officialHeader;
+            if (tabOfficialVisas) tabOfficialVisas.checked = !!opts.officialVisas;
+
+            const setChkProgressChart = document.getElementById('printModeOptProgressChart');
+            const setChkAbsenceChart = document.getElementById('printModeOptAbsenceChart');
+            const setChkOfficialHeader = document.getElementById('printModeOptOfficialHeader');
+            const setChkOfficialVisas = document.getElementById('printModeOptOfficialVisas');
+            if (setChkProgressChart) setChkProgressChart.checked = !!opts.progressChart;
+            if (setChkAbsenceChart) setChkAbsenceChart.checked = !!opts.absenceChart;
+            if (setChkOfficialHeader) setChkOfficialHeader.checked = !!opts.officialHeader;
+            if (setChkOfficialVisas) setChkOfficialVisas.checked = !!opts.officialVisas;
+
             // Apply live CSS variables & classes for WYSIWYG preview in Print Mode & @media print
             document.body.classList.toggle('print-mode-size-a5', opts.pageSize === 'a5');
+            document.body.classList.toggle('print-opt-show-progress-chart', !!opts.progressChart);
+            document.body.classList.toggle('print-opt-hide-progress-chart', !opts.progressChart);
             document.body.classList.toggle('print-opt-show-matrix', !!opts.monthMatrix);
             document.body.classList.toggle('print-opt-hide-matrix', !opts.monthMatrix);
             document.body.classList.toggle('print-opt-show-weekgrid', !!opts.weekGrid);
@@ -2231,7 +2262,28 @@
             document.documentElement.style.setProperty('--print-mode-margin-bottom', `${margins.bottom}mm`);
             document.documentElement.style.setProperty('--print-mode-margin-left', `${margins.left}mm`);
 
-            // Sync attendance print checkboxes across bar, settings, and inline report bar
+            // Immediately update & reflow any existing inline performance chart boxes, interactive chart cards, and report sections with zero empty spaces
+            if (typeof reflowStudentReportChartsAndSections === 'function') {
+                reflowStudentReportChartsAndSections(opts);
+            } else {
+                const isPrintModeActive = typeof isStudentPrintModeEnabled === 'function' && isStudentPrintModeEnabled();
+                document.querySelectorAll('.student-print-inline-chart-box').forEach(el => {
+                    el.style.display = opts.progressChart ? 'block' : 'none';
+                    el.style.marginBottom = opts.progressChart ? '14px' : '0px';
+                });
+                const interactiveChartContainer = document.getElementById('studentChartContainer');
+                if (interactiveChartContainer && !isPrintModeActive) {
+                    const anyChart = !!(opts.progressChart || opts.absenceChart);
+                    interactiveChartContainer.style.display = anyChart ? 'block' : 'none';
+                    interactiveChartContainer.style.marginBottom = anyChart ? '18px' : '0px';
+                }
+            }
+            const previewModalChartsChk = document.getElementById('chkCustomPreviewIncludeCharts');
+            if (previewModalChartsChk) {
+                previewModalChartsChk.checked = !!opts.progressChart;
+            }
+
+            // Sync attendance & chart print checkboxes across bar, settings, and inline report bar
             const chkMatSet = document.getElementById('printModeOptMonthMatrix');
             const chkWkSet = document.getElementById('printModeOptWeekGrid');
             const chkIncSet = document.getElementById('printModeOptIncidentsLog');
@@ -2239,9 +2291,13 @@
             if (chkWkSet) chkWkSet.checked = !!opts.weekGrid;
             if (chkIncSet) chkIncSet.checked = !!opts.incidentsLog;
 
+            const chkChartBar = document.getElementById('barPrintOptProgressChart');
+            const chkChartInline = document.getElementById('inlinePrintOptProgressChart');
             const chkMatBar = document.getElementById('barPrintOptMonthMatrix');
             const chkWkBar = document.getElementById('barPrintOptWeekGrid');
             const chkIncBar = document.getElementById('barPrintOptIncidentsLog');
+            if (chkChartBar) chkChartBar.checked = !!opts.progressChart;
+            if (chkChartInline) chkChartInline.checked = !!opts.progressChart;
             if (chkMatBar) chkMatBar.checked = !!opts.monthMatrix;
             if (chkWkBar) chkWkBar.checked = !!opts.weekGrid;
             if (chkIncBar) chkIncBar.checked = !!opts.incidentsLog;
@@ -2599,20 +2655,153 @@
         }
         window.onPrintModeSubOptionChange = onPrintModeSubOptionChange;
 
+        function reflowStudentReportChartsAndSections(optsArg) {
+            const opts = optsArg || (typeof getStudentPrintModeOptions === 'function'
+                ? getStudentPrintModeOptions()
+                : { progressChart: true, absenceChart: true, monthMatrix: true, weekGrid: false, incidentsLog: true, officialHeader: true, officialVisas: true });
+            const isPrintModeActive = typeof isStudentPrintModeEnabled === 'function' && isStudentPrintModeEnabled();
+
+            // 1. Reflow interactive charts grid (#studentChartContainer & #studentChartsGrid) so visible charts expand and hidden charts leave zero blank space
+            const interactiveChartContainer = document.getElementById('studentChartContainer');
+            const chartsGrid = document.getElementById('studentChartsGrid');
+            const progressCard = document.getElementById('studentProgressChartCard');
+            const attendanceCard = document.getElementById('studentAttendanceChartCard');
+            const showProgCard = opts.progressChart !== false;
+            const showAbsCard = opts.absenceChart !== false;
+            const visibleCardsCount = (showProgCard ? 1 : 0) + (showAbsCard ? 1 : 0);
+
+            if (progressCard) {
+                progressCard.style.display = showProgCard ? 'block' : 'none';
+                progressCard.style.order = showProgCard ? '1' : '99';
+            }
+            if (attendanceCard) {
+                attendanceCard.style.display = showAbsCard ? 'block' : 'none';
+                attendanceCard.style.order = showAbsCard ? (showProgCard ? '2' : '1') : '99';
+            }
+            if (chartsGrid) {
+                chartsGrid.style.gridTemplateColumns = visibleCardsCount === 1
+                    ? '1fr'
+                    : 'repeat(auto-fit, minmax(310px, 1fr))';
+                chartsGrid.style.gap = visibleCardsCount > 1 ? '14px' : '0px';
+            }
+            const reportClassSel = document.getElementById('reportClassSelect');
+            const reportStudentSel = document.getElementById('reportStudentSelect');
+            const hasSelectedStudent = !!(reportClassSel && reportStudentSel && reportClassSel.value && reportStudentSel.value);
+            if (interactiveChartContainer) {
+                if (isPrintModeActive || !hasSelectedStudent || visibleCardsCount === 0) {
+                    interactiveChartContainer.style.display = 'none';
+                    interactiveChartContainer.style.marginBottom = '0px';
+                } else {
+                    interactiveChartContainer.style.display = 'block';
+                    interactiveChartContainer.style.marginBottom = '18px';
+                }
+            }
+
+            // Resize active Chart.js instances so they reflow cleanly to new grid column widths
+            if (!isPrintModeActive && visibleCardsCount > 0) {
+                if (showProgCard && window.studentProgressChartInst && typeof window.studentProgressChartInst.resize === 'function') {
+                    try { window.studentProgressChartInst.resize(); } catch (e) {}
+                }
+                if (showAbsCard && window.studentAttendanceChartInst && typeof window.studentAttendanceChartInst.resize === 'function') {
+                    try { window.studentAttendanceChartInst.resize(); } catch (e) {}
+                }
+            }
+
+            // 2. Reflow inline report & open print preview sheets (#printBehaviorArea and #customReportPrintableSheet)
+            const collapseOrExpandBlock = (el, isVisible, activeMarginBottom = '14px') => {
+                if (!el) return;
+                if (isVisible) {
+                    el.style.display = 'block';
+                    el.style.marginBottom = activeMarginBottom;
+                    el.removeAttribute('aria-hidden');
+                } else {
+                    el.style.display = 'none';
+                    el.style.marginBottom = '0px';
+                    el.style.paddingTop = '';
+                    el.style.paddingBottom = '';
+                    el.setAttribute('aria-hidden', 'true');
+                }
+            };
+
+            document.querySelectorAll('.student-print-inline-chart-box').forEach(el => {
+                collapseOrExpandBlock(el, opts.progressChart !== false, '14px');
+            });
+
+            const showAnyHeatmap = !!(opts.monthMatrix || opts.weekGrid);
+            document.querySelectorAll('.student-personal-heatmap-section').forEach(sectionEl => {
+                collapseOrExpandBlock(sectionEl, showAnyHeatmap, '14px');
+                const matrixPane = sectionEl.querySelector('.shm-print-matrix-pane');
+                const timelinePane = sectionEl.querySelector('.shm-print-timeline-pane');
+                const analyticsPane = sectionEl.querySelector('.shm-print-analytics-pane');
+                if (matrixPane) {
+                    matrixPane.style.display = opts.monthMatrix ? 'block' : 'none';
+                    matrixPane.style.marginBottom = (opts.monthMatrix && opts.weekGrid) ? '10px' : '0px';
+                }
+                if (timelinePane) {
+                    timelinePane.style.display = opts.weekGrid ? 'block' : 'none';
+                    timelinePane.style.marginBottom = '0px';
+                }
+                if (analyticsPane && isPrintModeActive) {
+                    analyticsPane.style.display = 'none';
+                }
+            });
+
+            document.querySelectorAll('.student-incidents-log-section').forEach(el => {
+                collapseOrExpandBlock(el, opts.incidentsLog !== false, '14px');
+            });
+
+            // 3. Compact vertical flow of visible blocks inside #printBehaviorArea and #customReportPrintableSheet so no trailing or orphan gaps remain
+            ['printBehaviorArea', 'customReportPrintableSheet'].forEach(containerId => {
+                const area = document.getElementById(containerId);
+                if (!area) return;
+                const directBlocks = Array.from(area.children).filter(child =>
+                    child && child.nodeType === 1 &&
+                    child.tagName !== 'STYLE' &&
+                    !child.classList.contains('no-print') &&
+                    child.style.display !== 'none'
+                );
+                directBlocks.forEach((blk, idx) => {
+                    blk.style.order = String(idx + 1);
+                    if (idx === directBlocks.length - 1) {
+                        blk.style.marginBottom = '0px';
+                    } else if (!blk.style.marginBottom || blk.style.marginBottom === '0px') {
+                        blk.style.marginBottom = '14px';
+                    }
+                });
+            });
+        }
+        window.reflowStudentReportChartsAndSections = reflowStudentReportChartsAndSections;
+
         function toggleStudentAttendancePrintComponent(componentKey, isChecked) {
             if (!db.settings) db.settings = {};
-            if (componentKey === 'monthMatrix') {
-                db.settings.printModeOptMonthMatrix = !!isChecked;
+            const enabled = !!isChecked;
+            if (componentKey === 'progressChart' || componentKey === 'charts') {
+                db.settings.printModeOptProgressChart = enabled;
+                db.settings.printModeOptAbsenceChart = enabled;
+            } else if (componentKey === 'absenceChart') {
+                db.settings.printModeOptAbsenceChart = enabled;
+            } else if (componentKey === 'monthMatrix') {
+                db.settings.printModeOptMonthMatrix = enabled;
             } else if (componentKey === 'weekGrid') {
-                db.settings.printModeOptWeekGrid = !!isChecked;
+                db.settings.printModeOptWeekGrid = enabled;
             } else if (componentKey === 'incidentsLog') {
-                db.settings.printModeOptIncidentsLog = !!isChecked;
+                db.settings.printModeOptIncidentsLog = enabled;
+            } else if (componentKey === 'officialHeader') {
+                db.settings.printModeOptOfficialHeader = enabled;
+            } else if (componentKey === 'officialVisas') {
+                db.settings.printModeOptOfficialVisas = enabled;
             }
-            saveDB();
+            if (typeof saveDB === 'function') saveDB();
             applyPrintModePageSetupToDOM();
             if (typeof updateStudentProgressChart === 'function') {
-                updateStudentProgressChart();
+                const reportClassSel = document.getElementById('reportClassSelect');
+                const reportStudentSel = document.getElementById('reportStudentSelect');
+                if (reportClassSel && reportStudentSel && reportClassSel.value && reportStudentSel.value) {
+                    updateStudentProgressChart();
+                }
             }
+            // Instant live reflow of all chart containers & printable report sections so zero empty spaces remain
+            reflowStudentReportChartsAndSections();
         }
         window.toggleStudentAttendancePrintComponent = toggleStudentAttendancePrintComponent;
 
@@ -2711,7 +2900,11 @@
             }
             const chartInClone = clone.querySelector('.student-print-inline-chart-box');
             if (chartInClone) {
-                chartInClone.style.display = opts.progressChart ? 'block' : 'none';
+                if (opts.progressChart) {
+                    chartInClone.style.display = 'block';
+                } else {
+                    chartInClone.remove();
+                }
             }
             const heatmapInClone = clone.querySelector('.student-personal-heatmap-section');
             if (heatmapInClone) {
@@ -9966,6 +10159,28 @@
             }
         }
         window.runInteractiveMemoryOptimization = runInteractiveMemoryOptimization;
+
+        function switchView(viewIdOrTab, force = false) {
+            const viewMap = {
+                homeView: 'home',
+                absenceView: 'absence',
+                studentsView: 'absence',
+                gradesView: 'grades',
+                timetableView: 'timetable',
+                reportsView: 'reports',
+                notesView: 'notes',
+                lessonLogView: 'lessonlog',
+                libraryView: 'library',
+                calendarView: 'calendar',
+                tutoringView: 'tutoring',
+                annualView: 'annual',
+                dashboardView: 'dashboard',
+                distanceTeachingView: 'distanceTeaching'
+            };
+            const mapped = viewMap[viewIdOrTab] || String(viewIdOrTab || '').replace(/View$/, '');
+            return switchTab(mapped, force);
+        }
+        window.switchView = switchView;
 
         function switchTab(tab, force = false) {
             // دورة تنظيف الذاكرة وتخفيف العبء على المتصفح عند التنقل
@@ -18631,7 +18846,7 @@
             });
 
             const rows = [
-                ['المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والرياضة'],
+                ['المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل'],
                 ['المؤسسة:', (db.teacherProfile && db.teacherProfile.school) || 'الثانوية التأهيلية', '', 'الموسم الدراسي:', (db.teacherProfile && db.teacherProfile.academicYear) || '2026/2027'],
                 ['المادة:', 'الرياضيات (Mathématiques)', 'القسم:', className, 'الدورة:', semLabel, 'الأستاذ(ة):', (db.teacherProfile && db.teacherProfile.name) || 'أستاذ مادة الرياضيات'],
                 []
@@ -18952,13 +19167,39 @@
 
         window.printBehaviorReport = printBehaviorReport;
         function printBehaviorReport() {
+            const resolved = typeof resolveSelectedReportStudent === 'function' ? resolveSelectedReportStudent() : null;
+            if (resolved && resolved.className && resolved.studentId && typeof openTabletIndividualReportPrintPreview === 'function') {
+                openTabletIndividualReportPrintPreview(resolved.className, resolved.studentId);
+                return;
+            }
+            const printArea = document.getElementById('printBehaviorArea');
+            if (!printArea) {
+                if (typeof showAppToast === 'function') {
+                    showAppToast('المرجو اختيار القسم والتلميذ أولاً لمعاينة وطباعة التقرير الفردي', 'warning');
+                }
+                return;
+            }
+            const opts = typeof getStudentPrintModeOptions === 'function' ? getStudentPrintModeOptions() : { pageSize: 'a4' };
+            const margins = typeof getResolvedPrintModeMargins === 'function' ? getResolvedPrintModeMargins(opts) : null;
+            if (typeof openCustomPrintPreviewModal === 'function') {
+                openCustomPrintPreviewModal(printArea.outerHTML, {
+                    title: 'التقرير الفردي للتلميذ',
+                    orientation: 'portrait',
+                    pageSize: opts.pageSize === 'a5' ? 'A5' : 'A4',
+                    margins: margins,
+                    subtitle: 'معاينة التقرير الفردي وتخصيص الهوامش قبل الطباعة أو التصدير (PDF / PNG)'
+                });
+                return;
+            }
             if (typeof triggerDirectA4StudentPrint === 'function') {
                 triggerDirectA4StudentPrint();
                 return;
             }
-            const printArea = document.getElementById('printBehaviorArea');
-            if (!printArea) return;
-            printDocumentDirectly(printArea.outerHTML, 'التقرير الفردي للتلميذ', 'portrait');
+            printDocumentDirectly(printArea.outerHTML, 'التقرير الفردي للتلميذ', {
+                orientation: 'portrait',
+                pageSize: opts.pageSize === 'a5' ? 'A5' : 'A4',
+                margins: margins
+            });
         }
 
         function shareBehaviorReport() {
@@ -21360,116 +21601,215 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 } catch(e) { return ''; }
             };
 
-            // Build Unified Chronological Attendance & Discipline Section (No duplicate pill strips above table)
-            let absenceSectionHtml = '';
-            if (periodIncidents.length > 0) {
-                const tableRows = periodIncidents.map((r, idx) => {
-                    const dName = getDayLabel(r.date);
-                    const isAbsence = r.status === 'غائب' || r.status === 'مبرر';
-                    const isJustified = r.status === 'مبرر';
-                    const isLate = r.status === 'متأخر';
-                    const isMissedHw = r.homework === 'لم ينجز';
+            // Build Unified Chronological Attendance & Discipline Section (Including empty/incident-free dates with unified formatting)
+            const buildIncidentLogEmptyDateEntries = () => {
+                const incidentDatesSet = new Set(periodIncidents.map(r => String(r.date || '').trim()).filter(Boolean));
+                const emptyDateMap = new Map();
 
-                    const badges = [];
-                    if (isAbsence) {
-                        badges.push(isJustified
-                            ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; border: 1px solid #bae6fd;">غياب مبرر</span>`
-                            : `<span style="background: #fee2e2; color: #b91c1c; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; border: 1px solid #fca5a5;">غائب (غير مبرر)</span>`);
-                    } else if (isLate) {
-                        badges.push(`<span style="background: #fef3c7; color: #b45309; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; border: 1px solid #fde68a;">تأخر عن الحصة</span>`);
-                    }
-                    if (isMissedHw) {
-                        badges.push(`<span style="background: #f3e8ff; color: #7e22ce; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; border: 1px solid #d8b4fe;">واجب غير منجز</span>`);
-                    }
+                // 1. Check student's own non-incident (present/normal) records in period
+                if (Array.isArray(stdRecords)) {
+                    stdRecords.forEach(r => {
+                        const d = String(r && r.date ? r.date : '').trim();
+                        if (!d || incidentDatesSet.has(d)) return;
+                        const isInc = r.status === 'غائب' || r.status === 'مبرر' || r.status === 'متأخر' || r.homework === 'لم ينجز';
+                        if (!isInc && !emptyDateMap.has(d)) {
+                            emptyDateMap.set(d, {
+                                date: d,
+                                timeSlot: r.timeSlot || r.session || 'حصة رسمية',
+                                statusLabel: 'لا توجد واقعة مسجلة (حضور منتظم)',
+                                durationLabel: '—',
+                                noteLabel: r.notes || r.note || 'حضور عادي — لم تُسجل أي واقعة',
+                                isEmptyIncidentDate: true
+                            });
+                        }
+                    });
+                }
 
+                // 2. Check class-wide session dates in db.records & db.lessonLog within [dateFrom, dateTo] where no incident was recorded for this student
+                if (window.db && Array.isArray(window.db.records)) {
+                    window.db.records.forEach(r => {
+                        if (!r || r.className !== className || !r.date) return;
+                        const d = String(r.date).trim();
+                        if ((dateFrom && d < dateFrom) || (dateTo && d > dateTo)) return;
+                        if (!incidentDatesSet.has(d) && !emptyDateMap.has(d)) {
+                            emptyDateMap.set(d, {
+                                date: d,
+                                timeSlot: r.timeSlot || r.session || 'حصة دراسية',
+                                statusLabel: 'لا توجد واقعة مسجلة (حضور منتظم)',
+                                durationLabel: '—',
+                                noteLabel: 'تاريخ حصة بدون وقائع مسجلة',
+                                isEmptyIncidentDate: true
+                            });
+                        }
+                    });
+                }
+
+                if (window.db && Array.isArray(window.db.lessonLog)) {
+                    window.db.lessonLog.forEach(l => {
+                        if (!l || l.className !== className || !l.date) return;
+                        const d = String(l.date).trim();
+                        if ((dateFrom && d < dateFrom) || (dateTo && d > dateTo)) return;
+                        if (!incidentDatesSet.has(d) && !emptyDateMap.has(d)) {
+                            emptyDateMap.set(d, {
+                                date: d,
+                                timeSlot: l.timeSlot || l.session || 'حصة دراسية',
+                                statusLabel: 'لا توجد واقعة مسجلة (حضور منتظم)',
+                                durationLabel: '—',
+                                noteLabel: l.title ? `حصة: ${l.title} — بدون وقائع` : 'تاريخ حصة بدون وقائع مسجلة',
+                                isEmptyIncidentDate: true
+                            });
+                        }
+                    });
+                }
+
+                // 3. Ensure at least 3 empty-date rows (derived from reference period study weekdays or blank slots) so empty dates are always represented in unified format
+                if (emptyDateMap.size < 3) {
+                    const seedBaseStr = dateTo || dateFrom || new Date().toISOString().slice(0, 10);
+                    const baseDate = new Date(seedBaseStr + 'T00:00:00');
+                    if (!isNaN(baseDate.getTime())) {
+                        for (let offset = 0; offset <= 21 && emptyDateMap.size < 3; offset++) {
+                            const cand = new Date(baseDate);
+                            cand.setDate(baseDate.getDate() - offset);
+                            if (cand.getDay() === 0) continue; // skip Sunday
+                            const yyyy = cand.getFullYear();
+                            const mm = String(cand.getMonth() + 1).padStart(2, '0');
+                            const dd = String(cand.getDate()).padStart(2, '0');
+                            const dStr = `${yyyy}-${mm}-${dd}`;
+                            if (dateFrom && dStr < dateFrom) continue;
+                            if (dateTo && dStr > dateTo) continue;
+                            if (!incidentDatesSet.has(dStr) && !emptyDateMap.has(dStr)) {
+                                emptyDateMap.set(dStr, {
+                                    date: dStr,
+                                    timeSlot: 'حصة عادية',
+                                    statusLabel: 'لا توجد واقعة مسجلة (تاريخ فارغ)',
+                                    durationLabel: '—',
+                                    noteLabel: 'يوم دراسي بدون وقائع مسجلة',
+                                    isEmptyIncidentDate: true
+                                });
+                            }
+                        }
+                    }
+                }
+
+                return Array.from(emptyDateMap.values())
+                    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+                    .slice(0, 4);
+            };
+
+            const emptyDateEntries = buildIncidentLogEmptyDateEntries();
+            const combinedIncidentTableItems = [
+                ...periodIncidents.map(r => Object.assign({}, r, { isEmptyIncidentDate: false })),
+                ...emptyDateEntries
+            ].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+            const unifiedIncidentTableRowsHtml = combinedIncidentTableItems.map((r, idx) => {
+                const dName = getDayLabel(r.date);
+                if (r.isEmptyIncidentDate) {
                     return `
-                        <tr style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 0 ? 'background: #ffffff;' : 'background: #f8fafc;'}">
+                        <tr class="incident-log-empty-date-row" data-empty-date="${r.date}" style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 0 ? 'background: #ffffff;' : 'background: #f8fafc;'}">
                             <td style="padding: 6px 8px; text-align: center; color: #64748b; font-weight: bold;">${idx + 1}</td>
                             <td style="padding: 6px 8px; text-align: right; font-weight: 700; color: #0f172a;">
                                 <span style="color: #64748b; font-size: 0.75rem; margin-left: 4px;">${dName}</span>
                                 <span>${r.date}</span>
                             </td>
-                            <td style="padding: 6px 8px; text-align: center; color: #475569;">${r.timeSlot || r.session || 'حصة عادية'}</td>
-                            <td style="padding: 6px 8px; text-align: center;"><div style="display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: center;">${badges.join('')}</div></td>
-                            <td style="padding: 6px 8px; text-align: center; font-weight: 800; color: ${isAbsence ? (isJustified ? '#0284c7' : '#dc2626') : '#64748b'};">${isAbsence ? getRecordAbsenceDuration(r) + ' ساعة' : '—'}</td>
-                            <td style="padding: 6px 8px; text-align: center; color: #64748b; font-size: 0.78rem;">${r.notes || r.note || r.justification || '—'}</td>
+                            <td style="padding: 6px 8px; text-align: center; color: #475569;">${r.timeSlot || 'حصة عادية'}</td>
+                            <td style="padding: 6px 8px; text-align: center;">
+                                <div style="display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: center;">
+                                    <span style="background: #f0fdf4; color: #15803d; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; border: 1px solid #bbf7d0;">✔ ${r.statusLabel || 'لا توجد واقعة مسجلة'}</span>
+                                </div>
+                            </td>
+                            <td style="padding: 6px 8px; text-align: center; font-weight: 800; color: #64748b;">${r.durationLabel || '—'}</td>
+                            <td style="padding: 6px 8px; text-align: center; color: #64748b; font-size: 0.78rem;">${r.noteLabel || 'يوم دراسي بدون وقائع مسجلة'}</td>
                         </tr>
                     `;
-                }).join('');
+                }
 
-                absenceSectionHtml = `
-                    <div style="display: ${(typeof getStudentPrintModeOptions === 'function' ? getStudentPrintModeOptions().incidentsLog !== false : true) ? 'block' : 'none'}; background: #ffffff; border: 1.5px solid #1e293b; border-radius: 6px; padding: 12px; margin-bottom: 14px;" class="student-incidents-log-section page-break-avoid">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px;">
-                            <strong style="color: #0f172a; font-size: 0.88rem; display: flex; align-items: center; gap: 6px;">
-                                <span>📅</span> سجل الوقائع والمواظبة الزمني (${periodAbsences.length} غياب بـ ${absentHours} س · ${lateCount} تأخر · ${missedHw} إخلال بالواجب)
-                            </strong>
-                            <span style="font-size: 0.76rem; color: #475569; font-weight: 700;">
-                                مصنف زمنياً دون تكرار
-                            </span>
-                        </div>
+                const isAbsence = r.status === 'غائب' || r.status === 'مبرر';
+                const isJustified = r.status === 'مبرر';
+                const isLate = r.status === 'متأخر';
+                const isMissedHw = r.homework === 'لم ينجز';
 
-                        <div style="overflow-x: auto;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; border: 1px solid #cbd5e1; text-align: center;">
-                                <thead>
-                                    <tr style="background: #f1f5f9; color: #0f172a; border-bottom: 1.5px solid #94a3b8; font-weight: 800;">
-                                        <th style="padding: 6px 8px; width: 35px;">#</th>
-                                        <th style="padding: 6px 8px; text-align: right;">اليوم والتاريخ</th>
-                                        <th style="padding: 6px 8px;">الحصة / التوقيت</th>
-                                        <th style="padding: 6px 8px;">نوع الواقعة المسجلة</th>
-                                        <th style="padding: 6px 8px; width: 75px;">مدة الغياب</th>
-                                        <th style="padding: 6px 8px;">المبرر / الملاحظة الصفية</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${tableRows}
-                                </tbody>
-                            </table>
-                        </div>
+                const badges = [];
+                if (isAbsence) {
+                    badges.push(isJustified
+                        ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; border: 1px solid #bae6fd;">غياب مبرر</span>`
+                        : `<span style="background: #fee2e2; color: #b91c1c; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; border: 1px solid #fca5a5;">غائب (غير مبرر)</span>`);
+                } else if (isLate) {
+                    badges.push(`<span style="background: #fef3c7; color: #b45309; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; border: 1px solid #fde68a;">تأخر عن الحصة</span>`);
+                }
+                if (isMissedHw) {
+                    badges.push(`<span style="background: #f3e8ff; color: #7e22ce; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; border: 1px solid #d8b4fe;">واجب غير منجز</span>`);
+                }
 
-                        ${outsidePeriodAbsences.length > 0 ? `
-                            <div style="margin-top: 10px; font-size: 0.76rem; color: #475569; background: #f8fafc; padding: 7px 10px; border-radius: 6px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
-                                <span>📌 <strong>سجل الفترات الأخرى:</strong> يوجد <strong>${outsidePeriodAbsentHours} ساعة غياب إضافية</strong> (${outsidePeriodAbsences.length} حصة) خارج الفترة المرجعية أعلاه (الإجمالي السنوي: ${totalAllTimeAbsent} س).</span>
-                                <button type="button" onclick="toggleAllTimeAbsenceDates('${studentId}', '${className}')" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; cursor: pointer; border-radius: 4px; font-size: 0.74rem; font-weight: 700; padding: 3px 8px;">عرض التواريخ خارج الفترة (${outsidePeriodAbsences.length})</button>
-                            </div>
-                            <div id="allTimeAbsenceDatesContainer_${studentId}" style="display: none; margin-top: 8px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
-                                <div style="font-weight: 700; color: #1e3a8a; font-size: 0.78rem; margin-bottom: 6px;">تواريخ الغياب المسجلة خارج الفترة المرجعية المحددة:</div>
-                                <div style="display: flex; flex-wrap: wrap; gap: 5px;">
-                                    ${outsidePeriodAbsences.map(a => {
-                                        const isJ = a.status === 'مبرر';
-                                        const dn = getDayLabel(a.date);
-                                        return `<span style="font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; background: ${isJ ? '#e0f2fe' : '#fee2e2'}; color: ${isJ ? '#0369a1' : '#b91c1c'}; border: 1px solid ${isJ ? '#bae6fd' : '#fca5a5'}; font-weight: 600;">📅 ${dn ? dn + ' ' : ''}${a.date} (${getRecordAbsenceDuration(a)}س - ${isJ ? 'مبرر' : 'غير مبرر'})</span>`;
-                                    }).join('')}
-                                </div>
-                            </div>
-                        ` : ''}
-                    </div>
+                return `
+                    <tr class="incident-log-recorded-row" style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 0 ? 'background: #ffffff;' : 'background: #f8fafc;'}">
+                        <td style="padding: 6px 8px; text-align: center; color: #64748b; font-weight: bold;">${idx + 1}</td>
+                        <td style="padding: 6px 8px; text-align: right; font-weight: 700; color: #0f172a;">
+                            <span style="color: #64748b; font-size: 0.75rem; margin-left: 4px;">${dName}</span>
+                            <span>${r.date}</span>
+                        </td>
+                        <td style="padding: 6px 8px; text-align: center; color: #475569;">${r.timeSlot || r.session || 'حصة عادية'}</td>
+                        <td style="padding: 6px 8px; text-align: center;"><div style="display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: center;">${badges.join('')}</div></td>
+                        <td style="padding: 6px 8px; text-align: center; font-weight: 800; color: ${isAbsence ? (isJustified ? '#0284c7' : '#dc2626') : '#64748b'};">${isAbsence ? getRecordAbsenceDuration(r) + ' ساعة' : '—'}</td>
+                        <td style="padding: 6px 8px; text-align: center; color: #64748b; font-size: 0.78rem;">${r.notes || r.note || r.justification || '—'}</td>
+                    </tr>
                 `;
-            } else {
-                absenceSectionHtml = `
-                    <div style="display: ${(typeof getStudentPrintModeOptions === 'function' ? getStudentPrintModeOptions().incidentsLog !== false : true) ? 'block' : 'none'}; background: #ffffff; border: 1.5px solid #1e293b; border-radius: 6px; padding: 12px; margin-bottom: 14px;" class="student-incidents-log-section page-break-avoid">
-                        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 10px 14px; color: #166534; font-size: 0.82rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 1.1rem;">✔</span>
-                            <span>مواظبة وانضباط تام (100%): لم يُسجل أي غياب أو تأخر أو إخلال بالواجب المنزلي خلال الفترة المحددة.</span>
-                        </div>
-                        ${outsidePeriodAbsences.length > 0 ? `
-                            <div style="margin-top: 8px; font-size: 0.76rem; color: #475569; background: #f8fafc; padding: 6px 10px; border-radius: 6px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
-                                <span>📌 <strong>سجل الفترات الأخرى:</strong> يوجد غياب مسجل خارج هذه الفترة بمجموع <strong>${outsidePeriodAbsentHours} ساعة</strong> (${outsidePeriodAbsences.length} حصة).</span>
-                                <button type="button" onclick="toggleAllTimeAbsenceDates('${studentId}', '${className}')" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; cursor: pointer; border-radius: 4px; font-size: 0.74rem; font-weight: 700; padding: 3px 8px;">عرض التواريخ السابقة (${outsidePeriodAbsences.length})</button>
-                            </div>
-                            <div id="allTimeAbsenceDatesContainer_${studentId}" style="display: none; margin-top: 8px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
-                                <div style="font-weight: 700; color: #1e3a8a; font-size: 0.78rem; margin-bottom: 6px;">تواريخ الغياب المسجلة خارج الفترة المرجعية:</div>
-                                <div style="display: flex; flex-wrap: wrap; gap: 5px;">
-                                    ${outsidePeriodAbsences.map(a => {
-                                        const isJ = a.status === 'مبرر';
-                                        const dn = getDayLabel(a.date);
-                                        return `<span style="font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; background: ${isJ ? '#e0f2fe' : '#fee2e2'}; color: ${isJ ? '#0369a1' : '#b91c1c'}; border: 1px solid ${isJ ? '#bae6fd' : '#fca5a5'}; font-weight: 600;">📅 ${dn ? dn + ' ' : ''}${a.date} (${getRecordAbsenceDuration(a)}س - ${isJ ? 'مبرر' : 'غير مبرر'})</span>`;
-                                    }).join('')}
-                                </div>
-                            </div>
-                        ` : ''}
+            }).join('');
+
+            let absenceSectionHtml = `
+                <div id="studentAttendancePrintComponent" style="display: ${(typeof getStudentPrintModeOptions === 'function' ? getStudentPrintModeOptions().incidentsLog !== false : true) ? 'block' : 'none'}; background: #ffffff; border: 1.5px solid #1e293b; border-radius: 6px; padding: 12px; margin-bottom: 14px;" class="student-incidents-log-section page-break-avoid">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px;">
+                        <strong style="color: #0f172a; font-size: 0.88rem; display: flex; align-items: center; gap: 6px;">
+                            <span>📅</span> جدول سجل الوقائع والمواظبة الزمني (${periodAbsences.length} غياب بـ ${absentHours} س · ${lateCount} تأخر · ${missedHw} إخلال بالواجب · ${emptyDateEntries.length} تواريخ بدون وقائع)
+                        </strong>
+                        <span style="font-size: 0.76rem; color: #475569; font-weight: 700;">
+                            مصنف زمنياً بتواريخ الوقائع والتواريخ الفارغة بتنسق موحد
+                        </span>
                     </div>
-                `;
-            }
+
+                    ${periodIncidents.length === 0 ? `
+                        <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; color: #166534; font-size: 0.81rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 1.05rem;">✔</span>
+                            <span>مواظبة وانضباط تام (100%): لم يُسجل أي غياب أو تأخر أو إخلال بالواجب خلال الفترة المحددة، وفيما يلي جدول التواريخ المرجعية الفارغة من الوقائع:</span>
+                        </div>
+                    ` : ''}
+
+                    <div style="overflow-x: auto;">
+                        <table class="student-incidents-log-table" style="width: 100%; border-collapse: collapse; font-size: 0.82rem; border: 1px solid #cbd5e1; text-align: center;">
+                            <thead>
+                                <tr style="background: #f1f5f9; color: #0f172a; border-bottom: 1.5px solid #94a3b8; font-weight: 800;">
+                                    <th style="padding: 6px 8px; width: 35px;">#</th>
+                                    <th style="padding: 6px 8px; text-align: right;">اليوم والتاريخ</th>
+                                    <th style="padding: 6px 8px;">الحصة / التوقيت</th>
+                                    <th style="padding: 6px 8px;">نوع الواقعة المسجلة</th>
+                                    <th style="padding: 6px 8px; width: 75px;">مدة الغياب</th>
+                                    <th style="padding: 6px 8px;">المبرر / الملاحظة الصفية</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${unifiedIncidentTableRowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    ${outsidePeriodAbsences.length > 0 ? `
+                        <div style="margin-top: 10px; font-size: 0.76rem; color: #475569; background: #f8fafc; padding: 7px 10px; border-radius: 6px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                            <span>📌 <strong>سجل الفترات الأخرى:</strong> يوجد <strong>${outsidePeriodAbsentHours} ساعة غياب إضافية</strong> (${outsidePeriodAbsences.length} حصة) خارج الفترة المرجعية أعلاه (الإجمالي السنوي: ${totalAllTimeAbsent} س).</span>
+                            <button type="button" onclick="toggleAllTimeAbsenceDates('${studentId}', '${className}')" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; cursor: pointer; border-radius: 4px; font-size: 0.74rem; font-weight: 700; padding: 3px 8px;">عرض التواريخ خارج الفترة (${outsidePeriodAbsences.length})</button>
+                        </div>
+                        <div id="allTimeAbsenceDatesContainer_${studentId}" style="display: none; margin-top: 8px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
+                            <div style="font-weight: 700; color: #1e3a8a; font-size: 0.78rem; margin-bottom: 6px;">تواريخ الغياب المسجلة خارج الفترة المرجعية المحددة:</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                                ${outsidePeriodAbsences.map(a => {
+                                    const isJ = a.status === 'مبرر';
+                                    const dn = getDayLabel(a.date);
+                                    return `<span style="font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; background: ${isJ ? '#e0f2fe' : '#fee2e2'}; color: ${isJ ? '#0369a1' : '#b91c1c'}; border: 1px solid ${isJ ? '#bae6fd' : '#fca5a5'}; font-weight: 600;">📅 ${dn ? dn + ' ' : ''}${a.date} (${getRecordAbsenceDuration(a)}س - ${isJ ? 'مبرر' : 'غير مبرر'})</span>`;
+                                }).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
 
             const behaviorData = (db.behaviors[className] && db.behaviors[className][studentId]) ? db.behaviors[className][studentId] : { status: 'منضبط', note: '' };
             let statusColor = '#16a34a';
@@ -21589,12 +21929,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 ? getStudentPrintModeOptions()
                 : { officialHeader: true, progressChart: true, officialVisas: true, absenceChart: true };
 
+            const safeRepHtml = (v) => (typeof escapeHtml === 'function' ? escapeHtml(String(v ?? '')) : String(v ?? ''));
             const prof = (db && db.teacherProfile) || {};
-            const pName = prof.name || 'إبراهيم قزيبر';
-            const pAcademy = prof.academy || 'الأكاديمية الجهوية للتربية والتكوين';
-            const pDirectorate = prof.directorate || 'المديرية الإقليمية';
-            const pSchool = prof.school || 'المؤسسة التعليمية';
-            const pYear = prof.academicYear || '2026 / 2027';
+            const pName = safeRepHtml(prof.name || 'إبراهيم قزيبر');
+            const pAcademy = safeRepHtml(prof.academy || 'الأكاديمية الجهوية للتربية والتكوين');
+            const pDirectorate = safeRepHtml(prof.directorate || 'المديرية الإقليمية');
+            const pSchool = safeRepHtml(prof.school || 'المؤسسة التعليمية');
+            const pYear = safeRepHtml(prof.academicYear || '2026 / 2027');
             const printDateStr = typeof formatLocalDate === 'function' ? formatLocalDate() : new Date().toISOString().slice(0, 10);
 
             // Teacher journal notes for this student (if any)
@@ -21621,7 +21962,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         <div style="text-align: left; font-size: 0.78rem; line-height: 1.5; width: 33%; color: #0f172a;">
                             <div>المادة: <strong style="color: #1e3a8a;">الرياضيات (Mathématiques)</strong></div>
                             <div>الأستاذ(ة): <strong>${pName}</strong></div>
-                            <div>تاريخ التحرير: <strong>${printDateStr}</strong></div>
+                            <div>تاريخ التحرير: <strong>${safeRepHtml(printDateStr)}</strong></div>
                         </div>
                     </div>
                 </div>
@@ -21633,25 +21974,25 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <div style="width: 36px; height: 36px; border-radius: 8px; background: #1e293b; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 0.9rem;">
-                                ${std && std.orderNum ? std.orderNum : 'ƒ'}
+                                ${std && std.orderNum ? safeRepHtml(std.orderNum) : 'ƒ'}
                             </div>
                             <div>
                                 <div style="font-size: 0.73rem; color: #64748b; font-weight: 700;">الاسم الكامل للتلميذ(ة)</div>
-                                <div style="font-size: 1.04rem; font-weight: 900; color: #0f172a;">${std ? std.name : '-'}</div>
+                                <div style="font-size: 1.04rem; font-weight: 900; color: #0f172a;">${std ? safeRepHtml(std.name) : '-'}</div>
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 0.82rem;">
                             <div style="background: #f1f5f9; padding: 4px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
                                 <span style="color: #64748b; font-size: 0.74rem;">القسم:</span>
-                                <strong style="color: #1e3a8a; margin-right: 3px;">${className}</strong>
+                                <strong style="color: #1e3a8a; margin-right: 3px;">${safeRepHtml(className)}</strong>
                             </div>
                             <div style="background: #f1f5f9; padding: 4px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
                                 <span style="color: #64748b; font-size: 0.74rem;">رمز مسار:</span>
-                                <strong style="color: #0f172a; font-family: monospace; margin-right: 3px;">${std && std.massar ? std.massar : 'غير مسجل'}</strong>
+                                <strong style="color: #0f172a; font-family: monospace; margin-right: 3px;">${std && std.massar ? safeRepHtml(std.massar) : 'غير مسجل'}</strong>
                             </div>
                             <div style="background: #f1f5f9; padding: 4px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">
                                 <span style="color: #64748b; font-size: 0.74rem;">الفترة المرجعية:</span>
-                                <strong style="color: #334155; margin-right: 3px;">من ${dateFrom || '-'} إلى ${dateTo || '-'}</strong>
+                                <strong style="color: #334155; margin-right: 3px;">من ${safeRepHtml(dateFrom || '-')} إلى ${safeRepHtml(dateTo || '-')}</strong>
                             </div>
                         </div>
                     </div>
@@ -21747,6 +22088,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         <!-- خانات التحديد المباشر لكل مكون على حدة -->
                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 10px;">
                             <span style="font-size: 0.72rem; font-weight: 800; color: #475569;">تخصيص يدوي:</span>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.74rem; font-weight: 800; color: #0f172a; margin: 0;">
+                                <input type="checkbox" id="inlinePrintOptProgressChart" ${printOpts.progressChart !== false ? 'checked' : ''} onchange="toggleStudentAttendancePrintComponent('progressChart', this.checked)" style="width: 14px; height: 14px; accent-color: #0f766e; cursor: pointer;">
+                                <span>📈 تضمين المخططات البيانية للأداء</span>
+                            </label>
                             <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.74rem; font-weight: 800; color: #0f172a; margin: 0;">
                                 <input type="checkbox" ${printOpts.monthMatrix !== false ? 'checked' : ''} onchange="toggleStudentAttendancePrintComponent('monthMatrix', this.checked)" style="width: 14px; height: 14px; accent-color: #0f766e; cursor: pointer;">
                                 <span>📊 مصفوفة الشهور (11M × 6D)</span>
@@ -21863,7 +22208,121 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                             rawPts.push({ label: 'الفرض الرابع', val: grades.f4 !== undefined && grades.f4 !== '' ? parseFloat(grades.f4) : null, clsVal: classExamAvgs[3] });
                         }
                         const validPts = rawPts.filter(p => p.val !== null && !isNaN(p.val));
-                        if (validPts.length === 0) return '';
+
+                        const computeAiTrendAnalysis = (pts, studentAvg, clsAvg) => {
+                            if (!Array.isArray(pts) || pts.length === 0) {
+                                return {
+                                    direction: 'baseline',
+                                    badgeText: '⏳ في انتظار مسك الفروض',
+                                    deltaLabel: 'Δ = 0.00',
+                                    benchmarkLabel: clsAvg !== null && !isNaN(clsAvg) ? `معدل القسم: ${Number(clsAvg).toFixed(2)}/20` : 'معدل القسم: —',
+                                    noteText: 'لم يتم إدراج نقط الفروض المحروسة بعد لهذه الفترة؛ سيتم توليد تحليل اتجاه التطور الدراسي تلقائياً فور مسك أول فرض.',
+                                    bg: '#f8fafc',
+                                    border: '#cbd5e1',
+                                    color: '#334155',
+                                    badgeBg: '#e2e8f0'
+                                };
+                            }
+                            const firstPt = pts[0];
+                            const lastPt = pts[pts.length - 1];
+                            const netDelta = +(lastPt.val - firstPt.val).toFixed(2);
+                            const stepDeltas = [];
+                            for (let i = 1; i < pts.length; i++) {
+                                stepDeltas.push(+(pts[i].val - pts[i - 1].val).toFixed(2));
+                            }
+                            const allNonDecreasing = stepDeltas.length > 0 && stepDeltas.every(d => d >= 0);
+                            const allNonIncreasing = stepDeltas.length > 0 && stepDeltas.every(d => d <= 0);
+                            const hasSignFlip = stepDeltas.some(d => d > 0.4) && stepDeltas.some(d => d < -0.4);
+                            const diffFromClass = (studentAvg !== null && !isNaN(studentAvg) && clsAvg !== null && !isNaN(clsAvg))
+                                ? +(studentAvg - clsAvg).toFixed(2)
+                                : null;
+                            const benchmarkLabel = diffFromClass !== null
+                                ? (diffFromClass >= 0.5
+                                    ? `أعلى من معدل القسم بـ +${diffFromClass.toFixed(2)}`
+                                    : (diffFromClass <= -0.5
+                                        ? `أقل من معدل القسم بـ ${diffFromClass.toFixed(2)}`
+                                        : `مواكب لمعدل القسم (${Number(clsAvg).toFixed(2)}/20)`))
+                                : 'مرجعية القسم قيد الحساب';
+
+                            if (pts.length === 1) {
+                                const v = firstPt.val;
+                                const isPassing = v >= 10;
+                                return {
+                                    direction: isPassing ? 'initial_positive' : 'initial_support',
+                                    badgeText: isPassing ? '🎯 انطلاقة إيجابية (فرض واحد)' : '⚠️ انطلاقة تحتاج لدعم (فرض واحد)',
+                                    deltaLabel: `${firstPt.label}: ${v.toFixed(2)}/20`,
+                                    benchmarkLabel,
+                                    noteText: isPassing
+                                        ? `سجل التلميذ(ة) نقطة ${v.toFixed(2)}/20 في ${firstPt.label} (${benchmarkLabel})؛ يُوصى بتثبيت المكتسبات لمواصلة النسق التصاعدي في الفرض المقبل.`
+                                        : `سجل التلميذ(ة) نقطة ${v.toFixed(2)}/20 في ${firstPt.label} دون عتبة التحكم (10/20)؛ يستوجب برمجة دعم استدراكي فوري قبل الفرض الثاني.`,
+                                    bg: isPassing ? '#f0fdf4' : '#fef2f2',
+                                    border: isPassing ? '#86efac' : '#fca5a5',
+                                    color: isPassing ? '#166534' : '#991b1b',
+                                    badgeBg: isPassing ? '#dcfce7' : '#fee2e2'
+                                };
+                            }
+
+                            if (netDelta >= 0.5 && (allNonDecreasing || !hasSignFlip)) {
+                                return {
+                                    direction: 'upward',
+                                    badgeText: '📈 اتجاه تصاعدي مستمر',
+                                    deltaLabel: `+${netDelta.toFixed(2)} نقطة (${firstPt.val.toFixed(2)} ← ${lastPt.val.toFixed(2)})`,
+                                    benchmarkLabel,
+                                    noteText: `يُظهر المؤشر الذكي تطوراً إيجابياً ملموساً بزيادة +${netDelta.toFixed(2)} نقطة بين ${firstPt.label} و${lastPt.label} (${benchmarkLabel})؛ يُنصح بتعزيز هذا النسق التصاعدي عبر تمارين التعمق.`,
+                                    bg: '#f0fdf4',
+                                    border: '#86efac',
+                                    color: '#166534',
+                                    badgeBg: '#dcfce7'
+                                };
+                            }
+
+                            if (netDelta <= -0.5 && (allNonIncreasing || !hasSignFlip)) {
+                                return {
+                                    direction: 'downward',
+                                    badgeText: '📉 اتجاه تنازلي يستوجب الدعم',
+                                    deltaLabel: `${netDelta.toFixed(2)} نقطة (${firstPt.val.toFixed(2)} ← ${lastPt.val.toFixed(2)})`,
+                                    benchmarkLabel,
+                                    noteText: `يرصد المؤشر الذكي تراجعاً بـ ${Math.abs(netDelta).toFixed(2)} نقطة من ${firstPt.label} (${firstPt.val.toFixed(2)}) إلى ${lastPt.label} (${lastPt.val.toFixed(2)})؛ يتطلب تشخيص التعثرات الطارئة وتكثيف المواكبة الفردية.`,
+                                    bg: '#fef2f2',
+                                    border: '#fca5a5',
+                                    color: '#991b1b',
+                                    badgeBg: '#fee2e2'
+                                };
+                            }
+
+                            if (hasSignFlip) {
+                                return {
+                                    direction: 'fluctuating',
+                                    badgeText: '〰️ أداء متذبذب بين الفروض',
+                                    deltaLabel: `Δ = ${netDelta >= 0 ? '+' : ''}${netDelta.toFixed(2)} (${firstPt.val.toFixed(2)} ← ${lastPt.val.toFixed(2)})`,
+                                    benchmarkLabel,
+                                    noteText: `يكشف تحليل المسار تذبذباً في التحصيل بين الفروض (${pts.map(p => p.val.toFixed(2)).join(' ← ')})؛ يُوصى بتنظيم وتيرة المراجعة الدورية لضمان استقرار الأداء فوق عتبة التحكم.`,
+                                    bg: '#fffbeb',
+                                    border: '#fde68a',
+                                    color: '#92400e',
+                                    badgeBg: '#fef3c7'
+                                };
+                            }
+
+                            const isAboveThreshold = (studentAvg !== null ? studentAvg : lastPt.val) >= 10;
+                            return {
+                                direction: 'stable',
+                                badgeText: isAboveThreshold ? '⚖️ استقرار إيجابي متوازن' : '⚠️ استقرار دون عتبة التحكم',
+                                deltaLabel: `Δ = ${netDelta >= 0 ? '+' : ''}${netDelta.toFixed(2)} (${firstPt.val.toFixed(2)} ← ${lastPt.val.toFixed(2)})`,
+                                benchmarkLabel,
+                                noteText: isAboveThreshold
+                                    ? `يحافظ التلميذ(ة) على نسق تحصيلي مستقر ومتوازن (${firstPt.val.toFixed(2)} ← ${lastPt.val.toFixed(2)}، ${benchmarkLabel})؛ يُشجع على بذل مجهود إضافي للارتقاء إلى فئة التميز.`
+                                    : `استقرار النقط دون عتبة التحكم (${firstPt.val.toFixed(2)} ← ${lastPt.val.toFixed(2)})؛ يستلزم خطة دعم بيداغوجي مرحلية لتجاوز التعثرات الأساسية.`,
+                                bg: isAboveThreshold ? '#f0f9ff' : '#fff7ed',
+                                border: isAboveThreshold ? '#bae6fd' : '#fed7aa',
+                                color: isAboveThreshold ? '#075985' : '#9a3412',
+                                badgeBg: isAboveThreshold ? '#e0f2fe' : '#ffedd5'
+                            };
+                        };
+
+                        window.computeStudentAiTrendIndicator = computeAiTrendAnalysis;
+                        const aiTrend = computeAiTrendAnalysis(validPts, avg, classAvgVal);
+
                         const svgW = 620, svgH = 145, padL = 45, padR = 45, padT = 22, padB = 28;
                         const plotW = svgW - padL - padR;
                         const plotH = svgH - padT - padB;
@@ -21881,11 +22340,31 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                             }
                         });
                         return `
-                            <div class="student-print-inline-chart-box page-break-avoid" style="display: ${isPrintMode && printOpts.progressChart ? 'block' : 'none'}; background: #ffffff; border: 1.5px solid #1e293b; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px;">
+                            <div class="student-print-inline-chart-box page-break-avoid" style="display: ${printOpts.progressChart !== false ? 'block' : 'none'}; background: #ffffff; border: 1.5px solid #1e293b; border-radius: 6px; padding: 10px 12px; margin-bottom: 14px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; flex-wrap: wrap; gap: 6px;">
                                     <strong style="color: #0f172a; font-size: 0.86rem;">📈 مبيان تطور نقط الفروض مقارنة بمعدل القسم</strong>
                                     <span style="font-size: 0.75rem; color: #475569; font-weight: 700;">عتبة التحكم: 10 / 20 · الخط المتقطع الأزرق: معدل القسم</span>
                                 </div>
+
+                                <!-- مؤشر الأداء الذكي (AI Trend Indicator) فوق المخطط البياني في وضع الطباعة -->
+                                <div id="studentPrintAiTrendIndicator" class="student-print-ai-trend-indicator" data-trend-direction="${aiTrend.direction}" style="background: ${aiTrend.bg}; border: 1px solid ${aiTrend.border}; border-right: 4px solid ${aiTrend.color}; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 4px;">
+                                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                            <span style="font-size: 0.76rem; font-weight: 900; color: #0f172a;">🤖 مؤشر الأداء الذكي (AI Trend Indicator):</span>
+                                            <span class="ai-trend-badge" style="background: ${aiTrend.badgeBg}; color: ${aiTrend.color}; border: 1px solid ${aiTrend.border}; padding: 1px 8px; border-radius: 4px; font-size: 0.74rem; font-weight: 800;">${aiTrend.badgeText}</span>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.73rem; font-weight: 800; color: ${aiTrend.color};">
+                                            <span class="ai-trend-delta" style="direction: ltr; unicode-bidi: embed;">${aiTrend.deltaLabel}</span>
+                                            <span>·</span>
+                                            <span class="ai-trend-benchmark">${aiTrend.benchmarkLabel}</span>
+                                        </div>
+                                    </div>
+                                    <div class="ai-trend-auto-note" style="font-size: 0.78rem; color: #1e293b; font-weight: 600; line-height: 1.45;">
+                                        💡 <strong>الملاحظة التحليلية التلقائية:</strong> ${aiTrend.noteText}
+                                    </div>
+                                </div>
+
+                                ${validPts.length > 0 ? `
                                 <svg viewBox="0 0 ${svgW} ${svgH}" style="width: 100%; height: auto; max-height: 145px; display: block; direction: ltr;">
                                     <line x1="${padL}" y1="${getY(20)}" x2="${svgW - padR}" y2="${getY(20)}" stroke="#e2e8f0" stroke-width="1" />
                                     <text x="${padL - 8}" y="${getY(20) + 4}" font-size="10" fill="#64748b" text-anchor="end">20</text>
@@ -21908,6 +22387,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                                         `;
                                     }).join('')}
                                 </svg>
+                                ` : ''}
                             </div>
                         `;
                     })()}
@@ -21921,12 +22401,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     <!-- التشخيص البيداغوجي وملاحظات الأستاذ(ة) -->
                     <div class="page-break-avoid" style="background-color: #ffffff; border: 1.5px solid #1e293b; padding: 12px; border-radius: 6px;">
                         <strong style="color: #0f172a; font-size: 0.88rem; display: block; margin-bottom: 6px;">📝 التشخيص البيداغوجي وتوجيهات الأستاذ(ة):</strong>
-                        <p style="margin: 0; padding: 10px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-right: 4px solid ${statusColor}; font-size: 0.86rem; color: #0f172a; white-space: pre-wrap; line-height: 1.55;">${behaviorData.note || (avg !== null && avg >= 14 ? 'تحصيل متميز ومواظبة محمودة، يُشجع التلميذ(ة) على مواصلة التميز والانخراط في التمارين التوليفية.' : (avg !== null && avg < 10 ? 'يحتاج التلميذ(ة) إلى دعم بيداغوجي مركز وتدارك الثغرات المسجلة في الفروض مع الالتزام التام بإنجاز الواجبات.' : 'التلميذ(ة) مطالب(ة) بمواصلة الجد والاجتهاد والمواظبة المنتظمة لتعزيز مكتسباته والارتقاء بمعدله.'))}</p>
+                        <p style="margin: 0; padding: 10px; background-color: #f8fafc; border: 1px solid #cbd5e1; border-right: 4px solid ${statusColor}; font-size: 0.86rem; color: #0f172a; white-space: pre-wrap; line-height: 1.55;">${behaviorData.note ? safeRepHtml(behaviorData.note) : (avg !== null && avg >= 14 ? 'تحصيل متميز ومواظبة محمودة، يُشجع التلميذ(ة) على مواصلة التميز والانخراط في التمارين التوليفية.' : (avg !== null && avg < 10 ? 'يحتاج التلميذ(ة) إلى دعم بيداغوجي مركز وتدارك الثغرات المسجلة في الفروض مع الالتزام التام بإنجاز الواجبات.' : 'التلميذ(ة) مطالب(ة) بمواصلة الجد والاجتهاد والمواظبة المنتظمة لتعزيز مكتسباته والارتقاء بمعدله.'))}</p>
                         ${studentJournalNotes.length > 0 ? `
                             <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; font-size: 0.8rem; color: #334155;">
                                 <strong style="color: #1e3a8a; display: block; margin-bottom: 4px;">📌 ملاحظات دفتر التتبع الفردي:</strong>
                                 <ul style="margin: 0; padding-right: 18px; line-height: 1.5;">
-                                    ${studentJournalNotes.slice(-3).map(n => `<li><span style="color: #64748b; font-weight: 700;">[${n.date}]</span> ${n.text}</li>`).join('')}
+                                    ${studentJournalNotes.slice(-3).map(n => `<li><span style="color: #64748b; font-weight: 700;">[${safeRepHtml(n.date || '')}]</span> ${safeRepHtml(n.text || '')}</li>`).join('')}
                                 </ul>
                             </div>
                         ` : ''}
@@ -21972,7 +22452,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const classBenchPoints = classExamAvgs.slice(0, labels.length);
 
             if (isPrintMode) {
-                if (container) container.style.display = 'none';
+                if (container) {
+                    container.style.display = 'none';
+                    container.style.marginBottom = '0px';
+                }
                 if (window.studentProgressChartInst) {
                     try { window.studentProgressChartInst.destroy(); } catch (err) {}
                     window.studentProgressChartInst = null;
@@ -21981,10 +22464,18 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     try { window.studentAttendanceChartInst.destroy(); } catch (err) {}
                     window.studentAttendanceChartInst = null;
                 }
+                if (typeof reflowStudentReportChartsAndSections === 'function') {
+                    reflowStudentReportChartsAndSections(printOpts);
+                }
                 return;
             }
 
-            if (container) container.style.display = 'block';
+            if (typeof reflowStudentReportChartsAndSections === 'function') {
+                reflowStudentReportChartsAndSections(printOpts);
+            } else if (container) {
+                const showAnyChart = !!(printOpts.progressChart !== false || printOpts.absenceChart !== false);
+                container.style.display = showAnyChart ? 'block' : 'none';
+            }
 
             // 1. Update Monthly Attendance Chart (#studentAttendanceChart) & Badge (#studentAttendanceChartBadge)
             const attBadge = document.getElementById('studentAttendanceChartBadge');
@@ -32732,6 +33223,248 @@ window.isPresentationMode = isPresentationMode;
         }
 
 
+        function onTabletReportMarginPresetChange(presetVal) {
+            if (typeof db !== 'undefined' && db) {
+                db.settings = db.settings || {};
+                db.settings.printModeMarginsPreset = ['normal', 'narrow', 'minimal', 'wide', 'custom'].includes(presetVal)
+                    ? presetVal
+                    : 'normal';
+                if (typeof saveDB === 'function') saveDB();
+            }
+            const customRow = document.getElementById('tabletReportCustomMarginsRow');
+            if (customRow) {
+                customRow.style.display = presetVal === 'custom' ? 'grid' : 'none';
+            }
+            if (typeof applyPrintModePageSetupToDOM === 'function') {
+                applyPrintModePageSetupToDOM();
+            }
+        }
+        window.onTabletReportMarginPresetChange = onTabletReportMarginPresetChange;
+
+        function onTabletReportCustomMarginInput() {
+            const clampM = (v, def = 10) => {
+                const n = Number(v);
+                return Number.isFinite(n) ? Math.max(0, Math.min(30, Math.round(n))) : def;
+            };
+            const t = document.getElementById('tabletReportMarginTop');
+            const r = document.getElementById('tabletReportMarginRight');
+            const b = document.getElementById('tabletReportMarginBottom');
+            const l = document.getElementById('tabletReportMarginLeft');
+            if (typeof db !== 'undefined' && db) {
+                db.settings = db.settings || {};
+                db.settings.printModeMarginsPreset = 'custom';
+                if (t) db.settings.printModeMarginTop = clampM(t.value, 10);
+                if (r) db.settings.printModeMarginRight = clampM(r.value, 10);
+                if (b) db.settings.printModeMarginBottom = clampM(b.value, 10);
+                if (l) db.settings.printModeMarginLeft = clampM(l.value, 10);
+                if (typeof saveDB === 'function') saveDB();
+            }
+            if (typeof applyPrintModePageSetupToDOM === 'function') {
+                applyPrintModePageSetupToDOM();
+            }
+        }
+        window.onTabletReportCustomMarginInput = onTabletReportCustomMarginInput;
+
+        function onTabletReportIncludeChartsChange(isChecked) {
+            const includeCharts = !!isChecked;
+            if (typeof db !== 'undefined' && db) {
+                db.settings = db.settings || {};
+                db.settings.printModeOptProgressChart = includeCharts;
+                db.settings.printModeOptAbsenceChart = includeCharts;
+                if (typeof saveDB === 'function') saveDB();
+            }
+            if (typeof applyPrintModePageSetupToDOM === 'function') {
+                applyPrintModePageSetupToDOM();
+            }
+            if (typeof updateStudentProgressChart === 'function') {
+                const reportClassSel = document.getElementById('reportClassSelect');
+                const reportStudentSel = document.getElementById('reportStudentSelect');
+                if (reportClassSel && reportStudentSel && reportClassSel.value && reportStudentSel.value) {
+                    updateStudentProgressChart();
+                }
+            }
+        }
+        window.onTabletReportIncludeChartsChange = onTabletReportIncludeChartsChange;
+
+        function onTabletReportSectionToggle(sectionKey, isChecked) {
+            const enabled = !!isChecked;
+            if (typeof db !== 'undefined' && db) {
+                db.settings = db.settings || {};
+                if (sectionKey === 'officialHeader') {
+                    db.settings.printModeOptOfficialHeader = enabled;
+                } else if (sectionKey === 'officialVisas') {
+                    db.settings.printModeOptOfficialVisas = enabled;
+                }
+                if (typeof saveDB === 'function') saveDB();
+            }
+            if (typeof applyPrintModePageSetupToDOM === 'function') {
+                applyPrintModePageSetupToDOM();
+            }
+            if (typeof updateStudentProgressChart === 'function') {
+                const reportClassSel = document.getElementById('reportClassSelect');
+                const reportStudentSel = document.getElementById('reportStudentSelect');
+                if (reportClassSel && reportStudentSel && reportClassSel.value && reportStudentSel.value) {
+                    updateStudentProgressChart();
+                }
+            }
+        }
+        window.onTabletReportSectionToggle = onTabletReportSectionToggle;
+
+        function buildIndividualStudentReportPreviewHtml(className, studentId) {
+            const reportClassSelect = document.getElementById('reportClassSelect');
+            const reportStudentSelect = document.getElementById('reportStudentSelect');
+
+            if (reportClassSelect && className) {
+                if (!Array.from(reportClassSelect.options).some(opt => opt.value === className)) {
+                    const opt = document.createElement('option');
+                    opt.value = className;
+                    opt.textContent = className;
+                    reportClassSelect.appendChild(opt);
+                }
+                reportClassSelect.value = className;
+                if (typeof renderReport === 'function') {
+                    renderReport();
+                }
+            }
+
+            if (reportStudentSelect && studentId !== undefined && studentId !== null) {
+                const sidStr = String(studentId);
+                if (!Array.from(reportStudentSelect.options).some(opt => String(opt.value) === sidStr)) {
+                    const opt = document.createElement('option');
+                    opt.value = sidStr;
+                    opt.textContent = sidStr;
+                    reportStudentSelect.appendChild(opt);
+                }
+                reportStudentSelect.value = sidStr;
+            }
+
+            if (typeof updateStudentProgressChart === 'function') {
+                updateStudentProgressChart();
+            }
+
+            const printArea = document.getElementById('printBehaviorArea');
+            if (!printArea) return '';
+
+            const opts = typeof getStudentPrintModeOptions === 'function'
+                ? getStudentPrintModeOptions()
+                : { officialHeader: true, progressChart: true, officialVisas: true, monthMatrix: true, weekGrid: false, incidentsLog: true };
+
+            const clone = printArea.cloneNode(true);
+            clone.querySelectorAll('.no-print, button, .student-normal-mode-banner').forEach(el => el.remove());
+
+            const headerInClone = clone.querySelector('.student-print-official-header');
+            if (headerInClone) {
+                headerInClone.style.display = opts.officialHeader !== false ? 'block' : 'none';
+            }
+            const chartInClone = clone.querySelector('.student-print-inline-chart-box');
+            if (chartInClone) {
+                chartInClone.style.display = opts.progressChart !== false ? 'block' : 'none';
+            }
+            const heatmapInClone = clone.querySelector('.student-personal-heatmap-section');
+            if (heatmapInClone) {
+                const showAnyHeatmap = (opts.monthMatrix || opts.weekGrid);
+                heatmapInClone.style.display = showAnyHeatmap ? 'block' : 'none';
+                if (showAnyHeatmap) {
+                    const matrixPane = heatmapInClone.querySelector('.shm-print-matrix-pane');
+                    if (matrixPane) matrixPane.style.display = opts.monthMatrix ? 'block' : 'none';
+                    const timelinePane = heatmapInClone.querySelector('.shm-print-timeline-pane');
+                    if (timelinePane) timelinePane.style.display = opts.weekGrid ? 'block' : 'none';
+                    const analyticsPane = heatmapInClone.querySelector('.shm-print-analytics-pane');
+                    if (analyticsPane) analyticsPane.style.display = 'none';
+                }
+            }
+            const incidentsInClone = clone.querySelector('.student-incidents-log-section');
+            if (incidentsInClone) {
+                incidentsInClone.style.display = opts.incidentsLog !== false ? 'block' : 'none';
+            }
+            const visasInClone = clone.querySelector('.student-print-visas-section');
+            if (visasInClone) {
+                visasInClone.style.display = opts.officialVisas !== false ? 'block' : 'none';
+            }
+
+            return clone.outerHTML;
+        }
+        window.buildIndividualStudentReportPreviewHtml = buildIndividualStudentReportPreviewHtml;
+
+        function openTabletIndividualReportPrintPreview(className, studentId, overrideMargins) {
+            const safeClass = className || (document.getElementById('reportClassSelect') ? document.getElementById('reportClassSelect').value : '');
+            const safeStudentId = (studentId !== undefined && studentId !== null && studentId !== '')
+                ? studentId
+                : (document.getElementById('reportStudentSelect') ? document.getElementById('reportStudentSelect').value : '');
+
+            if (!safeClass || !safeStudentId) {
+                if (typeof showAppToast === 'function') {
+                    showAppToast('المرجو اختيار التلميذ أولاً لمعاينة التقرير الفردي وطباعته', 'warning');
+                }
+                return false;
+            }
+
+            const tabletMarginSel = document.getElementById('tabletReportPrintMarginsSelect');
+            const tabletIncludeChartsChk = document.getElementById('tabletReportIncludeChartsCheckbox');
+            const tabletOfficialHeaderChk = document.getElementById('tabletReportOfficialHeaderCheckbox');
+            const tabletOfficialVisasChk = document.getElementById('tabletReportOfficialVisasCheckbox');
+            if ((tabletMarginSel || tabletIncludeChartsChk || tabletOfficialHeaderChk || tabletOfficialVisasChk) && typeof db !== 'undefined' && db) {
+                db.settings = db.settings || {};
+                if (tabletMarginSel && ['normal', 'narrow', 'minimal', 'wide', 'custom'].includes(tabletMarginSel.value)) {
+                    db.settings.printModeMarginsPreset = tabletMarginSel.value;
+                }
+                if (tabletIncludeChartsChk) {
+                    db.settings.printModeOptProgressChart = !!tabletIncludeChartsChk.checked;
+                    db.settings.printModeOptAbsenceChart = !!tabletIncludeChartsChk.checked;
+                }
+                if (tabletOfficialHeaderChk) {
+                    db.settings.printModeOptOfficialHeader = !!tabletOfficialHeaderChk.checked;
+                }
+                if (tabletOfficialVisasChk) {
+                    db.settings.printModeOptOfficialVisas = !!tabletOfficialVisasChk.checked;
+                }
+                if (tabletMarginSel && tabletMarginSel.value === 'custom') {
+                    onTabletReportCustomMarginInput();
+                } else if (typeof saveDB === 'function') {
+                    saveDB();
+                }
+            }
+
+            const reportHtml = buildIndividualStudentReportPreviewHtml(safeClass, safeStudentId);
+            if (!reportHtml) {
+                if (typeof showAppToast === 'function') {
+                    showAppToast('تعذر توليد معاينة التقرير الفردي لهذا التلميذ.', 'error');
+                }
+                return false;
+            }
+
+            const classList = (typeof db !== 'undefined' && db && db.classes && Array.isArray(db.classes[safeClass])) ? db.classes[safeClass] : [];
+            const std = classList.find(s => String(s.id) === String(safeStudentId)) || null;
+            const opts = typeof getStudentPrintModeOptions === 'function' ? getStudentPrintModeOptions() : { pageSize: 'a4', progressChart: true, officialHeader: true, officialVisas: true };
+            const margins = overrideMargins || (typeof getResolvedPrintModeMargins === 'function' ? getResolvedPrintModeMargins(opts) : null);
+            const sizeUpper = opts.pageSize === 'a5' ? 'A5' : 'A4';
+            const docTitle = std ? `التقرير الفردي - ${std.name} (${safeClass})` : `التقرير الفردي للتلميذ (${safeClass})`;
+
+            if (typeof openCustomPrintPreviewModal === 'function') {
+                openCustomPrintPreviewModal(reportHtml, {
+                    title: docTitle,
+                    subtitle: `معاينة التقرير الفردي (${sizeUpper}) — يمكنك ضبط الهوامش والمخططات البيانية وحجم الورقة والخط قبل الطباعة أو التصدير`,
+                    orientation: 'portrait',
+                    pageSize: sizeUpper,
+                    margins: margins,
+                    includeCharts: opts.progressChart !== false,
+                    includeOfficialHeader: opts.officialHeader !== false,
+                    includeOfficialVisas: opts.officialVisas !== false
+                });
+                return true;
+            }
+            if (typeof printDocumentDirectly === 'function') {
+                printDocumentDirectly(reportHtml, docTitle, {
+                    orientation: 'portrait',
+                    pageSize: sizeUpper,
+                    margins: margins
+                });
+                return true;
+            }
+            return false;
+        }
+        window.openTabletIndividualReportPrintPreview = openTabletIndividualReportPrintPreview;
+
         function showTabletReport(className, studentId) {
             if (window.innerWidth < 992) {
                 // If on mobile, just jump to the full report view
@@ -32742,15 +33475,14 @@ window.isPresentationMode = isPresentationMode;
             // Enable tablet split mode
             document.body.classList.add('tablet-split-mode');
 
-            const std = (db.classes[className] || []).find(s => s.id === studentId);
+            const std = (db.classes[className] || []).find(s => String(s.id) === String(studentId));
             if (!std) return;
 
             const content = document.getElementById('tabletReportContent');
+            if (!content) return;
 
-            const today = new Date();
-            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-            const dateFrom = formatLocalDate(firstDay);
-            const dateTo = formatLocalDate(today);
+            const safeHtml = (v) => (typeof escapeHtml === 'function' ? escapeHtml(String(v ?? '')) : String(v ?? ''));
+            const safeJsArg = (v) => safeHtml(JSON.stringify(String(v ?? '')));
 
             const stdRecords = getStudentClassRecordsFast(studentId, className);
             const absentHours = stdRecords.filter(r => r.status === 'غائب' || r.status === 'مبرر').reduce((sum, r) => sum + getRecordAbsenceDuration(r), 0);
@@ -32768,27 +33500,34 @@ window.isPresentationMode = isPresentationMode;
             const grades = (typeof getStudentGradesBySemester === 'function')
                 ? getStudentGradesBySemester(className, studentId, activeSemQuick)
                 : ((db.grades[className] && db.grades[className][studentId]) ? db.grades[className][studentId] : {});
-            const examCount = getExamsCountForClass(className);
             const avg = calculateStudentAvg(grades, className);
             const coef = getSubjectCoefForClass(className);
             const weightedAvg = avg !== null ? (avg * coef).toFixed(2) : '-';
 
+            const printOpts = typeof getStudentPrintModeOptions === 'function'
+                ? getStudentPrintModeOptions()
+                : { marginPreset: 'normal', marginTop: 10, marginRight: 10, marginBottom: 10, marginLeft: 10, progressChart: true, officialHeader: true, officialVisas: true };
+            const curPreset = printOpts.marginPreset || 'normal';
+            const includeChartsChecked = printOpts.progressChart !== false;
+            const includeHeaderChecked = printOpts.officialHeader !== false;
+            const includeVisasChecked = printOpts.officialVisas !== false;
+
             content.innerHTML = `
                 <div style="text-align: center; margin-bottom: 15px;">
                     <div style="width: 50px; height: 50px; border-radius: 50%; background: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; margin: 0 auto 10px;">
-                        ${std.name.charAt(0)}
+                        ${safeHtml((std.name || 'ت').charAt(0))}
                     </div>
-                    <h4 style="color: var(--text-dark); margin: 0; font-size: 1.1rem;">${std.name}</h4>
-                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">الرقم الترتيبي: ${std.orderNum} | رقم مسار: ${std.massar || '-'}</div>
+                    <h4 style="color: var(--text-dark); margin: 0; font-size: 1.1rem;">${safeHtml(std.name)}</h4>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">الرقم الترتيبي: ${safeHtml(std.orderNum || '-')} | رقم مسار: ${safeHtml(std.massar || '-')}</div>
                 </div>
 
                 <div style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
                     <h5 style="color: var(--primary); margin: 0 0 10px; font-size: 0.9rem;">السلوك والمواظبة العام</h5>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.85rem;">
                         <span style="color: var(--text-muted);">السلوك:</span>
-                        <span style="font-weight: bold; color: ${statusColor};">${behaviorData.status}</span>
+                        <span style="font-weight: bold; color: ${statusColor};">${safeHtml(behaviorData.status || 'منضبط')}</span>
                     </div>
-                    ${behaviorData.note ? `<div style="font-size: 0.8rem; color: #64748b; background: #fff; padding: 6px; border-radius: 4px; border: 1px dashed #cbd5e1; margin-bottom: 8px;">"${behaviorData.note}"</div>` : ''}
+                    ${behaviorData.note ? `<div style="font-size: 0.8rem; color: #64748b; background: #fff; padding: 6px; border-radius: 4px; border: 1px dashed #cbd5e1; margin-bottom: 8px;">"${safeHtml(behaviorData.note)}"</div>` : ''}
 
                     <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.85rem;">
                         <span style="color: var(--text-muted);">إجمالي الغياب:</span>
@@ -32820,9 +33559,54 @@ window.isPresentationMode = isPresentationMode;
                     </div>` : ''}
                 </div>
 
+                <div id="tabletReportPrintSettingsBox" style="background: #f0fdf4; padding: 10px; border-radius: 8px; border: 1px solid #bbf7d0; margin-bottom: 12px;">
+                    <div style="font-size: 0.79rem; font-weight: 900; color: #14532d; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; border-bottom: 1px dashed #86efac; padding-bottom: 5px;">
+                        <span>⚙️</span>
+                        <span>إعدادات الطباعة قبل المعاينة</span>
+                    </div>
+                    <label for="tabletReportPrintMarginsSelect" style="display: flex; align-items: center; gap: 5px; font-size: 0.76rem; font-weight: 800; color: #14532d; margin-bottom: 5px;">
+                        <span>📏</span>
+                        <span>هوامش الورقة:</span>
+                    </label>
+                    <select id="tabletReportPrintMarginsSelect" onchange="onTabletReportMarginPresetChange(this.value)" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #86efac; background: #ffffff; color: #0f172a; font-size: 0.78rem; font-weight: 700; font-family: 'Cairo', sans-serif; cursor: pointer;">
+                        <option value="normal" ${curPreset === 'normal' ? 'selected' : ''}>قياسية (10 مم لكل جهة)</option>
+                        <option value="narrow" ${curPreset === 'narrow' ? 'selected' : ''}>ضيقة (6 مم)</option>
+                        <option value="minimal" ${curPreset === 'minimal' ? 'selected' : ''}>مدمجة قصوى (3 - 4 مم)</option>
+                        <option value="wide" ${curPreset === 'wide' ? 'selected' : ''}>واسعة رسمية (15 مم)</option>
+                        <option value="custom" ${curPreset === 'custom' ? 'selected' : ''}>مخصصة (بالمليمتر mm)...</option>
+                    </select>
+                    <div id="tabletReportCustomMarginsRow" style="display: ${curPreset === 'custom' ? 'grid' : 'none'}; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 7px;">
+                        <label style="font-size: 0.68rem; color: #14532d; font-weight: 700;">أعلى<input id="tabletReportMarginTop" type="number" min="0" max="30" value="${printOpts.marginTop}" onchange="onTabletReportCustomMarginInput()" style="width: 100%; padding: 3px; border: 1px solid #86efac; border-radius: 4px; text-align: center; font-weight: 800;"></label>
+                        <label style="font-size: 0.68rem; color: #14532d; font-weight: 700;">يمين<input id="tabletReportMarginRight" type="number" min="0" max="30" value="${printOpts.marginRight}" onchange="onTabletReportCustomMarginInput()" style="width: 100%; padding: 3px; border: 1px solid #86efac; border-radius: 4px; text-align: center; font-weight: 800;"></label>
+                        <label style="font-size: 0.68rem; color: #14532d; font-weight: 700;">أسفل<input id="tabletReportMarginBottom" type="number" min="0" max="30" value="${printOpts.marginBottom}" onchange="onTabletReportCustomMarginInput()" style="width: 100%; padding: 3px; border: 1px solid #86efac; border-radius: 4px; text-align: center; font-weight: 800;"></label>
+                        <label style="font-size: 0.68rem; color: #14532d; font-weight: 700;">يسار<input id="tabletReportMarginLeft" type="number" min="0" max="30" value="${printOpts.marginLeft}" onchange="onTabletReportCustomMarginInput()" style="width: 100%; padding: 3px; border: 1px solid #86efac; border-radius: 4px; text-align: center; font-weight: 800;"></label>
+                    </div>
+                    <label for="tabletReportIncludeChartsCheckbox" style="display: flex; align-items: flex-start; gap: 7px; margin-top: 9px; padding: 7px 8px; background: #ffffff; border: 1px solid #86efac; border-radius: 6px; cursor: pointer;">
+                        <input type="checkbox" id="tabletReportIncludeChartsCheckbox" ${includeChartsChecked ? 'checked' : ''} onchange="onTabletReportIncludeChartsChange(this.checked)" style="margin-top: 2px; width: 15px; height: 15px; accent-color: #0f766e; cursor: pointer; flex-shrink: 0;">
+                        <span style="display: flex; flex-direction: column; gap: 1px;">
+                            <span style="font-size: 0.77rem; font-weight: 800; color: #0f172a;">📊 تضمين المخططات البيانية</span>
+                            <span style="font-size: 0.68rem; font-weight: 600; color: #475569;">إظهار الرسوم البيانية لتطور أداء التلميذ في التقرير المطبوع</span>
+                        </span>
+                    </label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
+                        <label for="tabletReportOfficialHeaderCheckbox" style="display: flex; align-items: center; gap: 5px; padding: 6px 7px; background: #ffffff; border: 1px solid #86efac; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" id="tabletReportOfficialHeaderCheckbox" ${includeHeaderChecked ? 'checked' : ''} onchange="onTabletReportSectionToggle('officialHeader', this.checked)" style="width: 14px; height: 14px; accent-color: #0f766e; cursor: pointer; flex-shrink: 0;">
+                            <span style="font-size: 0.72rem; font-weight: 800; color: #0f172a;">🏛️ الترويسة الرسمية</span>
+                        </label>
+                        <label for="tabletReportOfficialVisasCheckbox" style="display: flex; align-items: center; gap: 5px; padding: 6px 7px; background: #ffffff; border: 1px solid #86efac; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" id="tabletReportOfficialVisasCheckbox" ${includeVisasChecked ? 'checked' : ''} onchange="onTabletReportSectionToggle('officialVisas', this.checked)" style="width: 14px; height: 14px; accent-color: #0f766e; cursor: pointer; flex-shrink: 0;">
+                            <span style="font-size: 0.72rem; font-weight: 800; color: #0f172a;">✒️ إطار التأشيرات</span>
+                        </label>
+                    </div>
+                </div>
+
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn-primary" onclick="jumpToIndividualReport('${className}', '${std.id}')" style="flex: 1; font-size: 0.8rem; padding: 8px;">عرض التقرير الكامل</button>
-                    <button type="button" class="btn-secondary" onclick="if(window.openShareRecordModal) window.openShareRecordModal({ type: 'student', className: '${className}', studentId: '${std.id}', studentName: '${escapeHtml(std.name)}' })" style="padding: 8px 12px; font-size: 0.8rem; background: #fdf4ff; border: 1.5px solid #f0abfc; color: #86198f; font-weight: 800; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="مشاركة السجل مع الزملاء عبر رمز QR أو رابط مباشر مشفر">
+                    <button type="button" id="btnTabletPrintIndividualReport" class="btn-primary" onclick="openTabletIndividualReportPrintPreview(${safeJsArg(className)}, ${safeJsArg(std.id)})" style="width: 100%; font-size: 0.84rem; padding: 9px 12px; background: linear-gradient(135deg, #0f766e, #0d9488); color: #ffffff; font-weight: 800; border-radius: 7px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 3px 10px rgba(15, 118, 110, 0.25);" title="فتح نافذة معاينة الطباعة التفاعلية تلقائياً مع إمكانية تعديل الهوامش والتنسيق قبل الطباعة أو التصدير">
+                        <span class="ui-icon" style="margin: 0;"><span data-lucide="printer" data-size="15"></span></span>
+                        <span>طباعة التقرير الفردي</span>
+                    </button>
+                    <button type="button" class="btn-primary" onclick="jumpToIndividualReport(${safeJsArg(className)}, ${safeJsArg(std.id)})" style="flex: 1; font-size: 0.8rem; padding: 8px;">عرض التقرير الكامل</button>
+                    <button type="button" class="btn-secondary" onclick="if(window.openShareRecordModal) window.openShareRecordModal({ type: 'student', className: ${safeJsArg(className)}, studentId: ${safeJsArg(std.id)}, studentName: ${safeJsArg(std.name)} })" style="padding: 8px 12px; font-size: 0.8rem; background: #fdf4ff; border: 1.5px solid #f0abfc; color: #86198f; font-weight: 800; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="مشاركة السجل مع الزملاء عبر رمز QR أو رابط مباشر مشفر">
                         <span class="ui-icon" style="margin: 0;"><span data-lucide="qr-code" data-size="14"></span></span>
                         <span>مشاركة (QR)</span>
                     </button>
@@ -32832,12 +33616,17 @@ window.isPresentationMode = isPresentationMode;
             if (window.renderLucide) window.renderLucide();
 
             // smooth scroll top
-            document.getElementById('tabletReportPane').scrollTo({ top: 0, behavior: 'smooth' });
+            const paneEl = document.getElementById('tabletReportPane');
+            if (paneEl && typeof paneEl.scrollTo === 'function') {
+                paneEl.scrollTo({ top: 0, behavior: 'smooth' });
+            }
         }
+        window.showTabletReport = showTabletReport;
 
         function closeTabletReport() {
             document.body.classList.remove('tablet-split-mode');
         }
+        window.closeTabletReport = closeTabletReport;
 
 
         // --- Lesson Log (دفتر النصوص البيداغوجي المطور - مخصص لمادة الرياضيات) ---
@@ -42613,20 +43402,23 @@ ${log.notes || 'سير الحصة عادي'}
             const resolvedPageSize = isOptsObj && String(orientation.pageSize || '').toUpperCase() === 'A5' ? 'A5' : 'A4';
             const resolvedMargins = isOptsObj && orientation.margins ? orientation.margins : null;
             const isLandscape = resolvedOrient === 'landscape';
-            const bodyPadding = isPagedReport
+            const hasCustomMargins = !!(resolvedMargins && Number.isFinite(Number(resolvedMargins.top)) && Number.isFinite(Number(resolvedMargins.right)) && Number.isFinite(Number(resolvedMargins.bottom)) && Number.isFinite(Number(resolvedMargins.left)));
+            const pageMarginCss = hasCustomMargins
+                ? `${resolvedMargins.top}mm ${resolvedMargins.right}mm ${resolvedMargins.bottom}mm ${resolvedMargins.left}mm`
+                : (isPagedReport ? '6mm 8mm 6mm 8mm' : (isLandscape ? '6mm 8mm 8mm 8mm' : '8mm 10mm 10mm 10mm'));
+            const bodyPadding = (isPagedReport || hasCustomMargins)
                 ? '0'
-                : (resolvedMargins && resolvedMargins.cssPadding
-                    ? resolvedMargins.cssPadding
-                    : (isLandscape ? '6mm 8mm' : '8mm 10mm'));
+                : '2mm 2mm 4mm 2mm';
             const baseFontSize = resolvedPageSize === 'A5' ? '7.5pt' : '8.5pt';
             const activePrintFont = getSelectedPrintFontFamily();
             const activeHandwritingFont = getSelectedHandwritingFontFamily();
+            const safeDocTitle = typeof escapeHtml === 'function' ? escapeHtml(String(title || 'وثيقة رسمية - مادة الرياضيات')) : String(title || 'وثيقة رسمية - مادة الرياضيات');
 
             const docHtml = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>${title || 'وثيقة رسمية - مادة الرياضيات'}</title>
+    <title>${safeDocTitle}</title>
     <link href="${MOROCCAN_GOOGLE_FONTS_LINK}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <style>
@@ -42636,7 +43428,7 @@ ${log.notes || 'سير الحصة عادي'}
         }
         @page {
             size: ${resolvedPageSize} ${isLandscape ? 'landscape' : 'portrait'};
-            margin: ${isPagedReport ? '6mm 8mm 6mm 8mm' : (isLandscape ? '6mm 8mm 8mm 8mm' : '8mm 10mm 10mm 10mm')} !important;
+            margin: ${pageMarginCss} !important;
         }
         * {
             box-sizing: border-box;
@@ -42648,7 +43440,7 @@ ${log.notes || 'سير الحصة عادي'}
             color: #0f172a;
             background: #ffffff;
             margin: 0 !important;
-            padding: ${isPagedReport ? '0' : '2mm 2mm 4mm 2mm'} !important;
+            padding: ${bodyPadding} !important;
             direction: rtl;
             font-size: ${baseFontSize};
             line-height: ${resolvedPageSize === 'A5' ? '1.36' : '1.45'};
@@ -42771,9 +43563,34 @@ ${log.notes || 'سير الحصة عادي'}
                 : (options || {});
             const docTitle = normalizedOpts.title || 'تقرير_رسمي_A4';
             const subtitle = normalizedOpts.subtitle || 'معاينة الوثيقة الرسمية وتخصيصها قبل الطباعة الورقية أو التصدير الرقمي (PDF)';
+            const safeDocTitleHtml = typeof escapeHtml === 'function' ? escapeHtml(String(docTitle).replace(/_/g, ' ')) : String(docTitle).replace(/_/g, ' ');
+            const safeSubtitleHtml = typeof escapeHtml === 'function' ? escapeHtml(String(subtitle)) : String(subtitle);
             let currentOrientation = normalizedOpts.orientation === 'landscape' ? 'landscape' : 'portrait';
             let currentPageSize = String(normalizedOpts.pageSize || 'A4').toUpperCase() === 'A5' ? 'A5' : 'A4';
             let currentZoom = 100;
+
+            const fallbackOpts = typeof getStudentPrintModeOptions === 'function'
+                ? getStudentPrintModeOptions()
+                : { marginPreset: 'normal', marginTop: 10, marginRight: 10, marginBottom: 10, marginLeft: 10, progressChart: true };
+            const initialMargins = normalizedOpts.margins
+                || (typeof getResolvedPrintModeMargins === 'function' ? getResolvedPrintModeMargins(fallbackOpts) : { preset: 'normal', top: 10, right: 10, bottom: 10, left: 10, array: [10, 10, 10, 10], cssPadding: '10mm 10mm 10mm 10mm', label: 'قياسية (10 مم)' });
+            let currentMarginPreset = ['normal', 'narrow', 'minimal', 'wide', 'custom'].includes(initialMargins.preset) ? initialMargins.preset : 'normal';
+            let currentMargins = {
+                preset: currentMarginPreset,
+                top: Number.isFinite(Number(initialMargins.top)) ? Number(initialMargins.top) : 10,
+                right: Number.isFinite(Number(initialMargins.right)) ? Number(initialMargins.right) : 10,
+                bottom: Number.isFinite(Number(initialMargins.bottom)) ? Number(initialMargins.bottom) : 10,
+                left: Number.isFinite(Number(initialMargins.left)) ? Number(initialMargins.left) : 10
+            };
+            let currentIncludeCharts = normalizedOpts.includeCharts !== undefined
+                ? !!normalizedOpts.includeCharts
+                : (fallbackOpts.progressChart !== false);
+            let currentIncludeHeader = normalizedOpts.includeOfficialHeader !== undefined
+                ? !!normalizedOpts.includeOfficialHeader
+                : (fallbackOpts.officialHeader !== false);
+            let currentIncludeVisas = normalizedOpts.includeOfficialVisas !== undefined
+                ? !!normalizedOpts.includeOfficialVisas
+                : (fallbackOpts.officialVisas !== false);
 
             let bodyHtml = String(htmlContent || '');
             let extractedStyles = '';
@@ -42786,6 +43603,10 @@ ${log.notes || 'سير الحصة عادي'}
                 bodyHtml = bodyMatch[1];
             }
             bodyHtml = bodyHtml.replace(/<script[\s\S]*?<\/script>/gi, '');
+
+            const hasInlineCharts = bodyHtml.includes('student-print-inline-chart-box');
+            const hasOfficialHeader = bodyHtml.includes('student-print-official-header');
+            const hasOfficialVisas = bodyHtml.includes('student-print-visas-section');
 
             let modal = document.getElementById('customReportPreviewModal');
             if (modal) modal.remove();
@@ -42813,16 +43634,53 @@ ${log.notes || 'سير الحصة عادي'}
                 }
             };
 
+            const resolveCurrentPreviewMargins = () => {
+                const clampM = (v, def = 10) => {
+                    const n = Number(v);
+                    return Number.isFinite(n) ? Math.max(0, Math.min(30, Math.round(n))) : def;
+                };
+                if (typeof getResolvedPrintModeMargins === 'function') {
+                    const res = getResolvedPrintModeMargins({
+                        marginPreset: currentMarginPreset,
+                        marginTop: clampM(currentMargins.top, 10),
+                        marginRight: clampM(currentMargins.right, 10),
+                        marginBottom: clampM(currentMargins.bottom, 10),
+                        marginLeft: clampM(currentMargins.left, 10)
+                    });
+                    currentMargins = { preset: res.preset, top: res.top, right: res.right, bottom: res.bottom, left: res.left };
+                    return res;
+                }
+                let top = 10, right = 10, bottom = 10, left = 10, label = 'قياسية (10 مم)';
+                if (currentMarginPreset === 'narrow') { top = right = bottom = left = 6; label = 'ضيقة (6 مم)'; }
+                else if (currentMarginPreset === 'minimal') { top = bottom = 3; right = left = 4; label = 'مدمجة قصوى (3-4 مم)'; }
+                else if (currentMarginPreset === 'wide') { top = right = bottom = left = 15; label = 'واسعة رسمية (15 مم)'; }
+                else if (currentMarginPreset === 'custom') {
+                    top = clampM(currentMargins.top, 10);
+                    right = clampM(currentMargins.right, 10);
+                    bottom = clampM(currentMargins.bottom, 10);
+                    left = clampM(currentMargins.left, 10);
+                    label = `مخصصة (${top}/${right}/${bottom}/${left} مم)`;
+                }
+                return {
+                    preset: currentMarginPreset,
+                    top, right, bottom, left,
+                    array: [top, left, bottom, right],
+                    cssPadding: `${top}mm ${right}mm ${bottom}mm ${left}mm`,
+                    label
+                };
+            };
+
+            const initialResolvedMargins = resolveCurrentPreviewMargins();
             const curPrintFont = getSelectedPrintFontFamily();
             const curHwFont = getSelectedHandwritingFontFamily();
 
             modal.innerHTML = `
-                <div id="customReportPreviewToolbar" class="no-print" style="width:100%; max-width:1200px; background:linear-gradient(135deg,#0f172a,#1e293b); border:1px solid #334155; border-radius:14px; padding:12px 16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; box-shadow:0 12px 30px rgba(0,0,0,0.4); position:sticky; top:0; z-index:20;">
+                <div id="customReportPreviewToolbar" class="no-print" style="width:100%; max-width:1240px; background:linear-gradient(135deg,#0f172a,#1e293b); border:1px solid #334155; border-radius:14px; padding:12px 16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; box-shadow:0 12px 30px rgba(0,0,0,0.4); position:sticky; top:0; z-index:20;">
                     <div style="display:flex; align-items:center; gap:10px;">
                         <span style="background:rgba(59,130,246,0.2); color:#60a5fa; border:1px solid rgba(96,165,250,0.35); width:38px; height:38px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; font-size:1.15rem;">🖨️</span>
                         <div>
-                            <div style="color:#ffffff; font-weight:900; font-size:0.98rem;">${docTitle.replace(/_/g, ' ')}</div>
-                            <div style="color:#94a3b8; font-size:0.74rem; font-weight:600;">${subtitle}</div>
+                            <div style="color:#ffffff; font-weight:900; font-size:0.98rem;">${safeDocTitleHtml}</div>
+                            <div style="color:#94a3b8; font-size:0.74rem; font-weight:600;">${safeSubtitleHtml}</div>
                         </div>
                     </div>
                     <div style="display:flex; gap:7px; flex-wrap:wrap; align-items:center;">
@@ -42843,6 +43701,33 @@ ${log.notes || 'سير الحصة عادي'}
                             <option value="A4" ${currentPageSize === 'A4' ? 'selected' : ''}>📄 ورق A4</option>
                             <option value="A5" ${currentPageSize === 'A5' ? 'selected' : ''}>📑 ورق A5 (نصف ورقة)</option>
                         </select>
+                        <div style="display:inline-flex; align-items:center; gap:5px; background:#064e3b; border:1px solid #10b981; padding:3px 6px; border-radius:8px;">
+                            <select id="selCustomPreviewMargins" title="اختيار هوامش الصفحة قبل الطباعة أو التصدير" style="background:#065f46; color:#ecfdf5; border:none; padding:4px 6px; border-radius:6px; font-weight:800; font-size:0.76rem; cursor:pointer; font-family:'Cairo',sans-serif;">
+                                <option value="normal" ${currentMarginPreset === 'normal' ? 'selected' : ''}>📏 هوامش: قياسية (10 مم)</option>
+                                <option value="narrow" ${currentMarginPreset === 'narrow' ? 'selected' : ''}>📏 هوامش: ضيقة (6 مم)</option>
+                                <option value="minimal" ${currentMarginPreset === 'minimal' ? 'selected' : ''}>📏 هوامش: مدمجة (3-4 مم)</option>
+                                <option value="wide" ${currentMarginPreset === 'wide' ? 'selected' : ''}>📏 هوامش: واسعة (15 مم)</option>
+                                <option value="custom" ${currentMarginPreset === 'custom' ? 'selected' : ''}>⚙️ هوامش: مخصصة (mm)</option>
+                            </select>
+                            <div id="customPreviewMarginsInlineBox" style="display:${currentMarginPreset === 'custom' ? 'inline-flex' : 'none'}; align-items:center; gap:3px; color:#d1fae5; font-size:0.7rem; font-weight:800;">
+                                <label title="أعلى (مم)" style="display:inline-flex; align-items:center; gap:2px;">ع<input id="inpCustomPreviewMarginTop" type="number" min="0" max="30" value="${initialResolvedMargins.top}" style="width:36px; padding:2px; border-radius:4px; border:1px solid #34d399; background:#022c22; color:#fff; text-align:center; font-weight:800; font-size:0.72rem;"></label>
+                                <label title="يمين (مم)" style="display:inline-flex; align-items:center; gap:2px;">ي<input id="inpCustomPreviewMarginRight" type="number" min="0" max="30" value="${initialResolvedMargins.right}" style="width:36px; padding:2px; border-radius:4px; border:1px solid #34d399; background:#022c22; color:#fff; text-align:center; font-weight:800; font-size:0.72rem;"></label>
+                                <label title="أسفل (مم)" style="display:inline-flex; align-items:center; gap:2px;">س<input id="inpCustomPreviewMarginBottom" type="number" min="0" max="30" value="${initialResolvedMargins.bottom}" style="width:36px; padding:2px; border-radius:4px; border:1px solid #34d399; background:#022c22; color:#fff; text-align:center; font-weight:800; font-size:0.72rem;"></label>
+                                <label title="يسار (مم)" style="display:inline-flex; align-items:center; gap:2px;">ش<input id="inpCustomPreviewMarginLeft" type="number" min="0" max="30" value="${initialResolvedMargins.left}" style="width:36px; padding:2px; border-radius:4px; border:1px solid #34d399; background:#022c22; color:#fff; text-align:center; font-weight:800; font-size:0.72rem;"></label>
+                            </div>
+                        </div>
+                        ${hasInlineCharts ? `<label for="chkCustomPreviewIncludeCharts" title="إظهار أو إخفاء الرسوم والمخططات البيانية في التقرير المطبوع" style="display:inline-flex; align-items:center; gap:5px; background:#1e1b4b; color:#e0e7ff; border:1px solid #6366f1; padding:5px 9px; border-radius:8px; font-weight:800; font-size:0.75rem; cursor:pointer; font-family:'Cairo',sans-serif;">
+                            <input type="checkbox" id="chkCustomPreviewIncludeCharts" ${currentIncludeCharts ? 'checked' : ''} style="width:14px; height:14px; accent-color:#818cf8; cursor:pointer;">
+                            <span>📊 تضمين المخططات البيانية</span>
+                        </label>` : ''}
+                        ${hasOfficialHeader ? `<label for="chkCustomPreviewOfficialHeader" title="إظهار أو إخفاء الترويسة الرسمية للوزارة في التقرير المطبوع" style="display:inline-flex; align-items:center; gap:5px; background:#172554; color:#dbeafe; border:1px solid #3b82f6; padding:5px 9px; border-radius:8px; font-weight:800; font-size:0.75rem; cursor:pointer; font-family:'Cairo',sans-serif;">
+                            <input type="checkbox" id="chkCustomPreviewOfficialHeader" ${currentIncludeHeader ? 'checked' : ''} style="width:14px; height:14px; accent-color:#60a5fa; cursor:pointer;">
+                            <span>🏛️ الترويسة الرسمية</span>
+                        </label>` : ''}
+                        ${hasOfficialVisas ? `<label for="chkCustomPreviewOfficialVisas" title="إظهار أو إخفاء إطار التوقيعات والتأشيرات في التقرير المطبوع" style="display:inline-flex; align-items:center; gap:5px; background:#172554; color:#dbeafe; border:1px solid #3b82f6; padding:5px 9px; border-radius:8px; font-weight:800; font-size:0.75rem; cursor:pointer; font-family:'Cairo',sans-serif;">
+                            <input type="checkbox" id="chkCustomPreviewOfficialVisas" ${currentIncludeVisas ? 'checked' : ''} style="width:14px; height:14px; accent-color:#60a5fa; cursor:pointer;">
+                            <span>✒️ إطار التأشيرات</span>
+                        </label>` : ''}
                         <button type="button" id="btnToggleCustomPreviewOrient" style="background:#334155; color:#e2e8f0; border:1px solid #475569; padding:6px 10px; border-radius:8px; font-weight:800; font-size:0.76rem; cursor:pointer; font-family:'Cairo',sans-serif; display:inline-flex; align-items:center; gap:4px;">
                             📐 <span id="lblCustomPreviewOrient">${currentOrientation === 'landscape' ? 'أفقي (Landscape)' : 'عمودي (Portrait)'}</span>
                         </button>
@@ -42879,7 +43764,7 @@ ${log.notes || 'سير الحصة عادي'}
                         </button>
                     </div>
                 </div>
-                <div id="customReportPrintableSheet" class="print-live-editable-sheet" style="background:${isReportDoc ? 'transparent' : '#ffffff'}; color:#0f172a; padding:${isReportDoc ? '0' : '10mm 12mm'}; border-radius:6px; box-shadow:${isReportDoc ? 'none' : '0 20px 50px rgba(0,0,0,0.5)'}; box-sizing:border-box; margin:0 auto 30px auto; direction:rtl; transition:width 0.2s ease; font-family:${curPrintFont}; position:relative;">
+                <div id="customReportPrintableSheet" class="print-live-editable-sheet" style="background:${isReportDoc ? 'transparent' : '#ffffff'}; color:#0f172a; padding:${isReportDoc ? '0' : initialResolvedMargins.cssPadding}; border-radius:6px; box-shadow:${isReportDoc ? 'none' : '0 20px 50px rgba(0,0,0,0.5)'}; box-sizing:border-box; margin:0 auto 30px auto; direction:rtl; transition:width 0.2s ease, padding 0.2s ease; font-family:${curPrintFont}; position:relative;">
                     ${extractedStyles}
                     ${bodyHtml}
                     ${hasExistingPreviewFooter ? '' : `<div class="print-system-footer-fixed" style="margin-top:24px; padding-top:8px; border-top:1.5px solid #cbd5e1; text-align:center; font-size:0.8rem; font-weight:800; color:#1e3a8a; font-family:'Cairo',sans-serif;">
@@ -42891,6 +43776,125 @@ ${log.notes || 'سير الحصة عادي'}
             document.body.appendChild(modal);
             const sheetEl = document.getElementById('customReportPrintableSheet');
             updateSheetDimensions(sheetEl, currentOrientation, currentPageSize);
+
+            const applyLivePreviewMargins = (persistSettings) => {
+                const resolved = resolveCurrentPreviewMargins();
+                if (sheetEl && !isReportDoc) {
+                    sheetEl.style.padding = resolved.cssPadding;
+                }
+                const boxEl = document.getElementById('customPreviewMarginsInlineBox');
+                if (boxEl) {
+                    boxEl.style.display = resolved.preset === 'custom' ? 'inline-flex' : 'none';
+                }
+                const tInp = document.getElementById('inpCustomPreviewMarginTop');
+                const rInp = document.getElementById('inpCustomPreviewMarginRight');
+                const bInp = document.getElementById('inpCustomPreviewMarginBottom');
+                const lInp = document.getElementById('inpCustomPreviewMarginLeft');
+                if (tInp) tInp.value = resolved.top;
+                if (rInp) rInp.value = resolved.right;
+                if (bInp) bInp.value = resolved.bottom;
+                if (lInp) lInp.value = resolved.left;
+
+                if (persistSettings && typeof db !== 'undefined' && db) {
+                    db.settings = db.settings || {};
+                    db.settings.printModeMarginsPreset = resolved.preset;
+                    db.settings.printModeMarginTop = resolved.top;
+                    db.settings.printModeMarginRight = resolved.right;
+                    db.settings.printModeMarginBottom = resolved.bottom;
+                    db.settings.printModeMarginLeft = resolved.left;
+                    if (typeof saveDB === 'function') saveDB();
+                    const tabletSel = document.getElementById('tabletReportPrintMarginsSelect');
+                    if (tabletSel) tabletSel.value = resolved.preset;
+                    if (typeof applyPrintModePageSetupToDOM === 'function') applyPrintModePageSetupToDOM();
+                }
+                return resolved;
+            };
+
+            const selPreviewMargins = document.getElementById('selCustomPreviewMargins');
+            if (selPreviewMargins) {
+                selPreviewMargins.onchange = function () {
+                    currentMarginPreset = this.value;
+                    applyLivePreviewMargins(true);
+                };
+            }
+            ['inpCustomPreviewMarginTop', 'inpCustomPreviewMarginRight', 'inpCustomPreviewMarginBottom', 'inpCustomPreviewMarginLeft'].forEach((inpId, idx) => {
+                const el = document.getElementById(inpId);
+                if (el) {
+                    el.onchange = el.oninput = function () {
+                        currentMarginPreset = 'custom';
+                        if (selPreviewMargins) selPreviewMargins.value = 'custom';
+                        const keys = ['top', 'right', 'bottom', 'left'];
+                        currentMargins[keys[idx]] = Number(this.value);
+                        applyLivePreviewMargins(true);
+                    };
+                }
+            });
+
+            const applyLivePreviewChartsVisibility = (persistSettings) => {
+                if (sheetEl) {
+                    sheetEl.querySelectorAll('.student-print-inline-chart-box').forEach(el => {
+                        el.style.display = currentIncludeCharts ? 'block' : 'none';
+                    });
+                }
+                if (persistSettings && typeof db !== 'undefined' && db) {
+                    db.settings = db.settings || {};
+                    db.settings.printModeOptProgressChart = !!currentIncludeCharts;
+                    db.settings.printModeOptAbsenceChart = !!currentIncludeCharts;
+                    if (typeof saveDB === 'function') saveDB();
+                    const tabChk = document.getElementById('tabletReportIncludeChartsCheckbox');
+                    if (tabChk) tabChk.checked = !!currentIncludeCharts;
+                    if (typeof applyPrintModePageSetupToDOM === 'function') applyPrintModePageSetupToDOM();
+                }
+            };
+            if (hasInlineCharts) {
+                applyLivePreviewChartsVisibility(false);
+                const chkPreviewCharts = document.getElementById('chkCustomPreviewIncludeCharts');
+                if (chkPreviewCharts) {
+                    chkPreviewCharts.onchange = function () {
+                        currentIncludeCharts = !!this.checked;
+                        applyLivePreviewChartsVisibility(true);
+                    };
+                }
+            }
+
+            const applyLivePreviewSectionsVisibility = (persistSettings) => {
+                if (sheetEl) {
+                    sheetEl.querySelectorAll('.student-print-official-header').forEach(el => {
+                        el.style.display = currentIncludeHeader ? 'block' : 'none';
+                    });
+                    sheetEl.querySelectorAll('.student-print-visas-section').forEach(el => {
+                        el.style.display = currentIncludeVisas ? 'block' : 'none';
+                    });
+                }
+                if (persistSettings && typeof db !== 'undefined' && db) {
+                    db.settings = db.settings || {};
+                    db.settings.printModeOptOfficialHeader = !!currentIncludeHeader;
+                    db.settings.printModeOptOfficialVisas = !!currentIncludeVisas;
+                    if (typeof saveDB === 'function') saveDB();
+                    const tabHdr = document.getElementById('tabletReportOfficialHeaderCheckbox');
+                    const tabVis = document.getElementById('tabletReportOfficialVisasCheckbox');
+                    if (tabHdr) tabHdr.checked = !!currentIncludeHeader;
+                    if (tabVis) tabVis.checked = !!currentIncludeVisas;
+                    if (typeof applyPrintModePageSetupToDOM === 'function') applyPrintModePageSetupToDOM();
+                }
+            };
+            if (hasOfficialHeader || hasOfficialVisas) {
+                applyLivePreviewSectionsVisibility(false);
+                const chkPreviewHeader = document.getElementById('chkCustomPreviewOfficialHeader');
+                if (chkPreviewHeader) {
+                    chkPreviewHeader.onchange = function () {
+                        currentIncludeHeader = !!this.checked;
+                        applyLivePreviewSectionsVisibility(true);
+                    };
+                }
+                const chkPreviewVisas = document.getElementById('chkCustomPreviewOfficialVisas');
+                if (chkPreviewVisas) {
+                    chkPreviewVisas.onchange = function () {
+                        currentIncludeVisas = !!this.checked;
+                        applyLivePreviewSectionsVisibility(true);
+                    };
+                }
+            }
 
             const applyLivePreviewFonts = () => {
                 const pFont = document.getElementById('selCustomPreviewPrintFont')?.value || getSelectedPrintFontFamily();
@@ -42960,12 +43964,27 @@ ${log.notes || 'سير الحصة عادي'}
             };
 
             const triggerModalDirectPrint = () => {
+                const activeMargins = resolveCurrentPreviewMargins();
                 const isEco = sheetEl && sheetEl.classList.contains('print-eco-bw-mode');
-                const rawHtml = sheetEl ? sheetEl.innerHTML : (extractedStyles + bodyHtml);
+                let rawHtml = sheetEl ? sheetEl.innerHTML : (extractedStyles + bodyHtml);
+                if (sheetEl && ((hasInlineCharts && !currentIncludeCharts) || (hasOfficialHeader && !currentIncludeHeader) || (hasOfficialVisas && !currentIncludeVisas))) {
+                    const tempClone = sheetEl.cloneNode(true);
+                    if (hasInlineCharts && !currentIncludeCharts) {
+                        tempClone.querySelectorAll('.student-print-inline-chart-box').forEach(el => el.remove());
+                    }
+                    if (hasOfficialHeader && !currentIncludeHeader) {
+                        tempClone.querySelectorAll('.student-print-official-header').forEach(el => el.remove());
+                    }
+                    if (hasOfficialVisas && !currentIncludeVisas) {
+                        tempClone.querySelectorAll('.student-print-visas-section').forEach(el => el.remove());
+                    }
+                    rawHtml = tempClone.innerHTML;
+                }
                 const wrappedHtml = isEco ? `<div class="print-eco-bw-mode">${rawHtml}</div>` : rawHtml;
                 printDocumentDirectly(wrappedHtml, docTitle, {
                     orientation: currentOrientation,
-                    pageSize: currentPageSize
+                    pageSize: currentPageSize,
+                    margins: activeMargins
                 });
             };
 
@@ -42980,10 +43999,13 @@ ${log.notes || 'سير الحصة عادي'}
                     await window.ensureHtml2PdfLoaded();
                 }
                 if (typeof window.html2pdf === 'function' && sheetEl) {
+                    const activeMargins = resolveCurrentPreviewMargins();
                     const prevZoom = sheetEl.style.zoom;
+                    const prevPadding = sheetEl.style.padding;
                     sheetEl.style.zoom = '100%';
+                    if (!isReportDoc) sheetEl.style.padding = '0';
                     const opt = {
-                        margin: isReportDoc ? [4, 5, 4, 5] : [6, 6, 6, 6],
+                        margin: isReportDoc ? [4, 5, 4, 5] : activeMargins.array,
                         filename: `${docTitle.replace(/\s+/g, '_')}.pdf`,
                         image: { type: 'jpeg', quality: 0.98 },
                         html2canvas: { scale: 2, useCORS: true, logging: false },
@@ -42992,11 +44014,13 @@ ${log.notes || 'سير الحصة عادي'}
                     };
                     window.html2pdf().set(opt).from(sheetEl).save().then(() => {
                         sheetEl.style.zoom = prevZoom;
+                        sheetEl.style.padding = prevPadding;
                         btn.disabled = false;
                         btn.innerHTML = origText;
                         if (typeof showToast === 'function') showToast('✅ تم تحميل التقرير بصيغة PDF بنجاح', 'success');
                     }).catch(() => {
                         sheetEl.style.zoom = prevZoom;
+                        sheetEl.style.padding = prevPadding;
                         btn.disabled = false;
                         btn.innerHTML = origText;
                         triggerModalDirectPrint();
@@ -58159,7 +59183,7 @@ ${log.notes || 'سير الحصة عادي'}
                     <div style="border:2px solid #1e3a8a; border-radius:10px; padding:12px 16px; margin-bottom:14px; background:#f8fafc; display:flex; justify-content:space-between; align-items:center;">
                         <div style="font-size:0.8rem; font-weight:800; line-height:1.5;">
                             <div>المملكة المغربية</div>
-                            <div>وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                            <div>وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                             <div>المؤسسة: ${schoolName}</div>
                         </div>
                         <div style="text-align:center;">
@@ -58556,7 +59580,7 @@ ${log.notes || 'سير الحصة عادي'}
                         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #cbd5e1; padding-bottom:6px; margin-bottom:6px; font-size:7.8pt;">
                             <div style="text-align:right; width:34%; line-height:1.45;">
                                 <strong style="font-size:9pt; color:#0f172a;">المملكة المغربية</strong><br>
-                                <span style="color:#1e3a8a; font-weight:800;">وزارة التربية الوطنية والتعليم الأولي والرياضة</span><br>
+                                <span style="color:#1e3a8a; font-weight:800;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</span><br>
                                 <span>${escapeHtml(meta.academy)}</span><br>
                                 <span>${escapeHtml(meta.directorate)}</span><br>
                                 <strong>المؤسسة:</strong> <span style="color:#1e3a8a;">${escapeHtml(meta.school)}</span>
@@ -58920,3 +59944,259 @@ ${log.notes || 'سير الحصة عادي'}
             };
         }
         window.runSystemIntegritySmokeTests = runSystemIntegritySmokeTests;
+
+        /**
+         * وضع الخصوصية وحماية المعطيات الشخصية للتلاميذ عند العرض على السبورة (القانون المغربي 09-08)
+         */
+        function toggleClassroomPrivacyMode(forceState) {
+            const nextState = typeof forceState === 'boolean'
+                ? forceState
+                : !document.body.classList.contains('classroom-privacy-0908-active');
+            window._classroomPrivacyModeActive = nextState;
+            document.body.classList.toggle('classroom-privacy-0908-active', nextState);
+
+            if (!document.getElementById('classroomPrivacy0908Style')) {
+                const st = document.createElement('style');
+                st.id = 'classroomPrivacy0908Style';
+                st.textContent = `
+                    body.classroom-privacy-0908-active .massar-code,
+                    body.classroom-privacy-0908-active [data-privacy-massar],
+                    body.classroom-privacy-0908-active td.col-massar,
+                    body.classroom-privacy-0908-active .student-massar-badge {
+                        filter: blur(5px) !important;
+                        user-select: none !important;
+                        transition: filter 0.2s ease;
+                    }
+                    body.classroom-privacy-0908-active .student-name-cell,
+                    body.classroom-privacy-0908-active [data-privacy-student-name] {
+                        filter: blur(4px) !important;
+                        transition: filter 0.2s ease;
+                    }
+                    body.classroom-privacy-0908-active .student-name-cell:hover,
+                    body.classroom-privacy-0908-active [data-privacy-student-name]:hover {
+                        filter: none !important;
+                    }
+                `;
+                document.head.appendChild(st);
+            }
+
+            if (typeof db !== 'undefined' && db) {
+                db.settings = db.settings || {};
+                db.settings.classroomPrivacyMode0908 = nextState;
+                if (typeof saveDB === 'function') saveDB();
+            }
+
+            document.querySelectorAll('[onclick*="toggleClassroomPrivacyMode"]').forEach(btn => {
+                btn.style.background = nextState ? '#065f46' : '#f8fafc';
+                btn.style.color = nextState ? '#ffffff' : '#0f172a';
+                btn.style.borderColor = nextState ? '#10b981' : '#94a3b8';
+            });
+
+            if (typeof showAppToast === 'function') {
+                showAppToast(
+                    nextState
+                        ? '🛡️ تم تفعيل وضع الخصوصية (القانون 09-08): تم تمويه أرقام مسار والمعطيات الفردية عند العرض على السبورة'
+                        : '🔓 تم إيقاف وضع الخصوصية (09-08) وإظهار المعطيات بشكل عادي',
+                    nextState ? 'success' : 'info'
+                );
+            }
+            return nextState;
+        }
+        window.toggleClassroomPrivacyMode = toggleClassroomPrivacyMode;
+
+        /**
+         * المحرك التشخيصي الذكي لمقارنة وتحليل أداء جميع الأقسام (الفروض المحروسة + المواظبة + السلوك)
+         */
+        function computeAllClassesPedagogicalDiagnostics() {
+            const safeDb = (typeof db !== 'undefined' && db) ? db : { classes: {}, grades: {}, records: [], behaviors: {} };
+            const classesMap = (safeDb.classes && typeof safeDb.classes === 'object' && !Array.isArray(safeDb.classes)) ? safeDb.classes : {};
+            const classNames = Object.keys(classesMap).filter(c => Array.isArray(classesMap[c]) && classesMap[c].length > 0);
+            const activeSem = typeof activeSemester !== 'undefined' ? activeSemester : 's1';
+            const results = [];
+
+            for (const cls of classNames) {
+                const students = classesMap[cls] || [];
+                const avgs = [];
+                let passCount = 0;
+                let strugglingCount = 0;
+                let excellenceCount = 0;
+                let totalAbsentHours = 0;
+                let alertBehaviorCount = 0;
+
+                for (const std of students) {
+                    const gObj = typeof getStudentGradesBySemester === 'function'
+                        ? getStudentGradesBySemester(cls, std.id, activeSem)
+                        : ((safeDb.grades && safeDb.grades[cls] && safeDb.grades[cls][std.id]) ? safeDb.grades[cls][std.id] : {});
+                    const avg = typeof calculateStudentAvg === 'function' ? calculateStudentAvg(gObj, cls) : null;
+                    if (avg !== null && Number.isFinite(Number(avg))) {
+                        const num = Number(avg);
+                        avgs.push(num);
+                        if (num >= 10) passCount++;
+                        else strugglingCount++;
+                        if (num >= 15) excellenceCount++;
+                    }
+                    const recs = typeof getStudentClassRecordsFast === 'function'
+                        ? getStudentClassRecordsFast(std.id, cls)
+                        : (Array.isArray(safeDb.records) ? safeDb.records.filter(r => r && r.class === cls && String(r.studentId) === String(std.id)) : []);
+                    for (const r of recs) {
+                        if (r.status === 'غائب' || r.status === 'مبرر') {
+                            totalAbsentHours += (typeof getRecordAbsenceDuration === 'function' ? getRecordAbsenceDuration(r) : 1);
+                        }
+                    }
+                    const beh = (safeDb.behaviors && safeDb.behaviors[cls] && safeDb.behaviors[cls][std.id]) ? safeDb.behaviors[cls][std.id] : null;
+                    if (beh && (beh.status === 'تنبيه' || beh.status === 'مشوش')) {
+                        alertBehaviorCount++;
+                    }
+                }
+
+                const gradedCount = avgs.length;
+                const mean = gradedCount > 0 ? (avgs.reduce((a, b) => a + b, 0) / gradedCount) : null;
+                let stdDev = null;
+                if (gradedCount > 1 && mean !== null) {
+                    const variance = avgs.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / gradedCount;
+                    stdDev = Math.sqrt(variance);
+                }
+                const passRate = gradedCount > 0 ? ((passCount / gradedCount) * 100) : 0;
+
+                let levelLabel = 'في انتظار مسك النقط';
+                let levelColor = '#64748b';
+                let recommendation = 'يرجى مسك نقط الفروض المحروسة لتوليد التشخيص البيداغوجي الدقيق لهذا القسم.';
+                if (mean !== null) {
+                    if (mean >= 13 && passRate >= 75) {
+                        levelLabel = 'تحكم متميز ومستقر';
+                        levelColor = '#15803d';
+                        recommendation = 'استثمار تفوق القسم عبر وضعيات أولمبياد ومسائل توليفية مركبة مع الحفاظ على نسق المواظبة.';
+                    } else if (mean >= 10 && passRate >= 55) {
+                        levelLabel = 'تحكم متوسط إلى جيد';
+                        levelColor = '#1d4ed8';
+                        recommendation = stdDev && stdDev > 3.5
+                            ? 'تفاوت ملحوظ داخل القسم: يوصى بتفييئ المتعلمين إلى مجموعات دعم ومجموعات تقوية لتقليص الفوارق.'
+                            : 'تركيز تمارين التثبيت على المتعثرين (${strugglingCount} تلميذ) لرفع نسبة التحكم فوق 75%.'.replace('${strugglingCount}', String(strugglingCount));
+                    } else {
+                        levelLabel = 'يحتاج دعماً استعجالياً';
+                        levelColor = '#b91c1c';
+                        recommendation = `برمجة حصص دعم واستدراك مركزة على المكتسبات القبلية لفائدة ${strugglingCount} متعلماً متعثراً ومراقبة الغياب (${totalAbsentHours} س).`;
+                    }
+                }
+
+                results.push({
+                    className: cls,
+                    studentCount: students.length,
+                    gradedCount,
+                    mean,
+                    stdDev,
+                    passCount,
+                    strugglingCount,
+                    excellenceCount,
+                    passRate,
+                    totalAbsentHours,
+                    alertBehaviorCount,
+                    levelLabel,
+                    levelColor,
+                    recommendation
+                });
+            }
+            return results;
+        }
+        window.computeAllClassesPedagogicalDiagnostics = computeAllClassesPedagogicalDiagnostics;
+
+        function openDashboardAiClassDiagnostics() {
+            const safeHtml = (v) => (typeof escapeHtml === 'function' ? escapeHtml(String(v ?? '')) : String(v ?? ''));
+            const diagnostics = computeAllClassesPedagogicalDiagnostics();
+
+            let modal = document.getElementById('dashboardAiClassDiagnosticsModal');
+            if (modal) modal.remove();
+
+            modal = document.createElement('div');
+            modal.id = 'dashboardAiClassDiagnosticsModal';
+            modal.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.82); backdrop-filter:blur(5px); z-index:99998; display:flex; align-items:center; justify-content:center; padding:16px; direction:rtl; font-family:"Cairo",sans-serif;';
+
+            const rowsHtml = diagnostics.length === 0
+                ? `<tr><td colspan="8" style="padding:24px; text-align:center; color:#64748b; font-weight:700;">لا توجد أقسام مسجلة حالياً. قم باستيراد لوائح مسار أولاً.</td></tr>`
+                : diagnostics.map(d => `
+                    <tr style="border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:10px; font-weight:900; color:#0f172a;">${safeHtml(d.className)}</td>
+                        <td style="padding:10px; text-align:center; font-weight:700;">${d.studentCount}</td>
+                        <td style="padding:10px; text-align:center; font-weight:900; color:${d.mean !== null ? (d.mean >= 10 ? '#15803d' : '#b91c1c') : '#64748b'};">${d.mean !== null ? d.mean.toFixed(2) : '-'}</td>
+                        <td style="padding:10px; text-align:center; font-weight:800; color:#0369a1;">${d.gradedCount > 0 ? d.passRate.toFixed(1) + '%' : '-'}</td>
+                        <td style="padding:10px; text-align:center; font-weight:700;">${d.stdDev !== null ? d.stdDev.toFixed(2) : '-'}</td>
+                        <td style="padding:10px; text-align:center; font-weight:800; color:#b91c1c;">${d.strugglingCount}</td>
+                        <td style="padding:10px; text-align:center; font-weight:800; color:${d.totalAbsentHours > 0 ? '#d97706' : '#0f172a'};">${d.totalAbsentHours} س</td>
+                        <td style="padding:10px;">
+                            <div style="font-weight:900; font-size:0.78rem; color:${d.levelColor}; margin-bottom:2px;">${safeHtml(d.levelLabel)}</div>
+                            <div style="font-size:0.73rem; color:#475569; line-height:1.4;">${safeHtml(d.recommendation)}</div>
+                        </td>
+                    </tr>
+                `).join('');
+
+            modal.innerHTML = `
+                <div style="background:#ffffff; width:100%; max-width:1080px; max-height:90vh; border-radius:14px; border:1px solid #cbd5e1; box-shadow:0 24px 60px rgba(0,0,0,0.45); display:flex; flex-direction:column; overflow:hidden;">
+                    <div style="background:linear-gradient(135deg,#1e1b4b,#312e81); color:#ffffff; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                        <div>
+                            <h3 style="margin:0; font-size:1.05rem; font-weight:900;">🤖 التقرير التشخيصي المقارن لأداء الأقسام (الفروض المحروسة والمواظبة)</h3>
+                            <div style="font-size:0.76rem; color:#c7d2fe; margin-top:2px;">تحليل إحصائي وتربوي شامل لمعدلات الفروض المحروسة، التشتت، المتعثرين، وساعات الغياب</div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <button type="button" id="btnPrintDashboardAiClassDiagnostics" onclick="printDashboardAiClassDiagnostics()" style="background:#10b981; color:#ffffff; border:none; padding:7px 14px; border-radius:8px; font-weight:800; font-size:0.8rem; cursor:pointer; font-family:'Cairo',sans-serif;">
+                                🖨️ معاينة وطباعة التقرير
+                            </button>
+                            <button type="button" id="btnCloseDashboardAiClassDiagnostics" onclick="document.getElementById('dashboardAiClassDiagnosticsModal')?.remove()" style="background:#ef4444; color:#ffffff; border:none; padding:7px 12px; border-radius:8px; font-weight:800; font-size:0.8rem; cursor:pointer; font-family:'Cairo',sans-serif;">
+                                ✖ إغلاق
+                            </button>
+                        </div>
+                    </div>
+                    <div id="dashboardAiClassDiagnosticsPrintableBody" style="padding:18px; overflow-y:auto;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.83rem; border:1px solid #cbd5e1;">
+                            <thead>
+                                <tr style="background:#f1f5f9; color:#0f172a; border-bottom:2px solid #94a3b8;">
+                                    <th style="padding:10px; text-align:right;">القسم</th>
+                                    <th style="padding:10px; text-align:center;">عدد التلاميذ</th>
+                                    <th style="padding:10px; text-align:center;">المعدل العام</th>
+                                    <th style="padding:10px; text-align:center;">نسبة التحكم (≥10)</th>
+                                    <th style="padding:10px; text-align:center;">الانحراف المعياري</th>
+                                    <th style="padding:10px; text-align:center;">المتعثرون (&lt;10)</th>
+                                    <th style="padding:10px; text-align:center;">إجمالي الغياب</th>
+                                    <th style="padding:10px; text-align:right;">التشخيص والتوصية البيداغوجية</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            return diagnostics;
+        }
+        window.openDashboardAiClassDiagnostics = openDashboardAiClassDiagnostics;
+
+        function printDashboardAiClassDiagnostics() {
+            const bodyEl = document.getElementById('dashboardAiClassDiagnosticsPrintableBody');
+            if (!bodyEl) {
+                openDashboardAiClassDiagnostics();
+            }
+            const printable = document.getElementById('dashboardAiClassDiagnosticsPrintableBody');
+            if (!printable) return false;
+            const html = `
+                <div style="direction:rtl; font-family:'Cairo',sans-serif;">
+                    <div style="text-align:center; border-bottom:2px solid #1e3a8a; padding-bottom:10px; margin-bottom:14px;">
+                        <div style="font-size:0.82rem; font-weight:800; color:#1e3a8a;">المملكة المغربية — وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
+                        <h2 style="margin:6px 0 2px; font-size:1.15rem; color:#0f172a;">التقرير التشخيصي المقارن لأداء الأقسام — مادة الرياضيات</h2>
+                    </div>
+                    ${printable.innerHTML}
+                </div>
+            `;
+            if (typeof openCustomPrintPreviewModal === 'function') {
+                openCustomPrintPreviewModal(html, {
+                    title: 'التقرير_التشخيصي_المقارن_للأقسام',
+                    subtitle: 'معاينة التقرير التشخيصي المقارن لجميع الأقسام قبل الطباعة أو التصدير بصيغة PDF',
+                    orientation: 'landscape',
+                    pageSize: 'A4'
+                });
+                return true;
+            }
+            return false;
+        }
+        window.printDashboardAiClassDiagnostics = printDashboardAiClassDiagnostics;

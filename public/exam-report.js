@@ -98,6 +98,25 @@
         return { school, year, academy, direction };
     }
 
+    function getOfficialSchoolHeaderMeta() {
+        return {
+            ...getSchoolMetadata(),
+            teacher: getTeacherName()
+        };
+    }
+
+    function normalizeExamKey(rawVal) {
+        const str = String(rawVal || 'f1').trim().toLowerCase();
+        if (/^f[1-4]$/.test(str)) return str;
+        if (/^[1-4]$/.test(str)) return `f${str}`;
+        const m = str.match(/[1-4]/);
+        return m ? `f${m[0]}` : 'f1';
+    }
+
+    function getExamNumberFromKey(rawVal) {
+        return parseInt(normalizeExamKey(rawVal).replace('f', ''), 10) || 1;
+    }
+
     /**
      * القسم المحدد حالياً في واجهات تقرير الفرض.
      * الأولوية: منتقي تقرير الفرض، ثم منتقي الفرض التعويضي، ثم القسم النشط.
@@ -112,6 +131,7 @@
             || readValue('reportClassSelect')
             || readValue('massarMakeupClassSelect')
             || window.activeClass
+            || (window.db && window.db.currentClass)
             || '';
     }
 
@@ -150,6 +170,8 @@
         const classGrades = (window.db.grades && window.db.grades[className]) ? window.db.grades[className] : {};
         const makeupRegistry = getOrInitMakeupExamsRegistry();
 
+        const normExamKey = normalizeExamKey(examKey);
+
         students.forEach((std, idx) => {
             const orderNum = idx + 1;
             const stdRecord = classGrades[std.id];
@@ -157,27 +179,37 @@
 
             if (typeof window.getStudentGradesBySemester === 'function') {
                 const semGrades = window.getStudentGradesBySemester(className, std.id, semester);
-                if (semGrades && semGrades[examKey] !== undefined) {
-                    val = semGrades[examKey];
+                if (semGrades && semGrades[normExamKey] !== undefined) {
+                    val = semGrades[normExamKey];
                 }
             }
             if (val === undefined && stdRecord) {
                 if (semester === 's2') {
-                    if (stdRecord.s2 && stdRecord.s2[examKey] !== undefined) val = stdRecord.s2[examKey];
+                    if (stdRecord.s2 && stdRecord.s2[normExamKey] !== undefined) val = stdRecord.s2[normExamKey];
                 } else {
-                    if (stdRecord.s1 && stdRecord.s1[examKey] !== undefined) val = stdRecord.s1[examKey];
-                    else if (stdRecord[examKey] !== undefined) val = stdRecord[examKey];
+                    if (stdRecord.s1 && stdRecord.s1[normExamKey] !== undefined) val = stdRecord.s1[normExamKey];
+                    else if (stdRecord[normExamKey] !== undefined) val = stdRecord[normExamKey];
+                }
+            }
+            if (val === undefined && std && std.grades) {
+                if (semester === 's2' && std.grades.s2 && std.grades.s2[normExamKey] !== undefined) {
+                    val = std.grades.s2[normExamKey];
+                } else if (semester !== 's2' && std.grades.s1 && std.grades.s1[normExamKey] !== undefined) {
+                    val = std.grades.s1[normExamKey];
+                } else if (std.grades[normExamKey] !== undefined) {
+                    val = std.grades[normExamKey];
                 }
             }
 
-            const mKey = getMakeupExamKey(className, semester, examKey, std.id);
+            const mKey = getMakeupExamKey(className, semester, normExamKey, std.id);
             const makeupInfo = makeupRegistry[mKey] || null;
 
-            const isAbsVal = (val === 'غ' || val === 'abs' || val === 'A' || val === 'غائب');
+            const normalizedStr = (val !== undefined && val !== null) ? String(val).trim() : '';
+            const isAbsVal = (normalizedStr === 'غ' || normalizedStr.toLowerCase() === 'abs' || normalizedStr.toUpperCase() === 'A' || normalizedStr === 'غائب');
             let markNum = null;
-            if (!isAbsVal && val !== '' && val !== undefined && val !== null) {
-                const parsed = parseFloat(val);
-                if (!isNaN(parsed)) markNum = parsed;
+            if (!isAbsVal && normalizedStr !== '') {
+                const parsed = parseFloat(normalizedStr.replace(',', '.'));
+                if (!isNaN(parsed) && parsed >= 0 && parsed <= 20) markNum = parsed;
             }
 
             const isAbs = isAbsVal || (markNum === null && makeupInfo && makeupInfo.status !== 'completed');
@@ -186,7 +218,7 @@
                 order: orderNum,
                 id: std.id,
                 name: std.name || `تلميذ(ة) ${orderNum}`,
-                massar: std.massar || '---',
+                massar: std.massar || std.massarCode || std.cne || '---',
                 mark: markNum,
                 isAbsent: isAbs,
                 rawVal: val,
@@ -341,24 +373,47 @@
      * تهيئة واجهة تقرير الفرض المحروس
      */
     function initExamReportSection() {
-        const classSel = document.getElementById('reportClassSelect');
-        const currentCls = classSel ? classSel.value : '';
+        const currentCls = getSelectedClassForReport();
         if (currentCls) {
             loadOrBuildReportForForm(currentCls);
         }
     }
 
+    function updateStreamNormBadge(className, examNum) {
+        const badge = document.getElementById('examReportStreamNormBadge');
+        if (!badge) return;
+        if (!className || !window.GradesCalculator || typeof window.GradesCalculator.getStreamOfficialConfig !== 'function') {
+            badge.textContent = 'المذكرة 142-08';
+            badge.style.background = '#eff6ff';
+            badge.style.color = '#1e40af';
+            badge.style.borderColor = '#bfdbfe';
+            return;
+        }
+        const cfg = window.GradesCalculator.getStreamOfficialConfig(className);
+        if (examNum > cfg.examsPerSemester) {
+            badge.textContent = `⚠️ ${className}: المقرر ${cfg.examsPerSemester} فروض/دورة (معامل ${cfg.coefficient})`;
+            badge.style.background = '#fef2f2';
+            badge.style.color = '#b91c1c';
+            badge.style.borderColor = '#fca5a5';
+        } else {
+            badge.textContent = `✓ ${cfg.label || className} · معامل ${cfg.coefficient} · ${cfg.examsPerSemester} فروض/دورة`;
+            badge.style.background = '#eff6ff';
+            badge.style.color = '#1e40af';
+            badge.style.borderColor = '#bfdbfe';
+        }
+    }
+
     function loadOrBuildReportForForm(className) {
         if (!className) {
-            const classSel = document.getElementById('reportClassSelect');
-            if (classSel && classSel.value) className = classSel.value;
+            className = getSelectedClassForReport();
         }
 
         const semSelect = document.getElementById('examReportSemester');
         const numSelect = document.getElementById('examReportNumber');
         const semester = semSelect ? semSelect.value : 's1';
-        const examNum = numSelect ? parseInt(numSelect.value, 10) || 1 : 1;
-        const examKey = `f${examNum}`;
+        const examNum = getExamNumberFromKey(numSelect ? numSelect.value : 1);
+
+        updateStreamNormBadge(className, examNum);
 
         const reportKey = generateReportKey(className, semester, examNum);
         const storedReports = getStoredExamReports();
@@ -370,8 +425,12 @@
         // استخلاص معطيات الفرض المحروس الرسمية من المذكرة 142-08 والمقرر الوزاري
         let defaultTopics = '';
         let defaultDuration = '2h';
-        let defaultCoef = (typeof window.getSubjectCoefForClass === 'function') ? window.getSubjectCoefForClass(className) : 1;
-        let defaultScale = 'التمرين 1 (تطبيق مباشر للمفاهيم - 50%): 6 ن | التمرين 2 (استحضار وتوظيف - 30%): 8 ن | التمرين 3 (توليف واستدلال - 20%): 6 ن';
+        let defaultCoef = (typeof window.getSubjectCoefForClass === 'function')
+            ? window.getSubjectCoefForClass(className)
+            : ((window.GradesCalculator && typeof window.GradesCalculator.getStreamOfficialConfig === 'function')
+                ? window.GradesCalculator.getStreamOfficialConfig(className).coefficient
+                : 1);
+        let defaultScale = 'التمرين 1 (تطبيق مباشر للمفاهيم - 30%): 6 ن | التمرين 2 (استحضار وتوظيف - 50%): 10 ن | التمرين 3 (توليف واستدلال - 20%): 4 ن';
 
         if (typeof window.getCurriculumLevelForClass === 'function' && window.MOROCCAN_SECONDARY_MATH_CURRICULUM) {
             const trackKey = window.getCurriculumLevelForClass(className);
@@ -393,15 +452,16 @@
         }
 
         if (!defaultTopics) {
-            if (className.includes('1Bac') || className.includes('أولى باك')) {
+            const upperCls = String(className || '').toUpperCase();
+            if (upperCls.includes('1BAC') || upperCls.includes('أولى باك')) {
                 defaultTopics = examNum === 1
                     ? 'مبادئ في المنطق الرياضي + عموميات حول الدوال العددية (مجموعة التعريف، الزوجية، الرتابة)'
                     : (examNum === 2 ? 'المرجح في المستوى + الجداء السلمي وتطبيقاته في الهندسة' : 'الحساب المثلثي + المتتاليات العددية');
-            } else if (className.includes('2Bac') || className.includes('ثانية باك')) {
+            } else if (upperCls.includes('2BAC') || upperCls.includes('ثانية باك')) {
                 defaultTopics = examNum === 1
                     ? 'الاتصال والاشتقاق + دراسة الدوال العددية ومبرهنة القيم الوسيطية'
                     : (examNum === 2 ? 'الدوال اللوغاريتمية والأسية + المتتاليات العددية' : 'الأعداد العقدية + حساب التكامل والمعادلات التفاضلية');
-            } else if (className.includes('TCS') || className.includes('مشترك')) {
+            } else if (upperCls.includes('TCS') || upperCls.includes('TCT') || upperCls.includes('TCL') || upperCls.includes('مشترك')) {
                 defaultTopics = examNum === 1
                     ? 'مجموعات الأعداد والحسابيات في N + الحساب المتجهي في المستوى'
                     : (examNum === 2 ? 'الإسقاط في المستوى والترتيب في IR + المستقيم في المستوى' : 'الحدوديات والمعادلات والمتراجحات والنظمات + الحساب المثلثي (الجزء 1)');
@@ -463,10 +523,12 @@
      * احتساب الإحصائيات وعرض الجداول
      */
     function autoCalculateExamStats(notifyUser = true) {
-        const className = document.getElementById('reportClassSelect')?.value || '';
+        const className = getSelectedClassForReport();
         const semester = document.getElementById('examReportSemester')?.value || 's1';
-        const examNum = parseInt(document.getElementById('examReportNumber')?.value, 10) || 1;
+        const examNum = getExamNumberFromKey(document.getElementById('examReportNumber')?.value || 1);
         const examKey = `f${examNum}`;
+
+        updateStreamNormBadge(className, examNum);
 
         if (!className) {
             if (notifyUser && typeof window.showNotification === 'function') {
@@ -484,6 +546,7 @@
 
         renderExamStatsUI(stats);
         renderExamTablesUI(allStudents, rankedMarks, absents);
+        renderExamProgressionComparison(className, semester, examNum);
 
         if (notifyUser && typeof window.showNotification === 'function') {
             if (stats.presentCount > 0) {
@@ -510,6 +573,15 @@
         setText('examStatAvg', stats.presentCount > 0 ? `${stats.avgMark}/20` : '--');
         setText('examStatPassRate', `${stats.passRate}% (${stats.passCount} تلميذ)`);
         setText('examStatFailRate', `${stats.failRate}% (${stats.failCount} تلميذ)`);
+        setText('examStatMedian', stats.presentCount > 0 && stats.medianMark !== undefined ? `${stats.medianMark}/20` : '--');
+        setText('examStatStdDev', stats.presentCount > 0 && stats.stdDev !== undefined ? stats.stdDev : '--');
+
+        if (stats.presentCount > 0 && stats.cvPct !== undefined) {
+            const homLabel = stats.cvPct <= 20 ? 'متجانس' : (stats.cvPct <= 30 ? 'مقبول' : 'متشتت');
+            setText('examStatCV', `${stats.cvPct}% (${homLabel})`);
+        } else {
+            setText('examStatCV', '--');
+        }
 
         const avgEl = document.getElementById('examStatAvg');
         if (avgEl) {
@@ -936,9 +1008,9 @@
     }
 
     function saveCurrentExamReport() {
-        const className = document.getElementById('reportClassSelect')?.value || '';
+        const className = getSelectedClassForReport();
         const semester = document.getElementById('examReportSemester')?.value || 's1';
-        const examNum = parseInt(document.getElementById('examReportNumber')?.value, 10) || 1;
+        const examNum = getExamNumberFromKey(document.getElementById('examReportNumber')?.value || 1);
 
         if (!className) {
             if (typeof window.showNotification === 'function') {
@@ -991,9 +1063,9 @@
         if (typeof autoCalculateExamStats === 'function') {
             autoCalculateExamStats(false);
         }
-        const className = document.getElementById('reportClassSelect')?.value || 'قسم غير محدد';
+        const className = getSelectedClassForReport() || 'قسم غير محدد';
         const semester = document.getElementById('examReportSemester')?.value || 's1';
-        const examNum = document.getElementById('examReportNumber')?.value || '1';
+        const examNum = String(getExamNumberFromKey(document.getElementById('examReportNumber')?.value || 1));
         const getVal = id => document.getElementById(id)?.value || '';
 
         const passDate = getVal('examReportPassDate') || '---';
@@ -1790,7 +1862,7 @@
     function quickUpdateMakeupJustification(studentId, justificationCode) {
         const className = getSelectedClassForReport();
         const semester = document.getElementById('examReportSemester')?.value || 's1';
-        const examKey = document.getElementById('examReportNumber')?.value || 'f1';
+        const examKey = normalizeExamKey(document.getElementById('examReportNumber')?.value || 'f1');
         if (!className) return;
 
         const registry = getOrInitMakeupExamsRegistry();
@@ -1823,7 +1895,7 @@
     function applyMakeupExamMarkInline(studentId, customInputId, overrideClass, overrideSemester, overrideExamKey) {
         const className = overrideClass || getSelectedClassForReport() || document.getElementById('massarMakeupClassSelect')?.value || '';
         const semester = overrideSemester || document.getElementById('examReportSemester')?.value || document.getElementById('massarMakeupSemesterSelect')?.value || 's1';
-        const examKey = overrideExamKey || document.getElementById('examReportNumber')?.value || document.getElementById('massarMakeupExamSelect')?.value || 'f1';
+        const examKey = normalizeExamKey(overrideExamKey || document.getElementById('examReportNumber')?.value || document.getElementById('massarMakeupExamSelect')?.value || 'f1');
         if (!className || !window.db) return;
 
         const inputEl = document.getElementById(customInputId || `inlineMakeupMark_${studentId}`);
@@ -1911,7 +1983,7 @@
     function markStudentAbsentForCurrentExam(studentId) {
         const className = getSelectedClassForReport();
         const semester = document.getElementById('examReportSemester')?.value || 's1';
-        const examKey = document.getElementById('examReportNumber')?.value || 'f1';
+        const examKey = normalizeExamKey(document.getElementById('examReportNumber')?.value || 'f1');
         if (!className || !studentId || !window.db) return;
 
         if (!window.db.grades) window.db.grades = {};
@@ -1969,7 +2041,7 @@
         }
 
         const semester = document.getElementById('examReportSemester')?.value || 's1';
-        const examKey = document.getElementById('examReportNumber')?.value || 'f1';
+        const examKey = normalizeExamKey(document.getElementById('examReportNumber')?.value || 'f1');
         const examNum = examKey.replace('f', '');
         const semLabel = semester === 's2' ? 'الدورة الثانية' : 'الدورة الأولى';
 
@@ -2163,7 +2235,7 @@
         if (!className) return;
 
         const semester = document.getElementById('examReportSemester')?.value || 's1';
-        const examKey = document.getElementById('examReportNumber')?.value || 'f1';
+        const examKey = normalizeExamKey(document.getElementById('examReportNumber')?.value || 'f1');
         const examNum = examKey.replace('f', '');
 
         const makeupDate = document.getElementById('makeupModalDate')?.value || new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
@@ -2243,7 +2315,7 @@
         if (!className) return;
 
         const semester = overrideSemester || document.getElementById('examReportSemester')?.value || document.getElementById('massarMakeupSemesterSelect')?.value || 's1';
-        const examKey = overrideExamKey || document.getElementById('examReportNumber')?.value || document.getElementById('massarMakeupExamSelect')?.value || 'f1';
+        const examKey = normalizeExamKey(overrideExamKey || document.getElementById('examReportNumber')?.value || document.getElementById('massarMakeupExamSelect')?.value || 'f1');
         const examNum = examKey.replace('f', '');
         const semLabel = semester === 's2' ? 'الدورة الثانية' : 'الدورة الأولى';
 
@@ -3370,7 +3442,232 @@
         }
     }
 
+    /**
+     * مقارنة تطور الفروض المحروسة للقسم في الدورة الحالية (F1 -> F2 -> F3 -> F4)
+     */
+    function computeExamProgressionForClass(className, semester) {
+        if (!className) return [];
+        const cfg = (window.GradesCalculator && typeof window.GradesCalculator.getStreamOfficialConfig === 'function')
+            ? window.GradesCalculator.getStreamOfficialConfig(className)
+            : { examsPerSemester: 3 };
+        const maxExams = Math.min(4, Math.max(2, cfg.examsPerSemester || 3));
+        const items = [];
+        let prevAvg = null;
+
+        for (let i = 1; i <= maxExams; i++) {
+            const examKey = `f${i}`;
+            const { marks, absents, totalStudents } = extractExamMarksFromDB(className, semester, examKey);
+            const stats = computeExamStats(marks, totalStudents, absents.length);
+            let delta = null;
+            if (stats.presentCount > 0 && prevAvg !== null) {
+                delta = parseFloat((stats.avgMark - prevAvg).toFixed(2));
+            }
+            if (stats.presentCount > 0) {
+                prevAvg = stats.avgMark;
+            }
+            items.push({
+                examNumber: i,
+                examKey,
+                presentCount: stats.presentCount,
+                absentCount: stats.absentCount,
+                avgMark: stats.avgMark,
+                passRate: stats.passRate,
+                delta
+            });
+        }
+        return items;
+    }
+
+    function renderExamProgressionComparison(className, semester, activeExamNum) {
+        const container = document.getElementById('examReportProgressionStrip');
+        if (!container) return;
+        if (!className) {
+            container.innerHTML = `<div style="font-size:0.76rem; color:#64748b;">اختر قسماً لعرض مقارنة تطور الفروض...</div>`;
+            return;
+        }
+        const items = computeExamProgressionForClass(className, semester || 's1');
+        container.innerHTML = items.map(item => {
+            const isCurrent = item.examNumber === activeExamNum;
+            const hasData = item.presentCount > 0;
+            let deltaHtml = '';
+            if (item.delta !== null) {
+                const up = item.delta >= 0;
+                deltaHtml = `<span style="font-size:0.68rem; font-weight:800; color:${up ? '#15803d' : '#dc2626'}; background:${up ? '#dcfce7' : '#fee2e2'}; padding:1px 6px; border-radius:4px;">${up ? '+' : ''}${item.delta} ${up ? '↑' : '↓'}</span>`;
+            }
+            return `
+                <button type="button" onclick="const sel=document.getElementById('examReportNumber'); if(sel){sel.value='${item.examNumber}'; window.loadOrBuildReportForForm();}"
+                    style="text-align:right; background:${isCurrent ? '#eff6ff' : '#f8fafc'}; border:${isCurrent ? '2px solid #2563eb' : '1px solid #cbd5e1'}; border-radius:8px; padding:7px 10px; cursor:pointer; display:flex; flex-direction:column; gap:3px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                        <strong style="font-size:0.78rem; color:#1e3a8a;">الفرض ${item.examNumber} (F${item.examNumber})</strong>
+                        ${deltaHtml}
+                    </div>
+                    <div style="font-size:0.86rem; font-weight:900; color:${hasData ? (item.avgMark >= 10 ? '#15803d' : '#dc2626') : '#94a3b8'};">
+                        ${hasData ? `${item.avgMark}/20` : 'غير مرصود'}
+                    </div>
+                    <div style="font-size:0.68rem; color:#64748b; font-weight:700;">
+                        ${hasData ? `التحكم: ${item.passRate}% · غياب: ${item.absentCount}` : 'بانتظار مسك النقط'}
+                    </div>
+                </button>
+            `;
+        }).join('');
+    }
+
+    /**
+     * توليد التشخيص الآلي للتعثرات وخطة المعالجة البيداغوجية استناداً إلى نتائج القسم والمذكرة 142-08
+     */
+    function generateAutoExamPedagogicalDiagnostics() {
+        const className = getSelectedClassForReport();
+        const semester = document.getElementById('examReportSemester')?.value || 's1';
+        const examNum = getExamNumberFromKey(document.getElementById('examReportNumber')?.value || 1);
+        const examKey = `f${examNum}`;
+        if (!className) {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('يرجى اختيار القسم أولاً لتوليد التشخيص الآلي.', 'warning');
+            }
+            return null;
+        }
+
+        const { marks, absents, totalStudents } = extractExamMarksFromDB(className, semester, examKey);
+        const stats = computeExamStats(marks, totalStudents, absents.length);
+        const topics = (document.getElementById('examReportTopics')?.value || '').trim();
+
+        const diffLines = [];
+        const remLines = [];
+
+        if (stats.presentCount === 0) {
+            diffLines.push('• لم تُرصد بعد نقط الحاضرين لهذا الفرض؛ يرجى مسك النقط لاستخلاص مؤشرات التعثر بدقة.');
+            remLines.push('• استكمال مسك نقط الفرض ثم تفعيل المعالجة المندمجة حسب فئات التحكم.');
+        } else {
+            const severeCount = (stats.distribution?.veryLow?.count || 0);
+            const lowCount = (stats.distribution?.low?.count || 0);
+            const highCount = (stats.distribution?.good?.count || 0) + (stats.distribution?.excellent?.count || 0);
+
+            if (stats.avgMark < 10) {
+                diffLines.push(`• تدنّي المعدل العام للقسم (${stats.avgMark}/20) مع ارتفاع نسبة المتعثرين دون المعدل إلى ${stats.failRate}% (${stats.failCount} تلميذ).`);
+            } else if (stats.avgMark < 12) {
+                diffLines.push(`• تحكم متوسط للقسم (المعدل: ${stats.avgMark}/20، القيمة الوسطية: ${stats.medianMark}/20) يتطلب تعزيز مهارات التوليف والبرهان.`);
+            } else {
+                diffLines.push(`• أداء إيجابي عام للقسم (المعدل: ${stats.avgMark}/20، نسبة التحكم: ${stats.passRate}%).`);
+            }
+
+            if (stats.cvPct > 30) {
+                diffLines.push(`• تباين وتشتت ملحوظ في مستويات التلاميذ (معامل الاختلاف CV = ${stats.cvPct}%، الانحراف المعياري σ = ${stats.stdDev}).`);
+            } else {
+                diffLines.push(`• تجانس نسبي في أداء القسم (معامل الاختلاف CV = ${stats.cvPct}%، الانحراف المعياري σ = ${stats.stdDev}).`);
+            }
+
+            if (severeCount > 0) {
+                diffLines.push(`• تعثر حاد في التعلمات الأساسية لدى ${severeCount} تلميذ(ة) في مجال [0 - 4.99]، خصوصاً في تطبيق القواعد والمنهجية الرياضية.`);
+            }
+            if (lowCount > 0) {
+                diffLines.push(`• صعوبات مرحلية لدى ${lowCount} تلميذ(ة) ضمن فئة [5 - 9.99] في توظيف المفاهيم والانتقال من الحساب المباشر إلى الاستدلال.`);
+            }
+            if (topics) {
+                diffLines.push(`• المحاور التي تستلزم تثبيتاً إضافياً: ${topics}.`);
+            }
+
+            // خطة المعالجة
+            remLines.push(`• تخصيص حصة تصحيح تفاعلية وفق المذكرة 142-08 للوقوف على الأخطاء المنهجية الشائعة وإعادة بناء الحل النموذجي.`);
+            if (stats.failCount > 0) {
+                remLines.push(`• تكوين مجموعات دعم علاجي مركزة لفائدة التلاميذ دون المعدل (${stats.failCount} تلميذ) مع بطاقات تمارين متدرجة الصعوبة.`);
+            }
+            if (stats.cvPct > 30) {
+                remLines.push(`• اعتماد بيداغوجيا الفارقية وتنشيط التعلم بالقرين (Tutorat par les pairs) بين الفئة المتفوقة (${highCount} تلميذ ≥ 14) والفئة المتعثرة.`);
+            }
+            if (absents.length > 0) {
+                remLines.push(`• برمجة فرض محروس تعويضي مكافئ لفائدة ${absents.length} تلميذ(ة) متغيب(ة) بمبرر مقبول ومزامنته مع الحراسة العامة.`);
+            }
+            if (highCount > 0) {
+                remLines.push(`• اقتراح مسائل أولمبية وتوليفية مفتوحة لإغناء رصيد التلاميذ المتفوقين (${highCount} تلميذ).`);
+            }
+        }
+
+        const difficultiesText = diffLines.join('\n');
+        const remediationText = remLines.join('\n');
+
+        const diffEl = document.getElementById('examReportDifficulties');
+        const remEl = document.getElementById('examReportRemediation');
+        if (diffEl) diffEl.value = difficultiesText;
+        if (remEl) remEl.value = remediationText;
+
+        if (currentExamReport) {
+            currentExamReport.difficulties = difficultiesText;
+            currentExamReport.remediation = remediationText;
+            currentExamReport.stats = stats;
+        }
+
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('✨ تم توليد التشخيص البيداغوجي وخطة المعالجة آلياً بناءً على مؤشرات القسم.', 'success');
+        }
+        return { difficulties: difficultiesText, remediation: remediationText, stats };
+    }
+
+    /**
+     * بناء وتصدير بطاقة نتائج الفرض نحو تطبيق إنتاج الوثائق التربوية (.json)
+     */
+    function buildCompanionExamFeedbackPayload() {
+        const className = getSelectedClassForReport();
+        const semester = document.getElementById('examReportSemester')?.value || 's1';
+        const examNum = getExamNumberFromKey(document.getElementById('examReportNumber')?.value || 1);
+        const examKey = `f${examNum}`;
+        const { marks, absents, totalStudents } = extractExamMarksFromDB(className, semester, examKey);
+        const stats = computeExamStats(marks, totalStudents, absents.length);
+        const streamCfg = (window.GradesCalculator && typeof window.GradesCalculator.getStreamOfficialConfig === 'function')
+            ? window.GradesCalculator.getStreamOfficialConfig(className)
+            : { coefficient: 1, examsPerSemester: 3, label: className };
+
+        return {
+            protocol: 'PEDAGOGICAL_COMPANION_BRIDGE_V1',
+            kind: 'exam_feedback',
+            exportedAt: new Date().toISOString(),
+            className,
+            semester,
+            examNumber: examNum,
+            examKey,
+            stream: streamCfg,
+            topics: document.getElementById('examReportTopics')?.value || '',
+            gradingScale: document.getElementById('examReportGradingScale')?.value || '',
+            stats,
+            strugglingStudentsCount: stats.failCount,
+            absentsCount: absents.length,
+            difficulties: document.getElementById('examReportDifficulties')?.value || '',
+            remediation: document.getElementById('examReportRemediation')?.value || ''
+        };
+    }
+
+    function exportExamFeedbackToCompanionJson() {
+        const payload = buildCompanionExamFeedbackPayload();
+        if (!payload.className) {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('يرجى اختيار القسم أولاً لتصدير بطاقة الفرض.', 'warning');
+            }
+            return payload;
+        }
+        const jsonStr = JSON.stringify(payload, null, 2);
+        try {
+            if (typeof Blob !== 'undefined' && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+                const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `exam_feedback_${payload.className}_${payload.semester}_f${payload.examNumber}.json`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }
+        } catch (e) {
+            console.warn('Export companion JSON download fallback:', e);
+        }
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(`📤 تم تصدير بطاقة تشخيص الفرض رقم ${payload.examNumber} (${payload.className}) بصيغة JSON للتطبيق الموازي.`, 'success');
+        }
+        return payload;
+    }
+
     // Expose methods globally
+    window.getOfficialSchoolHeaderMeta = getOfficialSchoolHeaderMeta;
+    window.normalizeExamKey = normalizeExamKey;
     window.initExamReportSection = initExamReportSection;
     window.loadOrBuildReportForForm = loadOrBuildReportForForm;
     window.autoCalculateExamStats = autoCalculateExamStats;
@@ -3380,6 +3677,11 @@
     window.switchExamReportTableView = switchExamReportTableView;
     window.switchExamPieChartMode = switchExamPieChartMode;
     window.buildExamReportPieChartSVG = buildExamReportPieChartSVG;
+    window.generateAutoExamPedagogicalDiagnostics = generateAutoExamPedagogicalDiagnostics;
+    window.computeExamProgressionForClass = computeExamProgressionForClass;
+    window.renderExamProgressionComparison = renderExamProgressionComparison;
+    window.buildCompanionExamFeedbackPayload = buildCompanionExamFeedbackPayload;
+    window.exportExamFeedbackToCompanionJson = exportExamFeedbackToCompanionJson;
     window.openMakeupExamManagerModal = openMakeupExamManagerModal;
     window.quickUpdateMakeupJustification = quickUpdateMakeupJustification;
     window.applyMakeupExamMarkInline = applyMakeupExamMarkInline;
@@ -3399,7 +3701,13 @@
     window.renderMassarMakeupSchedulerTable = renderMassarMakeupSchedulerTable;
     window.deleteMassarMakeupScheduleEntry = deleteMassarMakeupScheduleEntry;
     window.cleanupExamReportMemory = function () {
-        cachedExamStudentsData = [];
+        cachedExamStudentsData = {
+            allStudents: [],
+            rankedMarks: [],
+            absents: [],
+            completedMakeups: [],
+            totalStudents: 0
+        };
         const f = document.getElementById('examReportPrintIframe');
         if (f) f.remove();
     };

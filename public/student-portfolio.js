@@ -945,7 +945,7 @@
                         <!-- ترويسة البطاقة -->
                         <div style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); color: #ffffff; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #fbbf24;">
                             <div>
-                                <div style="font-size: 0.72rem; color: #fde68a; font-weight: 800;">المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                                <div style="font-size: 0.72rem; color: #fde68a; font-weight: 800;">المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                                 <div style="font-size: 1rem; font-weight: 900; margin-top: 2px;">بطاقة التتبع البيداغوجي الفردي - مادة الرياضيات</div>
                                 <div style="font-size: 0.74rem; color: #cbd5e1; margin-top: 1px;">المؤسسة: ${escapeHtml(schoolName)} | الموسم الدراسي: ${escapeHtml(academicYear)}</div>
                             </div>

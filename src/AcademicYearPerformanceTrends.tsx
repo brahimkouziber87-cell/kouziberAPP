@@ -518,7 +518,7 @@ export default function AcademicYearPerformanceTrends({
       <div style="direction:rtl;font-family:'Cairo',sans-serif;color:#0f172a;padding:4mm;">
         <div style="border-bottom:2px solid #1e3a8a;padding-bottom:8px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
           <div style="font-size:11px;font-weight:800;line-height:1.5;">
-            <div>المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+            <div>المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
             <div>المؤسسة: ${schoolName} · المادة: الرياضيات</div>
           </div>
           <div style="text-align:center;">

@@ -473,9 +473,17 @@
                     const s1Grades = window.getStudentGradesBySemester(className, std.id, 's1');
                     const s2Grades = window.getStudentGradesBySemester(className, std.id, 's2');
                     const gradesList = [];
-                    ['f1', 'f2', 'f3'].forEach(k => {
-                        if (s1Grades && s1Grades[k] !== undefined && s1Grades[k] !== '') gradesList.push(Number(s1Grades[k]));
-                        if (s2Grades && s2Grades[k] !== undefined && s2Grades[k] !== '') gradesList.push(Number(s2Grades[k]));
+                    ['f1', 'f2', 'f3', 'f4'].forEach(k => {
+                        const raw = s1Grades ? s1Grades[k] : undefined;
+                        if (raw !== undefined && raw !== '' && raw !== null) {
+                            const n = Number(String(raw).replace(',', '.'));
+                            if (!isNaN(n)) gradesList.push(n);
+                        }
+                        const raw2 = s2Grades ? s2Grades[k] : undefined;
+                        if (raw2 !== undefined && raw2 !== '' && raw2 !== null) {
+                            const n2 = Number(String(raw2).replace(',', '.'));
+                            if (!isNaN(n2)) gradesList.push(n2);
+                        }
                     });
                     if (gradesList.length > 0) {
                         previousExamAvg = (gradesList.reduce((a, b) => a + b, 0) / gradesList.length).toFixed(2);

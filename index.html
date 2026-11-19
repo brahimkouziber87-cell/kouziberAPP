@@ -252,8 +252,12 @@
                     <option value="600">600 DPI (فائقة الدقة)</option>
                 </select>
             </div>
-            <div class="print-mode-page-setup-group" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(15, 23, 42, 0.35); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.18);" title="اختيار مكونات المواظبة والغياب المضمنة في الطباعة وتصدير PDF و PNG">
+            <div class="print-mode-page-setup-group" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(15, 23, 42, 0.35); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.18);" title="اختيار مكونات التقرير الفردي والمخططات والمواظبة المضمنة في الطباعة وتصدير PDF و PNG">
                 <span style="font-size: 0.72rem; font-weight: 800; color: #99f6e4;">تضمين بالمطبوع:</span>
+                <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.73rem; font-weight: 700; color: #ffffff; margin: 0;" title="إظهار أو إخفاء الرسوم والمخططات البيانية لتطور أداء التلميذ تلقائياً في المعاينة وعند الطباعة أو تصدير PDF">
+                    <input type="checkbox" id="barPrintOptProgressChart" checked onchange="toggleStudentAttendancePrintComponent('progressChart', this.checked)" style="width: 14px; height: 14px; accent-color: #14b8a6; cursor: pointer;">
+                    <span>📈 تضمين المخططات البيانية للأداء</span>
+                </label>
                 <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.73rem; font-weight: 700; color: #ffffff; margin: 0;">
                     <input type="checkbox" id="barPrintOptMonthMatrix" checked onchange="toggleStudentAttendancePrintComponent('monthMatrix', this.checked)" style="width: 14px; height: 14px; accent-color: #14b8a6; cursor: pointer;">
                     <span>📊 مصفوفة الشهور</span>
@@ -1311,7 +1315,7 @@
                             </div>
 
                             <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
-                                <button type="button" class="btn-dash-mini-action" onclick="if(typeof switchView==='function') switchView('calendarView'); if(typeof switchCalendarSubView==='function') switchCalendarSubView('annual');" title="فتح التقويم السنوي والعطل المدرسية" style="color: #4f46e5; border-color: #c7d2fe; background: #f5f3ff;">
+                                <button type="button" class="btn-dash-mini-action" onclick="switchTab('calendar'); setTimeout(function(){ if(typeof switchCalendarSubView==='function') switchCalendarSubView('annual'); }, 40);" title="فتح التقويم السنوي والعطل المدرسية" style="color: #4f46e5; border-color: #c7d2fe; background: #f5f3ff;">
                                     <span data-lucide="calendar-days" data-size="12"></span>
                                     <span>التقويم</span>
                                 </button>
@@ -1371,7 +1375,7 @@
                             </div>
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <span id="dashPacingSyncStatusBadge" style="font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: #dcfce7; color: #166534; border: 1px solid #86efac;">منسجم مع الزمن ✅</span>
-                                <button type="button" onclick="if(typeof switchView==='function') switchView('lessonLogView');" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 0.67rem; font-weight: 800; padding: 2px 7px; border-radius: 6px; cursor: pointer;" title="معاينة سجل الدروس والتوزيع السنوي">سجل الدروس ⬅</button>
+                                <button type="button" onclick="switchTab('lessonlog');" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 0.67rem; font-weight: 800; padding: 2px 7px; border-radius: 6px; cursor: pointer;" title="معاينة سجل الدروس والتوزيع السنوي">سجل الدروس ⬅</button>
                             </div>
                         </div>
 
@@ -1514,7 +1518,7 @@
                                 <strong>الأجواء الصفية والتنقل:</strong> جاري تحليل المعطيات المناخية وحصص اليوم لتقديم التوجيهات الملائمة...
                             </div>
                         </div>
-                        <button type="button" id="dashWeatherQuickActionBtn" onclick="if(typeof switchView==='function') switchView('studentsView');" style="display: none; white-space: nowrap; background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; font-size: 0.68rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; cursor: pointer; align-self: center;">سجل الغياب ⬅</button>
+                        <button type="button" id="dashWeatherQuickActionBtn" onclick="switchTab('absence');" style="display: none; white-space: nowrap; background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; font-size: 0.68rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; cursor: pointer; align-self: center;">سجل الغياب ⬅</button>
                     </div>
                 </div>
             </div>
@@ -3099,6 +3103,7 @@
                                 <span>تقرير الفرض المحروس - مادة الرياضيات</span>
                                 <span class="header-discipline-pill" style="font-size: 0.68rem; height: 22px; padding: 1px 8px;">السلك الثانوي التأهيلي</span>
                                 <span id="examReportStatusBadge" style="font-size: 0.70rem; background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 6px; font-weight: 800; border: 1px solid #fde68a;">مسودة قيد التحرير</span>
+                                <span id="examReportStreamNormBadge" style="font-size: 0.70rem; background: #eff6ff; color: #1e40af; padding: 2px 8px; border-radius: 6px; font-weight: 800; border: 1px solid #bfdbfe;">المذكرة 142-08</span>
                             </h3>
                             <p style="color: #475569; font-size: 0.78rem; margin: 2px 0 0 0;">
                                 توثيق رسمي لتمرير وتصحيح الفرض، تحليل النتائج والإحصائيات، تشخيص التعثرات، وخطة المعالجة والدعم البيداغوجي
@@ -3117,6 +3122,10 @@
                         <button type="button" class="btn-primary" onclick="window.saveCurrentExamReport()" style="background: linear-gradient(135deg, #059669, #047857); font-size: 0.78rem; padding: 6px 12px; font-weight: 800; border-radius: 7px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(5, 150, 105, 0.25);">
                             <span>💾</span>
                             <span>حفظ التقرير</span>
+                        </button>
+                        <button type="button" class="btn-primary" onclick="window.exportExamFeedbackToCompanionJson()" style="background: linear-gradient(135deg, #7c3aed, #5b21b6); font-size: 0.78rem; padding: 6px 12px; font-weight: 800; border-radius: 7px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(124, 58, 237, 0.25);" title="تصدير نتائج وتشخيص الفرض بصيغة JSON نحو تطبيق إنتاج الوثائق التربوية">
+                            <span>📤</span>
+                            <span>تصدير للتطبيق الموازي (.json)</span>
                         </button>
                         <button type="button" class="btn-primary" onclick="window.printOfficialExamReport()" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); font-size: 0.78rem; padding: 6px 14px; font-weight: 800; border-radius: 7px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);" title="طباعة رسمية مهيأة للورق A4 للإدارة والتفتيش التربوي">
                             <span>🖨️</span>
@@ -3223,6 +3232,28 @@
                         <div style="background: #ffffff; border: 1px solid #fecaca; border-radius: 8px; padding: 8px; text-align: center;">
                             <div style="font-size: 0.7rem; font-weight: 700; color: #dc2626;">دون المعدل (&lt; 10)</div>
                             <div id="examStatFailRate" style="font-size: 1.1rem; font-weight: 900; color: #dc2626;">0%</div>
+                        </div>
+                        <div style="background: #ffffff; border: 1px solid #bae6fd; border-radius: 8px; padding: 8px; text-align: center;">
+                            <div style="font-size: 0.7rem; font-weight: 700; color: #0369a1;">القيمة الوسطية</div>
+                            <div id="examStatMedian" style="font-size: 1.15rem; font-weight: 900; color: #0369a1;">--</div>
+                        </div>
+                        <div style="background: #ffffff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 8px; text-align: center;">
+                            <div style="font-size: 0.7rem; font-weight: 700; color: #6d28d9;">الانحراف المعياري (σ)</div>
+                            <div id="examStatStdDev" style="font-size: 1.15rem; font-weight: 900; color: #6d28d9;">--</div>
+                        </div>
+                        <div style="background: #ffffff; border: 1px solid #fde68a; border-radius: 8px; padding: 8px; text-align: center;">
+                            <div style="font-size: 0.7rem; font-weight: 700; color: #b45309;">معامل التشتت (CV%)</div>
+                            <div id="examStatCV" style="font-size: 1.05rem; font-weight: 900; color: #b45309;">--</div>
+                        </div>
+                    </div>
+
+                    <!-- شريط مقارنة تطور الفروض المحروسة للقسم في الدورة (F1 -> F2 -> F3 -> F4) -->
+                    <div id="examReportProgressionContainer" style="margin-top: 10px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 0.76rem; font-weight: 800; color: #1e3a8a; margin-bottom: 6px;">
+                            📉 تطور أداء القسم عبر الفروض المحروسة خلال الدورة الحالية:
+                        </div>
+                        <div id="examReportProgressionStrip" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px;">
+                            <div style="font-size: 0.76rem; color: #64748b;">اختر قسماً لعرض مقارنة تطور الفروض...</div>
                         </div>
                     </div>
 
@@ -3390,6 +3421,15 @@
                 </div>
 
                 <!-- 5. تشخيص التعثرات وخطة المعالجة والدعم -->
+                <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div style="font-size: 0.8rem; font-weight: 800; color: #1e3a8a;">
+                        🧭 التشخيص البيداغوجي وخطة المعالجة وفق مؤشرات القسم (المذكرة 142-08)
+                    </div>
+                    <button type="button" id="btnAutoGenerateExamDiagnostics" onclick="window.generateAutoExamPedagogicalDiagnostics()" style="background: linear-gradient(135deg, #0f766e, #0d9488); color: #ffffff; border: none; border-radius: 7px; padding: 6px 12px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(13, 148, 136, 0.25);">
+                        <span>✨</span>
+                        <span>توليد التشخيص الآلي وخطة المعالجة من النتائج</span>
+                    </button>
+                </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-bottom: 12px;">
                     <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px;">
                         <label style="font-size: 0.82rem; font-weight: 800; color: #b91c1c; display: flex; align-items: center; gap: 5px; margin-bottom: 6px;">
@@ -3519,10 +3559,12 @@
                                 <button type="button" onclick="window.setExamPreset('الفرض المحروس رقم 1 (الدورة 1)', 'فرض محروس', 's1', '1', '2h')" style="background: #fdf4ff; border: 1px solid #d8b4fe; color: #6b21a8; padding: 3px 9px; border-radius: 6px; font-size: 0.73rem; font-weight: 800; cursor: pointer;">📝 فرض محروس 1 (د1)</button>
                                 <button type="button" onclick="window.setExamPreset('الفرض المحروس رقم 2 (الدورة 1)', 'فرض محروس', 's1', '2', '2h')" style="background: #fdf4ff; border: 1px solid #d8b4fe; color: #6b21a8; padding: 3px 9px; border-radius: 6px; font-size: 0.73rem; font-weight: 800; cursor: pointer;">📝 فرض محروس 2 (د1)</button>
                                 <button type="button" onclick="window.setExamPreset('الفرض المحروس رقم 3 (الدورة 1)', 'فرض محروس', 's1', '3', '2h')" style="background: #fdf4ff; border: 1px solid #d8b4fe; color: #6b21a8; padding: 3px 9px; border-radius: 6px; font-size: 0.73rem; font-weight: 800; cursor: pointer;">📝 فرض محروس 3 (د1)</button>
+                                <button type="button" onclick="window.setExamPreset('الفرض المحروس رقم 4 (الدورة 1 - علوم رياضية)', 'فرض محروس', 's1', '4', '2h')" style="background: #faf5ff; border: 1px solid #c084fc; color: #581c87; padding: 3px 9px; border-radius: 6px; font-size: 0.73rem; font-weight: 800; cursor: pointer;">📝 فرض محروس 4 (د1 - SM)</button>
                                 <button type="button" onclick="window.setExamPreset('الفرض المنزلي رقم 1 (الدورة 1)', 'فرض منزلي', 's1', 'dm1', 'أسبوع')" style="background: #fffbeb; border: 1px solid #fde68a; color: #b45309; padding: 3px 9px; border-radius: 6px; font-size: 0.73rem; font-weight: 800; cursor: pointer;">🏠 فرض منزلي (د1)</button>
                                 <button type="button" onclick="window.setExamPreset('الفرض المحروس رقم 1 (الدورة 2)', 'فرض محروس', 's2', '1', '2h')" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 3px 9px; border-radius: 6px; font-size: 0.73rem; font-weight: 800; cursor: pointer;">📝 فرض محروس 1 (د2)</button>
                                 <button type="button" onclick="window.setExamPreset('الفرض المحروس رقم 2 (الدورة 2)', 'فرض محروس', 's2', '2', '2h')" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 3px 9px; border-radius: 6px; font-size: 0.73rem; font-weight: 800; cursor: pointer;">📝 فرض محروس 2 (د2)</button>
                                 <button type="button" onclick="window.setExamPreset('الفرض المحروس رقم 3 (الدورة 2)', 'فرض محروس', 's2', '3', '2h')" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 3px 9px; border-radius: 6px; font-size: 0.73rem; font-weight: 800; cursor: pointer;">📝 فرض محروس 3 (د2)</button>
+                                <button type="button" onclick="window.setExamPreset('الفرض المحروس رقم 4 (الدورة 2 - علوم رياضية)', 'فرض محروس', 's2', '4', '2h')" style="background: #eef2ff; border: 1px solid #a5b4fc; color: #3730a3; padding: 3px 9px; border-radius: 6px; font-size: 0.73rem; font-weight: 800; cursor: pointer;">📝 فرض محروس 4 (د2 - SM)</button>
                                 <button type="button" onclick="window.setExamPreset('امتحان تجريبي موحد (باكالوريا)', 'امتحان موحد', 's2', 'mock', '3h')" style="background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 3px 9px; border-radius: 6px; font-size: 0.73rem; font-weight: 800; cursor: pointer;">🎯 امتحان تجريبي موحد</button>
                             </div>
                         </div>
@@ -4205,8 +4247,8 @@
                     <button class="btn-primary" id="btnAiAbsenceWaReport" style="display:none; background: linear-gradient(135deg, #059669, #0f766e); color: white; align-items: center; gap: 6px; font-weight: 800; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);" onclick="openAiAbsenceWhatsAppForReportStudent()" title="توليد ملخص بيداغوجي ذكي بالذكاء الاصطناعي يعتمد على تاريخ غياب التلميذ وتكراره لإنتاج رسالة واتساب لولي الأمر"><span class="ui-icon" style="margin:0;"><span data-lucide="sparkles" data-size="12"></span></span> ملخص الغياب الذكي (AI WhatsApp)</button>
                 </div>
                 <div id="studentChartContainer" style="display: none; margin-bottom: 18px;">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 14px;">
-                        <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);">
+                    <div id="studentChartsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 14px;">
+                        <div id="studentProgressChartCard" style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; flex-wrap: wrap; gap: 4px;">
                                 <strong style="font-size: 0.84rem; color: #1e1b4b; display: flex; align-items: center; gap: 6px;">📈 مبيان تطور المستوى الدراسي (بيانات grades)</strong>
                                 <span style="font-size: 0.72rem; color: #dc2626; font-weight: 800; background: #fef2f2; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 999px;">عتبة التحكم: 10/20</span>
@@ -4215,7 +4257,7 @@
                                 <canvas id="studentProgressChart"></canvas>
                             </div>
                         </div>
-                        <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);">
+                        <div id="studentAttendanceChartCard" style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; flex-wrap: wrap; gap: 4px;">
                                 <strong style="font-size: 0.84rem; color: #0f766e; display: flex; align-items: center; gap: 6px;">📊 مبيان مؤشرات المواظبة والغياب الشهري (بيانات absences)</strong>
                                 <span id="studentAttendanceChartBadge" style="font-size: 0.72rem; color: #047857; font-weight: 800; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 999px;">المواظبة: 100%</span>

@@ -78,7 +78,7 @@
             name: (tp.name || st.teacherName || 'الأستاذ(ة)').trim(),
             subject: (tp.subject || st.subject || 'المادة الدراسية').trim(),
             school: (tp.school || st.school || 'المؤسسة التعليمية').trim(),
-            academy: (tp.academy || 'وزارة التربية الوطنية والتعليم الأولي والرياضة').trim()
+            academy: (tp.academy || 'وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل').trim()
         };
     }
 
@@ -6079,7 +6079,7 @@
         const teacherName = tp.name || 'الأستاذ(ة)';
         const subjectName = tp.subject || 'المادة الدراسية';
         const schoolName = tp.school || 'المؤسسة التعليمية';
-        const academy = tp.academy || 'وزارة التربية الوطنية والتعليم الأولي والرياضة';
+        const academy = tp.academy || 'وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل';
 
         const students = (db && db.tutoring && Array.isArray(db.tutoring.students)) ? db.tutoring.students : [];
 
@@ -6287,7 +6287,7 @@
                 <div class="official-header">
                     <div style="font-size: 9pt; line-height: 1.4;">
                         <div style="font-weight: 900; color: #1e1b4b;">المملكة المغربية</div>
-                        <div>وزارة التربية الوطنية والتعليم الأولي والرياضة</div>
+                        <div>وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
                         <div>${escapeTutoringHtml(academy)}</div>
                         <div style="color: #475569;">${escapeTutoringHtml(schoolName)}</div>
                     </div>
