@@ -2,10 +2,16 @@
         // Safe External URL Opener & In-App Toast Notification Helper (Iframe-Compatible)
         if (typeof window !== 'undefined') {
             window.openSafeExternalUrl = function(url) {
-                if (!url) return null;
+                if (!url || typeof url !== 'string') return null;
                 try {
+                    const parsed = new URL(url.trim(), window.location.origin);
+                    const allowedProtocols = ['https:', 'http:', 'mailto:'];
+                    if (!allowedProtocols.includes(parsed.protocol)) {
+                        console.warn('Blocked unsafe external URL protocol:', parsed.protocol);
+                        return null;
+                    }
                     const a = document.createElement('a');
-                    a.href = url;
+                    a.href = parsed.href;
                     a.target = '_blank';
                     a.rel = 'noopener noreferrer';
                     a.style.display = 'none';
@@ -442,7 +448,13 @@
         document.addEventListener('DOMContentLoaded', updateOnlineStatus);
 
         var db = null;
+        const APP_CLEAN_ZERO_RESET_KEY = 'app_zero_reset_v2026_11_21';
         try {
+            if (localStorage.getItem(APP_CLEAN_ZERO_RESET_KEY) !== '1') {
+                localStorage.clear();
+                localStorage.setItem(APP_CLEAN_ZERO_RESET_KEY, '1');
+                window._needsIdbZeroReset = true;
+            }
             const rawDb = localStorage.getItem('absence_massar_v8_manual');
             if (rawDb) db = JSON.parse(rawDb);
         } catch (e) {
@@ -494,85 +506,7 @@
                 }
             });
 
-            // تهيئة أقسام نموذجية رسمية للسلك الثانوي التأهيلي لمادة الرياضيات إذا كانت قاعدة البيانات خالية
-            if (Object.keys(db.classes).length === 0) {
-                db.classes = {
-                    '2 باك علوم رياضية (2BAC-SM)': [
-                        { id: '1', name: 'ياسين بنجلون الإدريسي', massar: 'G138290145', massarId: 'G138290145' },
-                        { id: '2', name: 'مريم التازي العمراني', massar: 'G141029384', massarId: 'G141029384' },
-                        { id: '3', name: 'أحمد العلمي الفاسي', massar: 'G135892019', massarId: 'G135892019' },
-                        { id: '4', name: 'فاطمة الزهراء الصقلي', massar: 'G139045812', massarId: 'G139045812' },
-                        { id: '5', name: 'حمزة الوردي المنصوري', massar: 'G137182904', massarId: 'G137182904' },
-                        { id: '6', name: 'زينب برادة الفيلالي', massar: 'G136294015', massarId: 'G136294015' },
-                        { id: '7', name: 'عمر الخمليشي الحسني', massar: 'G140928371', massarId: 'G140928371' },
-                        { id: '8', name: 'سارة أيت علي أوبلا', massar: 'G134819203', massarId: 'G134819203' }
-                    ],
-                    '2 باك علوم فيزيائية (2BAC-PC)': [
-                        { id: '9', name: 'مهدي القباج المرابط', massar: 'G132948571', massarId: 'G132948571' },
-                        { id: '10', name: 'هبة بوشعيب الشرايبي', massar: 'G133849201', massarId: 'G133849201' },
-                        { id: '11', name: 'رضا بنسودة العلوي', massar: 'G138472910', massarId: 'G138472910' },
-                        { id: '12', name: 'ابتسام الناصري الإبراهيمي', massar: 'G139582049', massarId: 'G139582049' }
-                    ],
-                    '1 باك علوم تجريبية (1BAC-SE)': [
-                        { id: '13', name: 'أيوب السبتي التلمساني', massar: 'G130022341', massarId: 'G130022341' },
-                        { id: '14', name: 'سلمى الشرقاوي اليعقوبي', massar: 'G130022344', massarId: 'G130022344' },
-                        { id: '15', name: 'أنس المحمدي القادري', massar: 'G130022345', massarId: 'G130022345' }
-                    ],
-                    'جذع مشترك علمي (TCS)': [
-                        { id: '16', name: 'وليد الطاهري الوزاني', massar: 'G131928472', massarId: 'G131928472' },
-                        { id: '17', name: 'خديجة الزياني العراقي', massar: 'G134819402', massarId: 'G134819402' },
-                        { id: '18', name: 'طارق العثماني السباعي', massar: 'G136482910', massarId: 'G136482910' }
-                    ]
-                };
-
-                db.grades = {
-                    '2 باك علوم رياضية (2BAC-SM)': {
-                        '1': { s1: { f1: 15.5, f2: 17.0, f3: 18.0, f4: 17.5, activities: 17.5 }, s2: {} },
-                        '2': { s1: { f1: 14.0, f2: 16.0, f3: 16.5, f4: 16.0, activities: 16.0 }, s2: {} },
-                        '3': { s1: { f1: 11.5, f2: 14.0, f3: 15.0, f4: 14.5, activities: 14.5 }, s2: {} },
-                        '4': { s1: { f1: 16.0, f2: 18.0, f3: 18.5, f4: 18.0, activities: 18.0 }, s2: {} },
-                        '5': { s1: { f1: 8.5, f2: 12.0, f3: 13.5, f4: 12.5, activities: 12.0 }, s2: {} },
-                        '6': { s1: { f1: 13.0, f2: 14.5, f3: 15.0, f4: 14.5, activities: 14.0 }, s2: {} },
-                        '7': { s1: { f1: 9.0, f2: 11.5, f3: 12.0, f4: 11.5, activities: 11.0 }, s2: {} },
-                        '8': { s1: { f1: 12.5, f2: 15.0, f3: 16.0, f4: 15.5, activities: 15.0 }, s2: {} }
-                    },
-                    '2 باك علوم فيزيائية (2BAC-PC)': {
-                        '9': { s1: { f1: 10.0, f2: 13.5, f3: 14.0, activities: 13.0 }, s2: {} },
-                        '10': { s1: { f1: 15.0, f2: 16.5, f3: 17.0, activities: 16.5 }, s2: {} },
-                        '11': { s1: { f1: 7.5, f2: 10.0, f3: 11.5, activities: 10.0 }, s2: {} },
-                        '12': { s1: { f1: 13.5, f2: 15.0, f3: 16.0, activities: 15.0 }, s2: {} }
-                    },
-                    '1 باك علوم تجريبية (1BAC-SE)': {
-                        '13': { s1: { f1: 12.0, f2: 14.0, f3: 15.0, activities: 14.0 }, s2: {} },
-                        '14': { s1: { f1: 14.5, f2: 16.0, f3: 17.0, activities: 16.0 }, s2: {} },
-                        '15': { s1: { f1: 9.5, f2: 11.0, f3: 12.5, activities: 11.5 }, s2: {} }
-                    },
-                    'جذع مشترك علمي (TCS)': {
-                        '16': { s1: { f1: 11.0, f2: 13.5, f3: 14.0, activities: 13.0 }, s2: {} },
-                        '17': { s1: { f1: 15.5, f2: 17.0, f3: 18.0, activities: 17.0 }, s2: {} },
-                        '18': { s1: { f1: 8.0, f2: 10.5, f3: 11.0, activities: 10.5 }, s2: {} }
-                    }
-                };
-
-                db.classConfig = {
-                    '2 باك علوم رياضية (2BAC-SM)': 4,
-                    '2 باك علوم فيزيائية (2BAC-PC)': 3,
-                    '1 باك علوم تجريبية (1BAC-SE)': 3,
-                    'جذع مشترك علمي (TCS)': 3
-                };
-                db.coefConfig = {
-                    '2 باك علوم رياضية (2BAC-SM)': 9,
-                    '2 باك علوم فيزيائية (2BAC-PC)': 7,
-                    '1 باك علوم تجريبية (1BAC-SE)': 7,
-                    'جذع مشترك علمي (TCS)': 4
-                };
-                db.weeklyHoursConfig = {
-                    '2 باك علوم رياضية (2BAC-SM)': 7,
-                    '2 باك علوم فيزيائية (2BAC-PC)': 5,
-                    '1 باك علوم تجريبية (1BAC-SE)': 5,
-                    'جذع مشترك علمي (TCS)': 5
-                };
-            }
+            // إبقاء قاعدة البيانات فارغة ونظيفة تماماً عند عدم وجود أقسام مسجلة (بدون أي أقسام أو تلاميذ افتراضيين)
             if (!db.coefConfig || typeof db.coefConfig !== 'object') {
                 db.coefConfig = {};
             }
@@ -1315,6 +1249,32 @@
                         resolve(null);
                     }
                 });
+            },
+            clearAll() {
+                return new Promise((resolve) => {
+                    this.open().then(idb => {
+                        if (idb) {
+                            try {
+                                const tx = idb.transaction([this.STORE_CHUNKS, this.STORE_BACKUPS], 'readwrite');
+                                tx.objectStore(this.STORE_CHUNKS).clear();
+                                tx.objectStore(this.STORE_BACKUPS).clear();
+                                tx.oncomplete = () => resolve(true);
+                                tx.onerror = () => resolve(false);
+                            } catch (e) {
+                                resolve(false);
+                            }
+                        } else {
+                            resolve(false);
+                        }
+                    }).catch(() => resolve(false));
+                    try {
+                        if (typeof indexedDB !== 'undefined') {
+                            ['AlMoumenPedagogicalEnterpriseDB', 'math_whiteboard_idb', 'SchoolLibraryLocalFiles'].forEach(dbName => {
+                                try { indexedDB.deleteDatabase(dbName); } catch (_) {}
+                            });
+                        }
+                    } catch (_) {}
+                });
             }
         };
         window.MathPedagogicalSystemIDB = MathPedagogicalSystemIDB;
@@ -1322,6 +1282,10 @@
         // استرجاع ذكي ومزامنة هجينة مع كائنات IndexedDB المجزأة ذات السعة الكبيرة
         (function autoRecoverFromIDBIfNeeded() {
             try {
+                if (window._needsIdbZeroReset) {
+                    MathPedagogicalSystemIDB.clearAll().catch(() => {});
+                    return;
+                }
                 MathPedagogicalSystemIDB.restoreFromChunks().then(restoredDb => {
                     if (restoredDb && restoredDb.classes && Object.keys(restoredDb.classes).length > 0) {
                         const localTs = (db && db._lastSavedTimestamp) ? db._lastSavedTimestamp : 0;
@@ -1330,7 +1294,18 @@
 
                         // إذا كانت قاعدة IndexedDB أحدث أو كان localStorage فارغاً
                         if (localHasNoClasses || idbTs > localTs) {
+                            const prevProfile = (db && db.teacherProfile) ? { ...db.teacherProfile } : {};
                             Object.assign(db, restoredDb);
+                            if (!db.teacherProfile) db.teacherProfile = {};
+                            if (prevProfile.password && !db.teacherProfile.password) {
+                                db.teacherProfile.password = prevProfile.password;
+                            }
+                            if (prevProfile.username && !db.teacherProfile.username) {
+                                db.teacherProfile.username = prevProfile.username;
+                            }
+                            if (prevProfile.email && !db.teacherProfile.email) {
+                                db.teacherProfile.email = prevProfile.email;
+                            }
                             window.db = db;
                             _recordsCacheDirty = true;
                             try {
@@ -1759,6 +1734,27 @@
         var saveData = saveDB;
         window.saveData = saveDB;
 
+        function getPreferredLoginUsername() {
+            const tp = (db && db.teacherProfile) ? db.teacherProfile : {};
+            const candidates = [
+                tp.username,
+                tp.name,
+                tp.email,
+                localStorage.getItem('gdrive_last_email')
+            ].map(v => String(v || '').trim()).filter(Boolean);
+            return candidates[0] || '';
+        }
+        window.getPreferredLoginUsername = getPreferredLoginUsername;
+
+        function prefillLoginScreenUsername() {
+            const loginUserEl = document.getElementById('loginUsername');
+            if (loginUserEl && !loginUserEl.value.trim()) {
+                const preferred = getPreferredLoginUsername();
+                if (preferred) loginUserEl.value = preferred;
+            }
+        }
+        window.prefillLoginScreenUsername = prefillLoginScreenUsername;
+
         function checkAuth() {
             const loginScreen = document.getElementById('loginScreen');
             const setupForm = document.getElementById('setupForm');
@@ -1782,11 +1778,12 @@
                 if (loginScreen) loginScreen.style.display = 'flex';
                 if (setupForm) setupForm.style.display = 'none';
                 if (loginForm) loginForm.style.display = 'block';
+                prefillLoginScreenUsername();
             }
             updateTeacherNameInHeader();
         }
 
-        function handleSetup() {
+        async function handleSetup() {
             const name = document.getElementById('setupName').value.trim();
             const username = document.getElementById('setupUsername').value.trim();
             const pwd = document.getElementById('setupPassword').value;
@@ -1796,28 +1793,111 @@
             }
             db.teacherProfile.name = name;
             db.teacherProfile.username = username;
-            db.teacherProfile.password = pwd;
-            saveDB();
+            db.teacherProfile.password = await hashTeacherPasswordSecure(pwd);
+            if (typeof performDBSave === 'function') {
+                performDBSave();
+            } else {
+                saveDB();
+            }
             localStorage.setItem('userLoggedIn', 'true');
+            const loginUserEl = document.getElementById('loginUsername');
+            if (loginUserEl) loginUserEl.value = username;
             document.getElementById('loginScreen').style.display = 'none';
             updateTeacherNameInHeader();
         }
 
-        function handleLogin() {
-            const username = document.getElementById('loginUsername').value.trim();
-            const pwd = document.getElementById('loginPassword').value;
-            // Backwards compatibility for users who didn't set a username previously
-            const validUsername = db.teacherProfile.username || db.teacherProfile.name;
+        const _localAuthAttemptState = { count: 0, lockedUntil: 0 };
 
-            if (username === validUsername && pwd === db.teacherProfile.password) {
+        function isLoginUsernameMatch(enteredUsername) {
+            const cleanEntered = String(enteredUsername || '').trim().toLowerCase();
+            // إذا ترك المستخدم حقل اسم المستخدم فارغاً وأدخل القن السري الصحيح على جهازه الشخصي، نقبل الدخول
+            if (!cleanEntered) return true;
+            const tp = (db && db.teacherProfile) ? db.teacherProfile : {};
+            const lastEmail = String(localStorage.getItem('gdrive_last_email') || '').trim().toLowerCase();
+            const tpEmail = String(tp.email || '').trim().toLowerCase();
+            const stripHonorific = (s) => String(s || '').trim().toLowerCase().replace(/^(?:الأستاذ(?:ة)?|ذ\.?|أستاذ(?:ة)?|prof\.?)\s+/i, '').trim();
+
+            const validCandidates = new Set(
+                [
+                    tp.username,
+                    tp.name,
+                    tp.nameFr,
+                    tpEmail,
+                    tpEmail.includes('@') ? tpEmail.split('@')[0] : '',
+                    lastEmail,
+                    lastEmail.includes('@') ? lastEmail.split('@')[0] : '',
+                    stripHonorific(tp.username),
+                    stripHonorific(tp.name)
+                ]
+                    .map(v => String(v || '').trim().toLowerCase())
+                    .filter(Boolean)
+            );
+
+            if (validCandidates.size === 0) return true;
+            if (validCandidates.has(cleanEntered) || validCandidates.has(stripHonorific(cleanEntered))) {
+                return true;
+            }
+            return false;
+        }
+
+        async function handleLogin() {
+            const loginErrEl = document.getElementById('loginError');
+            const now = Date.now();
+            if (_localAuthAttemptState.lockedUntil > now) {
+                const secs = Math.ceil((_localAuthAttemptState.lockedUntil - now) / 1000);
+                if (loginErrEl) {
+                    loginErrEl.textContent = `🔒 تم قفل المحاولات مؤقتاً لأسباب أمنية. يرجى الانتظار ${secs} ثانية.`;
+                    loginErrEl.style.display = 'block';
+                }
+                return;
+            }
+
+            const usernameInputEl = document.getElementById('loginUsername');
+            const pwdInputEl = document.getElementById('loginPassword');
+            const username = usernameInputEl ? usernameInputEl.value.trim() : '';
+            const pwd = pwdInputEl ? pwdInputEl.value : '';
+            const pwdMatches = await verifyPasswordMatch(pwd, db.teacherProfile.password);
+            const usernameMatches = isLoginUsernameMatch(username);
+
+            if (pwdMatches && usernameMatches) {
+                _localAuthAttemptState.count = 0;
+                _localAuthAttemptState.lockedUntil = 0;
+                // الترحيل التلقائي الآمن للقن السري القديم غير المشفر إلى صيغة PBKDF2 المحمية بملح عشوائي
+                if (db.teacherProfile.password && !String(db.teacherProfile.password).startsWith('pbkdf2$')) {
+                    try {
+                        db.teacherProfile.password = await hashTeacherPasswordSecure(pwd);
+                        if (typeof performDBSave === 'function') {
+                            performDBSave();
+                        } else {
+                            saveDB();
+                        }
+                    } catch (_) {}
+                }
                 localStorage.setItem('userLoggedIn', 'true');
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('loginUsername').value = '';
-                document.getElementById('loginPassword').value = '';
-                document.getElementById('loginError').style.display = 'none';
+                const loginScreen = document.getElementById('loginScreen');
+                if (loginScreen) loginScreen.style.display = 'none';
+                if (usernameInputEl) {
+                    usernameInputEl.value = getPreferredLoginUsername() || username;
+                }
+                if (pwdInputEl) pwdInputEl.value = '';
+                if (loginErrEl) loginErrEl.style.display = 'none';
                 updateTeacherNameInHeader();
             } else {
-                document.getElementById('loginError').style.display = 'block';
+                _localAuthAttemptState.count += 1;
+                if (_localAuthAttemptState.count >= 5) {
+                    _localAuthAttemptState.lockedUntil = Date.now() + 60 * 1000;
+                    _localAuthAttemptState.count = 0;
+                    if (loginErrEl) {
+                        loginErrEl.textContent = '🔒 تم تجاوز 5 محاولات خاطئة. يرجى الانتظار 60 ثانية قبل المحاولة مجدداً.';
+                        loginErrEl.style.display = 'block';
+                    }
+                } else if (loginErrEl) {
+                    const reasonMsg = !pwdMatches
+                        ? 'القن السري غير صحيح'
+                        : 'اسم المستخدم غير مطابق';
+                    loginErrEl.textContent = `⚠️ ${reasonMsg} (المتبقي ${5 - _localAuthAttemptState.count} محاولات).`;
+                    loginErrEl.style.display = 'block';
+                }
             }
         }
 
@@ -1830,9 +1910,25 @@
             const loginScreen = document.getElementById('loginScreen');
             if (loginScreen) loginScreen.style.display = 'flex';
             const setupForm = document.getElementById('setupForm');
-            if (setupForm) setupForm.style.display = 'none';
             const loginForm = document.getElementById('loginForm');
-            if (loginForm) loginForm.style.display = 'block';
+            const hasPassword = !!(db && db.teacherProfile && db.teacherProfile.password);
+            if (!hasPassword) {
+                if (setupForm) setupForm.style.display = 'block';
+                if (loginForm) loginForm.style.display = 'none';
+                const setupNameEl = document.getElementById('setupName');
+                const setupUserEl = document.getElementById('setupUsername');
+                if (setupNameEl && !setupNameEl.value && db.teacherProfile.name) setupNameEl.value = db.teacherProfile.name;
+                if (setupUserEl && !setupUserEl.value) setupUserEl.value = db.teacherProfile.username || db.teacherProfile.name || '';
+            } else {
+                if (setupForm) setupForm.style.display = 'none';
+                if (loginForm) loginForm.style.display = 'block';
+                prefillLoginScreenUsername();
+                const pwdInputEl = document.getElementById('loginPassword');
+                if (pwdInputEl) {
+                    pwdInputEl.value = '';
+                    setTimeout(() => pwdInputEl.focus(), 60);
+                }
+            }
         }
 
         function updateTeacherNameInHeader() {
@@ -1841,7 +1937,7 @@
             }
             const nameDisplay = document.getElementById('headerTeacherName');
             const nameText = document.getElementById('headerTeacherNameText');
-            const teacherName = (db && db.teacherProfile && db.teacherProfile.name && db.teacherProfile.name.trim() !== '') ? db.teacherProfile.name : 'ابراهيم قزيبر';
+            const teacherName = (db && db.teacherProfile && db.teacherProfile.name && db.teacherProfile.name.trim() !== '') ? db.teacherProfile.name : 'أستاذ المادة';
             if (nameText) {
                 nameText.textContent = `الأستاذ: ${teacherName}`;
             } else if (nameDisplay) {
@@ -2155,26 +2251,21 @@
             let className = reportClassSelect ? reportClassSelect.value : '';
             let studentId = reportStudentSelect ? reportStudentSelect.value : '';
 
-            if (className === '__ALL__' && studentId && studentId.includes(':::')) {
+            if (studentId && studentId.includes(':::')) {
                 const parts = studentId.split(':::');
                 className = parts[0];
                 studentId = parts[1];
-            } else if (studentId && studentId.includes(':::')) {
-                const parts = studentId.split(':::');
-                if (!className || className === '__ALL__') className = parts[0];
-                studentId = parts[1];
             }
 
-            if ((!className || className === '__ALL__') && barClassSelect && barClassSelect.value) {
+            if ((!className || className === '__ALL__' || className === '__MULTI__' || String(className).startsWith('__MULTI__')) && barClassSelect && barClassSelect.value) {
                 className = barClassSelect.value;
             }
             if (!studentId && barStudentSelect && barStudentSelect.value) {
                 studentId = barStudentSelect.value;
             }
 
-            const classList = (className && typeof db !== 'undefined' && db && db.classes && Array.isArray(db.classes[className]))
-                ? db.classes[className]
-                : [];
+            const rawClsObj = (className && typeof db !== 'undefined' && db && db.classes) ? db.classes[className] : null;
+            const classList = Array.isArray(rawClsObj) ? rawClsObj : (rawClsObj && Array.isArray(rawClsObj.students) ? rawClsObj.students : []);
             const std = classList.find(s => String(s.id) === String(studentId)) || null;
             return { className, studentId, std };
         }
@@ -2417,8 +2508,9 @@
             if (classNames.length === 0) return;
 
             let currentClass = reportClassSelect.value;
-            if (!currentClass || currentClass === '__ALL__' || !db.classes[currentClass] || db.classes[currentClass].length === 0) {
-                currentClass = classNames[0];
+            if (!currentClass || currentClass === '__ALL__' || currentClass === '__MULTI__' || String(currentClass).startsWith('__MULTI__') || !db.classes[currentClass] || db.classes[currentClass].length === 0) {
+                const res = typeof resolveReportTargetClasses === 'function' ? resolveReportTargetClasses(currentClass) : null;
+                currentClass = (res && res.classes && res.classes[0]) ? res.classes[0] : classNames[0];
                 reportClassSelect.value = currentClass;
                 if (typeof renderReport === 'function') {
                     renderReport();
@@ -2446,13 +2538,14 @@
 
             let activeClass = reportClassSelect ? reportClassSelect.value : '';
             let activeStudent = reportStudentSelect ? reportStudentSelect.value : '';
-            if (activeClass === '__ALL__' && activeStudent && activeStudent.includes(':::')) {
+            if (activeStudent && activeStudent.includes(':::')) {
                 const parts = activeStudent.split(':::');
                 activeClass = parts[0];
                 activeStudent = parts[1];
             }
-            if ((!activeClass || activeClass === '__ALL__') && classNames.length > 0) {
-                activeClass = classNames[0];
+            if ((!activeClass || activeClass === '__ALL__' || activeClass === '__MULTI__' || String(activeClass).startsWith('__MULTI__')) && classNames.length > 0) {
+                const res = typeof resolveReportTargetClasses === 'function' ? resolveReportTargetClasses(activeClass) : null;
+                activeClass = (res && res.classes && res.classes[0]) ? res.classes[0] : classNames[0];
             }
 
             barClassSelect.innerHTML = '';
@@ -3149,23 +3242,55 @@
             setSettingsSaveStatus('saved');
         }
 
-        function updateTeacherPassword() {
-            const oldPwd = document.getElementById('settingsOldPassword').value;
-            const newPwd = document.getElementById('settingsNewPassword').value;
+        async function updateTeacherPassword() {
+            const oldPwdEl = document.getElementById('settingsOldPassword');
+            const newPwdEl = document.getElementById('settingsNewPassword');
+            const usernameEl = document.getElementById('settingsUsername');
+            const oldPwd = oldPwdEl ? oldPwdEl.value : '';
+            const newPwd = newPwdEl ? newPwdEl.value : '';
 
-            if (!oldPwd || !newPwd) {
-                showAppToast('المرجو إدخال القن السري الحالي والجديد', 'warning');
-                return;
+            if (usernameEl && usernameEl.value.trim()) {
+                db.teacherProfile.username = usernameEl.value.trim();
             }
-            if (oldPwd !== db.teacherProfile.password) {
-                showAppToast('القن السري الحالي غير صحيح', 'warning');
-                return;
+
+            const hasExistingPassword = !!(db.teacherProfile && db.teacherProfile.password);
+            const candidateNewPwd = newPwd || (!hasExistingPassword ? oldPwd : '');
+
+            if (!candidateNewPwd || !normalizePinInput(candidateNewPwd)) {
+                showAppToast('المرجو إدخال القن السري الجديد', 'warning');
+                return false;
             }
-            db.teacherProfile.password = newPwd;
-            saveDB();
-            document.getElementById('settingsOldPassword').value = '';
-            document.getElementById('settingsNewPassword').value = '';
-            showAppToast('تم تحديث القن السري بنجاح', 'success');
+            if (hasExistingPassword && !oldPwd) {
+                showAppToast('المرجو إدخال القن السري الحالي لتأكيد التغيير', 'warning');
+                return false;
+            }
+            const normalizedNew = normalizePinInput(candidateNewPwd);
+            if (normalizedNew.length < 4) {
+                showAppToast('يفضل ألا يقل القن السري الجديد عن 4 رموز لحماية بياناتك.', 'warning');
+                return false;
+            }
+            if (hasExistingPassword) {
+                const oldMatches = await verifyPasswordMatch(oldPwd, db.teacherProfile.password);
+                if (!oldMatches) {
+                    showAppToast('القن السري الحالي غير صحيح', 'warning');
+                    return false;
+                }
+            }
+            db.teacherProfile.password = await hashTeacherPasswordSecure(normalizedNew);
+            if (typeof performDBSave === 'function') {
+                performDBSave();
+            } else {
+                saveDB();
+            }
+            if (oldPwdEl) {
+                oldPwdEl.value = '';
+                oldPwdEl.placeholder = 'أدخل القن السري الحالي';
+            }
+            if (newPwdEl) newPwdEl.value = '';
+            const loginUserEl = document.getElementById('loginUsername');
+            if (loginUserEl) loginUserEl.value = getPreferredLoginUsername();
+            showAppToast('تم تحديث وتشفير القن السري بنجاح (PBKDF2-SHA256)', 'success');
+            return true;
         }
 
         function openTeacherSettings(initialTab = 'settingsPersonal') {
@@ -3216,7 +3341,13 @@
                 phoneField.value = db.teacherProfile.phone || (db.calendarWhatsappReminder && db.calendarWhatsappReminder.phone) || '';
             }
             document.getElementById('settingsUsername').value = db.teacherProfile.username || db.teacherProfile.name || '';
-            document.getElementById('settingsOldPassword').value = '';
+            const oldPwdField = document.getElementById('settingsOldPassword');
+            if (oldPwdField) {
+                oldPwdField.value = '';
+                oldPwdField.placeholder = (db.teacherProfile && db.teacherProfile.password)
+                    ? 'أدخل القن السري الحالي'
+                    : 'لا يوجد قن سري حالي (اختياري عند التعيين لأول مرة)';
+            }
             document.getElementById('settingsNewPassword').value = '';
             document.getElementById('settingsAbsenceThreshold').value = db.absenceThreshold || 10;
             document.getElementById('settingsClassSort').value = db.classSortPref || 'alphabetical';
@@ -3283,6 +3414,9 @@
             renderAttendanceStatusColorsUI();
             if (typeof syncTypographySettingsUI === 'function') {
                 syncTypographySettingsUI();
+            }
+            if (typeof window.syncBackupUIState === 'function') {
+                window.syncBackupUIState();
             }
 
             document.getElementById('teacherSettingsModal').style.display = 'flex';
@@ -4794,7 +4928,7 @@
             purgeArchivedClasses([className]);
         }
 
-        function purgeArchivedClasses(classNamesToPurge) {
+        async function purgeArchivedClasses(classNamesToPurge) {
             if (!Array.isArray(classNamesToPurge) || classNamesToPurge.length === 0) {
                 showAppToast('يرجى تحديد قسم واحد على الأقل للحذف', 'warning');
                 return;
@@ -4804,10 +4938,11 @@
             const namesList = classNamesToPurge.join(', ');
 
             const msg = `تحذير هام: هل أنت متأكد من حذف الأقسام المؤرشفة التالية نهائياً لتخفيف قاعدة البيانات؟\n\n[ ${namesList} ]\n\nسيتم حذف لوائح التلاميذ وسجلات الحضور والغياب ونقط الفروض المرتبطة بها نهائياً.`;
-            if (!confirm(msg)) return;
-
-            if (!confirm(`تأكيد أخير: سيتم مسح بيانات ${count} قسم(اً) نهائياً من الذاكرة المحلية وقاعدة البيانات. هل تريد المتابعة؟`)) {
-                return;
+            if (typeof window.showConfirmDialog === 'function') {
+                const ok1 = await window.showConfirmDialog(msg, { title: 'تأكيد حذف الأقسام المؤرشفة', confirmText: 'متابعة الحذف', cancelText: 'إلغاء', danger: true });
+                if (!ok1) return;
+                const ok2 = await window.showConfirmDialog(`تأكيد أخير: سيتم مسح بيانات ${count} قسم(اً) نهائياً من الذاكرة المحلية وقاعدة البيانات. هل تريد المتابعة؟`, { title: 'تأكيد نهائي للحذف', confirmText: 'حذف نهائي', cancelText: 'تراجع', danger: true });
+                if (!ok2) return;
             }
 
             const purgeSet = new Set(classNamesToPurge);
@@ -5451,8 +5586,26 @@
             }
         }
 
-        function saveAndCloseTeacherSettings() {
+        async function saveAndCloseTeacherSettings() {
             autoSaveTeacherSettings();
+            const oldPwdEl = document.getElementById('settingsOldPassword');
+            const newPwdEl = document.getElementById('settingsNewPassword');
+            const hasExistingPassword = !!(db && db.teacherProfile && db.teacherProfile.password);
+            const pendingNewVal = newPwdEl ? newPwdEl.value.trim() : '';
+            const pendingOldVal = oldPwdEl ? oldPwdEl.value.trim() : '';
+
+            if (pendingNewVal || (!hasExistingPassword && pendingOldVal)) {
+                const pwdUpdated = await updateTeacherPassword();
+                if (!pwdUpdated) {
+                    if (typeof switchSettingsTab === 'function') {
+                        switchSettingsTab('settingsAccount');
+                    }
+                    return;
+                }
+            }
+            if (typeof performDBSave === 'function') {
+                performDBSave();
+            }
             showAppToast('تم حفظ إعدادات المنظومة بنجاح', 'success');
             closeTeacherSettings();
         }
@@ -5518,7 +5671,7 @@
             if (legacy) legacy.style.display = 'none';
         }
 
-        function saveTeacherSettings() {
+        async function saveTeacherSettings() {
             const name = document.getElementById('settingsTeacherName').value.trim();
             const username = document.getElementById('settingsUsername').value.trim();
             const oldPwd = document.getElementById('settingsOldPassword').value;
@@ -5531,7 +5684,8 @@
 
             // Check if password change is requested
             if (oldPwd || newPwd) {
-                if (oldPwd !== db.teacherProfile.password) {
+                const isOldValid = await verifyPasswordMatch(oldPwd, db.teacherProfile.password);
+                if (!isOldValid) {
                     window.notifySafeToast('القن السري الحالي غير صحيح.');
                     return;
                 }
@@ -5539,7 +5693,7 @@
                     window.notifySafeToast('يرجى إدخال القن السري الجديد.');
                     return;
                 }
-                db.teacherProfile.password = newPwd;
+                db.teacherProfile.password = await hashTeacherPasswordSecure(newPwd);
             }
 
             db.teacherProfile.name = name;
@@ -5676,9 +5830,9 @@
                     branchCode: is2Bac ? '2BAC_SM' : '1BAC_SM',
                     levelLabel: is2Bac ? 'الثانية باكالوريا' : 'الأولى باكالوريا',
                     branchLabel: is2Bac ? 'الثانية باكالوريا علوم رياضية (أ / ب)' : 'الأولى باكالوريا علوم رياضية (1BAC SM)',
-                    weeklyHours: is2Bac ? 9 : 7,
+                    weeklyHours: 7,
                     examsCount: 4,
-                    examDuration: 'ساعتان إلى 3 ساعات (2h - 3h)',
+                    examDuration: 'ساعتان (2h)',
                     homeworkPerSemester: 4,
                     coef: 9,
                     isAutoRecognized: true
@@ -5741,7 +5895,7 @@
                 };
             }
 
-            // 5. شعبة العلوم والتكنولوجيات الكهربائية والميكانيكية (STE / STM) - المذكرة 142-08: 5 ساعات أسبوعياً، المعامل 7، 3 فروض محروسة (2h) + 3 فروض منزلية
+            // 5. شعبة العلوم والتكنولوجيات الكهربائية والميكانيكية (STE / STM) - المذكرة 142-08: 5 ساعات أسبوعياً، المعامل 6، 3 فروض محروسة (2h) + 3 فروض منزلية
             if (
                 /\bSTE\b|\bSTM\b|\b1B?STE\b|\b2B?STE\b|\b1B?STM\b|\b2B?STM\b/i.test(upper) ||
                 upper.startsWith('STE') || upper.startsWith('STM') || upper.startsWith('1STE') || upper.startsWith('2STE') ||
@@ -6994,8 +7148,8 @@
             }, 100);
         }
 
-        function clearDaySchedule(day) {
-            if (!confirm('هل أنت متأكد من رغبتك في إفراغ جميع حصص يوم ' + day + '؟')) {
+        async function clearDaySchedule(day) {
+            if (!(await window.showConfirmDialog('هل أنت متأكد من رغبتك في إفراغ جميع حصص يوم ' + day + '؟'))) {
                 return;
             }
             if (db.timetable && db.timetable[day]) {
@@ -7828,8 +7982,8 @@
             if (modal) modal.style.display = 'none';
         }
 
-        function deleteSingleSession(studentId, sessionId) {
-            if (!confirm('هل تريد حذف هذه الحصة؟')) return;
+        async function deleteSingleSession(studentId, sessionId) {
+            if (!(await window.showConfirmDialog('هل تريد حذف هذه الحصة؟'))) return;
             const std = (db.tutoring.students || []).find(s => s.id === studentId);
             if (std && std.sessions) {
                 std.sessions = std.sessions.filter(s => s.id !== sessionId);
@@ -10389,35 +10543,20 @@
                     console.error('Error in renderReport:', e);
                 }
                 const currentReportCls = document.getElementById('reportClassSelect') ? document.getElementById('reportClassSelect').value : '';
-                const fromD = document.getElementById('reportDateFrom') ? document.getElementById('reportDateFrom').value : '';
-                const toD = document.getElementById('reportDateTo') ? document.getElementById('reportDateTo').value : '';
-                if (typeof window.updateAbsenceHeatmap === 'function') {
-                    try {
-                        window.updateAbsenceHeatmap(currentReportCls, fromD, toD);
-                    } catch (e) {
-                        console.warn('Error updating absence heatmap on tab switch:', e);
-                    }
-                }
+                const resolvedReportTarget = typeof resolveReportTargetClasses === 'function'
+                    ? resolveReportTargetClasses(currentReportCls)
+                    : { classes: currentReportCls ? [currentReportCls] : [] };
                 if (typeof window.renderReportsEvolutionChart === 'function') {
                     try {
                         window.renderReportsEvolutionChart();
                     } catch (e) {}
                 }
-                if (typeof window.renderUpcomingExamsTimeline === 'function') {
-                    try {
-                        window.renderUpcomingExamsTimeline(currentReportCls);
-                    } catch (e) {
-                        console.warn('Error updating upcoming exams timeline on tab switch:', e);
+                window.dispatchEvent(new CustomEvent('reportsEvolutionTabOpened', {
+                    detail: {
+                        className: currentReportCls,
+                        selectedClasses: resolvedReportTarget.classes
                     }
-                }
-                if (typeof window.renderGradesAbsenceImpactChart === 'function') {
-                    try {
-                        window.renderGradesAbsenceImpactChart();
-                    } catch (e) {
-                        console.warn('Error updating grades absence impact chart on tab switch:', e);
-                    }
-                }
-                window.dispatchEvent(new CustomEvent('reportsEvolutionTabOpened', { detail: { className: currentReportCls } }));
+                }));
             } else if (isNotes) {
                 refreshNotesClassDropdown();
                 renderNotes();
@@ -11262,8 +11401,8 @@
             unlock();
         }
 
-        function deleteHomeworkAgenda(className, id) {
-            if (confirm('هل أنت متأكد من حذف هذا الموعد؟')) {
+        async function deleteHomeworkAgenda(className, id) {
+            if (await window.showConfirmDialog('هل أنت متأكد من حذف هذا الموعد؟')) {
                 db.homeworkAgenda[className] = db.homeworkAgenda[className].filter(i => i.id !== id);
                 saveDB();
                 renderHomeworkAgenda();
@@ -12714,8 +12853,8 @@
             unlock();
         }
 
-        function deleteNote(className, noteId) {
-            if (!confirm('هل أنت متأكد من حذف هذه الملاحظة؟')) return;
+        async function deleteNote(className, noteId) {
+            if (!(await window.showConfirmDialog('هل أنت متأكد من حذف هذه الملاحظة؟'))) return;
             if (db.notes[className]) {
                 db.notes[className] = db.notes[className].filter(n => n.id !== noteId);
                 saveDB();
@@ -12834,7 +12973,13 @@
             const reportSelect = document.getElementById('reportClassSelect');
             if (reportSelect) {
                 const prev = reportSelect.value;
-                reportSelect.innerHTML = '<option value="">-- اختر القسم --</option><option value="__ALL__">📊 جميع الأقسام (تقرير إجمالي شامل)</option>';
+                const multiSelected = Array.isArray(window._selectedReportMultiClasses)
+                    ? window._selectedReportMultiClasses.filter(c => sorted.includes(c))
+                    : [];
+                const multiLabel = multiSelected.length >= 2
+                    ? `🗂️ تقرير مدمج (${multiSelected.length} أقسام): ${multiSelected.join(' + ')}`
+                    : '🗂️ أقسام متعددة مدمجة (مجموعتان أو أكثر...)';
+                reportSelect.innerHTML = `<option value="">-- اختر القسم --</option><option value="__ALL__">📊 جميع الأقسام (تقرير إجمالي شامل)</option><option value="__MULTI__">${multiLabel}</option>`;
                 sorted.forEach(c => {
                     const opt = document.createElement('option');
                     opt.value = c;
@@ -12842,8 +12987,12 @@
                     reportSelect.appendChild(opt);
                 });
                 if (prev === '__ALL__') reportSelect.value = '__ALL__';
+                else if (prev === '__MULTI__' || (prev && String(prev).startsWith('__MULTI__'))) reportSelect.value = '__MULTI__';
                 else if (activeClass && sorted.includes(activeClass)) reportSelect.value = activeClass;
                 else if (prev && sorted.includes(prev)) reportSelect.value = prev;
+                if (typeof window.renderReportMultiClassPicker === 'function') {
+                    window.renderReportMultiClassPicker();
+                }
             }
 
             // 2. Notes Class Select
@@ -13094,8 +13243,8 @@
 
 
         // حذف تلميذ يدوياً
-        function deleteStudent(className, studentId, studentName) {
-            if (!confirm(`هل أنت متأكد من رغبتك في حذف التلميذ: [${studentName}] نهائياً من القسم [${className}]؟`)) {
+        async function deleteStudent(className, studentId, studentName) {
+            if (!(await window.showConfirmDialog(`هل أنت متأكد من رغبتك في حذف التلميذ: [${studentName}] نهائياً من القسم [${className}]؟`))) {
                 return;
             }
 
@@ -15721,8 +15870,8 @@
         }
 
         // تفريغ قائمة الأقسام المكتشفة بالكامل
-        function clearBatchMassarQueue() {
-            if (batchMassarDetectedClasses.length > 0 && !confirm('هل تريد تفريغ قائمة الأقسام المكتشفة والبدء من جديد؟')) return;
+        async function clearBatchMassarQueue() {
+            if (batchMassarDetectedClasses.length > 0 && !(await window.showConfirmDialog('هل تريد تفريغ قائمة الأقسام المكتشفة والبدء من جديد؟'))) return;
             batchMassarDetectedClasses = [];
             const input = document.getElementById('batchMassarFileInput');
             if (input) input.value = '';
@@ -16078,13 +16227,13 @@
         }
 
         // التراجع واسترجاع نقطة الأمان السابقة
-        function undoBatchMassarImport() {
+        async function undoBatchMassarImport() {
             const raw = localStorage.getItem('massar_batch_safety_point');
             if (!raw) {
                 window.notifySafeToast('لا توجد نقطة أمان سابقة محفوظة للتراجع.');
                 return;
             }
-            if (!confirm('هل أنت متأكد من رغبتك في التراجع واسترجاع حالة الأقسام السابقة قبل عملية الاستيراد الجماعي الأخيرة؟ سيتم استرجاع البيانات بدقة كما كانت.')) {
+            if (!(await window.showConfirmDialog('هل أنت متأكد من رغبتك في التراجع واسترجاع حالة الأقسام السابقة قبل عملية الاستيراد الجماعي الأخيرة؟ سيتم استرجاع البيانات بدقة كما كانت.'))) {
                 return;
             }
             try {
@@ -16957,18 +17106,25 @@
             if (!grades) return null;
             const count = (typeof examCount === 'number') ? examCount : 3;
             const keys = count === 2 ? ['f1', 'f2'] : (count === 4 ? ['f1', 'f2', 'f3', 'f4'] : ['f1', 'f2', 'f3']);
+            const parseMarkVal = (v) => {
+                if (v === undefined || v === null || typeof v === 'boolean') return null;
+                const s = String(v).trim().replace(',', '.');
+                if (s === '') return null;
+                const n = parseFloat(s);
+                return (!isNaN(n) && isFinite(n) && n >= 0 && n <= 20) ? n : null;
+            };
 
             // إذا كان الكائن الممرر هو السجل الجذري للتلميذ (يحتوي على s1 أو s2)، نستخرج الدورة النشطة أو المتوفرة
             let sourceGrades = grades;
-            const hasDirectMarks = keys.some(k => grades[k] !== undefined && grades[k] !== '' && !isNaN(grades[k]));
+            const hasDirectMarks = keys.some(k => parseMarkVal(grades[k]) !== null);
             if (grades.s1 || grades.s2) {
                 const sem = targetSemester || window.activeSemester || 's1';
-                if (grades[sem] && keys.some(k => grades[sem][k] !== undefined && grades[sem][k] !== '' && !isNaN(grades[sem][k]))) {
+                if (grades[sem] && keys.some(k => parseMarkVal(grades[sem][k]) !== null)) {
                     sourceGrades = grades[sem];
                 } else if (!hasDirectMarks) {
-                    if (grades.s1 && keys.some(k => grades.s1[k] !== undefined && grades.s1[k] !== '' && !isNaN(grades.s1[k]))) {
+                    if (grades.s1 && keys.some(k => parseMarkVal(grades.s1[k]) !== null)) {
                         sourceGrades = grades.s1;
-                    } else if (grades.s2 && keys.some(k => grades.s2[k] !== undefined && grades.s2[k] !== '' && !isNaN(grades.s2[k]))) {
+                    } else if (grades.s2 && keys.some(k => parseMarkVal(grades.s2[k]) !== null)) {
                         sourceGrades = grades.s2;
                     }
                 }
@@ -16976,8 +17132,9 @@
 
             let sum = 0, validCount = 0;
             keys.forEach(k => {
-                if (sourceGrades[k] !== undefined && sourceGrades[k] !== '' && !isNaN(sourceGrades[k])) {
-                    sum += parseFloat(sourceGrades[k]);
+                const n = parseMarkVal(sourceGrades[k]);
+                if (n !== null) {
+                    sum += n;
                     validCount++;
                 }
             });
@@ -17019,8 +17176,12 @@
             const points = [];
             keys.forEach((k, idx) => {
                 const raw = grades ? grades[k] : undefined;
-                if (raw !== undefined && raw !== null && raw !== '' && !isNaN(raw)) {
-                    points.push({ x: idx + 1, y: parseFloat(raw), key: k, label: `ف${idx + 1}` });
+                if (raw !== undefined && raw !== null && typeof raw !== 'boolean') {
+                    const norm = String(raw).trim().replace(',', '.');
+                    const n = norm === '' ? NaN : parseFloat(norm);
+                    if (!isNaN(n) && isFinite(n) && n >= 0 && n <= 20) {
+                        points.push({ x: idx + 1, y: n, key: k, label: `ف${idx + 1}` });
+                    }
                 }
             });
 
@@ -19304,25 +19465,406 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             document.getElementById('reportDateTo').value = formatLocalDate(today);
         }
 
+        // =========================================================================
+        // ميزة التحديد المتعدد للأقسام في حقل تصفية الأقسام الموحد (دمج مجموعتين أو أكثر)
+        // =========================================================================
+        window._selectedReportMultiClasses = window._selectedReportMultiClasses || [];
+        try {
+            const savedMulti = localStorage.getItem('report_multi_selected_classes_v1');
+            if (savedMulti && (!window._selectedReportMultiClasses || window._selectedReportMultiClasses.length === 0)) {
+                const parsed = JSON.parse(savedMulti);
+                if (Array.isArray(parsed)) {
+                    window._selectedReportMultiClasses = parsed;
+                }
+            }
+        } catch (e) {}
+
+        function resolveReportTargetClasses(classSpec) {
+            const allAvailable = (typeof getSortedClasses === 'function')
+                ? getSortedClasses(true)
+                : Object.keys((db && db.classes) || {});
+            let rawSpec = classSpec;
+            if (rawSpec === undefined || rawSpec === null) {
+                const sel = document.getElementById('reportClassSelect');
+                rawSpec = sel ? sel.value : '';
+            }
+
+            if (Array.isArray(rawSpec)) {
+                const valid = rawSpec.filter(c => c && db && db.classes && db.classes[c]);
+                if (valid.length === 0) return { mode: 'none', classes: [], isMulti: false, isAll: false, label: '', shortLabel: '' };
+                if (valid.length === 1) return { mode: 'single', classes: valid, isMulti: false, isAll: false, label: valid[0], shortLabel: valid[0] };
+                return {
+                    mode: 'multi',
+                    classes: valid,
+                    isMulti: true,
+                    isAll: valid.length === allAvailable.length && allAvailable.length > 1,
+                    label: valid.join(' + '),
+                    shortLabel: `مدمج (${valid.length} أقسام)`
+                };
+            }
+
+            const specStr = String(rawSpec || '').trim();
+            if (!specStr) {
+                return { mode: 'none', classes: [], isMulti: false, isAll: false, label: '', shortLabel: '' };
+            }
+
+            if (specStr === '__ALL__' || specStr === 'all') {
+                return {
+                    mode: 'all',
+                    classes: allAvailable,
+                    isMulti: true,
+                    isAll: true,
+                    label: 'جميع الأقسام المسندة',
+                    shortLabel: 'جميع الأقسام'
+                };
+            }
+
+            if (specStr === '__MULTI__' || specStr.startsWith('__MULTI__:')) {
+                let candidateList = [];
+                if (specStr.startsWith('__MULTI__:')) {
+                    candidateList = specStr.slice(10).split('|||').map(s => s.trim()).filter(Boolean);
+                } else if (Array.isArray(window._selectedReportMultiClasses)) {
+                    candidateList = window._selectedReportMultiClasses.slice();
+                }
+                const valid = candidateList.filter(c => db && db.classes && db.classes[c]);
+                if (valid.length === 0) {
+                    const fallback = allAvailable.slice(0, Math.min(2, allAvailable.length));
+                    if (fallback.length === 0) {
+                        return { mode: 'none', classes: [], isMulti: false, isAll: false, label: '', shortLabel: '' };
+                    }
+                    window._selectedReportMultiClasses = fallback.slice();
+                    return {
+                        mode: fallback.length > 1 ? 'multi' : 'single',
+                        classes: fallback,
+                        isMulti: fallback.length > 1,
+                        isAll: false,
+                        label: fallback.join(' + '),
+                        shortLabel: fallback.length > 1 ? `مدمج (${fallback.length} أقسام)` : fallback[0]
+                    };
+                }
+                if (valid.length === 1) {
+                    return {
+                        mode: 'single',
+                        classes: valid,
+                        isMulti: false,
+                        isAll: false,
+                        label: valid[0],
+                        shortLabel: valid[0]
+                    };
+                }
+                return {
+                    mode: 'multi',
+                    classes: valid,
+                    isMulti: true,
+                    isAll: valid.length === allAvailable.length && allAvailable.length > 1,
+                    label: valid.join(' + '),
+                    shortLabel: `مدمج (${valid.length} أقسام)`
+                };
+            }
+
+            if (specStr.includes('|||')) {
+                const parts = specStr.split('|||').map(s => s.trim()).filter(c => c && db && db.classes && db.classes[c]);
+                if (parts.length > 1) {
+                    return {
+                        mode: 'multi',
+                        classes: parts,
+                        isMulti: true,
+                        isAll: false,
+                        label: parts.join(' + '),
+                        shortLabel: `مدمج (${parts.length} أقسام)`
+                    };
+                }
+                if (parts.length === 1) {
+                    return { mode: 'single', classes: parts, isMulti: false, isAll: false, label: parts[0], shortLabel: parts[0] };
+                }
+            }
+
+            if (db && db.classes && db.classes[specStr]) {
+                return {
+                    mode: 'single',
+                    classes: [specStr],
+                    isMulti: false,
+                    isAll: false,
+                    label: specStr,
+                    shortLabel: specStr
+                };
+            }
+
+            return { mode: 'none', classes: [], isMulti: false, isAll: false, label: '', shortLabel: '' };
+        }
+        window.resolveReportTargetClasses = resolveReportTargetClasses;
+
+        function getCombinedStudentsForClasses(classSpec) {
+            const resolved = resolveReportTargetClasses(classSpec);
+            if (!resolved.classes || resolved.classes.length === 0) return [];
+            const combined = [];
+            resolved.classes.forEach(cName => {
+                const raw = (db && db.classes && db.classes[cName]) ? db.classes[cName] : [];
+                const arr = Array.isArray(raw) ? raw : (raw.students || []);
+                arr.forEach(std => {
+                    combined.push({
+                        ...std,
+                        className: cName
+                    });
+                });
+            });
+            return combined;
+        }
+        window.getCombinedStudentsForClasses = getCombinedStudentsForClasses;
+
+        function getCombinedRecordsForClasses(classSpec, dateFrom, dateTo) {
+            const resolved = resolveReportTargetClasses(classSpec);
+            if (!resolved.classes || resolved.classes.length === 0) return [];
+            let records = [];
+            if (resolved.isAll) {
+                records = ((db && db.records) || []).slice();
+            } else if (resolved.classes.length === 1 && typeof getClassRecordsFast === 'function') {
+                records = getClassRecordsFast(resolved.classes[0]).slice();
+            } else {
+                const classSet = new Set(resolved.classes);
+                records = ((db && db.records) || []).filter(r => r && classSet.has(r.className));
+            }
+            if (dateFrom) records = records.filter(r => r.date >= dateFrom);
+            if (dateTo) records = records.filter(r => r.date <= dateTo);
+            return records;
+        }
+        window.getCombinedRecordsForClasses = getCombinedRecordsForClasses;
+
+        function renderReportMultiClassPicker() {
+            const sorted = (typeof getSortedClasses === 'function') ? getSortedClasses(true) : Object.keys((db && db.classes) || {});
+            window._selectedReportMultiClasses = (Array.isArray(window._selectedReportMultiClasses) ? window._selectedReportMultiClasses : [])
+                .filter(c => sorted.includes(c));
+
+            const select = document.getElementById('reportClassSelect');
+            const isMultiModeActive = select && (select.value === '__MULTI__' || String(select.value || '').startsWith('__MULTI__'));
+            const selectedSet = new Set(window._selectedReportMultiClasses);
+
+            // تحديث نص خيار __MULTI__ في القائمة المنسدلة
+            if (select) {
+                const multiOpt = Array.from(select.options).find(o => o.value === '__MULTI__');
+                if (multiOpt) {
+                    if (window._selectedReportMultiClasses.length >= 2) {
+                        multiOpt.textContent = `🗂️ تقرير مدمج (${window._selectedReportMultiClasses.length} أقسام): ${window._selectedReportMultiClasses.join(' + ')}`;
+                    } else if (window._selectedReportMultiClasses.length === 1) {
+                        multiOpt.textContent = `🗂️ أقسام متعددة: (${window._selectedReportMultiClasses[0]} — اختر قسماً إضافياً للدمج)`;
+                    } else {
+                        multiOpt.textContent = '🗂️ أقسام متعددة مدمجة (مجموعتان أو أكثر...)';
+                    }
+                }
+            }
+
+            // تحديث شارة العدد النشط
+            const badge = document.getElementById('reportMultiClassActiveCountBadge');
+            if (badge) {
+                if (isMultiModeActive && window._selectedReportMultiClasses.length >= 2) {
+                    badge.style.display = 'inline-block';
+                    badge.textContent = `مدمج: ${window._selectedReportMultiClasses.length} أقسام`;
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+
+            // تحديث زر التبديل
+            const toggleBtn = document.getElementById('btnToggleReportMultiClassPicker');
+            const panel = document.getElementById('reportMultiClassPickerPanel');
+            if (toggleBtn) {
+                const isOpen = panel && panel.style.display !== 'none';
+                if (isMultiModeActive || isOpen) {
+                    toggleBtn.style.background = 'linear-gradient(135deg, #4338ca, #2563eb)';
+                    toggleBtn.style.color = '#ffffff';
+                    toggleBtn.style.borderColor = '#312e81';
+                } else {
+                    toggleBtn.style.background = '#eef2ff';
+                    toggleBtn.style.color = '#3730a3';
+                    toggleBtn.style.borderColor = '#818cf8';
+                }
+            }
+
+            const itemsContainer = document.getElementById('reportMultiClassPickerItems');
+            if (itemsContainer) {
+                if (sorted.length === 0) {
+                    itemsContainer.innerHTML = '<span style="font-size:0.75rem; color:#64748b;">لا توجد أقسام مسجلة حالياً.</span>';
+                } else {
+                    itemsContainer.innerHTML = sorted.map(cName => {
+                        const checked = selectedSet.has(cName);
+                        const rawCls = db && db.classes && db.classes[cName];
+                        const stdCount = Array.isArray(rawCls) ? rawCls.length : (Array.isArray(rawCls?.students) ? rawCls.students.length : 0);
+                        const safeCls = escapeHtml(String(cName).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+                        return `
+                            <button type="button"
+                                onclick="window.toggleReportMultiClassItem('${safeCls}')"
+                                class="report-multi-class-chip"
+                                data-class-name="${escapeHtml(cName)}"
+                                style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 8px; font-size: 0.78rem; font-weight: 800; cursor: pointer; transition: all 0.15s ease; border: 1.5px solid ${checked ? '#4338ca' : '#cbd5e1'}; background: ${checked ? 'linear-gradient(135deg, #4338ca, #2563eb)' : '#ffffff'}; color: ${checked ? '#ffffff' : '#1e293b'}; box-shadow: ${checked ? '0 2px 6px rgba(67, 56, 202, 0.28)' : 'none'};">
+                                <span style="font-size: 0.85rem;">${checked ? '☑️' : '⬜'}</span>
+                                <span>${escapeHtml(cName)}</span>
+                                <span style="font-size: 0.68rem; padding: 1px 6px; border-radius: 999px; background: ${checked ? 'rgba(255,255,255,0.22)' : '#f1f5f9'}; color: ${checked ? '#ffffff' : '#475569'}; font-weight: 700;">${stdCount} تلميذ</span>
+                            </button>
+                        `;
+                    }).join('');
+                }
+            }
+
+            const summaryEl = document.getElementById('reportMultiClassMergedSummary');
+            if (summaryEl) {
+                const selList = window._selectedReportMultiClasses;
+                const totalStudents = selList.reduce((acc, c) => {
+                    const rc = db && db.classes && db.classes[c];
+                    return acc + (Array.isArray(rc) ? rc.length : (Array.isArray(rc?.students) ? rc.students.length : 0));
+                }, 0);
+                if (selList.length >= 2) {
+                    summaryEl.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <span style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:2px 8px; border-radius:999px; font-size:0.7rem; font-weight:900;">✓ وضع الدمج نشط (${selList.length} مجموعات)</span>
+                            <span>الأقسام المدمجة: <strong>${selList.map(c => escapeHtml(c)).join(' + ')}</strong></span>
+                        </div>
+                        <span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 9px; border-radius:6px; font-size:0.72rem; font-weight:900;">إجمالي التلاميذ المدمجين: ${totalStudents} تلميذ(ة)</span>
+                    `;
+                } else if (selList.length === 1) {
+                    summaryEl.innerHTML = `
+                        <span style="color:#b45309;">ℹ️ تم اختيار قسم واحد (<strong>${escapeHtml(selList[0])}</strong> — ${totalStudents} تلميذ). حدد قسماً ثانياً أو أكثر لتفعيل التقرير المدمج لمجموعتين أو أكثر.</span>
+                    `;
+                } else {
+                    summaryEl.innerHTML = `
+                        <span style="color:#64748b;">اختر قسمين أو أكثر من الأزرار أعلاه لاستعراض تقرير مدمج شامل.</span>
+                    `;
+                }
+            }
+        }
+        window.renderReportMultiClassPicker = renderReportMultiClassPicker;
+
+        function toggleReportMultiClassPickerPanel(forceState) {
+            const panel = document.getElementById('reportMultiClassPickerPanel');
+            if (!panel) return;
+            const currentlyOpen = panel.style.display !== 'none';
+            const nextOpen = (typeof forceState === 'boolean') ? forceState : !currentlyOpen;
+            panel.style.display = nextOpen ? 'block' : 'none';
+
+            if (nextOpen) {
+                const sorted = (typeof getSortedClasses === 'function') ? getSortedClasses(true) : Object.keys((db && db.classes) || {});
+                const select = document.getElementById('reportClassSelect');
+                if ((!window._selectedReportMultiClasses || window._selectedReportMultiClasses.length === 0) && sorted.length > 0) {
+                    if (select && select.value && select.value !== '__ALL__' && select.value !== '__MULTI__' && sorted.includes(select.value)) {
+                        const secondCls = sorted.find(c => c !== select.value);
+                        window._selectedReportMultiClasses = secondCls ? [select.value, secondCls] : [select.value];
+                    } else {
+                        window._selectedReportMultiClasses = sorted.slice(0, Math.min(2, sorted.length));
+                    }
+                    try { localStorage.setItem('report_multi_selected_classes_v1', JSON.stringify(window._selectedReportMultiClasses)); } catch (e) {}
+                }
+                if (select && select.value !== '__MULTI__' && window._selectedReportMultiClasses.length >= 2) {
+                    select.value = '__MULTI__';
+                    renderReportMultiClassPicker();
+                    renderReport();
+                    return;
+                }
+            }
+            renderReportMultiClassPicker();
+        }
+        window.toggleReportMultiClassPickerPanel = toggleReportMultiClassPickerPanel;
+
+        function toggleReportMultiClassItem(className) {
+            if (!className || !db || !db.classes || !db.classes[className]) return;
+            const sorted = (typeof getSortedClasses === 'function') ? getSortedClasses(true) : Object.keys(db.classes || {});
+            let current = Array.isArray(window._selectedReportMultiClasses) ? window._selectedReportMultiClasses.filter(c => sorted.includes(c)) : [];
+            if (current.includes(className)) {
+                current = current.filter(c => c !== className);
+            } else {
+                current.push(className);
+            }
+            // الحفاظ على ترتيب الأقسام الرسمي
+            window._selectedReportMultiClasses = sorted.filter(c => current.includes(c));
+            try { localStorage.setItem('report_multi_selected_classes_v1', JSON.stringify(window._selectedReportMultiClasses)); } catch (e) {}
+
+            const select = document.getElementById('reportClassSelect');
+            if (select) {
+                if (window._selectedReportMultiClasses.length >= 2) {
+                    select.value = '__MULTI__';
+                } else if (window._selectedReportMultiClasses.length === 1) {
+                    select.value = '__MULTI__';
+                }
+            }
+            renderReportMultiClassPicker();
+            renderReport();
+        }
+        window.toggleReportMultiClassItem = toggleReportMultiClassItem;
+
+        function selectReportMultiClassPreset(presetMode) {
+            const sorted = (typeof getSortedClasses === 'function') ? getSortedClasses(true) : Object.keys((db && db.classes) || {});
+            if (sorted.length === 0) return;
+
+            if (presetMode === 'all') {
+                window._selectedReportMultiClasses = sorted.slice();
+            } else if (presetMode === 'clear') {
+                window._selectedReportMultiClasses = [];
+            } else if (presetMode === 'same_level') {
+                const anchor = (window._selectedReportMultiClasses && window._selectedReportMultiClasses[0])
+                    || (document.getElementById('reportClassSelect')?.value !== '__MULTI__' && document.getElementById('reportClassSelect')?.value !== '__ALL__' ? document.getElementById('reportClassSelect')?.value : '')
+                    || sorted[0];
+                const prefix = String(anchor || '').replace(/[\s\-_]*\d+\s*$/, '').trim();
+                const matched = prefix ? sorted.filter(c => String(c).startsWith(prefix)) : [];
+                window._selectedReportMultiClasses = matched.length >= 2 ? matched : sorted.slice(0, Math.min(2, sorted.length));
+            }
+
+            try { localStorage.setItem('report_multi_selected_classes_v1', JSON.stringify(window._selectedReportMultiClasses)); } catch (e) {}
+            const select = document.getElementById('reportClassSelect');
+            if (select && window._selectedReportMultiClasses.length > 0) {
+                select.value = '__MULTI__';
+            }
+            renderReportMultiClassPicker();
+            renderReport();
+        }
+        window.selectReportMultiClassPreset = selectReportMultiClassPreset;
+
+        function onReportClassSelectChange(val) {
+            const select = document.getElementById('reportClassSelect');
+            const selectedVal = val !== undefined ? val : (select ? select.value : '');
+            const panel = document.getElementById('reportMultiClassPickerPanel');
+            if (selectedVal === '__MULTI__') {
+                const sorted = (typeof getSortedClasses === 'function') ? getSortedClasses(true) : Object.keys((db && db.classes) || {});
+                if (!Array.isArray(window._selectedReportMultiClasses) || window._selectedReportMultiClasses.filter(c => sorted.includes(c)).length === 0) {
+                    window._selectedReportMultiClasses = sorted.slice(0, Math.min(2, sorted.length));
+                    try { localStorage.setItem('report_multi_selected_classes_v1', JSON.stringify(window._selectedReportMultiClasses)); } catch (e) {}
+                }
+                if (panel) panel.style.display = 'block';
+            }
+            renderReportMultiClassPicker();
+            renderReport();
+        }
+        window.onReportClassSelectChange = onReportClassSelectChange;
+
         function refreshReportClassDropdown() {
             const select = document.getElementById('reportClassSelect');
             if (!select) return;
             const prevVal = select.value || (typeof currentClass !== 'undefined' ? currentClass : '');
-            select.innerHTML = '<option value="">-- اختر القسم --</option><option value="__ALL__">📊 جميع الأقسام (تقرير إجمالي شامل)</option>';
             const sorted = getSortedClasses(true);
+            const multiSelected = Array.isArray(window._selectedReportMultiClasses)
+                ? window._selectedReportMultiClasses.filter(c => sorted.includes(c))
+                : [];
+            const multiLabel = multiSelected.length >= 2
+                ? `🗂️ تقرير مدمج (${multiSelected.length} أقسام): ${multiSelected.join(' + ')}`
+                : '🗂️ أقسام متعددة مدمجة (مجموعتان أو أكثر...)';
+
+            select.innerHTML = `<option value="">-- اختر القسم --</option><option value="__ALL__">📊 جميع الأقسام (تقرير إجمالي شامل)</option><option value="__MULTI__">${multiLabel}</option>`;
             for (let c of sorted) {
                 const opt = document.createElement('option');
                 opt.value = c;
-                opt.textContent = `${c} - ${db.classes[c].length} تلميذ`;
+                const rc = db && db.classes && db.classes[c];
+                const cLen = Array.isArray(rc) ? rc.length : (Array.isArray(rc?.students) ? rc.students.length : 0);
+                opt.textContent = `${c} - ${cLen} تلميذ`;
                 select.appendChild(opt);
             }
             if (prevVal === '__ALL__') {
                 select.value = '__ALL__';
+            } else if (prevVal === '__MULTI__' || (prevVal && String(prevVal).startsWith('__MULTI__'))) {
+                select.value = '__MULTI__';
             } else if (prevVal && sorted.includes(prevVal)) {
                 select.value = prevVal;
             } else if (sorted.length > 0 && !select.value) {
                 select.value = sorted[0];
             }
+
+            renderReportMultiClassPicker();
 
             // تفعيل نطاق كامل السنة الدراسية تلقائياً إذا لم تكن التواريخ محددة
             const fromInp = document.getElementById('reportDateFrom');
@@ -19333,6 +19875,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 }
             }
         }
+        window.refreshReportClassDropdown = refreshReportClassDropdown;
 
         var reportDataCache = []; // Cache to export
 
@@ -19342,25 +19885,27 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const tbody = document.getElementById('atRiskTableBody');
             const emptyMsg = document.getElementById('atRiskEmptyMsg');
 
-            if (!className || !db.classes[className]) {
+            const resolved = resolveReportTargetClasses(className);
+            if (!resolved.classes || resolved.classes.length === 0) {
                 if (card) card.style.display = 'none';
                 return;
             }
 
-            card.style.display = 'block';
-            tbody.innerHTML = '';
+            if (card) card.style.display = 'block';
+            if (tbody) tbody.innerHTML = '';
 
-            const students = db.classes[className];
+            const students = getCombinedStudentsForClasses(className);
             const threshold = db.absenceThreshold || 10;
             let atRiskCount = 0;
 
             students.forEach(std => {
-                const absentHours = getTotalAbsentHours(std.id, className);
+                const stdClass = std.className || resolved.classes[0];
+                const absentHours = getTotalAbsentHours(std.id, stdClass);
 
                 const grades = (typeof getStudentGradesBySemester === 'function')
-                    ? getStudentGradesBySemester(className, std.id, typeof getActiveSemester === 'function' ? getActiveSemester() : 's1')
-                    : ((db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {});
-                const avg = calculateStudentAvg(grades, className);
+                    ? getStudentGradesBySemester(stdClass, std.id, typeof getActiveSemester === 'function' ? getActiveSemester() : 's1')
+                    : ((db.grades[stdClass] && db.grades[stdClass][std.id]) ? db.grades[stdClass][std.id] : {});
+                const avg = calculateStudentAvg(grades, stdClass);
 
                 // فحص مسار نقط الفروض لرصد التراجع الحاد (Early Warning Trajectory)
                 const examScores = ['f1', 'f2', 'f3', 'f4']
@@ -19392,7 +19937,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     riskReasons.push(`<span style="color: #b45309; background: #fef3c7; padding: 3px 8px; border-radius: 6px; font-size: 0.74rem; white-space: nowrap; font-weight: 700;">إنذار مبكر مركب (${absentHours} س + معدل هَش)</span>`);
                 }
 
-                const behaviorData = (db.behaviors[className] && db.behaviors[className][std.id]) ? db.behaviors[className][std.id] : null;
+                const behaviorData = (db.behaviors[stdClass] && db.behaviors[stdClass][std.id]) ? db.behaviors[stdClass][std.id] : null;
                 if (behaviorData && behaviorData.status === 'مشاغب') {
                     riskScore += 20;
                     riskReasons.push(`<span style="color: #7e22ce; background: #f3e8ff; padding: 3px 8px; border-radius: 6px; font-size: 0.74rem; white-space: nowrap; font-weight: 700;">سلوك غير منضبط</span>`);
@@ -19404,14 +19949,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     const levelBadge = cappedScore >= 65
                         ? `<span style="background:#dc2626; color:#fff; padding:2px 7px; border-radius:999px; font-size:0.68rem; font-weight:800;">خطر مرتفع (${cappedScore}%)</span>`
                         : `<span style="background:#f59e0b; color:#fff; padding:2px 7px; border-radius:999px; font-size:0.68rem; font-weight:800;">يقظة متوسطة (${cappedScore}%)</span>`;
-                    const safeCls = String(className).replace(/'/g, "\\'");
-                    const safeStdId = String(std.id).replace(/'/g, "\\'");
+                    const safeCls = escapeHtml(String(stdClass).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+                    const safeStdId = escapeHtml(String(std.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+                    const clsBadgeHtml = resolved.isMulti
+                        ? `<span style="font-size: 0.7rem; background: #e0f2fe; color: #0369a1; padding: 1px 6px; border-radius: 4px; font-weight: 700; border: 1px solid #bae6fd;">${escapeHtml(stdClass)}</span>`
+                        : '';
                     const rowHtml = `
                         <tr>
-                            <td style="width: 44px; white-space: nowrap; text-align: center; font-weight: 700;">${std.orderNum}</td>
+                            <td style="width: 44px; white-space: nowrap; text-align: center; font-weight: 700;">${escapeHtml(std.orderNum || '-')}</td>
                             <td class="td-name" style="text-align: right; padding-right: 10px; font-weight: bold; min-width: 210px;">
                                 <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
-                                    <span>${std.name}</span>
+                                    <span>${escapeHtml(std.name)} ${clsBadgeHtml}</span>
                                     ${levelBadge}
                                 </div>
                             </td>
@@ -19428,7 +19976,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                             </td>
                         </tr>
                     `;
-                    tbody.insertAdjacentHTML('beforeend', rowHtml);
+                    if (tbody) tbody.insertAdjacentHTML('beforeend', rowHtml);
                 }
             });
 
@@ -19445,8 +19993,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         window.openShareCurrentReport = function() {
             const className = document.getElementById('reportClassSelect') ? document.getElementById('reportClassSelect').value : '';
+            const resolved = resolveReportTargetClasses(className);
             const semester = (window.activeSemester || 's1');
-            if (!className) {
+            if (!className || resolved.classes.length === 0) {
                 if (typeof showAppToast === 'function') {
                     showAppToast('يرجى اختيار القسم أولاً لمشاركة تقريره.', 'warning');
                 } else {
@@ -19457,9 +20006,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             if (typeof window.openShareRecordModal === 'function') {
                 window.openShareRecordModal({
                     type: 'report',
-                    className: className,
+                    className: resolved.label || className,
                     semester: semester,
-                    reportTitle: `تقرير وإحصائيات قسم ${className} (${semester === 's2' ? 'الدورة الثانية' : 'الدورة الأولى'})`
+                    reportTitle: `تقرير وإحصائيات ${resolved.label || className} (${semester === 's2' ? 'الدورة الثانية' : 'الدورة الأولى'})`
                 });
             }
         };
@@ -19474,7 +20023,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 }
                 return;
             }
-            const std = resolved && resolved.student ? resolved.student : (db.classes[className] || []).find(s => String(s.id) === String(studentId));
+            const rawClsObj = db.classes[className];
+            const classStudentsArr = Array.isArray(rawClsObj) ? rawClsObj : (Array.isArray(rawClsObj?.students) ? rawClsObj.students : []);
+            const std = resolved && resolved.student ? resolved.student : classStudentsArr.find(s => String(s.id) === String(studentId));
             const studentName = std ? std.name : 'التلميذ';
             if (typeof window.openShareRecordModal === 'function') {
                 window.openShareRecordModal({
@@ -19488,10 +20039,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         window.shareSelectedStudentReport = window.shareSelectedStudentRecordQR;
 
         function setReportQuickPeriod(period) {
-            const now = new Date();
+            const now = typeof getAppNow === 'function' ? getAppNow() : new Date();
             const curYear = now.getFullYear();
             const curMonth = now.getMonth() + 1;
-            const startYear = (curMonth >= 8) ? curYear : curYear - 1;
+            const startYear = (curMonth >= 9) ? curYear : curYear - 1;
             const endYear = startYear + 1;
 
             let from = `${startYear}-09-01`;
@@ -19587,9 +20138,11 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const rootEl = document.getElementById('react-reports-evolution-root');
             const clsEl = document.getElementById('reportClassSelect');
             const currentCls = clsEl ? clsEl.value : '';
+            const resolved = resolveReportTargetClasses(currentCls);
             window.dispatchEvent(new CustomEvent('reportsEvolutionTabOpened', {
                 detail: {
-                    className: (currentCls && currentCls !== '__ALL__') ? currentCls : '',
+                    className: (!resolved.isMulti && resolved.classes[0]) ? resolved.classes[0] : '',
+                    selectedClasses: resolved.classes,
                     viewMode: viewMode || 'exam_levels_evolution'
                 }
             }));
@@ -19602,15 +20155,22 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         };
 
         function renderReport() {
-            incrementClassUsage(document.getElementById('reportClassSelect').value);
-            const className = document.getElementById('reportClassSelect').value;
+            const rawSelectVal = document.getElementById('reportClassSelect') ? document.getElementById('reportClassSelect').value : '';
+            const resolved = resolveReportTargetClasses(rawSelectVal);
+            if (!resolved.isMulti && resolved.classes[0]) {
+                incrementClassUsage(resolved.classes[0]);
+            }
+            const className = rawSelectVal;
             const tbody = document.getElementById('reportTableBody');
-            const isAllClasses = (className === '__ALL__');
+            const isMultiClasses = resolved.isMulti;
+
+            renderReportMultiClassPicker();
 
             try {
                 window.dispatchEvent(new CustomEvent('reportsEvolutionTabOpened', {
                     detail: {
-                        className: (className && className !== '__ALL__') ? className : ''
+                        className: (!resolved.isMulti && resolved.classes[0]) ? resolved.classes[0] : '',
+                        selectedClasses: resolved.classes
                     }
                 }));
             } catch (e) { console.warn(e); }
@@ -19623,12 +20183,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             } catch(e) { console.warn(e); }
             try {
                 if (typeof window.renderUpcomingExamsTimeline === 'function') {
-                    window.renderUpcomingExamsTimeline(className || 'all');
+                    window.renderUpcomingExamsTimeline((!resolved.isMulti && resolved.classes[0]) ? resolved.classes[0] : 'all');
                 }
             } catch(e) { console.warn(e); }
             try {
                 if (typeof window.renderGradesAbsenceImpactChart === 'function') {
-                    window.renderGradesAbsenceImpactChart();
+                    window.renderGradesAbsenceImpactChart(className);
                 }
             } catch(e) { console.warn(e); }
             try {
@@ -19637,8 +20197,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 }
             } catch(e) { console.warn(e); }
 
-            if (!className) {
-                tbody.innerHTML = '<tr><td colspan="8">يرجى اختيار القسم لعرض التقرير</td></tr>';
+            if (!className || resolved.classes.length === 0) {
+                if (tbody) tbody.innerHTML = '<tr><td colspan="8">يرجى اختيار القسم (أو تحديد أقسام متعددة) لعرض التقرير</td></tr>';
                 document.getElementById('reportTotalAbsent').textContent = '0';
                 document.getElementById('reportTotalLate').textContent = '0';
                 document.getElementById('reportTotalHw').textContent = '0';
@@ -19659,10 +20219,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             let dateFrom = document.getElementById('reportDateFrom') ? document.getElementById('reportDateFrom').value : '';
             let dateTo = document.getElementById('reportDateTo') ? document.getElementById('reportDateTo').value : '';
             if (!dateFrom || !dateTo) {
-                const now = new Date();
+                const now = typeof getAppNow === 'function' ? getAppNow() : new Date();
                 const curYear = now.getFullYear();
                 const curMonth = now.getMonth() + 1;
-                const startYear = (curMonth >= 8) ? curYear : curYear - 1;
+                const startYear = (curMonth >= 9) ? curYear : curYear - 1;
                 dateFrom = dateFrom || `${startYear}-09-01`;
                 dateTo = dateTo || `${startYear + 1}-07-10`;
                 if (document.getElementById('reportDateFrom')) document.getElementById('reportDateFrom').value = dateFrom;
@@ -19674,43 +20234,33 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 updateClassDisciplineRate(className, dateFrom, dateTo);
             } catch (e) { console.warn(e); }
 
-            let students = [];
-            if (isAllClasses) {
-                const sorted = (typeof getSortedClasses === 'function') ? getSortedClasses(true) : Object.keys(db.classes || {});
-                sorted.forEach(cName => {
-                    const cStudents = Array.isArray(db.classes[cName]) ? db.classes[cName] : (db.classes[cName]?.students || []);
-                    cStudents.forEach(st => {
-                        students.push({
-                            ...st,
-                            className: cName
-                        });
-                    });
-                });
-            } else {
-                students = (db && db.classes && db.classes[className]) ? db.classes[className] : [];
-            }
+            const students = getCombinedStudentsForClasses(className);
 
             let totalClassAbsent = 0;
             let totalClassLate = 0;
             let totalClassHw = 0;
             let sessionCounts = { present: 0, absent: 0, late: 0, justified: 0 };
 
-            // Distinct sessions for the class to compute attendance percentage
-            const allClassRecords = isAllClasses
-                ? (db.records || [])
-                : (db.records || []).filter(r => r.className === className);
-            const sessionSet = new Set(allClassRecords.map(r => (isAllClasses ? (r.className || '') + '|||' : '') + (r.date || '') + '|||' + (r.session || '')));
+            // Distinct sessions for the selected class(es) within period to compute attendance percentage accurately
+            const allClassRecords = getCombinedRecordsForClasses(className, dateFrom, dateTo).filter(r =>
+                !(typeof isRecordProtectedHolidayOrLeave === 'function' && isRecordProtectedHolidayOrLeave(r))
+            );
+            const sessionSet = new Set(allClassRecords.map(r => (isMultiClasses ? (r.className || '') + '|||' : '') + (r.date || '') + '|||' + (r.session || '')));
             const totalClassSessions = Math.max(1, sessionSet.size);
 
-            tbody.innerHTML = '';
+            if (tbody) tbody.innerHTML = '';
             reportDataCache = [];
             const virtualReportRows = [];
             const VIRTUAL_REPORT_BATCH_SIZE = 50;
 
             students.forEach((std) => {
-                const curClass = isAllClasses ? (std.className || '') : className;
+                const curClass = std.className || resolved.classes[0];
                 const rawStdRecords = getStudentClassRecordsFast(std.id, curClass);
-                const stdRecords = rawStdRecords.filter(r => r.date >= dateFrom && r.date <= dateTo);
+                const stdRecords = rawStdRecords.filter(r =>
+                    (!dateFrom || r.date >= dateFrom) &&
+                    (!dateTo || r.date <= dateTo) &&
+                    !(typeof isRecordProtectedHolidayOrLeave === 'function' && isRecordProtectedHolidayOrLeave(r))
+                );
 
                 sessionCounts.present += stdRecords.filter(r => r.status === 'حاضر' || r.status === 'حصة إضافية / دعم').length;
                 sessionCounts.absent += stdRecords.filter(r => r.status === 'غائب').length;
@@ -19718,7 +20268,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 sessionCounts.late += stdRecords.filter(r => r.status === 'متأخر').length;
 
                 const stdAbsentRecords = stdRecords.filter(r => r.status === 'غائب' || r.status === 'مبرر');
-                const absentHours = stdAbsentRecords.reduce((sum, r) => sum + (parseFloat(r.duration || r.hours) || 1), 0);
+                const absentHours = stdAbsentRecords.reduce((sum, r) => sum + (typeof getRecordAbsenceDuration === 'function' ? getRecordAbsenceDuration(r) : (parseFloat(r.duration || r.hours) || 1)), 0);
                 const lateCount = stdRecords.filter(r => r.status === 'متأخر').length;
                 const missedHw = stdRecords.filter(r => r.homework === 'لم ينجز').length;
 
@@ -19757,13 +20307,15 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     console.warn('Grade conditional formatting notice:', e);
                 }
 
-                const stdNameDisplay = isAllClasses
-                    ? `${std.name} <span style="font-size: 0.72rem; background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 4px; font-weight: 700; margin-right: 6px; border: 1px solid #bae6fd;">${curClass}</span>`
-                    : std.name;
+                const stdNameDisplay = isMultiClasses
+                    ? `${escapeHtml(std.name)} <span style="font-size: 0.72rem; background: #e0f2fe; color: #0369a1; padding: 2px 7px; border-radius: 4px; font-weight: 700; margin-right: 6px; border: 1px solid #bae6fd;">${escapeHtml(curClass)}</span>`
+                    : escapeHtml(std.name);
+                const safeStdIdArg = escapeHtml(String(std.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+                const safeClassArg = escapeHtml(String(curClass).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
 
                 const rowHtml = `
-                    <tr style="cursor: pointer;" title="انقر لمعاينة وتصدير التقرير الفردي للتلميذ" onclick="selectStudentForReport('${std.id}', '${curClass}')">
-                        <td style="width: 44px; white-space: nowrap; text-align: center; font-weight: 700;">${std.orderNum || '-'}</td>
+                    <tr style="cursor: pointer;" title="انقر لمعاينة وتصدير التقرير الفردي للتلميذ" onclick="selectStudentForReport('${safeStdIdArg}', '${safeClassArg}')">
+                        <td style="width: 44px; white-space: nowrap; text-align: center; font-weight: 700;">${escapeHtml(std.orderNum || '-')}</td>
                         <td class="td-name" style="text-align: right; padding-right: 10px; font-weight: bold; min-width: 190px;">${stdNameDisplay}</td>
                         <td style="text-align: center; white-space: nowrap;">
                             <span style="font-weight: 800; font-size: 0.8rem; color: ${stdAttendancePct >= 90 ? '#15803d' : stdAttendancePct >= 75 ? '#ea580c' : '#dc2626'}; background: ${stdAttendancePct >= 90 ? '#f0fdf4' : stdAttendancePct >= 75 ? '#fff7ed' : '#fef2f2'}; padding: 2px 7px; border-radius: 6px; border: 1px solid ${stdAttendancePct >= 90 ? '#bbf7d0' : stdAttendancePct >= 75 ? '#fed7aa' : '#fecaca'}; white-space: nowrap;">
@@ -19773,8 +20325,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         <td style="color:${absentHours > 0 ? 'var(--danger)' : '#666'}; font-weight:${absentHours > 0 ? 'bold' : 'normal'}; white-space: nowrap; text-align: center;">${absentHours}</td>
                         <td style="color:${lateCount > 0 ? 'var(--warning)' : '#666'}; white-space: nowrap; text-align: center;">${lateCount}</td>
                         <td style="color:${missedHw > 0 ? 'var(--purple)' : '#666'}; white-space: nowrap; text-align: center;">${missedHw}</td>
-                        <td style="white-space: nowrap; text-align: center;">${behaviorData.status}</td>
-                        <td style="${cond.cssText}; text-align: center; border-radius: 6px; font-weight: 900; white-space: nowrap;" title="${cond.title}">${avgText}</td>
+                        <td style="white-space: nowrap; text-align: center;">${escapeHtml(behaviorData.status)}</td>
+                        <td style="${cond.cssText}; text-align: center; border-radius: 6px; font-weight: 900; white-space: nowrap;" title="${escapeHtml(cond.title)}">${avgText}</td>
                     </tr>
                 `;
                 virtualReportRows.push(rowHtml);
@@ -19790,7 +20342,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     'تقييم السلوك': behaviorData.status,
                     'المعدل': avg !== null ? parseFloat(avg.toFixed(2)) : ''
                 };
-                if (isAllClasses) cacheEntry['القسم'] = curClass;
+                if (isMultiClasses) cacheEntry['القسم'] = curClass;
                 reportDataCache.push(cacheEntry);
             });
 
@@ -19805,6 +20357,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
 
             function appendNextReportVirtualBatch() {
+                if (!tbody) return;
                 const existingSentinel = document.getElementById('reportVirtualScrollSentinelRow');
                 if (existingSentinel) existingSentinel.remove();
 
@@ -19874,7 +20427,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             } catch (e) { console.warn(e); }
             try {
                 if (typeof window.renderDiagnosticSection === 'function') {
-                    window.renderDiagnosticSection(className);
+                    window.renderDiagnosticSection(resolved.classes[0] || className);
                 }
             } catch (e) { console.warn(e); }
             try { updateReportGradesComparisonChart(className); } catch (e) { console.warn(e); }
@@ -19887,6 +20440,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 aiPlanCard.style.display = 'block';
             }
         }
+        window.renderReport = renderReport;
 
         function populateReportStudentSelect(className) {
             const select = document.getElementById('reportStudentSelect');
@@ -19897,7 +20451,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const btnShare = document.getElementById('btnShareBehavior');
             const btnExportPDF = document.getElementById('btnExportStudentPDF');
 
-            select.innerHTML = '<option value="">-- اختر التلميذ لمعاينة تقريره --</option>';
+            if (select) select.innerHTML = '<option value="">-- اختر التلميذ لمعاينة تقريره --</option>';
             if (container) container.style.display = 'none';
             if (details) details.style.display = 'none';
             if (btnPrint) btnPrint.style.display = 'none';
@@ -19916,30 +20470,31 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const btnExportPDFTop = document.getElementById('btnExportStudentPDFTop');
             if (btnExportPDFTop) btnExportPDFTop.style.display = 'none';
 
-            const isAllClasses = (className === '__ALL__');
-            if (!className || (!isAllClasses && !db.classes[className])) {
+            const resolved = resolveReportTargetClasses(className);
+            if (!resolved.classes || resolved.classes.length === 0) {
                 if (card) card.style.display = 'none';
                 return;
             }
 
             if (card) card.style.display = 'block';
-            if (isAllClasses) {
-                const sorted = (typeof getSortedClasses === 'function') ? getSortedClasses(true) : Object.keys(db.classes || {});
-                sorted.forEach(cName => {
+            if (resolved.isMulti) {
+                resolved.classes.forEach(cName => {
                     const cStudents = Array.isArray(db.classes[cName]) ? db.classes[cName] : (db.classes[cName]?.students || []);
                     cStudents.forEach(std => {
                         const opt = document.createElement('option');
                         opt.value = `${cName}:::${std.id}`;
                         opt.textContent = `${std.name} (${cName})`;
-                        select.appendChild(opt);
+                        if (select) select.appendChild(opt);
                     });
                 });
             } else {
-                (db.classes[className] || []).forEach(std => {
+                const singleCls = resolved.classes[0];
+                const singleClsList = Array.isArray(db.classes[singleCls]) ? db.classes[singleCls] : (db.classes[singleCls]?.students || []);
+                singleClsList.forEach(std => {
                     const opt = document.createElement('option');
                     opt.value = std.id;
                     opt.textContent = `${std.orderNum ? std.orderNum + ' - ' : ''}${std.name}`;
-                    select.appendChild(opt);
+                    if (select) select.appendChild(opt);
                 });
             }
         }
@@ -20449,6 +21004,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const studentId = String(hmData.studentId || '');
             const className = String(hmData.className || '');
             const safeStdId = studentId.replace(/[^a-zA-Z0-9_-]/g, '_');
+            const safeHmHtml = (v) => (typeof escapeHtml === 'function' ? escapeHtml(String(v ?? '')) : String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+            const safeHmJs = (v) => safeHmHtml(JSON.stringify(String(v ?? '')));
 
             const classStudents = (window.db && window.db.classes && window.db.classes[className]) || [];
             const stdObj = Array.isArray(classStudents)
@@ -20456,8 +21013,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 : (classStudents.students ? classStudents.students.find(s => String(s.id) === String(studentId)) : null);
             const stdName = stdObj ? stdObj.name : 'التلميذ(ة)';
             const stdMassar = stdObj && stdObj.massar ? stdObj.massar : '—';
-            const prof = (window.db && window.db.profile) ? window.db.profile : {};
+            const prof = (window.db && (window.db.teacherProfile || window.db.profile)) || {};
             const profName = prof.name || 'أستاذ مادة الرياضيات';
+            const _hmNow = (typeof getAppNow === 'function') ? getAppNow() : new Date();
+            const _hmCurY = _hmNow.getFullYear();
+            const _hmSchoolYear = prof.academicYear || ((_hmNow.getMonth() < 8) ? `${_hmCurY - 1}/${_hmCurY}` : `${_hmCurY}/${_hmCurY + 1}`);
+            const _weeklyHrs = (typeof getWeeklyHoursForClass === 'function' && className) ? (Number(getWeeklyHoursForClass(className)) || 4) : 4;
+            const annualMathHours = Math.max(34, Math.round(_weeklyHrs * 34));
 
             const SCHOOL_MONTHS = [
                 { num: 9, name: 'شتنبر', code: '09' },
@@ -20511,8 +21073,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const totalLate = hmData.totalAllTimeLate || 0;
             const totalMissedHw = hmData.totalAllTimeMissedHw || 0;
 
-            // Attendance Global Rate & Justification Ratio (136 annual math hours benchmark)
-            const attendanceRate = Math.max(0, Math.min(100, Math.round(((136 - totalAbsent) / 136) * 1000) / 10));
+            // Attendance Global Rate & Justification Ratio (based on official track annual math hours)
+            const attendanceRate = Math.max(0, Math.min(100, Math.round(((annualMathHours - totalAbsent) / annualMathHours) * 1000) / 10));
             const justPct = totalAbsent > 0 ? Math.round((totalJust / totalAbsent) * 100) : 100;
             const unjustPct = totalAbsent > 0 ? Math.max(0, 100 - justPct) : 0;
             const morningPct = (hmData.slotStats && hmData.slotStats.morningPct !== undefined) ? hmData.slotStats.morningPct : (totalAbsent > 0 ? 50 : 0);
@@ -20579,8 +21141,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     return `
                         <td class="shm-matrix-cell"
                             data-hours="${hrs}" data-unjust="${unjust}" data-late="${late}" data-hw="${hw}"
-                            onclick="openStudentHeatmapMonthDayModal(${m.num}, ${wd.idx}, '${studentId}', '${className}')"
-                            title="${tooltipText} (انقر للاستعراض التفصيلي)"
+                            onclick="openStudentHeatmapMonthDayModal(${m.num}, ${wd.idx}, ${safeHmJs(studentId)}, ${safeHmJs(className)})"
+                            title="${safeHmHtml(tooltipText)} (انقر للاستعراض التفصيلي)"
                             style="background-color: ${style.bg}; border: 1px solid ${style.border}; padding: 4px 2px; text-align: center; vertical-align: middle; cursor: pointer; transition: transform 0.12s ease, box-shadow 0.12s ease;">
                             <div style="min-height: 28px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;">
                                 <span class="shm-cell-val" style="font-size: 0.77rem; font-weight: 900; color: ${isZero ? '#cbd5e1' : style.text}; font-variant-numeric: tabular-nums;">
@@ -20687,8 +21249,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         return `
                             <td class="shm-timeline-cell"
                                 data-hours="${hrs}" data-unjust="${unjust}" data-late="${late}" data-hw="${hw}" data-daynum="${day.dayNumber}" data-ishol="${isHol ? '1' : '0'}"
-                                onclick="openStudentHeatmapDetailModal('${day.dateStr}', '${studentId}', '${className}')"
-                                title="${dTip} (انقر للمعاملة والتفاصيل)"
+                                onclick="openStudentHeatmapDetailModal(${safeHmJs(day.dateStr)}, ${safeHmJs(studentId)}, ${safeHmJs(className)})"
+                                title="${safeHmHtml(dTip)} (انقر للمعاملة والتفاصيل)"
                                 style="background: ${bg}; border: 1px solid ${border}; padding: 2px 1px; text-align: center; vertical-align: middle; cursor: pointer; transition: all 0.12s ease;">
                                 <div style="min-height: 23px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.69rem; font-weight: 800; color: ${text};">
                                     <span class="shm-tl-val">${hrs > 0 ? (hrs + 'س') : (badgeSymbol || day.dayNumber)}</span>
@@ -20772,23 +21334,23 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                             <div>
                                 <strong style="color: #0f172a; font-size: 0.94rem;">الخريطة الحرارية الفردية للمواظبة والغياب (Heatmap Matrix & Grid)</strong>
                                 <div style="font-size: 0.72rem; color: #475569; font-weight: 600;">
-                                    مادة الرياضيات · الموسم الدراسي 2026/2027 · الغلاف المرجعي: 136 ساعة · رصد نسق المواظبة (11 شهراً و36 أسبوعاً)
+                                    مادة الرياضيات · الموسم الدراسي ${safeHmHtml(_hmSchoolYear)} · الغلاف المرجعي: ${annualMathHours} ساعة (${_weeklyHrs}س/أسبوع) · رصد نسق المواظبة (11 شهراً و36 أسبوعاً)
                                 </div>
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                             <span style="background: ${diag.patternBg || '#dcfce7'}; color: ${diag.patternColor || '#15803d'}; border: 1.5px solid ${diag.patternBorder || '#86efac'}; padding: 3px 10px; border-radius: 6px; font-size: 0.76rem; font-weight: 900; display: inline-flex; align-items: center; gap: 4px;">
                                 <span>🎯</span>
-                                <span>${diag.patternBadge || 'انضباط تام'}</span>
+                                <span>${safeHmHtml(diag.patternBadge || 'انضباط تام')}</span>
                             </span>
                             <!-- أزرار الإجراءات السريعة بالأعلى -->
                             <div class="no-print" style="display: inline-flex; gap: 4px;">
-                                <button type="button" onclick="shareStudentHeatmapWhatsApp('${studentId}', '${className}')" title="إرسال تقرير المواظبة لولي الأمر عبر واتساب"
+                                <button type="button" onclick="shareStudentHeatmapWhatsApp(${safeHmJs(studentId)}, ${safeHmJs(className)})" title="إرسال تقرير المواظبة لولي الأمر عبر واتساب"
                                     style="background: #16a34a; color: #ffffff; border: none; padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;">
                                     <span>📲</span>
                                     <span>واتساب ولي الأمر</span>
                                 </button>
-                                <button type="button" onclick="copyStudentHeatmapSummary('${studentId}', '${className}')" title="نسخ ملخص المواظبة للحافظة"
+                                <button type="button" onclick="copyStudentHeatmapSummary(${safeHmJs(studentId)}, ${safeHmJs(className)})" title="نسخ ملخص المواظبة للحافظة"
                                     style="background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;">
                                     <span>📋</span>
                                     <span>نسخ التقرير</span>
@@ -20895,10 +21457,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
                     <!-- 3. العرض الثالث: لوحة التحليل البيداغوجي لنسق المواظبة وتقاطعها مع الرياضيات -->
                     <div id="shmTab_analytics_${safeStdId}" class="shm-print-analytics-pane" style="display: none; margin-bottom: 10px;">
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
+                        <div class="shm-analytics-cards-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px;">
                             <!-- بطاقة مؤشر المواظبة العام -->
                             <div style="background: #ffffff; border: 1px solid #cbd5e1; border-top: 3.5px solid ${attendanceRate >= 95 ? '#16a34a' : (attendanceRate >= 85 ? '#d97706' : '#dc2626')}; border-radius: 6px; padding: 9px; text-align: center;">
-                                <div style="font-size: 0.72rem; color: #64748b; font-weight: 700;">مؤشر المواظبة التراكمي (136 ساعة سنوية)</div>
+                                <div style="font-size: 0.72rem; color: #64748b; font-weight: 700;">مؤشر المواظبة التراكمي (${annualMathHours} ساعة سنوية)</div>
                                 <div style="font-size: 1.25rem; font-weight: 900; color: ${attendanceRate >= 95 ? '#16a34a' : (attendanceRate >= 85 ? '#d97706' : '#dc2626')}; margin-top: 2px;">
                                     ${attendanceRate}%
                                 </div>
@@ -21182,10 +21744,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         function openStudentHeatmapDetailModal(dateStr, studentId, className) {
             if (!dateStr || !studentId) return;
 
-            const classStudents = (window.db && window.db.classes && window.db.classes[className]) || [];
-            const std = Array.isArray(classStudents)
-                ? classStudents.find(s => String(s.id) === String(studentId))
-                : null;
+            const safeModHtml = (v) => (typeof escapeHtml === 'function' ? escapeHtml(String(v ?? '')) : String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+            const safeModJs = (v) => safeModHtml(JSON.stringify(String(v ?? '')));
+
+            const rawClsMod = (window.db && window.db.classes && window.db.classes[className]) || [];
+            const classStudents = Array.isArray(rawClsMod) ? rawClsMod : (Array.isArray(rawClsMod.students) ? rawClsMod.students : []);
+            const std = classStudents.find(s => String(s.id) === String(studentId)) || null;
             const stdName = std ? std.name : 'التلميذ(ة)';
             const stdMassar = std && std.massar ? std.massar : '—';
             const stdPhone = std?.phone || std?.guardianPhone || std?.parentPhone || '';
@@ -21229,14 +21793,14 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     return `
                         <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                <span style="font-weight: 800; color: #1e3a8a; font-size: 0.82rem;">حصة: ${r.session || r.timeSlot || 'مادة الرياضيات'}</span>
+                                <span style="font-weight: 800; color: #1e3a8a; font-size: 0.82rem;">حصة: ${safeModHtml(r.session || r.timeSlot || 'مادة الرياضيات')}</span>
                                 <span style="font-size: 0.74rem; font-weight: 900; padding: 2px 8px; border-radius: 4px; background: ${isJust ? '#e0f2fe' : (isAbs ? '#fee2e2' : (isLate ? '#fef3c7' : '#f1f5f9'))}; color: ${isJust ? '#0369a1' : (isAbs ? '#b91c1c' : (isLate ? '#b45309' : '#334155'))}; border: 1px solid ${isJust ? '#bae6fd' : (isAbs ? '#fca5a5' : (isLate ? '#fde68a' : '#cbd5e1'))};">
-                                    ${r.status} ${isAbs ? `(${dur}س)` : ''}
+                                    ${safeModHtml(r.status)} ${isAbs ? `(${dur}س)` : ''}
                                 </span>
                             </div>
                             ${isHw ? `<div style="font-size: 0.74rem; color: #7e22ce; font-weight: 700; margin-bottom: 2px;">⚠️ تم تسجيل إخلال بإنجاز الواجب المنزلي</div>` : ''}
                             <div style="font-size: 0.76rem; color: #475569;">
-                                <strong>الملاحظة / المبرر:</strong> ${r.notes || r.note || r.justification || 'لا توجد ملاحظة إضافية'}
+                                <strong>الملاحظة / المبرر:</strong> ${safeModHtml(r.notes || r.note || r.justification || 'لا توجد ملاحظة إضافية')}
                             </div>
                         </div>
                     `;
@@ -21268,8 +21832,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 1.2rem;">🔍</span>
                             <div>
-                                <strong style="font-size: 0.9rem;">معاينة تفاصيل اليوم: ${dayName} ${dateStr}</strong>
-                                <div style="font-size: 0.72rem; color: #94a3b8;">${stdName} · قسم: ${className} · مسار: ${stdMassar}</div>
+                                <strong style="font-size: 0.9rem;">معاينة تفاصيل اليوم: ${safeModHtml(dayName)} ${safeModHtml(dateStr)}</strong>
+                                <div style="font-size: 0.72rem; color: #94a3b8;">${safeModHtml(stdName)} · قسم: ${safeModHtml(className)} · مسار: ${safeModHtml(stdMassar)}</div>
                             </div>
                         </div>
                         <button type="button" onclick="closeStudentHeatmapDetailModal()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.3rem; cursor: pointer; padding: 0 6px;">✕</button>
@@ -21287,13 +21851,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     <div style="background: #f8fafc; border-top: 1px solid #cbd5e1; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <div style="display: flex; gap: 6px;">
                             ${(hasAbsence || hasLate || hasMissedHw) ? `
-                                <button type="button" onclick="sendStudentHeatmapWaNotice('${studentId}', '${className}', '${dateStr}', '${incidentDesc}')"
+                                <button type="button" onclick="sendStudentHeatmapWaNotice(${safeModJs(studentId)}, ${safeModJs(className)}, ${safeModJs(dateStr)}, ${safeModJs(incidentDesc)})"
                                     style="background: #16a34a; color: #ffffff; border: none; border-radius: 5px; padding: 6px 12px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
                                     <span>📲</span>
                                     <span>إشعار ولي الأمر (واتساب)</span>
                                 </button>
                             ` : ''}
-                            <button type="button" onclick="copyStudentHeatmapIncident('${dateStr}', '${studentId}', '${className}')"
+                            <button type="button" onclick="copyStudentHeatmapIncident(${safeModJs(dateStr)}, ${safeModJs(studentId)}, ${safeModJs(className)})"
                                 style="background: #e2e8f0; color: #1e293b; border: 1px solid #cbd5e1; border-radius: 5px; padding: 6px 10px; font-size: 0.76rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                                 <span>📋</span>
                                 <span>نسخ الملخص</span>
@@ -21314,14 +21878,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         function openStudentHeatmapMonthDayModal(monthNum, dayIdx, studentId, className) {
             if (!studentId) return;
 
+            const safeMdHtml = (v) => (typeof escapeHtml === 'function' ? escapeHtml(String(v ?? '')) : String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+
             const SCHOOL_MONTHS_NAMES = { 9: 'شتنبر', 10: 'أكتوبر', 11: 'نونبر', 12: 'دجنبر', 1: 'يناير', 2: 'فبراير', 3: 'مارس', 4: 'أبريل', 5: 'ماي', 6: 'يونيو', 7: 'يوليوز' };
             const MOROCCAN_WEEKDAYS_NAMES = { 1: 'الإثنين', 2: 'الثلاثاء', 3: 'الأربعاء', 4: 'الخميس', 5: 'الجمعة', 6: 'السبت' };
 
             const mName = SCHOOL_MONTHS_NAMES[monthNum] || `شهر ${monthNum}`;
             const wdName = MOROCCAN_WEEKDAYS_NAMES[dayIdx] || `يوم ${dayIdx}`;
 
-            const classStudents = (window.db && window.db.classes && window.db.classes[className]) || [];
-            const std = Array.isArray(classStudents) ? classStudents.find(s => String(s.id) === String(studentId)) : null;
+            const rawClsMd = (window.db && window.db.classes && window.db.classes[className]) || [];
+            const classStudents = Array.isArray(rawClsMd) ? rawClsMd : (Array.isArray(rawClsMd.students) ? rawClsMd.students : []);
+            const std = classStudents.find(s => String(s.id) === String(studentId)) || null;
             const stdName = std ? std.name : 'التلميذ(ة)';
 
             const allRecords = (window.db && Array.isArray(window.db.records)) ? window.db.records : [];
@@ -21363,12 +21930,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     return `
                         <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                             <div>
-                                <strong style="color: #0f172a; font-size: 0.8rem;">📅 ${r.date}</strong>
-                                <span style="font-size: 0.74rem; color: #475569; margin-right: 4px;">(${r.session || r.timeSlot || 'مادة الرياضيات'})</span>
-                                <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">${r.notes || r.note || r.justification || '—'}</div>
+                                <strong style="color: #0f172a; font-size: 0.8rem;">📅 ${safeMdHtml(r.date)}</strong>
+                                <span style="font-size: 0.74rem; color: #475569; margin-right: 4px;">(${safeMdHtml(r.session || r.timeSlot || 'مادة الرياضيات')})</span>
+                                <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">${safeMdHtml(r.notes || r.note || r.justification || '—')}</div>
                             </div>
                             <span style="font-size: 0.74rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; background: ${r.status === 'مبرر' ? '#e0f2fe' : '#fee2e2'}; color: ${r.status === 'مبرر' ? '#0369a1' : '#b91c1c'}; border: 1px solid ${r.status === 'مبرر' ? '#bae6fd' : '#fca5a5'};">
-                                ${r.status} (${dur}س)
+                                ${safeMdHtml(r.status)} (${dur}س)
                             </span>
                         </div>
                     `;
@@ -21376,7 +21943,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             } else {
                 listHtml = `
                     <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 12px; text-align: center; color: #166534; font-weight: 700; font-size: 0.84rem;">
-                        ✔ حضور منتظم ومواظبة تامة أيام (${wdName}) خلال شهر (${mName}). لا يوجد أي غياب مسجل.
+                        ✔ حضور منتظم ومواظبة تامة أيام (${safeMdHtml(wdName)}) خلال شهر (${safeMdHtml(mName)}). لا يوجد أي غياب مسجل.
                     </div>
                 `;
             }
@@ -21387,8 +21954,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 1.2rem;">📊</span>
                             <div>
-                                <strong style="font-size: 0.9rem;">حيثيات الغياب: أيام ${wdName} · شهر ${mName}</strong>
-                                <div style="font-size: 0.72rem; color: #94a3b8;">${stdName} · قسم: ${className} · مجموع الغياب: ${totalH}س</div>
+                                <strong style="font-size: 0.9rem;">حيثيات الغياب: أيام ${safeMdHtml(wdName)} · شهر ${safeMdHtml(mName)}</strong>
+                                <div style="font-size: 0.72rem; color: #94a3b8;">${safeMdHtml(stdName)} · قسم: ${safeMdHtml(className)} · مجموع الغياب: ${totalH}س</div>
                             </div>
                         </div>
                         <button type="button" onclick="closeStudentHeatmapDetailModal()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.3rem; cursor: pointer; padding: 0 6px;">✕</button>
@@ -21443,8 +22010,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         // مشاركة التقرير الإجمالي للمواظبة مع ولي الأمر عبر واتساب
         function shareStudentHeatmapWhatsApp(studentId, className) {
-            const classStudents = (window.db && window.db.classes && window.db.classes[className]) || [];
-            const std = Array.isArray(classStudents) ? classStudents.find(s => String(s.id) === String(studentId)) : null;
+            const rawClsWa = (window.db && window.db.classes && window.db.classes[className]) || [];
+            const classStudents = Array.isArray(rawClsWa) ? rawClsWa : (Array.isArray(rawClsWa.students) ? rawClsWa.students : []);
+            const std = classStudents.find(s => String(s.id) === String(studentId)) || null;
             const stdName = std ? std.name : 'التلميذ(ة)';
             const stdPhone = std?.phone || std?.guardianPhone || std?.parentPhone || '';
 
@@ -21455,7 +22023,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const lts = hm.totalAllTimeLate || 0;
             const diag = hm.diagnosis || {};
 
-            const prof = (window.db && window.db.profile) ? window.db.profile : {};
+            const prof = (window.db && (window.db.teacherProfile || window.db.profile)) || {};
             const profName = prof.name || 'أستاذ مادة الرياضيات';
 
             const msg = `السلام عليكم ورحمة الله،\nإشعار تربوي دوري من ${profName} بخصوص مواظبة التلميذ(ة): *${stdName}* (${className}) بمادة الرياضيات:\n- إجمالي ساعات الغياب: *${totalAbs} ساعة* (${unj}س غير مبرر / ${just}س مبرر).\n- عدد مرات التأخر: *${lts} حصة*.\n- نسق المواظبة العام: *${diag.patternTitle || 'مواظبة عادية'}*.\n${diag.patternDesc ? `\n📌 الملاحظة: ${diag.patternDesc}` : ''}\nنرجو الحرص على متابعة حضور التلميذ(ة) لضمان مسايرة الدروس وإنجاز الواجبات.\nوتقبلوا وافر التقدير.`;
@@ -21470,8 +22038,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         // نسخ تقرير المواظبة الكامل للحافظة
         function copyStudentHeatmapSummary(studentId, className) {
-            const classStudents = (window.db && window.db.classes && window.db.classes[className]) || [];
-            const std = Array.isArray(classStudents) ? classStudents.find(s => String(s.id) === String(studentId)) : null;
+            const rawClsCp = (window.db && window.db.classes && window.db.classes[className]) || [];
+            const classStudents = Array.isArray(rawClsCp) ? rawClsCp : (Array.isArray(rawClsCp.students) ? rawClsCp.students : []);
+            const std = classStudents.find(s => String(s.id) === String(studentId)) || null;
             const stdName = std ? std.name : 'التلميذ(ة)';
 
             const hm = window._lastStudentPersonalHeatmapData || {};
@@ -21481,7 +22050,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const lts = hm.totalAllTimeLate || 0;
             const diag = hm.diagnosis || {};
 
-            const text = `📊 تقرير الخريطة الحرارية للمواظبة (مادة الرياضيات):\nالتلميذ(ة): ${stdName} (${className})\nالموسم الدراسي: 2026/2027\nالمؤسسة: ${(window.db && window.db.profile && window.db.profile.school) || ''}\nأستاذ المادة: ${(window.db && window.db.profile && window.db.profile.name) || 'أستاذ الرياضيات'}\n- مجموع ساعات الغياب: ${totalAbs}س (مبرر: ${just}س / غير مبرر: ${unj}س)\n- حصص التأخر: ${lts}\n- تشخيص النسق: ${diag.patternTitle || 'عادي'} (${diag.patternDesc || ''})`;
+            const prof = (window.db && (window.db.teacherProfile || window.db.profile)) || {};
+            const _nowCp = (typeof getAppNow === 'function') ? getAppNow() : new Date();
+            const _curYCp = _nowCp.getFullYear();
+            const schoolYrCp = prof.academicYear || ((_nowCp.getMonth() < 8) ? `${_curYCp - 1}/${_curYCp}` : `${_curYCp}/${_curYCp + 1}`);
+
+            const text = `📊 تقرير الخريطة الحرارية للمواظبة (مادة الرياضيات):\nالتلميذ(ة): ${stdName} (${className})\nالموسم الدراسي: ${schoolYrCp}\nالمؤسسة: ${prof.school || ''}\nأستاذ المادة: ${prof.name || 'أستاذ الرياضيات'}\n- مجموع ساعات الغياب: ${totalAbs}س (مبرر: ${just}س / غير مبرر: ${unj}س)\n- حصص التأخر: ${lts}\n- تشخيص النسق: ${diag.patternTitle || 'عادي'} (${diag.patternDesc || ''})`;
 
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(() => {
@@ -21495,12 +22069,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         // إرسال إشعار فوري لولي الأمر عبر واتساب بخصوص يوم محدد
         function sendStudentHeatmapWaNotice(studentId, className, dateStr, incidentDesc) {
-            const classStudents = (window.db && window.db.classes && window.db.classes[className]) || [];
-            const std = Array.isArray(classStudents) ? classStudents.find(s => String(s.id) === String(studentId)) : null;
+            const rawClsWa2 = (window.db && window.db.classes && window.db.classes[className]) || [];
+            const classStudents = Array.isArray(rawClsWa2) ? rawClsWa2 : (Array.isArray(rawClsWa2.students) ? rawClsWa2.students : []);
+            const std = classStudents.find(s => String(s.id) === String(studentId)) || null;
             const stdName = std ? std.name : 'التلميذ(ة)';
             const stdPhone = std?.phone || std?.guardianPhone || std?.parentPhone || '';
 
-            const prof = (window.db && window.db.profile) ? window.db.profile : {};
+            const prof = (window.db && (window.db.teacherProfile || window.db.profile)) || {};
             const profName = prof.name || 'أستاذ مادة الرياضيات';
 
             const msg = `السلام عليكم ورحمة الله تعالى وبركاته،\nإشعار تربوي من ${profName} بخصوص التلميذ(ة): *${stdName}* (${className}).\nنحيطكم علماً بأنه تم تسجيل *${incidentDesc}* بتاريخ *${dateStr}* خلال حصة مادة الرياضيات.\nنرجو التفضل بالتواصل مع إدارة المؤسسة والحراسة العامة لتبرير الغياب، والحرص على استدراك ما فات التلميذ(ة) لضمان مسايرة الدروس وإنجاز التمارين.\nوتقبلوا فائق التقدير والاحترام.`;
@@ -21515,11 +22090,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         // نسخ ملخص واقعة اليوم إلى الحافظة
         function copyStudentHeatmapIncident(dateStr, studentId, className) {
-            const classStudents = (window.db && window.db.classes && window.db.classes[className]) || [];
-            const std = Array.isArray(classStudents) ? classStudents.find(s => String(s.id) === String(studentId)) : null;
+            const rawClsInc = (window.db && window.db.classes && window.db.classes[className]) || [];
+            const classStudents = Array.isArray(rawClsInc) ? rawClsInc : (Array.isArray(rawClsInc.students) ? rawClsInc.students : []);
+            const std = classStudents.find(s => String(s.id) === String(studentId)) || null;
             const stdName = std ? std.name : 'التلميذ(ة)';
+            const prof = (window.db && (window.db.teacherProfile || window.db.profile)) || {};
 
-            const text = `📋 ملخص واقعة المواظبة لمادة الرياضيات:\nالتلميذ(ة): ${stdName} (${className})\nالتاريخ: ${dateStr}\nالمؤسسة التعليمية: ${(window.db && window.db.profile && window.db.profile.school) || ''}\nأستاذ المادة: ${(window.db && window.db.profile && window.db.profile.name) || 'أستاذ الرياضيات'}`;
+            const text = `📋 ملخص واقعة المواظبة لمادة الرياضيات:\nالتلميذ(ة): ${stdName} (${className})\nالتاريخ: ${dateStr}\nالمؤسسة التعليمية: ${prof.school || ''}\nأستاذ المادة: ${prof.name || 'أستاذ الرياضيات'}`;
 
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(() => {
@@ -21534,7 +22111,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         function updateStudentProgressChart() {
             let className = document.getElementById('reportClassSelect').value;
             let studentId = document.getElementById('reportStudentSelect').value;
-            if (className === '__ALL__' && studentId && studentId.includes(':::')) {
+            if (studentId && studentId.includes(':::')) {
                 const parts = studentId.split(':::');
                 className = parts[0];
                 studentId = parts[1];
@@ -21577,7 +22154,11 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const classStudentsList = Array.isArray(db.classes[className]) ? db.classes[className] : (db.classes[className]?.students || []);
             const std = classStudentsList.find(s => String(s.id) === String(studentId));
 
+            const safeRepHtml = (v) => (typeof escapeHtml === 'function' ? escapeHtml(String(v ?? '')) : String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+            const safeRepJsArg = (v) => safeRepHtml(JSON.stringify(String(v ?? '')));
+
             const hmData = computeStudentPersonalHeatmap(studentId, className, dateFrom, dateTo);
+            const stdRecords = Array.isArray(hmData.stdRecords) ? hmData.stdRecords : [];
             const absentHours = hmData.absentHours;
             const justifiedHours = hmData.justifiedHours;
             const unjustifiedHours = hmData.unjustifiedHours;
@@ -21644,9 +22225,30 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     });
                 }
 
+                // Canonical class-keyed lesson logs: db.lessonLogs[className]
+                const classLessonLogs = (window.db && window.db.lessonLogs && !Array.isArray(window.db.lessonLogs) && Array.isArray(window.db.lessonLogs[className]))
+                    ? window.db.lessonLogs[className]
+                    : [];
+                classLessonLogs.forEach(l => {
+                    if (!l || !l.date) return;
+                    const d = String(l.date).trim();
+                    if ((dateFrom && d < dateFrom) || (dateTo && d > dateTo)) return;
+                    if (!incidentDatesSet.has(d) && !emptyDateMap.has(d)) {
+                        emptyDateMap.set(d, {
+                            date: d,
+                            timeSlot: l.timeSlot || l.session || (l.sessionNum ? `الحصة ${l.sessionNum}` : 'حصة دراسية'),
+                            statusLabel: 'لا توجد واقعة مسجلة (حضور منتظم)',
+                            durationLabel: '—',
+                            noteLabel: l.title ? `حصة: ${l.title} — بدون وقائع` : 'تاريخ حصة بدون وقائع مسجلة',
+                            isEmptyIncidentDate: true
+                        });
+                    }
+                });
+
+                // Legacy flat lessonLog array fallback
                 if (window.db && Array.isArray(window.db.lessonLog)) {
                     window.db.lessonLog.forEach(l => {
-                        if (!l || l.className !== className || !l.date) return;
+                        if (!l || (l.className && l.className !== className) || !l.date) return;
                         const d = String(l.date).trim();
                         if ((dateFrom && d < dateFrom) || (dateTo && d > dateTo)) return;
                         if (!incidentDatesSet.has(d) && !emptyDateMap.has(d)) {
@@ -21706,20 +22308,20 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 const dName = getDayLabel(r.date);
                 if (r.isEmptyIncidentDate) {
                     return `
-                        <tr class="incident-log-empty-date-row" data-empty-date="${r.date}" style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 0 ? 'background: #ffffff;' : 'background: #f8fafc;'}">
+                        <tr class="incident-log-empty-date-row" data-empty-date="${safeRepHtml(r.date)}" style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 0 ? 'background: #ffffff;' : 'background: #f8fafc;'}">
                             <td style="padding: 6px 8px; text-align: center; color: #64748b; font-weight: bold;">${idx + 1}</td>
                             <td style="padding: 6px 8px; text-align: right; font-weight: 700; color: #0f172a;">
-                                <span style="color: #64748b; font-size: 0.75rem; margin-left: 4px;">${dName}</span>
-                                <span>${r.date}</span>
+                                <span style="color: #64748b; font-size: 0.75rem; margin-left: 4px;">${safeRepHtml(dName)}</span>
+                                <span>${safeRepHtml(r.date)}</span>
                             </td>
-                            <td style="padding: 6px 8px; text-align: center; color: #475569;">${r.timeSlot || 'حصة عادية'}</td>
+                            <td style="padding: 6px 8px; text-align: center; color: #475569;">${safeRepHtml(r.timeSlot || 'حصة عادية')}</td>
                             <td style="padding: 6px 8px; text-align: center;">
                                 <div style="display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: center;">
-                                    <span style="background: #f0fdf4; color: #15803d; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; border: 1px solid #bbf7d0;">✔ ${r.statusLabel || 'لا توجد واقعة مسجلة'}</span>
+                                    <span style="background: #f0fdf4; color: #15803d; padding: 2px 7px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; border: 1px solid #bbf7d0;">✔ ${safeRepHtml(r.statusLabel || 'لا توجد واقعة مسجلة')}</span>
                                 </div>
                             </td>
-                            <td style="padding: 6px 8px; text-align: center; font-weight: 800; color: #64748b;">${r.durationLabel || '—'}</td>
-                            <td style="padding: 6px 8px; text-align: center; color: #64748b; font-size: 0.78rem;">${r.noteLabel || 'يوم دراسي بدون وقائع مسجلة'}</td>
+                            <td style="padding: 6px 8px; text-align: center; font-weight: 800; color: #64748b;">${safeRepHtml(r.durationLabel || '—')}</td>
+                            <td style="padding: 6px 8px; text-align: center; color: #64748b; font-size: 0.78rem;">${safeRepHtml(r.noteLabel || 'يوم دراسي بدون وقائع مسجلة')}</td>
                         </tr>
                     `;
                 }
@@ -21745,13 +22347,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     <tr class="incident-log-recorded-row" style="border-bottom: 1px solid #e2e8f0; ${idx % 2 === 0 ? 'background: #ffffff;' : 'background: #f8fafc;'}">
                         <td style="padding: 6px 8px; text-align: center; color: #64748b; font-weight: bold;">${idx + 1}</td>
                         <td style="padding: 6px 8px; text-align: right; font-weight: 700; color: #0f172a;">
-                            <span style="color: #64748b; font-size: 0.75rem; margin-left: 4px;">${dName}</span>
-                            <span>${r.date}</span>
+                            <span style="color: #64748b; font-size: 0.75rem; margin-left: 4px;">${safeRepHtml(dName)}</span>
+                            <span>${safeRepHtml(r.date)}</span>
                         </td>
-                        <td style="padding: 6px 8px; text-align: center; color: #475569;">${r.timeSlot || r.session || 'حصة عادية'}</td>
+                        <td style="padding: 6px 8px; text-align: center; color: #475569;">${safeRepHtml(r.timeSlot || r.session || 'حصة عادية')}</td>
                         <td style="padding: 6px 8px; text-align: center;"><div style="display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: center;">${badges.join('')}</div></td>
                         <td style="padding: 6px 8px; text-align: center; font-weight: 800; color: ${isAbsence ? (isJustified ? '#0284c7' : '#dc2626') : '#64748b'};">${isAbsence ? getRecordAbsenceDuration(r) + ' ساعة' : '—'}</td>
-                        <td style="padding: 6px 8px; text-align: center; color: #64748b; font-size: 0.78rem;">${r.notes || r.note || r.justification || '—'}</td>
+                        <td style="padding: 6px 8px; text-align: center; color: #64748b; font-size: 0.78rem;">${safeRepHtml(r.notes || r.note || r.justification || '—')}</td>
                     </tr>
                 `;
             }).join('');
@@ -21763,7 +22365,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                             <span>📅</span> جدول سجل الوقائع والمواظبة الزمني (${periodAbsences.length} غياب بـ ${absentHours} س · ${lateCount} تأخر · ${missedHw} إخلال بالواجب · ${emptyDateEntries.length} تواريخ بدون وقائع)
                         </strong>
                         <span style="font-size: 0.76rem; color: #475569; font-weight: 700;">
-                            مصنف زمنياً بتواريخ الوقائع والتواريخ الفارغة بتنسق موحد
+                            مصنف زمنياً بتواريخ الوقائع والتواريخ الفارغة بتنسيق موحد
                         </span>
                     </div>
 
@@ -21795,15 +22397,15 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     ${outsidePeriodAbsences.length > 0 ? `
                         <div style="margin-top: 10px; font-size: 0.76rem; color: #475569; background: #f8fafc; padding: 7px 10px; border-radius: 6px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
                             <span>📌 <strong>سجل الفترات الأخرى:</strong> يوجد <strong>${outsidePeriodAbsentHours} ساعة غياب إضافية</strong> (${outsidePeriodAbsences.length} حصة) خارج الفترة المرجعية أعلاه (الإجمالي السنوي: ${totalAllTimeAbsent} س).</span>
-                            <button type="button" onclick="toggleAllTimeAbsenceDates('${studentId}', '${className}')" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; cursor: pointer; border-radius: 4px; font-size: 0.74rem; font-weight: 700; padding: 3px 8px;">عرض التواريخ خارج الفترة (${outsidePeriodAbsences.length})</button>
+                            <button type="button" onclick="toggleAllTimeAbsenceDates(${safeRepJsArg(studentId)}, ${safeRepJsArg(className)})" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; cursor: pointer; border-radius: 4px; font-size: 0.74rem; font-weight: 700; padding: 3px 8px;">عرض التواريخ خارج الفترة (${outsidePeriodAbsences.length})</button>
                         </div>
-                        <div id="allTimeAbsenceDatesContainer_${studentId}" style="display: none; margin-top: 8px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
+                        <div id="allTimeAbsenceDatesContainer_${safeRepHtml(String(studentId).replace(/[^a-zA-Z0-9_-]/g, '_'))}" style="display: none; margin-top: 8px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px;">
                             <div style="font-weight: 700; color: #1e3a8a; font-size: 0.78rem; margin-bottom: 6px;">تواريخ الغياب المسجلة خارج الفترة المرجعية المحددة:</div>
                             <div style="display: flex; flex-wrap: wrap; gap: 5px;">
                                 ${outsidePeriodAbsences.map(a => {
                                     const isJ = a.status === 'مبرر';
                                     const dn = getDayLabel(a.date);
-                                    return `<span style="font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; background: ${isJ ? '#e0f2fe' : '#fee2e2'}; color: ${isJ ? '#0369a1' : '#b91c1c'}; border: 1px solid ${isJ ? '#bae6fd' : '#fca5a5'}; font-weight: 600;">📅 ${dn ? dn + ' ' : ''}${a.date} (${getRecordAbsenceDuration(a)}س - ${isJ ? 'مبرر' : 'غير مبرر'})</span>`;
+                                    return `<span style="font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; background: ${isJ ? '#e0f2fe' : '#fee2e2'}; color: ${isJ ? '#0369a1' : '#b91c1c'}; border: 1px solid ${isJ ? '#bae6fd' : '#fca5a5'}; font-weight: 600;">📅 ${dn ? safeRepHtml(dn) + ' ' : ''}${safeRepHtml(a.date)} (${getRecordAbsenceDuration(a)}س - ${isJ ? 'مبرر' : 'غير مبرر'})</span>`;
                                 }).join('')}
                             </div>
                         </div>
@@ -21929,14 +22531,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 ? getStudentPrintModeOptions()
                 : { officialHeader: true, progressChart: true, officialVisas: true, absenceChart: true };
 
-            const safeRepHtml = (v) => (typeof escapeHtml === 'function' ? escapeHtml(String(v ?? '')) : String(v ?? ''));
-            const prof = (db && db.teacherProfile) || {};
-            const pName = safeRepHtml(prof.name || 'إبراهيم قزيبر');
+            const prof = (db && (db.teacherProfile || db.profile)) || {};
+            const pName = safeRepHtml(prof.name || 'أستاذ المادة');
             const pAcademy = safeRepHtml(prof.academy || 'الأكاديمية الجهوية للتربية والتكوين');
             const pDirectorate = safeRepHtml(prof.directorate || 'المديرية الإقليمية');
             const pSchool = safeRepHtml(prof.school || 'المؤسسة التعليمية');
-            const pYear = safeRepHtml(prof.academicYear || '2026 / 2027');
+            const _repNow = (typeof getAppNow === 'function') ? getAppNow() : new Date();
+            const _repCurY = _repNow.getFullYear();
+            const _repDefaultYear = (_repNow.getMonth() < 8) ? `${_repCurY - 1} / ${_repCurY}` : `${_repCurY} / ${_repCurY + 1}`;
+            const pYear = safeRepHtml(prof.academicYear || _repDefaultYear);
             const printDateStr = typeof formatLocalDate === 'function' ? formatLocalDate() : new Date().toISOString().slice(0, 10);
+            const activeSemLabelAr = activeSem === 's2' ? 'الدورة الثانية' : 'الدورة الأولى';
 
             // Teacher journal notes for this student (if any)
             const studentJournalNotes = (db.notes && db.notes[className]) ? db.notes[className].filter(n => String(n.studentId) === String(studentId)) : [];
@@ -22018,7 +22623,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         </tbody>
                     </table>
                     <div style="text-align: center; margin-top: 8px; padding-top: 6px; border-top: 1px solid #cbd5e1; font-size: 0.78rem; color: #1e3a8a; font-weight: 800; font-family: 'Cairo', sans-serif;">
-                        منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر
+                        منظومة التدبير التربوي - مادة الرياضيات - ${pName}
                     </div>
                 </div>
             `;
@@ -22143,7 +22748,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                             <div style="font-size: 0.76rem; color: #334155; font-weight: 700;">السلوك والانضباط الصفي</div>
                             <div style="margin-top: 4px;">
                                 <span style="color: ${statusColor}; font-weight: 900; padding: 2px 8px; background-color: ${statusColor}18; border: 1px solid ${statusColor}; border-radius: 4px; font-size: 0.88rem; display: inline-block;">
-                                    ${behaviorData.status || 'منضبط'}
+                                    ${safeRepHtml(behaviorData.status || 'منضبط')}
                                 </span>
                             </div>
                         </div>
@@ -22152,9 +22757,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     <!-- جدول النقط والتموقع الصفي ومسار التطور (شامل دون تكرار) -->
                     <div class="page-break-avoid" style="background: #ffffff; border: 1.5px solid #1e293b; border-radius: 6px; padding: 12px; margin-bottom: 14px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; flex-wrap: wrap; gap: 6px;">
-                            <strong style="color: #0f172a; font-size: 0.9rem;">📊 حصيلة المراقبة المستمرة والتموقع الصفي (مادة الرياضيات)</strong>
-                            <div style="display: flex; gap: 10px; font-size: 0.78rem; color: #1e293b; font-weight: 700;">
+                            <strong style="color: #0f172a; font-size: 0.9rem;">📊 حصيلة المراقبة المستمرة والتموقع الصفي (${activeSemLabelAr} · مادة الرياضيات)</strong>
+                            <div style="display: flex; gap: 10px; font-size: 0.78rem; color: #1e293b; font-weight: 700; flex-wrap: wrap;">
                                 <span>المعامل: <strong>${coef}</strong></span>
+                                ${grades.act !== undefined && grades.act !== '' ? `<span>الأنشطة المندمجة: <strong style="color: #0f766e;">${safeRepHtml(grades.act)}/20</strong></span>` : ''}
                                 <span>معدل القسم المرجعي: <strong style="color: #0284c7;">${classAvgVal !== null ? classAvgVal.toFixed(2) + '/20' : '—'}</strong></span>
                             </div>
                         </div>
@@ -22480,7 +23086,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             // 1. Update Monthly Attendance Chart (#studentAttendanceChart) & Badge (#studentAttendanceChartBadge)
             const attBadge = document.getElementById('studentAttendanceChartBadge');
             if (attBadge) {
-                const estRate = Math.max(0, 100 - Math.min(100, +(totalAllTimeAbsent * 1.25).toFixed(1)));
+                const weeklyHoursBadge = (typeof getWeeklyHoursForClass === 'function' && className) ? (Number(getWeeklyHoursForClass(className)) || 4) : 4;
+                const annualHoursBadge = Math.max(34, Math.round(weeklyHoursBadge * 34));
+                const estRate = Math.max(0, Math.min(100, Math.round(((annualHoursBadge - totalAllTimeAbsent) / annualHoursBadge) * 1000) / 10));
                 attBadge.textContent = totalAllTimeAbsent === 0 ? 'المواظبة: 100%' : `المواظبة: ${estRate}% (${totalAllTimeAbsent}س غياب)`;
                 attBadge.style.color = totalAllTimeAbsent === 0 ? '#047857' : (totalAllTimeAbsent >= 8 ? '#b91c1c' : '#b45309');
                 attBadge.style.background = totalAllTimeAbsent === 0 ? '#ecfdf5' : (totalAllTimeAbsent >= 8 ? '#fef2f2' : '#fffbeb');
@@ -22658,7 +23266,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         }
 
         function toggleAllTimeAbsenceDates(studentId, className) {
-            const el = document.getElementById(`allTimeAbsenceDatesContainer_${studentId}`);
+            const safeId = String(studentId || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+            const el = document.getElementById(`allTimeAbsenceDatesContainer_${safeId}`) || document.getElementById(`allTimeAbsenceDatesContainer_${studentId}`);
             if (el) {
                 el.style.display = (el.style.display === 'none' || !el.style.display) ? 'block' : 'none';
             }
@@ -22699,8 +23308,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 if (toInp && toInp.value) dateTo = toInp.value;
             }
 
-            const isAllClasses = (className === '__ALL__');
-            if (!className || (!isAllClasses && (!db.classes || !db.classes[className]))) {
+            const resolved = resolveReportTargetClasses(className);
+            const isMultiClasses = resolved.isMulti;
+            if (!className || !resolved.classes || resolved.classes.length === 0) {
                 if (card) card.style.display = 'block';
                 if (rateEl) { rateEl.textContent = '100%'; rateEl.style.color = '#15803d'; }
                 if (attendanceSessionsEl) attendanceSessionsEl.textContent = 'يرجى اختيار القسم لعرض النسب';
@@ -22723,31 +23333,20 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
 
             if (card) card.style.display = 'block';
-            let students = [];
-            let allClassRecords = [];
-            if (isAllClasses) {
-                const sorted = (typeof getSortedClasses === 'function') ? getSortedClasses(true) : Object.keys(db.classes || {});
-                sorted.forEach(c => {
-                    const cl = Array.isArray(db.classes[c]) ? db.classes[c] : (db.classes[c]?.students || []);
-                    cl.forEach(st => students.push({ ...st, className: c }));
-                });
-                allClassRecords = (db.records || []).filter(r => !isRecordProtectedHolidayOrLeave(r));
-            } else {
-                students = Array.isArray(db.classes[className]) ? db.classes[className] : (db.classes[className]?.students || []);
-                allClassRecords = getClassRecordsFast(className).filter(r => !isRecordProtectedHolidayOrLeave(r));
-            }
+            const students = getCombinedStudentsForClasses(className);
+            let allClassRecords = getCombinedRecordsForClasses(className).filter(r => !isRecordProtectedHolidayOrLeave(r));
 
             if (dateFrom && dateTo) {
                 allClassRecords = allClassRecords.filter(r => r.date >= dateFrom && r.date <= dateTo);
             }
 
             // 1. حساب نسبة الحضور والمواظبة العامة
-            const sessionSet = new Set(allClassRecords.map(r => (isAllClasses ? (r.className || '') + '|||' : '') + (r.date || '') + '|||' + (r.session || '')));
+            const sessionSet = new Set(allClassRecords.map(r => (isMultiClasses ? (r.className || '') + '|||' : '') + (r.date || '') + '|||' + (r.session || '')));
             const totalSessions = Math.max(1, sessionSet.size);
             const totalScheduledAttendances = students.length * totalSessions;
             const absentRecords = allClassRecords.filter(r => r.status === 'غائب' || r.status === 'مبرر');
             const absentCount = absentRecords.length;
-            const absentHoursTotal = absentRecords.reduce((sum, r) => sum + (parseFloat(r.duration || r.hours) || 1), 0);
+            const absentHoursTotal = absentRecords.reduce((sum, r) => sum + (typeof getRecordAbsenceDuration === 'function' ? getRecordAbsenceDuration(r) : (parseFloat(r.duration || r.hours) || 1)), 0);
             const lateCount = allClassRecords.filter(r => r.status === 'متأخر').length;
             const actualPresentCount = Math.max(0, totalScheduledAttendances - absentCount);
 
@@ -22806,8 +23405,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             let atRiskCount = 0;
 
             students.forEach(std => {
-                const cName = isAllClasses ? (std.className || '') : className;
-                const grades = (db.grades[cName] && db.grades[cName][std.id]) ? db.grades[cName][std.id] : {};
+                const cName = std.className || resolved.classes[0];
+                const grades = (typeof getStudentGradesBySemester === 'function')
+                    ? getStudentGradesBySemester(cName, std.id, typeof getActiveSemester === 'function' ? getActiveSemester() : 's1')
+                    : ((db.grades[cName] && db.grades[cName][std.id]) ? db.grades[cName][std.id] : {});
                 const avg = calculateStudentAvg(grades, cName);
                 if (avg !== null) {
                     totalEvaluated++;
@@ -22855,7 +23456,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         }
         function updateAttendancePieChart(className, counts) {
             const card = document.getElementById('attendancePieChartCard');
-            if (!className || !db.classes[className]) {
+            const resolved = resolveReportTargetClasses(className);
+            if (!resolved.classes || resolved.classes.length === 0) {
                 if (card) card.style.display = 'none';
                 return;
             }
@@ -22910,15 +23512,15 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         function updateAbsenceByDayChart(className, dateFrom, dateTo) {
             const card = document.getElementById('absenceByDayChartCard');
+            const resolved = resolveReportTargetClasses(className);
 
-            if (!className || !db.classes[className]) {
+            if (!resolved.classes || resolved.classes.length === 0) {
                 if (card) card.style.display = 'none';
                 return;
             }
 
-            const absenceRecords = getClassRecordsFast(className).filter(r =>
-                (!dateFrom || r.date >= dateFrom) &&
-                (!dateTo || r.date <= dateTo) &&
+            const absenceRecords = getCombinedRecordsForClasses(className, dateFrom, dateTo).filter(r =>
+                !(typeof isRecordProtectedHolidayOrLeave === 'function' && isRecordProtectedHolidayOrLeave(r)) &&
                 (r.status === 'غائب' || r.status === 'مبرر')
             );
 
@@ -22932,7 +23534,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const dayCounts = [0, 0, 0, 0, 0, 0, 0];
 
             absenceRecords.forEach(r => {
-                const d = new Date(r.date);
+                if (!r.date) return;
+                const p = String(r.date).split('-');
+                const d = p.length >= 3 ? new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)) : new Date(r.date);
                 if (!isNaN(d.getTime())) {
                     dayCounts[d.getDay()]++;
                 }
@@ -23016,14 +23620,16 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const card = document.getElementById('monthlyAbsenceEvolutionCard');
             if (!card) return;
 
-            if (!className || !db.classes[className]) {
+            const resolved = resolveReportTargetClasses(className);
+            if (!resolved.classes || resolved.classes.length === 0) {
                 card.style.display = 'none';
                 return;
             }
 
-            // تجميع كافة تسجيلات الغياب لهذا القسم (غائب أو مبرر) عبر الفهرس السريع O(1)
-            const records = getClassRecordsFast(className).filter(r =>
-                r.status === 'غائب' || r.status === 'مبرر'
+            // تجميع كافة تسجيلات الغياب للقسم أو للأقسام المدمجة (غائب أو مبرر) مع استثناء العطل والرخص المحمية
+            const records = getCombinedRecordsForClasses(className).filter(r =>
+                !(typeof isRecordProtectedHolidayOrLeave === 'function' && isRecordProtectedHolidayOrLeave(r)) &&
+                (r.status === 'غائب' || r.status === 'مبرر')
             );
 
             if (records.length === 0) {
@@ -23066,7 +23672,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     const mNum = parseInt(parts[1], 10);
                     const found = monthData.find(item => item.num === mNum);
                     if (found) {
-                        const h = parseFloat(r.hours) || 1;
+                        const h = typeof getRecordAbsenceDuration === 'function' ? getRecordAbsenceDuration(r) : (parseFloat(r.duration || r.hours) || 1);
                         found.hours += h;
                         found.count += 1;
                         if (r.status === 'مبرر') {
@@ -23136,7 +23742,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             if (insightText) {
                 if (peakMonth) {
                     const pct = totalHours > 0 ? ((peakMonth.hours / totalHours) * 100).toFixed(0) : 0;
-                    insightText.innerHTML = `<strong>قراءة المؤشرات:</strong> يمثل شهر <strong>${peakMonth.name}</strong> ذروة الغياب المسجلة (${peakMonth.hours} س بنسبة ${pct}% من مجموع الغياب). يُنصح بتعزيز التتبع والتواصل الوقائي خلال هذا الشهر لتقليص الانقطاعات.`;
+                    insightText.innerHTML = `<strong>قراءة المؤشرات:</strong> يمثل شهر <strong>${escapeHtml(peakMonth.name)}</strong> ذروة الغياب المسجلة (${peakMonth.hours} س بنسبة ${pct}% من مجموع الغياب). يُنصح بتعزيز التتبع والتواصل الوقائي خلال هذا الشهر لتقليص الانقطاعات.`;
                 } else {
                     insightText.textContent = 'سجل الحضور ممتاز على مدار الشهور مع غياب شبه منعدم.';
                 }
@@ -23261,26 +23867,36 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         function updateReportGradesComparisonChart(className) {
             const card = document.getElementById('reportGradesComparisonCard');
+            const resolved = resolveReportTargetClasses(className);
 
-            if (!className || !db.classes[className]) {
+            if (!resolved.classes || resolved.classes.length === 0) {
                 if (card) card.style.display = 'none';
                 return;
             }
 
             if (card) card.style.display = 'block';
 
-            const students = db.classes[className];
-            const examCount = getExamsCountForClass(className) || 2;
+            const students = getCombinedStudentsForClasses(className);
+            const examCount = Math.max(...resolved.classes.map(c => getExamsCountForClass(c) || 2), 2);
 
             let sums = { f1: 0, f2: 0, f3: 0, f4: 0 };
             let counts = { f1: 0, f2: 0, f3: 0, f4: 0 };
 
+            const parseG = (v) => {
+                if (v === undefined || v === null || v === '') return NaN;
+                return parseFloat(String(v).replace(',', '.'));
+            };
+            const curSem = typeof getActiveSemester === 'function' ? getActiveSemester() : 's1';
             students.forEach(std => {
-                const grades = (db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {};
-                if (grades.f1 !== undefined && grades.f1 !== '' && !isNaN(grades.f1)) { sums.f1 += parseFloat(grades.f1); counts.f1++; }
-                if (grades.f2 !== undefined && grades.f2 !== '' && !isNaN(grades.f2)) { sums.f2 += parseFloat(grades.f2); counts.f2++; }
-                if (examCount >= 3 && grades.f3 !== undefined && grades.f3 !== '' && !isNaN(grades.f3)) { sums.f3 += parseFloat(grades.f3); counts.f3++; }
-                if (examCount >= 4 && grades.f4 !== undefined && grades.f4 !== '' && !isNaN(grades.f4)) { sums.f4 += parseFloat(grades.f4); counts.f4++; }
+                const stdClass = std.className || resolved.classes[0];
+                const stdExamCount = getExamsCountForClass(stdClass) || 2;
+                const grades = typeof getStudentGradesBySemester === 'function'
+                    ? getStudentGradesBySemester(stdClass, std.id, curSem)
+                    : ((db.grades[stdClass] && db.grades[stdClass][std.id]) ? db.grades[stdClass][std.id] : {});
+                const v1 = parseG(grades.f1); if (!isNaN(v1)) { sums.f1 += v1; counts.f1++; }
+                const v2 = parseG(grades.f2); if (!isNaN(v2)) { sums.f2 += v2; counts.f2++; }
+                const v3 = parseG(grades.f3); if (stdExamCount >= 3 && !isNaN(v3)) { sums.f3 += v3; counts.f3++; }
+                const v4 = parseG(grades.f4); if (stdExamCount >= 4 && !isNaN(v4)) { sums.f4 += v4; counts.f4++; }
             });
 
             let dataPoints = [];
@@ -23369,13 +23985,15 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         }
 
         async function generateAiSupportPlan() {
-            const className = document.getElementById('reportClassSelect').value;
-            if (!className) {
+            const rawClassName = document.getElementById('reportClassSelect').value;
+            const resolved = resolveReportTargetClasses(rawClassName);
+            if (!rawClassName || resolved.classes.length === 0) {
                 window.notifySafeToast('الرجاء اختيار القسم أولاً');
                 return;
             }
+            const className = resolved.label || rawClassName;
 
-            const students = db.classes[className] || [];
+            const students = getCombinedStudentsForClasses(rawClassName);
             if (students.length === 0) {
                 window.notifySafeToast('لا يوجد تلاميذ مسجلين في هذا القسم.');
                 return;
@@ -23389,28 +24007,33 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             let gradedCount = 0;
             let totalAbsenceHours = 0;
 
+            const activeSemPlan = typeof getActiveSemester === 'function' ? getActiveSemester() : 's1';
             students.forEach(std => {
-                const grades = (db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {};
-                const avg = calculateStudentAvg(grades, className);
+                const stdClass = std.className || resolved.classes[0];
+                const grades = typeof getStudentGradesBySemester === 'function'
+                    ? getStudentGradesBySemester(stdClass, std.id, activeSemPlan)
+                    : ((db.grades[stdClass] && db.grades[stdClass][std.id]) ? db.grades[stdClass][std.id] : {});
+                const avg = calculateStudentAvg(grades, stdClass);
                 if (avg !== null) {
                     totalGradeSum += avg;
                     gradedCount++;
                 }
 
-                const stdRecords = getStudentClassRecordsFast(std.id, className).filter(r =>
+                const stdRecords = getStudentClassRecordsFast(std.id, stdClass).filter(r =>
                     (!dateFrom || r.date >= dateFrom) &&
-                    (!dateTo || r.date <= dateTo)
+                    (!dateTo || r.date <= dateTo) &&
+                    !(typeof isRecordProtectedHolidayOrLeave === 'function' && isRecordProtectedHolidayOrLeave(r))
                 );
 
-                const absentHours = stdRecords.filter(r => r.status === 'غائب' || r.status === 'مبرر').reduce((sum, r) => sum + getRecordAbsenceDuration(r), 0);
+                const absentHours = stdRecords.filter(r => r.status === 'غائب' || r.status === 'مبرر').reduce((sum, r) => sum + (typeof getRecordAbsenceDuration === 'function' ? getRecordAbsenceDuration(r) : (parseFloat(r.duration || r.hours) || 1)), 0);
                 totalAbsenceHours += absentHours;
                 const lateCount = stdRecords.filter(r => r.status === 'متأخر').length;
                 const missedHw = stdRecords.filter(r => r.homework === 'لم ينجز').length;
-                const behaviorData = (db.behaviors[className] && db.behaviors[className][std.id]) ? db.behaviors[className][std.id] : { status: 'منضبط' };
+                const behaviorData = (db.behaviors[stdClass] && db.behaviors[stdClass][std.id]) ? db.behaviors[stdClass][std.id] : { status: 'منضبط' };
 
                 allStudentStats.push({
                     id: std.id,
-                    name: std.name,
+                    name: resolved.isMulti ? `${std.name} (${stdClass})` : std.name,
                     average: avg !== null ? avg.toFixed(2) : 'غير متوفر',
                     avgNum: avg,
                     absentHours: absentHours,
@@ -23489,13 +24112,16 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     throw new Error(data.error || 'حدث خطأ في الاتصال بالخادم');
                 }
 
-                if (resultDiv) resultDiv.innerHTML = data.result;
+                if (resultDiv) {
+                    const rawHtml = String(data.result || '').replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son\w+\s*=\s*(['"])[\s\S]*?\1/gi, '');
+                    resultDiv.innerHTML = rawHtml;
+                }
                 if (containerDiv) containerDiv.style.display = 'block';
 
             } catch (error) {
                 console.error(error?.message || String(error));
                 if (resultDiv) {
-                    resultDiv.innerHTML = '<div style="color: var(--danger); padding: 14px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;">حدث خطأ أثناء جلب التحليل: ' + error.message + '</div>';
+                    resultDiv.innerHTML = '<div style="color: var(--danger); padding: 14px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;">حدث خطأ أثناء جلب التحليل: ' + escapeHtml(error?.message || String(error)) + '</div>';
                 }
                 if (containerDiv) containerDiv.style.display = 'block';
             } finally {
@@ -23517,7 +24143,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         function printAiPlan() {
             const resultDiv = document.getElementById('aiPlanResult');
-            const className = document.getElementById('reportClassSelect').value || '';
+            const rawClassName = document.getElementById('reportClassSelect').value || '';
+            const resolved = resolveReportTargetClasses(rawClassName);
+            const className = resolved.label || rawClassName;
             if (!resultDiv) return;
 
             const planHtml = `
@@ -23525,7 +24153,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 <html lang="ar" dir="rtl">
                 <head>
                     <meta charset="UTF-8">
-                    <title>خطة الدعم والمعالجة البيداغوجية - ${className}</title>
+                    <title>خطة الدعم والمعالجة البيداغوجية - ${escapeHtml(className)}</title>
                     <style>
                         body { font-family: 'Cairo', sans-serif, Tahoma; padding: 20px; line-height: 1.6; color: #1e293b; direction: rtl; }
                         h2, h3, h4 { color: #1d4ed8; }
@@ -23534,10 +24162,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     </style>
                 </head>
                 <body>
-                    ${typeof buildOfficialMoroccanHeader === 'function' ? buildOfficialMoroccanHeader('خطة الدعم والمعالجة البيداغوجية للتلاميذ المتعثرين', className, new Date().toLocaleDateString('ar-MA')) : `
+                    ${typeof buildOfficialMoroccanHeader === 'function' ? buildOfficialMoroccanHeader('خطة الدعم والمعالجة البيداغوجية للتلاميذ المتعثرين', escapeHtml(className), (typeof getAppNow === 'function' ? getAppNow() : new Date()).toLocaleDateString('ar-MA')) : `
                     <div style="text-align: center; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 16px;">
                         <h2>خطة الدعم والمعالجة البيداغوجية للتلاميذ المتعثرين</h2>
-                        <p>القسم: <strong>${className}</strong> - التاريخ: <strong>${new Date().toLocaleDateString('ar-MA')}</strong></p>
+                        <p>القسم: <strong>${escapeHtml(className)}</strong> - التاريخ: <strong>${(typeof getAppNow === 'function' ? getAppNow() : new Date()).toLocaleDateString('ar-MA')}</strong></p>
                     </div>`}
                     ${resultDiv.innerHTML}
                     <div style="margin-top: 30px; text-align: left; font-size: 0.9rem;">
@@ -23559,7 +24187,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const listStruggling = document.getElementById('listStruggling');
             const listActive = document.getElementById('listActive');
 
-            if (!className || !db.classes[className]) {
+            const resolved = resolveReportTargetClasses(className);
+            if (!resolved.classes || resolved.classes.length === 0) {
                 if (card) card.style.display = 'none';
                 return;
             }
@@ -23572,21 +24201,28 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const threshold = db.absenceThreshold || 10;
             let countE = 0, countS = 0, countA = 0;
 
-            db.classes[className].forEach(std => {
-                const stdRecords = getStudentClassRecordsFast(std.id, className).filter(r =>
+            const students = getCombinedStudentsForClasses(className);
+            const curSemCls = typeof getActiveSemester === 'function' ? getActiveSemester() : 's1';
+            students.forEach(std => {
+                const stdClass = std.className || resolved.classes[0];
+                const stdRecords = getStudentClassRecordsFast(std.id, stdClass).filter(r =>
                     (!dateFrom || r.date >= dateFrom) &&
-                    (!dateTo || r.date <= dateTo)
+                    (!dateTo || r.date <= dateTo) &&
+                    !(typeof isRecordProtectedHolidayOrLeave === 'function' && isRecordProtectedHolidayOrLeave(r))
                 );
 
-                const absentHours = stdRecords.filter(r => r.status === 'غائب' || r.status === 'مبرر').reduce((sum, r) => sum + getRecordAbsenceDuration(r), 0);
+                const absentHours = stdRecords.filter(r => r.status === 'غائب' || r.status === 'مبرر').reduce((sum, r) => sum + (typeof getRecordAbsenceDuration === 'function' ? getRecordAbsenceDuration(r) : (parseFloat(r.duration || r.hours) || 1)), 0);
                 const lateCount = stdRecords.filter(r => r.status === 'متأخر').length;
                 const missedHw = stdRecords.filter(r => r.homework === 'لم ينجز').length;
 
-                const grades = (db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {};
-                const avg = calculateStudentAvg(grades, className);
+                const grades = typeof getStudentGradesBySemester === 'function'
+                    ? getStudentGradesBySemester(stdClass, std.id, curSemCls)
+                    : ((db.grades[stdClass] && db.grades[stdClass][std.id]) ? db.grades[stdClass][std.id] : {});
+                const avg = calculateStudentAvg(grades, stdClass);
 
-                const behaviorData = (db.behaviors[className] && db.behaviors[className][std.id]) ? db.behaviors[className][std.id] : { status: 'منضبط' };
+                const behaviorData = (db.behaviors[stdClass] && db.behaviors[stdClass][std.id]) ? db.behaviors[stdClass][std.id] : { status: 'منضبط' };
                 const behavior = behaviorData.status || 'منضبط';
+                const displayName = resolved.isMulti ? `${escapeHtml(std.name)} <span style="font-size:0.68rem; color:#0369a1;">[${escapeHtml(stdClass)}]</span>` : escapeHtml(std.name);
 
                 let isExcellent = false;
                 let isStruggling = false;
@@ -23605,16 +24241,16 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 }
 
                 if (isExcellent) {
-                    listExcellent.innerHTML += `<li style="margin-bottom: 4px;">• ${std.name} <span style="font-size:0.75rem; opacity: 0.8;">(${avg.toFixed(2)})</span></li>`;
+                    listExcellent.innerHTML += `<li style="margin-bottom: 4px;">• ${displayName} <span style="font-size:0.75rem; opacity: 0.8;">(${avg.toFixed(2)})</span></li>`;
                     countE++;
                 }
                 if (isStruggling) {
                     let reason = (avg !== null && avg < 10) ? `معدل ${avg.toFixed(2)}` : (behavior === 'مشوش' ? 'سلوك مشوش' : 'غياب متكرر');
-                    listStruggling.innerHTML += `<li style="margin-bottom: 4px;">• ${std.name} <span style="font-size:0.75rem; opacity: 0.8;">(${reason})</span></li>`;
+                    listStruggling.innerHTML += `<li style="margin-bottom: 4px;">• ${displayName} <span style="font-size:0.75rem; opacity: 0.8;">(${reason})</span></li>`;
                     countS++;
                 }
                 if (isActive) {
-                    listActive.innerHTML += `<li style="margin-bottom: 4px;">• ${std.name}</li>`;
+                    listActive.innerHTML += `<li style="margin-bottom: 4px;">• ${displayName}</li>`;
                     countA++;
                 }
             });
@@ -26176,9 +26812,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         function printAnnualAutoRemediationPlan(className, tierKey) {
             const { tiers, totalStudents } = buildAnnualAutoRemediationTierData(className, currentAnnualRemediationExamFilter);
             const selectedTiers = tierKey && tierKey !== 'all' ? tiers.filter(t => t.key === tierKey) : tiers;
-            const teacherName = (db && db.settings && db.settings.teacherName) || 'إبراهيم قزيبر';
-            const schoolName = (db && db.settings && db.settings.schoolName) || 'الثانوية التأهيلية';
-            const schoolYear = (db && db.settings && db.settings.schoolYear) || '2025/2026';
+            const teacherName = (db && db.teacherProfile && db.teacherProfile.name) || (db && db.settings && db.settings.teacherName) || 'أستاذ المادة';
+            const schoolName = (db && db.teacherProfile && db.teacherProfile.school) || (db && db.settings && db.settings.schoolName) || 'الثانوية التأهيلية';
+            const schoolYear = (db && db.teacherProfile && db.teacherProfile.academicYear) || (db && db.settings && db.settings.schoolYear) || (typeof getCurrentAcademicYear === 'function' ? getCurrentAcademicYear() : '2026/2027');
 
             const tiersRowsHtml = selectedTiers.map(tier => {
                 const names = tier.students.map(s => `${s.student.name} (${s.score.toFixed(2)})`).join(' ، ') || 'لا يوجد متعثرون في هذه الفئة';
@@ -26767,9 +27403,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         function buildUnifiedAnnualReportHTML(className, options) {
             const data = computeClassComparativeAnalytics(className);
-            const teacherName = db.settings?.teacherName || 'أستاذ(ة) مادة الرياضيات';
-            const schoolName = db.settings?.schoolName || 'المؤسسة التعليمية';
-            const academicYear = db.settings?.academicYear || '2026/2027';
+            const teacherName = (db.teacherProfile && db.teacherProfile.name) || db.settings?.teacherName || 'أستاذ(ة) مادة الرياضيات';
+            const schoolName = (db.teacherProfile && db.teacherProfile.school) || db.settings?.schoolName || 'المؤسسة التعليمية';
+            const academicYear = (db.teacherProfile && db.teacherProfile.academicYear) || db.settings?.academicYear || '2026/2027';
             const printDate = new Date().toLocaleDateString('ar-MA', { year: 'numeric', month: 'long', day: 'numeric' });
 
             const filterType = options.studentFilter || 'all';
@@ -27298,8 +27934,15 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 </body>
                 </html>
             `;
-            if (typeof window.printDocumentDirectly === 'function') {
-                window.printDocumentDirectly(fullHtml, 'التقرير السنوي الموحد - ' + className);
+            if (typeof window.openCustomPrintPreviewModal === 'function') {
+                window.openCustomPrintPreviewModal(htmlContent, {
+                    title: 'التقرير السنوي الموحد - ' + className,
+                    orientation: 'landscape',
+                    isReport: true,
+                    subtitle: 'تقرير الحصيلة السنوية الموحدة للأداء والمواظبة ومقارنة الأسدسين (المذكرة 142-08)'
+                });
+            } else if (typeof window.printDocumentDirectly === 'function') {
+                window.printDocumentDirectly(fullHtml, 'التقرير السنوي الموحد - ' + className, 'landscape');
             } else if (typeof printHtmlViaIframe === 'function') {
                 printHtmlViaIframe(fullHtml);
             }
@@ -27389,19 +28032,24 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         function updateGradesDistributionChart(className) {
             const card = document.getElementById('gradesChartCard');
-            if (!className || !db.classes[className]) {
+            const resolved = resolveReportTargetClasses(className);
+            if (!resolved.classes || resolved.classes.length === 0) {
                 if (card) card.style.display = 'none';
                 return;
             }
 
-            const students = db.classes[className];
+            const students = getCombinedStudentsForClasses(className);
             let bins = [0, 0, 0, 0, 0];
             let labels = ['أقل من 5', '5 إلى 9.99', '10 إلى 11.99', '12 إلى 14.99', '15 إلى 20'];
             let hasGrades = false;
 
+            const distSem = typeof getActiveSemester === 'function' ? getActiveSemester() : 's1';
             students.forEach(std => {
-                const grades = (db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {};
-                const avg = calculateStudentAvg(grades, className);
+                const stdClass = std.className || resolved.classes[0];
+                const grades = typeof getStudentGradesBySemester === 'function'
+                    ? getStudentGradesBySemester(stdClass, std.id, distSem)
+                    : ((db.grades[stdClass] && db.grades[stdClass][std.id]) ? db.grades[stdClass][std.id] : {});
+                const avg = calculateStudentAvg(grades, stdClass);
                 if (avg !== null) {
                     hasGrades = true;
                     if (avg < 5) bins[0]++;
@@ -27489,8 +28137,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         }
 
         async function exportCustomReport() {
-            const className = document.getElementById('reportClassSelect').value;
-            if (!className) { window.notifySafeToast('يرجى اختيار القسم لتصدير التقرير.'); return; }
+            const rawClassName = document.getElementById('reportClassSelect').value;
+            const resolved = resolveReportTargetClasses(rawClassName);
+            if (!rawClassName || resolved.classes.length === 0) { window.notifySafeToast('يرجى اختيار القسم لتصدير التقرير.'); return; }
             if (reportDataCache.length === 0) { window.notifySafeToast('لا توجد بيانات لتصديرها.'); return; }
             if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
                 await window.ensureXlsxLoaded();
@@ -27500,14 +28149,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 return;
             }
 
+            const className = resolved.label || rawClassName;
+            const sheetTitle = String(resolved.shortLabel || className).replace(/[\\\/\?\*\[\]:]/g, '_').slice(0, 31) || 'تقرير';
             const dateFrom = document.getElementById('reportDateFrom').value;
             const dateTo = document.getElementById('reportDateTo').value;
 
             const ws = XLSX.utils.json_to_sheet(reportDataCache, { origin: "A8" });
-            const pAcademy = db.teacherProfile.academy || '';
-            const pDirectorate = db.teacherProfile.directorate || '';
-            const pSchool = db.teacherProfile.school || '';
-            const pName = db.teacherProfile.name || '';
+            const tp = (db && db.teacherProfile) || {};
+            const pAcademy = tp.academy || '';
+            const pDirectorate = tp.directorate || '';
+            const pSchool = tp.school || '';
+            const pName = tp.name || '';
 
             XLSX.utils.sheet_add_aoa(ws, [
                 ['الأكاديمية الجهوية:', pAcademy],
@@ -27520,12 +28172,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             ], { origin: "A1" });
 
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, className);
+            XLSX.utils.book_append_sheet(wb, ws, sheetTitle);
             XLSX.writeFile(wb, `تقرير_${className}_من_${dateFrom}_إلى_${dateTo}.xlsx`);
         }
 
         async function exportAllClassesPDF() {
-            const classes = Object.keys(db.classes);
+            const classes = typeof getSortedClasses === 'function' ? getSortedClasses(true) : Object.keys((db && db.classes) || {});
             if (classes.length === 0) { window.notifySafeToast('لا توجد أقسام مسجلة لتصديرها.'); return; }
 
             const dateFrom = document.getElementById('reportDateFrom').value;
@@ -27561,10 +28213,11 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         classContainer.style.pageBreakBefore = 'always';
                     }
 
-                    const pAcademy = db.teacherProfile.academy || '';
-                    const pDirectorate = db.teacherProfile.directorate || '';
-                    const pSchool = db.teacherProfile.school || '';
-                    const pName = db.teacherProfile.name || '';
+                    const tp = (db && db.teacherProfile) || {};
+                    const pAcademy = tp.academy || '';
+                    const pDirectorate = tp.directorate || '';
+                    const pSchool = tp.school || '';
+                    const pName = tp.name || '';
 
                     const officialHeader = document.createElement('div');
                     officialHeader.style.display = 'flex';
@@ -27574,12 +28227,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     officialHeader.style.paddingBottom = '10px';
                     officialHeader.innerHTML = `
                         <div style="text-align: right; font-size: 0.9rem; line-height: 1.4;">
-                            ${pAcademy ? `الأكاديمية الجهوية: <strong>${pAcademy}</strong><br>` : ''}
-                            ${pDirectorate ? `المديرية الإقليمية: <strong>${pDirectorate}</strong><br>` : ''}
-                            ${pSchool ? `المؤسسة: <strong>${pSchool}</strong>` : ''}
+                            ${pAcademy ? `الأكاديمية الجهوية: <strong>${escapeHtml(pAcademy)}</strong><br>` : ''}
+                            ${pDirectorate ? `المديرية الإقليمية: <strong>${escapeHtml(pDirectorate)}</strong><br>` : ''}
+                            ${pSchool ? `المؤسسة: <strong>${escapeHtml(pSchool)}</strong>` : ''}
                         </div>
                         <div style="text-align: left; font-size: 0.9rem; line-height: 1.4;">
-                            ${pName ? `الأستاذ(ة): <strong>${pName}</strong><br>` : ''}
+                            ${pName ? `الأستاذ(ة): <strong>${escapeHtml(pName)}</strong><br>` : ''}
                         </div>
                     `;
                     classContainer.appendChild(officialHeader);
@@ -27704,7 +28357,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 if (typeof html2pdf !== 'function') {
                     throw new Error('مكتبة PDF غير متوفرة حالياً');
                 }
-                html2pdf().set(opt).from(mainContainer).save();
+                await html2pdf().set(opt).from(mainContainer).save();
             } catch (e) {
                 console.error("Error generating PDF:", e?.message || String(e));
                 window.notifySafeToast("حدث خطأ أثناء إنشاء التقرير.");
@@ -27720,11 +28373,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         }
 
         async function exportPDFReport() {
-            const className = document.getElementById('reportClassSelect').value;
-            if (!className) { window.notifySafeToast('يرجى اختيار القسم لتصدير التقرير.'); return; }
+            const rawClassName = document.getElementById('reportClassSelect').value;
+            const resolved = resolveReportTargetClasses(rawClassName);
+            if (!rawClassName || resolved.classes.length === 0) { window.notifySafeToast('يرجى اختيار القسم لتصدير التقرير.'); return; }
+            const className = resolved.label || rawClassName;
             if (reportDataCache.length === 0) { window.notifySafeToast('لا توجد بيانات لتصديرها.'); return; }
 
-            const includeCharts = confirm('هل تريد تضمين الرسوم البيانية (المبيانات) في ملف الـ PDF المصدّر؟');
+            const includeCharts = await window.showConfirmDialog('هل تريد تضمين الرسوم البيانية (المبيانات) في ملف الـ PDF المصدّر؟');
             if (typeof html2pdf === 'undefined' && typeof window.ensureHtml2PdfLoaded === 'function') {
                 await window.ensureHtml2PdfLoaded();
             }
@@ -27742,10 +28397,11 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             container.style.direction = 'rtl';
             container.style.backgroundColor = '#fff';
 
-            const pAcademy = db.teacherProfile.academy || '';
-            const pDirectorate = db.teacherProfile.directorate || '';
-            const pSchool = db.teacherProfile.school || '';
-            const pName = db.teacherProfile.name || '';
+            const tpSingle = (db && db.teacherProfile) || {};
+            const pAcademy = tpSingle.academy || '';
+            const pDirectorate = tpSingle.directorate || '';
+            const pSchool = tpSingle.school || '';
+            const pName = tpSingle.name || '';
 
             const officialHeader = document.createElement('div');
             officialHeader.style.display = 'flex';
@@ -27755,12 +28411,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             officialHeader.style.paddingBottom = '10px';
             officialHeader.innerHTML = `
                 <div style="text-align: right; font-size: 0.9rem; line-height: 1.4;">
-                    ${pAcademy ? `الأكاديمية الجهوية: <strong>${pAcademy}</strong><br>` : ''}
-                    ${pDirectorate ? `المديرية الإقليمية: <strong>${pDirectorate}</strong><br>` : ''}
-                    ${pSchool ? `المؤسسة: <strong>${pSchool}</strong>` : ''}
+                    ${pAcademy ? `الأكاديمية الجهوية: <strong>${escapeHtml(pAcademy)}</strong><br>` : ''}
+                    ${pDirectorate ? `المديرية الإقليمية: <strong>${escapeHtml(pDirectorate)}</strong><br>` : ''}
+                    ${pSchool ? `المؤسسة: <strong>${escapeHtml(pSchool)}</strong>` : ''}
                 </div>
                 <div style="text-align: left; font-size: 0.9rem; line-height: 1.4;">
-                    ${pName ? `الأستاذ(ة): <strong>${pName}</strong><br>` : ''}
+                    ${pName ? `الأستاذ(ة): <strong>${escapeHtml(pName)}</strong><br>` : ''}
                 </div>
             `;
             container.appendChild(officialHeader);
@@ -27922,7 +28578,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
-            html2pdf().set(opt).from(container).save();
+            await html2pdf().set(opt).from(container).save();
         }
 
         // Helper: Return empty string as only Institution and Teacher logos are kept
@@ -27932,18 +28588,20 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         window.getOfficialMoroccanEmblemSvg = getOfficialMoroccanEmblemSvg;
 
         function printFullUnifiedReport() {
-            const className = document.getElementById('reportClassSelect').value;
-            if (!className) {
+            const rawClassName = document.getElementById('reportClassSelect').value;
+            const resolved = resolveReportTargetClasses(rawClassName);
+            if (!rawClassName || resolved.classes.length === 0) {
                 window.notifySafeToast('يرجى اختيار القسم أولاً لعرض وتصدير التقرير الكامل.');
                 return;
             }
-            if (className === '__ALL__') {
+            if (rawClassName === '__ALL__') {
                 if (typeof exportAllClassesPDF === 'function') {
                     exportAllClassesPDF();
                     return;
                 }
             }
-            const students = db.classes[className] || [];
+            const className = resolved.label || rawClassName;
+            const students = getCombinedStudentsForClasses(rawClassName);
             if (students.length === 0) {
                 window.notifySafeToast('لا يوجد تلاميذ مسجلون في هذا القسم.');
                 return;
@@ -27953,16 +28611,24 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const dateTo = document.getElementById('reportDateTo').value || '';
 
             // 1. Administrative & Pedagogical Identity (Moroccan Ministry of National Education Standards)
+            const nowUnified = typeof getAppNow === 'function' ? getAppNow() : new Date();
+            const unifiedStartYear = (nowUnified.getMonth() + 1) >= 9 ? nowUnified.getFullYear() : nowUnified.getFullYear() - 1;
+            const defaultAcadYear = `${unifiedStartYear}/${unifiedStartYear + 1}`;
             const pName = (db.teacherProfile && db.teacherProfile.name) || 'الأستاذ(ة)';
             const pSubject = (db.teacherProfile && db.teacherProfile.subject) || 'الرياضيات';
             const pAcademy = (db.teacherProfile && db.teacherProfile.academy) || 'الأكاديمية الجهوية للتربية والتكوين';
             const pDirectorate = (db.teacherProfile && db.teacherProfile.directorate) || 'المديرية الإقليمية';
             const pSchool = (db.teacherProfile && db.teacherProfile.school) || 'الثانوية التأهيلية';
-            const academicYear = (db.teacherProfile && db.teacherProfile.academicYear) || '2026/2027';
-            const schoolLogo = (db.teacherProfile && (db.teacherProfile.schoolLogo || db.teacherProfile.institutionLogo)) ? (db.teacherProfile.schoolLogo || db.teacherProfile.institutionLogo) : '/institution-logo.svg';
+            const academicYear = (db.teacherProfile && db.teacherProfile.academicYear) || defaultAcadYear;
+            const safeLogoSrc = (u, fb) => {
+                const s = String(u || '').trim();
+                return (s.startsWith('/') || s.startsWith('data:image/') || s.startsWith('https://')) ? s : fb;
+            };
+            const schoolLogo = safeLogoSrc(db.teacherProfile && (db.teacherProfile.schoolLogo || db.teacherProfile.institutionLogo), '/institution-logo.svg');
+            const teacherLogoSafe = safeLogoSrc(db.teacherProfile && (db.teacherProfile.teacherLogo || db.teacherProfile.photo), '/logo.svg');
 
-            const examCount = getExamsCountForClass(className);
-            const coef = getSubjectCoefForClass(className);
+            const examCount = Math.max(...resolved.classes.map(c => getExamsCountForClass(c) || 2), 2);
+            const coef = getSubjectCoefForClass(resolved.classes[0] || className);
 
             let periodText = 'كشف دوري شامل';
             if (dateFrom && dateTo) {
@@ -27987,9 +28653,11 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             let maxAvg = null;
 
             const studentCalculatedData = students.map((std, originalIdx) => {
-                const stdRecords = getStudentClassRecordsFast(std.id, className).filter(r =>
+                const stdClass = std.className || resolved.classes[0];
+                const stdRecords = getStudentClassRecordsFast(std.id, stdClass).filter(r =>
                     (!dateFrom || r.date >= dateFrom) &&
-                    (!dateTo || r.date <= dateTo)
+                    (!dateTo || r.date <= dateTo) &&
+                    !(typeof isRecordProtectedHolidayOrLeave === 'function' && isRecordProtectedHolidayOrLeave(r))
                 );
 
                 const unjustifiedHours = stdRecords.filter(r => r.status === 'غائب').reduce((sum, r) => sum + getRecordAbsenceDuration(r), 0);
@@ -28005,9 +28673,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 totalClassMissedHw += missedHw;
 
                 const grades = (typeof getStudentGradesBySemester === 'function')
-                    ? getStudentGradesBySemester(className, std.id, typeof getActiveSemester === 'function' ? getActiveSemester() : 's1')
-                    : ((db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {});
-                const avg = calculateStudentAvg(grades, className);
+                    ? getStudentGradesBySemester(stdClass, std.id, typeof getActiveSemester === 'function' ? getActiveSemester() : 's1')
+                    : ((db.grades[stdClass] && db.grades[stdClass][std.id]) ? db.grades[stdClass][std.id] : {});
+                const avg = calculateStudentAvg(grades, stdClass);
 
                 if (avg !== null) {
                     sumAvgs += avg;
@@ -28018,7 +28686,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     if (maxAvg === null || avg > maxAvg) maxAvg = avg;
                 }
 
-                const behaviorData = (db.behaviors[className] && db.behaviors[className][std.id]) ? db.behaviors[className][std.id] : { status: 'منضبط', note: '' };
+                const behaviorData = (db.behaviors[stdClass] && db.behaviors[stdClass][std.id]) ? db.behaviors[stdClass][std.id] : { status: 'منضبط', note: '' };
 
                 // Moroccan High School Mention
                 let mention = '-';
@@ -28033,8 +28701,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     else { mention = 'ضعيف (يحتاج للدعم)'; mentionColor = '#b91c1c'; mentionBg = '#fee2e2'; }
                 }
 
+                const displayStd = resolved.isMulti
+                    ? { ...std, name: `${std.name} (${stdClass})` }
+                    : std;
+
                 return {
-                    std,
+                    std: displayStd,
                     originalIdx,
                     absentHours,
                     unjustifiedHours,
@@ -28053,12 +28725,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             // Calculate Rankings
             const validAvgs = studentCalculatedData
                 .filter(item => item.avg !== null)
-                .map(item => ({ id: item.std.id, avg: item.avg }))
+                .map(item => ({ id: `${item.std.className || ''}:::${item.std.id}`, avg: item.avg }))
                 .sort((a, b) => b.avg - a.avg);
 
             studentCalculatedData.forEach(item => {
                 if (item.avg !== null) {
-                    const rankIdx = validAvgs.findIndex(v => v.id === item.std.id);
+                    const key = `${item.std.className || ''}:::${item.std.id}`;
+                    const rankIdx = validAvgs.findIndex(v => v.id === key);
                     item.rank = rankIdx !== -1 ? `${rankIdx + 1} / ${validAvgs.length}` : '-';
                 } else {
                     item.rank = '-';
@@ -28093,13 +28766,19 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 `;
             }
 
+            const fmtGradeCell = (raw) => {
+                if (raw === undefined || raw === null || raw === '') return '-';
+                const s = String(raw).trim();
+                const n = parseFloat(s.replace(',', '.'));
+                return !isNaN(n) ? n.toFixed(2) : escapeHtml(s);
+            };
             let rowsHtml = '';
             studentCalculatedData.forEach((item, idx) => {
                 const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
-                let f1 = item.grades.f1 !== undefined && item.grades.f1 !== '' ? parseFloat(item.grades.f1).toFixed(2) : '-';
-                let f2 = item.grades.f2 !== undefined && item.grades.f2 !== '' ? parseFloat(item.grades.f2).toFixed(2) : '-';
-                let f3 = item.grades.f3 !== undefined && item.grades.f3 !== '' ? parseFloat(item.grades.f3).toFixed(2) : '-';
-                let f4 = item.grades.f4 !== undefined && item.grades.f4 !== '' ? parseFloat(item.grades.f4).toFixed(2) : '-';
+                let f1 = fmtGradeCell(item.grades.f1);
+                let f2 = fmtGradeCell(item.grades.f2);
+                let f3 = fmtGradeCell(item.grades.f3);
+                let f4 = fmtGradeCell(item.grades.f4);
 
                 let examTds = '';
                 if (examCount === 2) {
@@ -28129,9 +28808,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
                 rowsHtml += `
                     <tr style="background-color: ${bg}; page-break-inside: avoid; break-inside: avoid;">
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-weight: bold; color: #475569; font-size: 0.72rem; white-space: nowrap;">${item.std.orderNum || (idx + 1)}</td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 8px; text-align: right; font-weight: 800; color: #0f172a; font-size: 0.76rem; min-width: 175px;">${item.std.name}</td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px 4px; text-align: center; font-family: monospace; font-size: 0.71rem; color: #334155; white-space: nowrap;">${item.std.massar || '-'}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-weight: bold; color: #475569; font-size: 0.72rem; white-space: nowrap;">${escapeHtml(item.std.orderNum || (idx + 1))}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 8px; text-align: right; font-weight: 800; color: #0f172a; font-size: 0.76rem; min-width: 175px;">${escapeHtml(item.std.name)}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 4px; text-align: center; font-family: monospace; font-size: 0.71rem; color: #334155; white-space: nowrap;">${escapeHtml(item.std.massar || '-')}</td>
 
                         <td style="border: 1px solid #cbd5e1; padding: 4px 3px; text-align: center; font-weight: ${item.unjustifiedHours > 0 ? '700' : 'normal'}; color: ${item.unjustifiedHours > 0 ? '#dc2626' : '#64748b'}; font-size: 0.72rem; background: ${item.unjustifiedHours > 0 ? '#fff1f2' : 'transparent'}; white-space: nowrap;">
                             ${item.unjustifiedHours > 0 ? item.unjustifiedHours : '-'}
@@ -28152,15 +28831,15 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                             ${avgDisplay}
                         </td>
                         <td style="border: 1px solid #cbd5e1; padding: 4px 4px; text-align: center; font-weight: 700; font-size: 0.72rem; color: #1e3a8a; white-space: nowrap;">
-                            ${item.rank}
+                            ${escapeHtml(item.rank)}
                         </td>
                         <td style="border: 1px solid #cbd5e1; padding: 4px 5px; text-align: center; white-space: nowrap;">
                             <span style="display: inline-block; padding: 1px 6px; border-radius: 4px; font-weight: 700; font-size: 0.69rem; color: ${item.mentionColor}; background-color: ${item.mentionBg}; border: 1px solid ${item.mentionColor}33; white-space: nowrap;">
-                                ${item.mention}
+                                ${escapeHtml(item.mention)}
                             </span>
                         </td>
                         <td style="border: 1px solid #cbd5e1; padding: 4px 5px; text-align: center; font-size: 0.72rem; color: #334155; white-space: nowrap;">
-                            ${item.behavior}
+                            ${escapeHtml(item.behavior)}
                         </td>
                     </tr>
                 `;
@@ -28173,15 +28852,20 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 notesHtml = `
                     <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin-top: 10px; margin-bottom: 12px; background-color: #f8fafc; page-break-inside: avoid;">
                         <div style="font-weight: 800; font-size: 0.78rem; color: #1e3a8a; margin-bottom: 3px;">توجيهات وملاحظات بيداغوجية حول نتائج وتحصيل القسم:</div>
-                        <div style="font-size: 0.73rem; line-height: 1.45; color: #334155; white-space: pre-wrap;">${generalNotes}</div>
+                        <div style="font-size: 0.73rem; line-height: 1.45; color: #334155; white-space: pre-wrap;">${escapeHtml(generalNotes)}</div>
                     </div>
                 `;
             }
 
             // 4b. Official Remedial & Extra Support Sessions Documentation Block
-            const classRemedialLogs = (db.lessonLogs && db.lessonLogs[className])
-                ? db.lessonLogs[className].filter(l => l.isExtraSession || l.isRemedial || l.outOfSchedule || l.sessionType === 'soutien' || l.sessionType === 'rattrapage')
-                : [];
+            const classRemedialLogs = [];
+            resolved.classes.forEach(cName => {
+                if (db.lessonLogs && Array.isArray(db.lessonLogs[cName])) {
+                    db.lessonLogs[cName]
+                        .filter(l => l.isExtraSession || l.isRemedial || l.outOfSchedule || l.sessionType === 'soutien' || l.sessionType === 'rattrapage')
+                        .forEach(l => classRemedialLogs.push(l));
+                }
+            });
             let remedialHtml = '';
             if (classRemedialLogs.length > 0) {
                 const totalRemedialHours = classRemedialLogs.reduce((acc, l) => acc + (parseFloat(l.duration) || 2), 0);
@@ -28194,7 +28878,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                             <span style="font-size: 0.68rem; background: #f3e8ff; color: #581c87; border: 1px solid #e9d5ff; padding: 1px 6px; border-radius: 4px; font-weight: bold;">معالجة بيداغوجية موثقة</span>
                         </div>
                         <div style="font-size: 0.72rem; line-height: 1.4; color: #475569;">
-                            ${classRemedialLogs.map(r => `• <b>${r.date}</b> (${r.timeSlot || 'توقيت استثنائي'} - ${r.duration || 2}س): <strong>${escapeHtml(r.number || r.title || 'حصة استدراك')}</strong> [المستفيدون: ${escapeHtml(r.remedialBeneficiaries || 'القسم')}]`).join('<br>')}
+                            ${classRemedialLogs.map(r => `• <b>${escapeHtml(r.date || '')}</b> (${escapeHtml(r.timeSlot || 'توقيت استثنائي')} - ${escapeHtml(r.duration || 2)}س): <strong>${escapeHtml(r.number || r.title || 'حصة استدراك')}</strong> [المستفيدون: ${escapeHtml(r.remedialBeneficiaries || 'القسم')}]`).join('<br>')}
                         </div>
                     </div>
                 `;
@@ -28214,9 +28898,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         <div style="text-align: right; width: 28%; line-height: 1.4; font-size: 0.78rem; color: #334155;">
                             <div style="font-weight: 900; color: #0f172a; font-size: 0.92rem;">المملكة المغربية</div>
                             <div style="font-weight: 700; color: #1e293b; font-size: 0.78rem;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
-                            <div>الأكاديمية الجهوية: <strong>${pAcademy}</strong></div>
-                            <div>المديرية الإقليمية: <strong>${pDirectorate}</strong></div>
-                            <div style="font-weight: 800; color: #1e3a8a; margin-top: 2px;">المؤسسة: <strong>${pSchool}</strong></div>
+                            <div>الأكاديمية الجهوية: <strong>${escapeHtml(pAcademy)}</strong></div>
+                            <div>المديرية الإقليمية: <strong>${escapeHtml(pDirectorate)}</strong></div>
+                            <div style="font-weight: 800; color: #1e3a8a; margin-top: 2px;">المؤسسة: <strong>${escapeHtml(pSchool)}</strong></div>
                         </div>
 
                         <!-- Center: Dual Logos (School + Teacher) + Title Plate -->
@@ -28225,8 +28909,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                                 <!-- Dual Logos: Institution Logo + Teacher Logo -->
                                 ${typeof getDualLogosHTML === 'function' ? getDualLogosHTML({ size: 50 }) : `
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <img src="${schoolLogo}" alt="" style="width: 50px; height: 50px; object-fit: contain; border-radius: 50%; border: 1.5px solid #d4af37; padding: 2px; background: #ffffff;" onerror="this.onerror=null; this.src='/institution-logo.svg';"/>
-                                    <img src="${(db.teacherProfile && (db.teacherProfile.teacherLogo || db.teacherProfile.photo)) || '/logo.svg'}" alt="" style="width: 50px; height: 50px; object-fit: contain; border-radius: 50%; border: 1.5px solid #1e3a8a; padding: 2px; background: #ffffff;" onerror="this.onerror=null; this.src='/logo.svg';"/>
+                                    <img src="${escapeHtml(schoolLogo)}" alt="" style="width: 50px; height: 50px; object-fit: contain; border-radius: 50%; border: 1.5px solid #d4af37; padding: 2px; background: #ffffff;" onerror="this.onerror=null; this.src='/institution-logo.svg';"/>
+                                    <img src="${escapeHtml(teacherLogoSafe)}" alt="" style="width: 50px; height: 50px; object-fit: contain; border-radius: 50%; border: 1.5px solid #1e3a8a; padding: 2px; background: #ffffff;" onerror="this.onerror=null; this.src='/logo.svg';"/>
                                 </div>`}
                             </div>
 
@@ -28236,11 +28920,11 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                             </div>
 
                             <div style="display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 4px; font-size: 0.72rem; font-weight: 700; color: #475569; flex-wrap: wrap;">
-                                <span>الموسم الدراسي: <strong style="color: #0f172a;">${academicYear}</strong></span>
+                                <span>الموسم الدراسي: <strong style="color: #0f172a;">${escapeHtml(academicYear)}</strong></span>
                                 <span style="color: #cbd5e1;">•</span>
-                                <span>القسم: <strong style="color: #1e3a8a;">${className}</strong></span>
+                                <span>القسم: <strong style="color: #1e3a8a;">${escapeHtml(className)}</strong></span>
                                 <span style="color: #cbd5e1;">•</span>
-                                <span>الفترة: <strong style="color: #0369a1;">${periodText}</strong></span>
+                                <span>الفترة: <strong style="color: #0369a1;">${escapeHtml(periodText)}</strong></span>
                                 <span style="color: #cbd5e1;">•</span>
                                 <span style="color: #15803d; font-weight: 800;">المذكرة 142-08</span>
                             </div>
@@ -28249,10 +28933,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         <!-- Left: Academic Profile & Document Metadata -->
                         <div style="text-align: left; width: 28%; line-height: 1.4; font-size: 0.78rem; color: #334155;">
                             <div>السلك: <strong style="color: #0f172a;">الثانوي التأهيلي</strong></div>
-                            <div>المادة: <strong style="color: #1e3a8a;">${pSubject}</strong> (المعامل: <strong>${coef}</strong>)</div>
-                            <div>الأستاذ(ة): <strong style="color: #0f172a;">${pName}</strong></div>
+                            <div>المادة: <strong style="color: #1e3a8a;">${escapeHtml(pSubject)}</strong> (المعامل: <strong>${coef}</strong>)</div>
+                            <div>الأستاذ(ة): <strong style="color: #0f172a;">${escapeHtml(pName)}</strong></div>
                             <div>نظام الفروض: <strong>${examCount} فروض محروسة</strong></div>
-                            <div style="font-size: 0.71rem; color: #64748b; margin-top: 2px;">تاريخ الاستخراج: <strong>${printDate}</strong></div>
+                            <div style="font-size: 0.71rem; color: #64748b; margin-top: 2px;">تاريخ الاستخراج: <strong>${escapeHtml(printDate)}</strong></div>
                         </div>
                     </div>
 
@@ -28325,7 +29009,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         <!-- Teacher Signature -->
                         <div style="text-align: center; width: 28%; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; background: #f8fafc;">
                             <div style="font-weight: 800; color: #0f172a;">توقيع واستشارة أستاذ(ة) المادة</div>
-                            <div style="margin-top: 3px; font-weight: bold; color: #1e3a8a;">${pName}</div>
+                            <div style="margin-top: 3px; font-weight: bold; color: #1e3a8a;">${escapeHtml(pName)}</div>
                             <div style="height: 46px; border-bottom: 1px dotted #cbd5e1; margin-top: 6px;"></div>
                         </div>
 
@@ -28339,7 +29023,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         <!-- School Principal & Seal -->
                         <div style="text-align: center; width: 36%; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; background: #f8fafc;">
                             <div style="font-weight: 800; color: #0f172a;">خاتم وتأشيرة إدارة المؤسسة (المدير)</div>
-                            <div style="font-size: 0.71rem; color: #475569; margin-top: 3px;">حرر بـ ${pSchool || 'المؤسسة'} في: ${printDate}</div>
+                            <div style="font-size: 0.71rem; color: #475569; margin-top: 3px;">حرر بـ ${escapeHtml(pSchool || 'المؤسسة')} في: ${escapeHtml(printDate)}</div>
                             <div style="height: 46px; margin-top: 4px; display: flex; align-items: center; justify-content: center;">
                                 <div style="border: 1.5px dashed #94a3b8; border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 0.62rem; color: #94a3b8; font-weight: bold;">
                                     خاتم المؤسسة
@@ -28350,8 +29034,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
                     <!-- Bottom Administrative Security & Legal Reference -->
                     <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: #1e3a8a; font-weight: 800; border-top: 1px solid #cbd5e1; padding-top: 5px; font-family: 'Cairo', sans-serif;">
-                        <div>منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر</div>
-                        <div style="color: #64748b; font-size: 0.68rem; font-weight: 700;">القسم: <strong>${className}</strong> | الصفحة: 1 / 1</div>
+                        <div>منظومة التدبير التربوي - مادة الرياضيات - ${escapeHtml(pName)}</div>
+                        <div style="color: #64748b; font-size: 0.68rem; font-weight: 700;">القسم: <strong>${escapeHtml(className)}</strong> | الصفحة: 1 / 1</div>
                     </div>
 
                 </div>
@@ -28371,7 +29055,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         <span style="font-size: 1.25rem;">📄</span>
                         <div>
                             <div style="font-weight: 800; font-size: 1.05rem;">معاينة وطباعة التقرير الكامل الموحد (A4)</div>
-                            <div style="font-size: 0.78rem; color: #94a3b8;">القسم: <strong style="color: #60a5fa;">${className}</strong> | المؤسسة: <strong>${pSchool}</strong> | السنة: <strong>${academicYear}</strong></div>
+                            <div style="font-size: 0.78rem; color: #94a3b8;">القسم: <strong style="color: #60a5fa;">${escapeHtml(className)}</strong> | المؤسسة: <strong>${escapeHtml(pSchool)}</strong> | السنة: <strong>${escapeHtml(academicYear)}</strong></div>
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
@@ -28510,11 +29194,16 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     std: null
                 };
 
-            const className = resolved.className;
-            const studentId = resolved.studentId;
-            if (!className || className === '__ALL__') {
+            let className = resolved.className;
+            let studentId = resolved.studentId;
+            if (studentId && String(studentId).includes(':::')) {
+                const parts = String(studentId).split(':::');
+                className = parts[0];
+                studentId = parts[1];
+            }
+            if (!className || className === '__ALL__' || className === '__MULTI__' || String(className).startsWith('__MULTI__')) {
                 if (typeof showAppToast === 'function') {
-                    showAppToast('يرجى اختيار القسم أولاً لعرض وتصدير التقرير الفردي (PDF).', 'warning');
+                    showAppToast('يرجى اختيار القسم والتلميذ أولاً لعرض وتصدير التقرير الفردي (PDF).', 'warning');
                 }
                 return;
             }
@@ -28536,13 +29225,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 return;
             }
 
-            const std = resolved.std || (db.classes[className] || []).find(s => String(s.id) === String(studentId));
+            const rawClsListPdf = (db && db.classes && db.classes[className]) ? db.classes[className] : [];
+            const classStudentsListPdf = Array.isArray(rawClsListPdf) ? rawClsListPdf : (Array.isArray(rawClsListPdf.students) ? rawClsListPdf.students : []);
+            const std = resolved.std || classStudentsListPdf.find(s => String(s.id) === String(studentId));
             if (!std) {
                 if (typeof showAppToast === 'function') {
                     showAppToast('تعذر العثور على بيانات التلميذ(ة) المحدد.', 'error');
                 }
                 return;
             }
+
+            const safePdfHtml = (v) => (typeof escapeHtml === 'function' ? escapeHtml(String(v ?? '')) : String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
 
             // Read Print Mode options (page size A4/A5, margins, section toggles)
             const basePrintOpts = typeof getStudentPrintModeOptions === 'function'
@@ -28573,13 +29266,15 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const dateTo = dateToEl ? dateToEl.value : '';
 
             // Teacher profile info
-            const pName = (db.teacherProfile && db.teacherProfile.name) || 'الأستاذ(ة)';
-            const pAcademy = (db.teacherProfile && db.teacherProfile.academy) || 'الأكاديمية الجهوية للتربية والتكوين';
-            const pDirectorate = (db.teacherProfile && db.teacherProfile.directorate) || 'المديرية الإقليمية';
-            const pSchool = (db.teacherProfile && db.teacherProfile.school) || 'المؤسسة التعليمية';
+            const tProfPdf = (db && (db.teacherProfile || db.profile)) || {};
+            const pName = safePdfHtml(tProfPdf.name || 'الأستاذ(ة)');
+            const pAcademy = safePdfHtml(tProfPdf.academy || 'الأكاديمية الجهوية للتربية والتكوين');
+            const pDirectorate = safePdfHtml(tProfPdf.directorate || 'المديرية الإقليمية');
+            const pSchool = safePdfHtml(tProfPdf.school || 'المؤسسة التعليمية');
 
             // Grades & Academic results (Semester-aware lookup with fallback + single-pass class benchmark & rank)
             const activeSem = typeof getActiveSemester === 'function' ? getActiveSemester() : (window.activeSemester || 's1');
+            const activeSemLabelPdf = activeSem === 's2' ? 'الدورة الثانية' : 'الدورة الأولى';
             const semGradesObj = (typeof getStudentGradesBySemester === 'function')
                 ? getStudentGradesBySemester(className, studentId, activeSem)
                 : null;
@@ -28785,8 +29480,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                             ${outsidePeriodAbsences.map(a => {
                                 const dn = typeof getArabicDayName === 'function' ? getArabicDayName(a.date) : '';
                                 const isJ = a.status === 'مبرر';
+                                const durA = typeof getRecordAbsenceDuration === 'function' ? getRecordAbsenceDuration(a) : (a.duration || 1);
                                 return `<span style="font-size: ${isA5 ? '8px' : '9.5px'}; padding: 1px 5px; border-radius: 3px; background: ${isJ ? '#e0f2fe' : '#fee2e2'}; color: ${isJ ? '#0369a1' : '#b91c1c'}; border: 1px solid ${isJ ? '#bae6fd' : '#fca5a5'};">
-                                    ${dn ? dn + ' ' : ''}${a.date} (${a.duration || 1}س - ${isJ ? 'مبرر' : 'غير مبرر'})
+                                    ${dn ? safePdfHtml(dn) + ' ' : ''}${safePdfHtml(a.date)} (${durA}س - ${isJ ? 'مبرر' : 'غير مبرر'})
                                 </span>`;
                             }).join('')}
                         </div>
@@ -28844,17 +29540,18 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                                     : '<span style="color: #16a34a;">منجز</span>';
 
                                 const dn = typeof getArabicDayName === 'function' ? getArabicDayName(inc.date) : '';
+                                const incDur = typeof getRecordAbsenceDuration === 'function' ? getRecordAbsenceDuration(inc) : (inc.duration || 1);
 
                                 return `
                                     <tr style="background: ${idx % 2 === 0 ? '#fff' : '#f8fafc'};">
                                         <td style="border: 1px solid #cbd5e1; padding: ${cellPad}; text-align: center; color: #64748b;">${idx + 1}</td>
                                         <td style="border: 1px solid #cbd5e1; padding: ${cellPad}; text-align: center; font-weight: 600;">
-                                            <span style="color: #64748b; font-size: ${isA5 ? '8px' : '9.5px'}; margin-left: 3px;">${dn}</span>
-                                            <span>${inc.date}</span>
+                                            <span style="color: #64748b; font-size: ${isA5 ? '8px' : '9.5px'}; margin-left: 3px;">${safePdfHtml(dn)}</span>
+                                            <span>${safePdfHtml(inc.date)}</span>
                                         </td>
-                                        <td style="border: 1px solid #cbd5e1; padding: ${cellPad}; text-align: center;">${inc.session || '-'}</td>
+                                        <td style="border: 1px solid #cbd5e1; padding: ${cellPad}; text-align: center;">${safePdfHtml(inc.session || inc.timeSlot || '-')}</td>
                                         <td style="border: 1px solid #cbd5e1; padding: ${cellPad}; text-align: center;">${statusBadge}</td>
-                                        <td style="border: 1px solid #cbd5e1; padding: ${cellPad}; text-align: center; font-weight: bold;">${(inc.status === 'غائب' || inc.status === 'مبرر') ? (inc.duration || 1) + ' س' : '-'}</td>
+                                        <td style="border: 1px solid #cbd5e1; padding: ${cellPad}; text-align: center; font-weight: bold;">${(inc.status === 'غائب' || inc.status === 'مبرر') ? incDur + ' س' : '-'}</td>
                                         <td style="border: 1px solid #cbd5e1; padding: ${cellPad}; text-align: center;">${hwBadge}</td>
                                     </tr>
                                 `;
@@ -28872,9 +29569,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 `;
             }
 
-            const currentYear = new Date().getFullYear();
-            const schoolYear = (new Date().getMonth() < 7) ? `${currentYear - 1} / ${currentYear}` : `${currentYear} / ${currentYear + 1}`;
-            const printDateStr = new Date().toLocaleDateString('ar-MA', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            const _nowPdf = (typeof getAppNow === 'function') ? getAppNow() : new Date();
+            const currentYear = _nowPdf.getFullYear();
+            const schoolYear = safePdfHtml(tProfPdf.academicYear || ((_nowPdf.getMonth() < 8) ? `${currentYear - 1} / ${currentYear}` : `${currentYear} / ${currentYear + 1}`));
+            const printDateStr = _nowPdf.toLocaleDateString('ar-MA', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
             container.innerHTML = `
                 <!-- الترويسة الرسمية للوزارة والمؤسسة -->
@@ -28901,8 +29599,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         </div>
                         <div>المادة: <strong style="color: #1e3a8a;">الرياضيات (Mathématiques)</strong></div>
                         <div>الأستاذ(ة): <strong>${pName}</strong></div>
-                        <div>الفترة: <strong>${dateFrom || '-'}</strong> إلى <strong>${dateTo || '-'}</strong></div>
-                        <div>تاريخ الإصدار: <strong>${printDateStr}</strong></div>
+                        <div>الفترة: <strong>${safePdfHtml(dateFrom || '-')}</strong> إلى <strong>${safePdfHtml(dateTo || '-')}</strong></div>
+                        <div>تاريخ الإصدار: <strong>${safePdfHtml(printDateStr)}</strong></div>
                     </div>
                 </div>
                 ` : ''}
@@ -28910,17 +29608,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 <!-- بطاقة التعريف بالتلميذ -->
                 <div style="border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; padding: ${isA5 ? '5px 10px' : '8px 14px'}; margin-bottom: ${secMargin};">
                     <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 8px; align-items: center; font-size: ${isA5 ? '9.5px' : '11.2px'};">
-                        <div><span style="color: #64748b;">الاسم الكامل:</span> <strong style="color: #0f172a; font-size: ${isA5 ? '10.8px' : '12.5px'};">${std.name}</strong></div>
-                        <div><span style="color: #64748b;">القسم:</span> <strong style="color: #1e3a8a;">${className}</strong></div>
-                        <div><span style="color: #64748b;">الرقم الترتيبي:</span> <strong style="color: #0f172a;">${std.orderNum || '-'}</strong></div>
-                        <div><span style="color: #64748b;">رقم مسار:</span> <strong style="color: #0f172a;">${std.massar || 'غير مسجل'}</strong></div>
+                        <div><span style="color: #64748b;">الاسم الكامل:</span> <strong style="color: #0f172a; font-size: ${isA5 ? '10.8px' : '12.5px'};">${safePdfHtml(std.name)}</strong></div>
+                        <div><span style="color: #64748b;">القسم:</span> <strong style="color: #1e3a8a;">${safePdfHtml(className)}</strong></div>
+                        <div><span style="color: #64748b;">الرقم الترتيبي:</span> <strong style="color: #0f172a;">${safePdfHtml(std.orderNum || '-')}</strong></div>
+                        <div><span style="color: #64748b;">رقم مسار:</span> <strong style="color: #0f172a;">${safePdfHtml(std.massar || 'غير مسجل')}</strong></div>
                     </div>
                 </div>
 
                 <!-- القسم الأول: المعدلات والنتائج الدراسية -->
                 <div style="margin-bottom: ${secMargin}; page-break-inside: avoid;" class="page-break-avoid">
                     <div style="background: #1e3a8a; color: white; padding: ${isA5 ? '4px 8px' : '5px 10px'}; font-weight: bold; font-size: ${isA5 ? '10px' : '11.5px'}; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
-                        <span>1. النتائج الدراسية والمراقبة المستمرة (مادة الرياضيات)</span>
+                        <span>1. النتائج الدراسية والمراقبة المستمرة (${activeSemLabelPdf} · مادة الرياضيات)</span>
                         <span style="font-size: ${isA5 ? '8.8px' : '10.2px'}; opacity: 0.9;">معامل المادة: ${coef}</span>
                     </div>
                     <table style="width: 100%; border-collapse: collapse; font-size: ${isA5 ? '9.2px' : '11px'}; border: 1px solid #cbd5e1;">
@@ -28939,10 +29637,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         </thead>
                         <tbody>
                             <tr style="text-align: center; font-weight: bold;">
-                                <td style="border: 1px solid #cbd5e1; padding: ${cellPad};">${grades.f1 !== undefined && grades.f1 !== '' ? grades.f1 : '-'}</td>
-                                <td style="border: 1px solid #cbd5e1; padding: ${cellPad};">${grades.f2 !== undefined && grades.f2 !== '' ? grades.f2 : '-'}</td>
-                                ${examCount >= 3 ? `<td style="border: 1px solid #cbd5e1; padding: ${cellPad};">${grades.f3 !== undefined && grades.f3 !== '' ? grades.f3 : '-'}</td>` : ''}
-                                ${examCount >= 4 ? `<td style="border: 1px solid #cbd5e1; padding: ${cellPad};">${grades.f4 !== undefined && grades.f4 !== '' ? grades.f4 : '-'}</td>` : ''}
+                                <td style="border: 1px solid #cbd5e1; padding: ${cellPad};">${grades.f1 !== undefined && grades.f1 !== '' ? safePdfHtml(grades.f1) : '-'}</td>
+                                <td style="border: 1px solid #cbd5e1; padding: ${cellPad};">${grades.f2 !== undefined && grades.f2 !== '' ? safePdfHtml(grades.f2) : '-'}</td>
+                                ${examCount >= 3 ? `<td style="border: 1px solid #cbd5e1; padding: ${cellPad};">${grades.f3 !== undefined && grades.f3 !== '' ? safePdfHtml(grades.f3) : '-'}</td>` : ''}
+                                ${examCount >= 4 ? `<td style="border: 1px solid #cbd5e1; padding: ${cellPad};">${grades.f4 !== undefined && grades.f4 !== '' ? safePdfHtml(grades.f4) : '-'}</td>` : ''}
                                 <td style="border: 1px solid #cbd5e1; padding: ${cellPad}; background: #e0f2fe; color: ${avg !== null && avg < 10 ? '#b91c1c' : '#15803d'}; font-size: ${isA5 ? '10.5px' : '12.5px'};">
                                     ${avg !== null ? avg.toFixed(2) : '-'}
                                 </td>
@@ -28964,7 +29662,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 <div style="margin-bottom: ${secMargin}; page-break-inside: avoid;" class="page-break-avoid">
                     <div style="background: #1e3a8a; color: white; padding: ${isA5 ? '4px 8px' : '5px 10px'}; font-weight: bold; font-size: ${isA5 ? '10px' : '11.5px'}; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
                         <span>2. سجل الغياب والمواظبة والانضباط</span>
-                        <span style="font-size: ${isA5 ? '8.8px' : '10.2px'}; opacity: 0.9;">الفترة: ${dateFrom || '-'} إلى ${dateTo || '-'}</span>
+                        <span style="font-size: ${isA5 ? '8.8px' : '10.2px'}; opacity: 0.9;">الفترة: ${safePdfHtml(dateFrom || '-')} إلى ${safePdfHtml(dateTo || '-')}</span>
                     </div>
                     <!-- إحصائيات سريعة للغياب -->
                     <div style="border: 1px solid #cbd5e1; border-top: none; background: #f8fafc; padding: ${isA5 ? '5px 7px' : '8px 10px'};">
@@ -29019,20 +29717,20 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
                             <strong style="color: #334155;">التقييم السلوكي العام:</strong>
                             <span style="background: ${behBg}; color: ${behColor}; font-weight: bold; padding: 1.5px 7px; border-radius: 4px;">
-                                ${behaviorData.status || 'منضبط'}
+                                ${safePdfHtml(behaviorData.status || 'منضبط')}
                             </span>
                         </div>
                         <div style="margin-bottom: 4px;">
                             <strong style="color: #334155;">ملاحظات وتوجيهات الأستاذ(ة):</strong>
                             <div style="margin-top: 3px; padding: ${isA5 ? '4px 8px' : '6px 10px'}; background: #f8fafc; border-right: 3px solid ${behColor}; border-radius: 3px; font-size: ${isA5 ? '9.2px' : '10.8px'}; color: #1e293b; line-height: 1.45;">
-                                ${behaviorData.note ? behaviorData.note : (avg !== null && avg >= 12 ? 'تلميذ(ة) جاد ومواظب، يُرجى الحفاظ على هذا المستوى ومواصلة بذل الجهد.' : (avg !== null && avg < 10 ? 'يحتاج التلميذ(ة) إلى تكثيف الجهود ومراجعة الدروس بانتظام وإنجاز الواجبات المنزلية لتجاوز التعثرات.' : 'سلوك حسن ومواظبة ملحوظة داخل الفصل.'))}
+                                ${behaviorData.note ? safePdfHtml(behaviorData.note) : (avg !== null && avg >= 12 ? 'تلميذ(ة) جاد ومواظب، يُرجى الحفاظ على هذا المستوى ومواصلة بذل الجهد.' : (avg !== null && avg < 10 ? 'يحتاج التلميذ(ة) إلى تكثيف الجهود ومراجعة الدروس بانتظام وإنجاز الواجبات المنزلية لتجاوز التعثرات.' : 'سلوك حسن ومواظبة ملحوظة داخل الفصل.'))}
                             </div>
                         </div>
                         ${studentNotes.length > 0 ? `
                             <div style="margin-top: 5px;">
                                 <strong style="color: #334155;">سجل الملاحظات الخاصة:</strong>
                                 <ul style="margin: 2px 0 0 0; padding-right: 16px; color: #475569; font-size: ${isA5 ? '8.8px' : '10.2px'};">
-                                    ${studentNotes.slice(-3).map(n => `<li><span style="color: #64748b;">[${n.date}]</span> ${n.text}</li>`).join('')}
+                                    ${studentNotes.slice(-3).map(n => `<li><span style="color: #64748b;">[${safePdfHtml(n.date || '')}]</span> ${safePdfHtml(n.text || '')}</li>`).join('')}
                                 </ul>
                             </div>
                         ` : ''}
@@ -29060,7 +29758,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 ` : ''}
 
                 <div style="text-align: center; margin-top: 8px; padding-top: 6px; border-top: 1px solid #cbd5e1; font-size: ${isA5 ? '8.5px' : '10px'}; color: #1e3a8a; font-weight: 800; font-family: 'Cairo', sans-serif;">
-                    منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر
+                    منظومة التدبير التربوي - مادة الرياضيات - ${pName}
                 </div>
             `;
 
@@ -29386,14 +30084,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
          * بناء هيكل HTML الرسمي لتقرير الغياب التفصيلي للتلميذ(ة)
          */
         function buildStudentDetailedAbsenceReportHtml(std, className, dateFrom, dateTo) {
-            const pName = (db.teacherProfile && db.teacherProfile.name) || 'الأستاذ(ة)';
-            const pAcademy = (db.teacherProfile && db.teacherProfile.academy) || 'الأكاديمية الجهوية للتربية والتكوين';
-            const pDirectorate = (db.teacherProfile && db.teacherProfile.directorate) || 'المديرية الإقليمية';
-            const pSchool = (db.teacherProfile && db.teacherProfile.school) || 'المؤسسة التعليمية';
+            const safeAbsHtml = (v) => (typeof escapeHtml === 'function' ? escapeHtml(String(v ?? '')) : String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+            const tProfAbs = (db && (db.teacherProfile || db.profile)) || {};
+            const pName = safeAbsHtml(tProfAbs.name || 'الأستاذ(ة)');
+            const pAcademy = safeAbsHtml(tProfAbs.academy || 'الأكاديمية الجهوية للتربية والتكوين');
+            const pDirectorate = safeAbsHtml(tProfAbs.directorate || 'المديرية الإقليمية');
+            const pSchool = safeAbsHtml(tProfAbs.school || 'المؤسسة التعليمية');
 
-            const currentYear = new Date().getFullYear();
-            const schoolYear = (new Date().getMonth() < 7) ? `${currentYear - 1} / ${currentYear}` : `${currentYear} / ${currentYear + 1}`;
-            const printDateStr = new Date().toLocaleDateString('ar-MA', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            const _nowAbs = (typeof getAppNow === 'function') ? getAppNow() : new Date();
+            const currentYear = _nowAbs.getFullYear();
+            const schoolYear = safeAbsHtml(tProfAbs.academicYear || ((_nowAbs.getMonth() < 8) ? `${currentYear - 1} / ${currentYear}` : `${currentYear} / ${currentYear + 1}`));
+            const printDateStr = _nowAbs.toLocaleDateString('ar-MA', { year: 'numeric', month: '2-digit', day: '2-digit' });
 
             const hmData = computeStudentPersonalHeatmap(std.id, className, dateFrom, dateTo);
             const totalAllTimeAbsent = hmData.totalAllTimeAbsent;
@@ -29491,19 +30192,20 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                                 const isUnjustified = inc.status === 'غائب';
                                 const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
                                 const hw = inc.homework === 'لم ينجز' ? '<span style="color: #7e22ce; font-weight: bold;">لم ينجز</span>' : '<span style="color: #64748b;">-</span>';
+                                const durAbsInc = typeof getRecordAbsenceDuration === 'function' ? getRecordAbsenceDuration(inc) : (parseFloat(inc.hours || inc.duration) || 1);
 
                                 return `
                                     <tr style="background: ${rowBg};">
                                         <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; color: #64748b;">${idx + 1}</td>
                                         <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-weight: 600;">
-                                            <span style="color: #64748b; font-size: 9.5px; margin-left: 2px;">${dn}</span>
-                                            <span>${inc.date}</span>
+                                            <span style="color: #64748b; font-size: 9.5px; margin-left: 2px;">${safeAbsHtml(dn)}</span>
+                                            <span>${safeAbsHtml(inc.date)}</span>
                                         </td>
-                                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center;">${inc.session || inc.period || 'حصة الرياضيات'}</td>
+                                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center;">${safeAbsHtml(inc.session || inc.timeSlot || inc.period || 'حصة الرياضيات')}</td>
                                         <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center;">${badge}</td>
-                                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-weight: bold; color: ${isUnjustified ? '#b91c1c' : '#1e3a8a'};">${parseFloat(inc.hours || inc.duration) || 1} س</td>
+                                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-weight: bold; color: ${isUnjustified ? '#b91c1c' : '#1e3a8a'};">${durAbsInc} س</td>
                                         <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center;">${hw}</td>
-                                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: right; color: #475569; font-size: 10.5px;">${inc.note || (isUnjustified ? 'لم يُقدم مبرر قانوني للإدارة' : 'مبرر مسلم ومسجل')}</td>
+                                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: right; color: #475569; font-size: 10.5px;">${safeAbsHtml(inc.notes || inc.note || inc.justification || (isUnjustified ? 'لم يُقدم مبرر قانوني للإدارة' : 'مبرر مسلم ومسجل'))}</td>
                                     </tr>
                                 `;
                             }).join('')}
@@ -29574,7 +30276,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                             </div>
                             <div>المادة: <strong style="color: #1e3a8a;">الرياضيات (Mathématiques)</strong></div>
                             <div>الأستاذ(ة): <strong>${pName}</strong></div>
-                            <div>تاريخ الإصدار: <strong>${printDateStr}</strong></div>
+                            <div>تاريخ الإصدار: <strong>${safeAbsHtml(printDateStr)}</strong></div>
                             <div>نطاق التقرير: <strong>كشف شامل للموسم</strong></div>
                         </div>
                     </div>
@@ -29582,10 +30284,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     <!-- بطاقة هوية التلميذ -->
                     <div style="border: 1.5px solid #cbd5e1; border-radius: 8px; background: #f8fafc; padding: 9px 14px; margin-bottom: 12px;">
                         <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr 1.5fr; gap: 8px; align-items: center; font-size: 11.5px;">
-                            <div><span style="color: #64748b;">الاسم الكامل:</span> <strong style="color: #0f172a; font-size: 13px;">${std.name}</strong></div>
-                            <div><span style="color: #64748b;">القسم:</span> <strong style="color: #1e3a8a; font-size: 12px;">${className}</strong></div>
-                            <div><span style="color: #64748b;">الرقم:</span> <strong style="color: #0f172a;">${std.orderNum || '-'}</strong></div>
-                            <div><span style="color: #64748b;">رقم مسار:</span> <strong style="color: #0f172a; font-family: monospace;">${std.massar || 'غير مسجل'}</strong></div>
+                            <div><span style="color: #64748b;">الاسم الكامل:</span> <strong style="color: #0f172a; font-size: 13px;">${safeAbsHtml(std.name)}</strong></div>
+                            <div><span style="color: #64748b;">القسم:</span> <strong style="color: #1e3a8a; font-size: 12px;">${safeAbsHtml(className)}</strong></div>
+                            <div><span style="color: #64748b;">الرقم:</span> <strong style="color: #0f172a;">${safeAbsHtml(std.orderNum || '-')}</strong></div>
+                            <div><span style="color: #64748b;">رقم مسار:</span> <strong style="color: #0f172a; font-family: monospace;">${safeAbsHtml(std.massar || 'غير مسجل')}</strong></div>
                             <div style="text-align: left;">
                                 <span style="background: ${statusBg}; color: ${statusColor}; font-weight: 800; padding: 3px 8px; border-radius: 6px; font-size: 10px; border: 1px solid currentColor;">
                                     ${statusText}
@@ -29694,9 +30396,14 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 if (!className) className = resolved.className || '';
                 if (!studentId) studentId = resolved.studentId || '';
             }
-            if (!className || className === '__ALL__') {
+            if (studentId && String(studentId).includes(':::')) {
+                const parts = String(studentId).split(':::');
+                className = parts[0];
+                studentId = parts[1];
+            }
+            if (!className || className === '__ALL__' || className === '__MULTI__' || String(className).startsWith('__MULTI__')) {
                 if (typeof showAppToast === 'function') {
-                    showAppToast('يرجى اختيار القسم أولاً لعرض وتصدير التقرير.', 'warning');
+                    showAppToast('يرجى اختيار القسم والتلميذ أولاً لعرض وتصدير التقرير.', 'warning');
                 }
                 return;
             }
@@ -29718,7 +30425,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 return;
             }
 
-            const std = (db.classes[className] || []).find(s => String(s.id) === String(studentId));
+            const rawClsAbs = (db && db.classes && db.classes[className]) ? db.classes[className] : [];
+            const classListAbs = Array.isArray(rawClsAbs) ? rawClsAbs : (Array.isArray(rawClsAbs.students) ? rawClsAbs.students : []);
+            const std = classListAbs.find(s => String(s.id) === String(studentId));
             if (!std) {
                 if (typeof showAppToast === 'function') {
                     showAppToast('تعذر العثور على بيانات التلميذ(ة) المحدد.', 'error');
@@ -29799,12 +30508,13 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             if (!className) {
                 className = document.getElementById('reportClassSelect') ? document.getElementById('reportClassSelect').value : '';
             }
-            if (!className || !db.classes[className]) {
+            const resolved = resolveReportTargetClasses(className);
+            if (!className || !resolved.classes || resolved.classes.length === 0) {
                 window.notifySafeToast('يرجى اختيار القسم أولاً لتصدير تقارير الغياب لجميع التلاميذ.');
                 return;
             }
 
-            const students = db.classes[className];
+            const students = getCombinedStudentsForClasses(className);
             if (!students || students.length === 0) {
                 window.notifySafeToast('لا يوجد تلاميذ مسجلين في هذا القسم.');
                 return;
@@ -29814,7 +30524,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const dateTo = document.getElementById('reportDateTo') ? document.getElementById('reportDateTo').value : '';
 
             // الفرز: نأخذ التلاميذ الذين سجلوا غياباً، أو كامل القسم إن رغب الأستاذ
-            const absentStudents = students.filter(std => getTotalAbsentHours(std.id, className) > 0);
+            const absentStudents = students.filter(std => getTotalAbsentHours(std.id, std.className || resolved.classes[0]) > 0);
 
             const targetStudents = absentStudents.length > 0 ? absentStudents : students;
 
@@ -29826,16 +30536,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             container.style.backgroundColor = '#ffffff';
 
             targetStudents.forEach((std, idx) => {
+                const stdCls = std.className || resolved.classes[0];
                 const sheetWrapper = document.createElement('div');
                 sheetWrapper.style.padding = '18px 22px';
                 if (idx < targetStudents.length - 1) {
                     sheetWrapper.style.pageBreakAfter = 'always';
                 }
-                sheetWrapper.innerHTML = buildStudentDetailedAbsenceReportHtml(std, className, dateFrom, dateTo);
+                sheetWrapper.innerHTML = buildStudentDetailedAbsenceReportHtml(std, stdCls, dateFrom, dateTo);
                 container.appendChild(sheetWrapper);
             });
 
-            const cleanFileName = `تقارير_الغياب_المفصلة_قسم_${className}.pdf`;
+            const cleanFileName = `تقارير_الغياب_المفصلة_قسم_${resolved.label || className}.pdf`;
             const opt = {
                 margin:       [6, 6, 6, 6],
                 filename:     cleanFileName,
@@ -30818,14 +31529,14 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
         }
 
-        function restoreSafetySnapshot() {
+        async function restoreSafetySnapshot() {
             const backupStr = localStorage.getItem('absence_massar_v8_pre_restore_backup');
             if (!backupStr) {
                 window.notifySafeToast("لا توجد نقطة أمان احتياطية محفوظة حالياً.");
                 return;
             }
 
-            if (confirm("هل أنت متأكد من رغبتك في التراجع واسترجاع نقطة الأمان السابقة؟ سيتم استبدال البيانات الحالية بالنسخة المحفوظة قبل الاستيراد الأخير.")) {
+            if (await window.showConfirmDialog("هل أنت متأكد من رغبتك في التراجع واسترجاع نقطة الأمان السابقة؟ سيتم استبدال البيانات الحالية بالنسخة المحفوظة قبل الاستيراد الأخير.")) {
                 try {
                     const parsed = JSON.parse(backupStr);
                     if (parsed && typeof parsed === 'object') {
@@ -30952,7 +31663,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     }
                 }
 
-                // 2. Remove localStorage items
+                // 2. Remove localStorage items and clear IndexedDB
                 localStorage.removeItem('absence_massar_v8_manual');
                 localStorage.removeItem('app_whatsapp_auto_reminder');
                 localStorage.removeItem('tutoring_whatsapp_parent_msg');
@@ -30960,8 +31671,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
                 try {
                     localStorage.clear();
+                    localStorage.setItem('app_zero_reset_v2026_11_21', '1');
                 } catch(e) {
                     console.warn("localStorage.clear() error:", e);
+                }
+
+                if (window.MathPedagogicalSystemIDB && typeof window.MathPedagogicalSystemIDB.clearAll === 'function') {
+                    try {
+                        await window.MathPedagogicalSystemIDB.clearAll();
+                    } catch (e) {
+                        console.warn("MathPedagogicalSystemIDB.clearAll() error:", e);
+                    }
                 }
 
                 // 3. Reset in-memory db object
@@ -31005,21 +31725,29 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         }
 
         async function clearAllDataLegacy() {
-            if (confirm("تحذير: هل أنت متأكد من أنك تريد مسح جميع البيانات؟ (الأقسام، الغياب، النقط...) هذا الإجراء لا يمكن التراجع عنه!")) {
-                if (confirm("هل أنت متأكد تماماً؟ سيتم مسح البيانات المحلية والنسخ الاحتياطية السحابية بالكامل للبدء النظيف.")) {
-                    if (window.deleteCloudBackup) {
-                        try {
-                            await window.deleteCloudBackup(true);
-                        } catch(e) {
-                            console.warn("Could not delete cloud backup on clearAllData", e);
-                        }
-                    }
-                    localStorage.removeItem('absence_massar_v8_manual');
-                    try { localStorage.clear(); } catch(e){}
-                    window.notifySafeToast("تم مسح كافة البيانات والنسخ الاحتياطية بنجاح. سيتم إعادة تحميل الصفحة للبدء من جديد.");
-                    location.reload();
+            if (typeof window.showConfirmDialog === 'function') {
+                const ok1 = await window.showConfirmDialog("تحذير: هل أنت متأكد من أنك تريد مسح جميع البيانات؟ (الأقسام، الغياب، النقط...) هذا الإجراء لا يمكن التراجع عنه!", { title: 'مسح جميع البيانات', confirmText: 'متابعة المسح', cancelText: 'إلغاء', danger: true });
+                if (!ok1) return;
+                const ok2 = await window.showConfirmDialog("هل أنت متأكد تماماً؟ سيتم مسح البيانات المحلية والنسخ الاحتياطية السحابية بالكامل للبدء النظيف.", { title: 'تأكيد نهائي للمسح الشامل', confirmText: 'مسح شامل الآن', cancelText: 'تراجع', danger: true });
+                if (!ok2) return;
+            }
+            if (window.deleteCloudBackup) {
+                try {
+                    await window.deleteCloudBackup(true);
+                } catch(e) {
+                    console.warn("Could not delete cloud backup on clearAllData", e);
                 }
             }
+            localStorage.removeItem('absence_massar_v8_manual');
+            try {
+                localStorage.clear();
+                localStorage.setItem('app_zero_reset_v2026_11_21', '1');
+            } catch(e){}
+            if (window.MathPedagogicalSystemIDB && typeof window.MathPedagogicalSystemIDB.clearAll === 'function') {
+                try { await window.MathPedagogicalSystemIDB.clearAll(); } catch (e) {}
+            }
+            window.notifySafeToast("تم مسح كافة البيانات والنسخ الاحتياطية بنجاح. سيتم إعادة تحميل الصفحة للبدء من جديد.");
+            location.reload();
         }
 
         function clearAllData() {
@@ -31028,8 +31756,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
         async function resetSessionRecordsForFreshStart() {
             const msg = "هل تريد تصفير كافة سجلات الغياب، النقط، الملاحظات، ودفتر النصوص (مع الاحتفاظ بلائحة الأقسام والتلاميذ) ومسح النسخ الاحتياطية للبدء النظيف غداً؟";
-            if (!confirm(msg)) return;
-            if (!confirm("تأكيد أخير: سيتم مسح كافة السجلات التجريبية والنسخ السحابية السابقة، مع الإبقاء على الأقسام والتلاميذ.")) return;
+            if (typeof window.showConfirmDialog === 'function') {
+                const ok1 = await window.showConfirmDialog(msg, { title: 'تصفير السجلات مع حفظ الأقسام', confirmText: 'متابعة التصفير', cancelText: 'إلغاء', danger: true });
+                if (!ok1) return;
+                const ok2 = await window.showConfirmDialog("تأكيد أخير: سيتم مسح كافة السجلات التجريبية والنسخ السحابية السابقة، مع الإبقاء على الأقسام والتلاميذ.", { title: 'تأكيد نهائي للتصفير', confirmText: 'تصفير السجلات الآن', cancelText: 'تراجع', danger: true });
+                if (!ok2) return;
+            }
 
             if (window.deleteCloudBackup) {
                 try {
@@ -31054,23 +31786,27 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         // Fallback in case window.handleClearAllBackups is invoked before module finishes
         if (!window.handleClearAllBackups) {
             window.handleClearAllBackups = async function() {
-                if (confirm("هل أنت متأكد من مسح جميع النسخ الاحتياطية لاعتماد التطبيق ابتداءً من الغد؟")) {
-                    if (typeof window.deleteCloudBackup === 'function') {
-                        try { await window.deleteCloudBackup(); } catch (e) {}
-                    }
-                    window.notifySafeToast("تم تنظيف سجلات النسخ الاحتياطية بنجاح!");
+                if (typeof window.showConfirmDialog === 'function') {
+                    const ok = await window.showConfirmDialog("هل أنت متأكد من مسح جميع النسخ الاحتياطية لاعتماد التطبيق ابتداءً من الغد؟", { title: 'مسح النسخ الاحتياطية', confirmText: 'مسح الآن', cancelText: 'إلغاء', danger: true });
+                    if (!ok) return;
                 }
+                if (typeof window.deleteCloudBackup === 'function') {
+                    try { await window.deleteCloudBackup(); } catch (e) {}
+                }
+                window.notifySafeToast("تم تنظيف سجلات النسخ الاحتياطية بنجاح!");
             };
         }
 
         async function exportClassQuarterlyReportsPDF() {
-            const className = document.getElementById('reportClassSelect').value;
-            if (!className) {
+            const rawClassName = document.getElementById('reportClassSelect').value;
+            const resolved = resolveReportTargetClasses(rawClassName);
+            if (!rawClassName || !resolved.classes || resolved.classes.length === 0) {
                 window.notifySafeToast('يرجى اختيار القسم أولاً لعرض وتصدير التقارير.');
                 return;
             }
+            const className = resolved.label || rawClassName;
 
-            const students = db.classes[className] || [];
+            const students = getCombinedStudentsForClasses(rawClassName);
             if (students.length === 0) {
                 window.notifySafeToast('لا يوجد تلاميذ في هذا القسم.');
                 return;
@@ -31080,14 +31816,16 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const dateTo = document.getElementById('reportDateTo').value || '';
 
             // Teacher profile info
+            const nowQ = typeof getAppNow === 'function' ? getAppNow() : new Date();
+            const qStartYear = (nowQ.getMonth() + 1) >= 9 ? nowQ.getFullYear() : nowQ.getFullYear() - 1;
             const pName = (db.teacherProfile && db.teacherProfile.name) || 'الأستاذ(ة)';
             const pAcademy = (db.teacherProfile && db.teacherProfile.academy) || 'الأكاديمية الجهوية للتربية والتكوين';
             const pDirectorate = (db.teacherProfile && db.teacherProfile.directorate) || 'المديرية الإقليمية';
             const pSchool = (db.teacherProfile && db.teacherProfile.school) || 'المؤسسة التعليمية';
-            const academicYear = (db.teacherProfile && db.teacherProfile.academicYear) || '2026/2027';
+            const academicYear = (db.teacherProfile && db.teacherProfile.academicYear) || `${qStartYear}/${qStartYear + 1}`;
 
-            const examCount = getExamsCountForClass(className);
-            const coef = getSubjectCoefForClass(className);
+            const examCount = Math.max(...resolved.classes.map(c => getExamsCountForClass(c)), 2);
+            const coef = getSubjectCoefForClass(resolved.classes[0]);
 
             const btn = document.querySelector('button[onclick="exportClassQuarterlyReportsPDF()"]');
             const originalText = btn ? btn.innerHTML : '';
@@ -31121,10 +31859,11 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 // Calculate class averages for ranking
                 const activeSemBulk = typeof activeSemester !== 'undefined' ? activeSemester : 's1';
                 const classAvgs = sortedStudents.map(s => {
+                    const sCls = s.className || resolved.classes[0];
                     const sGrades = (typeof getStudentGradesBySemester === 'function')
-                        ? getStudentGradesBySemester(className, s.id, activeSemBulk)
-                        : ((db.grades[className] && db.grades[className][s.id]) ? db.grades[className][s.id] : {});
-                    return { id: s.id, avg: calculateStudentAvg(sGrades, className) };
+                        ? getStudentGradesBySemester(sCls, s.id, activeSemBulk)
+                        : ((db.grades[sCls] && db.grades[sCls][s.id]) ? db.grades[sCls][s.id] : {});
+                    return { id: `${sCls}:::${s.id}`, avg: calculateStudentAvg(sGrades, sCls) };
                 }).filter(s => s.avg !== null).sort((a, b) => b.avg - a.avg);
 
                 let sumClassAvgs = 0;
@@ -31133,28 +31872,33 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
                 for (let i = 0; i < sortedStudents.length; i++) {
                     const std = sortedStudents[i];
+                    const stdCls = std.className || resolved.classes[0];
 
                     const grades = (typeof getStudentGradesBySemester === 'function')
-                        ? getStudentGradesBySemester(className, std.id, activeSemBulk)
-                        : ((db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {});
-                    const avg = calculateStudentAvg(grades, className);
+                        ? getStudentGradesBySemester(stdCls, std.id, activeSemBulk)
+                        : ((db.grades[stdCls] && db.grades[stdCls][std.id]) ? db.grades[stdCls][std.id] : {});
+                    const avg = calculateStudentAvg(grades, stdCls);
                     const weightedAvg = avg !== null ? (avg * coef).toFixed(2) : '-';
 
                     let rankText = '-';
                     if (avg !== null) {
-                        const rIdx = classAvgs.findIndex(s => s.id === std.id);
+                        const rIdx = classAvgs.findIndex(s => s.id === `${stdCls}:::${std.id}`);
                         if (rIdx !== -1) rankText = `${rIdx + 1} / ${classAvgs.length}`;
                     }
 
-                    // Absences via O(1) index
-                    const stdRecords = getStudentClassRecordsFast(std.id, className);
+                    // Absences via O(1) index respecting date range and protected holidays/leaves
+                    const stdRecords = getStudentClassRecordsFast(std.id, stdCls).filter(r =>
+                        (!dateFrom || r.date >= dateFrom) &&
+                        (!dateTo || r.date <= dateTo) &&
+                        !(typeof isRecordProtectedHolidayOrLeave === 'function' && isRecordProtectedHolidayOrLeave(r))
+                    );
                     const absentHours = stdRecords.filter(r => r.status === 'غائب' || r.status === 'مبرر').reduce((sum, r) => sum + getRecordAbsenceDuration(r), 0);
                     const lateCount = stdRecords.filter(r => r.status === 'متأخر').length;
                     const unjustifiedHours = stdRecords.filter(r => r.status === 'غائب').reduce((sum, r) => sum + getRecordAbsenceDuration(r), 0);
                     const justifiedHours = stdRecords.filter(r => r.status === 'مبرر').reduce((sum, r) => sum + getRecordAbsenceDuration(r), 0);
 
                     // Behavior
-                    const behaviorData = (db.behaviors[className] && db.behaviors[className][std.id]) ? db.behaviors[className][std.id] : { status: 'منضبط', note: '' };
+                    const behaviorData = (db.behaviors[stdCls] && db.behaviors[stdCls][std.id]) ? db.behaviors[stdCls][std.id] : { status: 'منضبط', note: '' };
                     let appreciation = 'متوسط';
                     if (avg !== null) {
                         if (avg >= 16) appreciation = 'ممتاز';
@@ -31173,15 +31917,17 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     if (examCount >= 3) labels.push('الفرض 3');
                     if (examCount === 4) labels.push('الفرض 4');
 
-                    const gradeData = [
-                        grades.f1 !== undefined && grades.f1 !== '' ? parseFloat(grades.f1) : null,
-                        grades.f2 !== undefined && grades.f2 !== '' ? parseFloat(grades.f2) : null
-                    ];
+                    const parseNumGrade = (v) => {
+                        if (v === undefined || v === null || v === '') return null;
+                        const n = parseFloat(String(v).replace(',', '.'));
+                        return isNaN(n) ? null : n;
+                    };
+                    const gradeData = [parseNumGrade(grades.f1), parseNumGrade(grades.f2)];
                     if (examCount >= 3) {
-                        gradeData.push(grades.f3 !== undefined && grades.f3 !== '' ? parseFloat(grades.f3) : null);
+                        gradeData.push(parseNumGrade(grades.f3));
                     }
                     if (examCount === 4) {
-                        gradeData.push(grades.f4 !== undefined && grades.f4 !== '' ? parseFloat(grades.f4) : null);
+                        gradeData.push(parseNumGrade(grades.f4));
                     }
 
                     // We also show absence in a mixed chart! (Grades as Line, Absence as Bar, but absence is not per exam. We will just add a single bar at the end for "الغياب")
@@ -31252,32 +31998,32 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                             <div style="text-align: right; font-size: 11px; line-height: 1.5; color: #334155; width: 32%;">
                                 <div style="font-weight: 900; color: #0f172a; font-size: 12.5px;">المملكة المغربية</div>
                                 <div style="font-weight: 800; color: #1e3a8a;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
-                                <div style="font-weight: 700; color: #0f172a;">${pAcademy}</div>
-                                <div>${pDirectorate}</div>
-                                <div>المؤسسة: <strong style="color: #1e3a8a;">${pSchool}</strong></div>
+                                <div style="font-weight: 700; color: #0f172a;">${escapeHtml(pAcademy)}</div>
+                                <div>${escapeHtml(pDirectorate)}</div>
+                                <div>المؤسسة: <strong style="color: #1e3a8a;">${escapeHtml(pSchool)}</strong></div>
                             </div>
                             <div style="text-align: center; width: 36%; display: flex; flex-direction: column; align-items: center;">
                                 <div style="background: linear-gradient(135deg, #1e3a8a, #1d4ed8); color: #ffffff; padding: 5px 14px; border-radius: 6px; width: 100%; box-sizing: border-box;">
                                     <h2 style="margin: 0; color: #ffffff; font-size: 15px; font-weight: 900;">التقرير الفصلي الشامل للأداء الفردي</h2>
                                 </div>
-                                <div style="font-size: 11px; color: #475569; margin-top: 4px; font-weight: 700;">الموسم الدراسي: ${academicYear} · المذكرة الوزارية 142-08</div>
+                                <div style="font-size: 11px; color: #475569; margin-top: 4px; font-weight: 700;">الموسم الدراسي: ${escapeHtml(academicYear)} · المذكرة الوزارية 142-08</div>
                             </div>
                             <div style="text-align: left; font-size: 11px; line-height: 1.5; color: #334155; width: 32%; font-weight: 700;">
                                 <div style="margin-bottom: 5px;">
                                     ${typeof getDualLogosHTML === 'function' ? getDualLogosHTML({ size: 40 }) : ''}
                                 </div>
                                 <div>المادة: <strong style="color: #1e3a8a;">الرياضيات (الثانوي التأهيلي)</strong></div>
-                                <div>الأستاذ(ة): <strong style="color: #0f172a;">${pName}</strong></div>
-                                <div>القسم: <strong style="color: #b91c1c;">${className}</strong></div>
-                                <div>تاريخ الإصدار: ${new Date().toLocaleDateString('ar-MA')}</div>
+                                <div>الأستاذ(ة): <strong style="color: #0f172a;">${escapeHtml(pName)}</strong></div>
+                                <div>القسم: <strong style="color: #b91c1c;">${escapeHtml(stdCls)}</strong></div>
+                                <div>تاريخ الإصدار: ${nowQ.toLocaleDateString('ar-MA')}</div>
                             </div>
                         </div>
 
                         <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
                             <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 15px; font-size: 13px;">
-                                <div><span style="color: #64748b;">اسم التلميذ(ة):</span> <strong style="color: #0f172a; font-size: 15px;">${std.name}</strong></div>
-                                <div><span style="color: #64748b;">الرقم الترتيبي:</span> <strong style="color: #0f172a;">${std.orderNum || '-'}</strong></div>
-                                <div><span style="color: #64748b;">رقم مسار:</span> <strong style="color: #0f172a;">${std.massar || 'غير مسجل'}</strong></div>
+                                <div><span style="color: #64748b;">اسم التلميذ(ة):</span> <strong style="color: #0f172a; font-size: 15px;">${escapeHtml(std.name)}</strong></div>
+                                <div><span style="color: #64748b;">الرقم الترتيبي:</span> <strong style="color: #0f172a;">${escapeHtml(std.orderNum || '-')}</strong></div>
+                                <div><span style="color: #64748b;">رقم مسار:</span> <strong style="color: #0f172a;">${escapeHtml(std.massar || 'غير مسجل')}</strong></div>
                             </div>
                         </div>
 
@@ -31298,16 +32044,16 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                                 </thead>
                                 <tbody>
                                     <tr style="font-weight: bold;">
-                                        <td style="border: 1px solid #cbd5e1; padding: 8px;">${grades.f1 !== undefined && grades.f1 !== '' ? grades.f1 : '-'}</td>
-                                        <td style="border: 1px solid #cbd5e1; padding: 8px;">${grades.f2 !== undefined && grades.f2 !== '' ? grades.f2 : '-'}</td>
-                                        ${examCount >= 3 ? `<td style="border: 1px solid #cbd5e1; padding: 8px;">${grades.f3 !== undefined && grades.f3 !== '' ? grades.f3 : '-'}</td>` : ''}
-                                        ${examCount >= 4 ? `<td style="border: 1px solid #cbd5e1; padding: 8px;">${grades.f4 !== undefined && grades.f4 !== '' ? grades.f4 : '-'}</td>` : ''}
+                                        <td style="border: 1px solid #cbd5e1; padding: 8px;">${grades.f1 !== undefined && grades.f1 !== '' ? escapeHtml(grades.f1) : '-'}</td>
+                                        <td style="border: 1px solid #cbd5e1; padding: 8px;">${grades.f2 !== undefined && grades.f2 !== '' ? escapeHtml(grades.f2) : '-'}</td>
+                                        ${examCount >= 3 ? `<td style="border: 1px solid #cbd5e1; padding: 8px;">${grades.f3 !== undefined && grades.f3 !== '' ? escapeHtml(grades.f3) : '-'}</td>` : ''}
+                                        ${examCount >= 4 ? `<td style="border: 1px solid #cbd5e1; padding: 8px;">${grades.f4 !== undefined && grades.f4 !== '' ? escapeHtml(grades.f4) : '-'}</td>` : ''}
                                         <td style="border: 1px solid #cbd5e1; padding: 8px; background: #e0f2fe; color: ${avg !== null && avg < 10 ? '#b91c1c' : '#15803d'}; font-size: 14px;">
                                             ${avg !== null ? avg.toFixed(2) : '-'}
                                         </td>
-                                        <td style="border: 1px solid #cbd5e1; padding: 8px; color: #475569;">${rankText}</td>
-                                        <td style="border: 1px solid #cbd5e1; padding: 8px; color: #64748b;">${classAvg}</td>
-                                        <td style="border: 1px solid #cbd5e1; padding: 8px;">${appreciation}</td>
+                                        <td style="border: 1px solid #cbd5e1; padding: 8px; color: #475569;">${escapeHtml(rankText)}</td>
+                                        <td style="border: 1px solid #cbd5e1; padding: 8px; color: #64748b;">${escapeHtml(classAvg)}</td>
+                                        <td style="border: 1px solid #cbd5e1; padding: 8px;">${escapeHtml(appreciation)}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -31330,7 +32076,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                                 </div>
                                 <div style="background: white; border: 1px solid #cbd5e1; border-radius: 4px; padding: 10px;">
                                     <div style="color: #64748b; font-size: 11px;">ملاحظة السلوك</div>
-                                    <div style="font-size: 14px; font-weight: bold; color: ${behaviorData.status === 'تنبيه' ? '#ea580c' : behaviorData.status === 'مشوش' ? '#dc2626' : '#16a34a'}; margin-top: 4px;">${behaviorData.status}</div>
+                                    <div style="font-size: 14px; font-weight: bold; color: ${behaviorData.status === 'تنبيه' ? '#ea580c' : behaviorData.status === 'مشوش' ? '#dc2626' : '#16a34a'}; margin-top: 4px;">${escapeHtml(behaviorData.status)}</div>
                                 </div>
                             </div>
                             ${(() => {
@@ -32581,7 +33327,7 @@ window.isPresentationMode = isPresentationMode;
 
                     const eventBody = {
                         summary: evt.title,
-                        description: "تم التصدير من منصة تتبع الغياب (AI Studio). نوع الحدث: " + (evt.type || "عام"),
+                        description: "تم التصدير من منصة الأستاذ الرقمية. نوع الحدث: " + (evt.type || "عام"),
                         start: {
                             date: startStr,
                             timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -33311,6 +34057,11 @@ window.isPresentationMode = isPresentationMode;
         window.onTabletReportSectionToggle = onTabletReportSectionToggle;
 
         function buildIndividualStudentReportPreviewHtml(className, studentId) {
+            if (studentId && String(studentId).includes(':::')) {
+                const parts = String(studentId).split(':::');
+                className = parts[0];
+                studentId = parts[1];
+            }
             const reportClassSelect = document.getElementById('reportClassSelect');
             const reportStudentSelect = document.getElementById('reportStudentSelect');
 
@@ -33387,10 +34138,16 @@ window.isPresentationMode = isPresentationMode;
         window.buildIndividualStudentReportPreviewHtml = buildIndividualStudentReportPreviewHtml;
 
         function openTabletIndividualReportPrintPreview(className, studentId, overrideMargins) {
-            const safeClass = className || (document.getElementById('reportClassSelect') ? document.getElementById('reportClassSelect').value : '');
-            const safeStudentId = (studentId !== undefined && studentId !== null && studentId !== '')
+            let safeClass = className || (document.getElementById('reportClassSelect') ? document.getElementById('reportClassSelect').value : '');
+            let safeStudentId = (studentId !== undefined && studentId !== null && studentId !== '')
                 ? studentId
                 : (document.getElementById('reportStudentSelect') ? document.getElementById('reportStudentSelect').value : '');
+
+            if (safeStudentId && String(safeStudentId).includes(':::')) {
+                const parts = String(safeStudentId).split(':::');
+                safeClass = parts[0];
+                safeStudentId = parts[1];
+            }
 
             if (!safeClass || !safeStudentId) {
                 if (typeof showAppToast === 'function') {
@@ -33433,7 +34190,8 @@ window.isPresentationMode = isPresentationMode;
                 return false;
             }
 
-            const classList = (typeof db !== 'undefined' && db && db.classes && Array.isArray(db.classes[safeClass])) ? db.classes[safeClass] : [];
+            const rawTabCls = (typeof db !== 'undefined' && db && db.classes) ? db.classes[safeClass] : null;
+            const classList = Array.isArray(rawTabCls) ? rawTabCls : (rawTabCls && Array.isArray(rawTabCls.students) ? rawTabCls.students : []);
             const std = classList.find(s => String(s.id) === String(safeStudentId)) || null;
             const opts = typeof getStudentPrintModeOptions === 'function' ? getStudentPrintModeOptions() : { pageSize: 'a4', progressChart: true, officialHeader: true, officialVisas: true };
             const margins = overrideMargins || (typeof getResolvedPrintModeMargins === 'function' ? getResolvedPrintModeMargins(opts) : null);
@@ -33475,7 +34233,9 @@ window.isPresentationMode = isPresentationMode;
             // Enable tablet split mode
             document.body.classList.add('tablet-split-mode');
 
-            const std = (db.classes[className] || []).find(s => String(s.id) === String(studentId));
+            const rawClsTab = (db && db.classes && db.classes[className]) ? db.classes[className] : [];
+            const clsListTab = Array.isArray(rawClsTab) ? rawClsTab : (Array.isArray(rawClsTab.students) ? rawClsTab.students : []);
+            const std = clsListTab.find(s => String(s.id) === String(studentId));
             if (!std) return;
 
             const content = document.getElementById('tabletReportContent');
@@ -33496,7 +34256,8 @@ window.isPresentationMode = isPresentationMode;
             if (behaviorData.status === 'تنبيه') statusColor = '#ea580c';
             else if (behaviorData.status === 'مشوش') statusColor = '#dc2626';
 
-            const activeSemQuick = typeof activeSemester !== 'undefined' ? activeSemester : 's1';
+            const activeSemQuick = typeof getActiveSemester === 'function' ? getActiveSemester() : (typeof activeSemester !== 'undefined' ? activeSemester : (window.activeSemester || 's1'));
+            const activeSemTitleQuick = activeSemQuick === 's2' ? 'الدورة الثانية' : 'الدورة الأولى';
             const grades = (typeof getStudentGradesBySemester === 'function')
                 ? getStudentGradesBySemester(className, studentId, activeSemQuick)
                 : ((db.grades[className] && db.grades[className][studentId]) ? db.grades[className][studentId] : {});
@@ -33548,7 +34309,7 @@ window.isPresentationMode = isPresentationMode;
                 </div>
 
                 <div style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
-                    <h5 style="color: var(--primary); margin: 0 0 10px; font-size: 0.9rem;">النتائج والتقييم الأكاديمي</h5>
+                    <h5 style="color: var(--primary); margin: 0 0 10px; font-size: 0.9rem;">النتائج والتقييم الأكاديمي (${activeSemTitleQuick})</h5>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.85rem;">
                         <span style="color: var(--text-muted);">المعدل الفصلي:</span>
                         <span style="font-weight: bold; color: ${avg >= 10 ? 'var(--success)' : (avg !== null ? 'var(--danger)' : 'var(--text-dark)')};">${avg !== null ? avg.toFixed(2) : '-'} / 20</span>
@@ -33745,7 +34506,7 @@ window.isPresentationMode = isPresentationMode;
             }
         }
 
-        function fillMathTemplateForCurrentType() {
+        async function fillMathTemplateForCurrentType() {
             const typeSelect = document.getElementById('lessonLogSessionType');
             const typeKey = typeSelect ? typeSelect.value : 'cours';
             const template = MATH_LESSON_TEMPLATES[typeKey] || MATH_LESSON_TEMPLATES.cours;
@@ -33753,7 +34514,7 @@ window.isPresentationMode = isPresentationMode;
             if (!summaryInput) return;
 
             if (summaryInput.value.trim().length > 0) {
-                if (confirm('حقل المحتوى يحتوي على نص حالياً. هل تريد استبداله بالنموذج الرياضي الجاهز؟\n(انقر "إلغاء" لإضافته في الأسفل)')) {
+                if (await window.showConfirmDialog('حقل المحتوى يحتوي على نص حالياً. هل تريد استبداله بالنموذج الرياضي الجاهز؟\n(انقر "إلغاء" لإضافته في الأسفل)')) {
                     summaryInput.value = template;
                 } else {
                     summaryInput.value = summaryInput.value.trim() + '\n\n' + template;
@@ -36926,7 +37687,7 @@ window.isPresentationMode = isPresentationMode;
             showAppToast(`تمت إضافة المحور: ${presetText}`, 'success');
         }
 
-        function syncAxesToSummaryActivities() {
+        async function syncAxesToSummaryActivities() {
             const compiled = compileAxesToSummary();
             if (!compiled) {
                 window.notifySafeToast('يرجى كتابة عنوان أو محتوى فقرة في محور واحد على الأقل أولاً.');
@@ -36937,7 +37698,7 @@ window.isPresentationMode = isPresentationMode;
             const currentVal = summaryInput.value.trim();
 
             if (currentVal && !currentVal.includes('【 المحور')) {
-                if (confirm('هل ترغب في استبدال محتوى الحصة بالملخص البيداغوجي المنظم للمحاور والفقرات؟\n(اختر "إلغاء" لإضافته في نهاية المحتوى الحالي)')) {
+                if (await window.showConfirmDialog('هل ترغب في استبدال محتوى الحصة بالملخص البيداغوجي المنظم للمحاور والفقرات؟\n(اختر "إلغاء" لإضافته في نهاية المحتوى الحالي)')) {
                     summaryInput.value = compiled;
                 } else {
                     summaryInput.value = currentVal + '\n\n' + compiled;
@@ -38363,6 +39124,8 @@ window.isPresentationMode = isPresentationMode;
             if (!log) return '';
             const axes = log.axes;
             const className = document.getElementById('lessonLogClassSelect')?.value || '';
+            const safeClsAttr = escapeHtml(String(className || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+            const safeLogIdAttr = escapeHtml(String(log.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
             if (!sequenceInfo && className && typeof getLessonAxesSequenceInfo === 'function') {
                 sequenceInfo = getLessonAxesSequenceInfo(className);
             }
@@ -38376,7 +39139,7 @@ window.isPresentationMode = isPresentationMode;
                 return `
                     <div style="font-size: 0.85rem; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 6px; font-weight: 700; margin-bottom: 8px;">
                         <span style="color: #1e3a8a; font-weight: 800;">المحور:</span>
-                        <span>${log.title}</span>
+                        <span>${escapeHtml(log.title)}</span>
                     </div>
                 `;
             }
@@ -38393,7 +39156,7 @@ window.isPresentationMode = isPresentationMode;
                         ${axes.map((ax, aIdx) => {
                             const globalAxisNum = logInfo?.axesInfo?.[aIdx]?.globalAxisNum || (aIdx + 1);
                             const text = (typeof ax === 'object') ? (ax.title || `محور ${globalAxisNum}`) : ax;
-                            return `<span style="background: #ffffff; border: 1.5px solid #93c5fd; padding: 3px 9px; border-radius: 6px; color: #1d4ed8; font-weight: 800;">المحور ${globalAxisNum}: ${text}</span>`;
+                            return `<span style="background: #ffffff; border: 1.5px solid #93c5fd; padding: 3px 9px; border-radius: 6px; color: #1d4ed8; font-weight: 800;">المحور ${globalAxisNum}: ${escapeHtml(text)}</span>`;
                         }).join('')}
                         ${sessionsInLessonCount > 1 ? `
                             <span style="font-size: 0.72rem; color: #059669; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 2px 7px; border-radius: 5px; font-weight: 800;">
@@ -38425,39 +39188,43 @@ window.isPresentationMode = isPresentationMode;
                         const stageInfo = LESSON_AXIS_STAGES[stageKey] || LESSON_AXIS_STAGES.applications;
                         const prevSession = axInfo?.previousSession;
 
+                        const safePrevLogIdAttr = prevSession ? escapeHtml(String(prevSession.logId || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")) : '';
+                        const encAxTitle = encodeURIComponent(axTitle || '').replace(/'/g, '%27');
+                        const encLogNum = encodeURIComponent(log.number || '').replace(/'/g, '%27');
+
                         return `
                             <div class="lesson-card-axis-item" style="background-color: ${axColor}; border-color: ${axBorder};">
                                 <div class="lesson-card-axis-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                         <span class="axis-num-badge">المحور ${globalAxisNum}</span>
-                                        <span style="font-weight: 800; font-size: 0.92rem; color: #0f172a;">${cleanPedagogicalLogText(axTitle)}</span>
+                                        <span style="font-weight: 800; font-size: 0.92rem; color: #0f172a;">${escapeHtml(cleanPedagogicalLogText(axTitle))}</span>
 
                                         ${isCont ? `
                                             <span style="background: #ffffff; color: #4338ca; border: 1px dashed #c4b5fd; padding: 2px 7px; border-radius: 5px; font-size: 0.72rem; font-weight: 700;">
                                                 ${stageInfo.badge}
                                             </span>
                                             ${prevSession ? `
-                                                <span onclick="highlightAndScrollToSession('${prevSession.logId}')" style="cursor: pointer; font-size: 0.68rem; color: #6b21a8; background: #faf5ff; border: 1px solid #e9d5ff; padding: 2px 6px; border-radius: 4px;" title="انقر للانتقال للحصة السابقة المرتبطة بهذا المحور">
-                                                    ⬅️ مرتبط بحصة #${prevSession.sessionNum} (${prevSession.date})
+                                                <span onclick="highlightAndScrollToSession('${safePrevLogIdAttr}')" style="cursor: pointer; font-size: 0.68rem; color: #6b21a8; background: #faf5ff; border: 1px solid #e9d5ff; padding: 2px 6px; border-radius: 4px;" title="انقر للانتقال للحصة السابقة المرتبطة بهذا المحور">
+                                                    ⬅️ مرتبط بحصة #${escapeHtml(prevSession.sessionNum)} (${escapeHtml(prevSession.date)})
                                                 </span>
                                             ` : ''}
                                         ` : ''}
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                         ${sessionsInLessonCount > 1 ? `
-                                            <span style="font-size: 0.7rem; color: #1e40af; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 5px; font-weight: 800;" title="ترتيب المحور ضمن تسلسل درس: ${log.number || ''}">
+                                            <span style="font-size: 0.7rem; color: #1e40af; background: #eff6ff; border: 1px solid #bfdbfe; padding: 2px 7px; border-radius: 5px; font-weight: 800;" title="ترتيب المحور ضمن تسلسل درس: ${escapeHtml(log.number || '')}">
                                                 المحور ${globalAxisNum} من أصل ${totalAxesInLesson} في هذا الدرس
                                             </span>
                                         ` : ''}
-                                        <button type="button" class="btn-action hide-in-presentation" onclick="showAxisContinuityBarFor('${className}', '${encodeURIComponent(axTitle)}', '${encodeURIComponent(log.number || '')}')" style="background: #faf5ff; border: 1.5px solid #d8b4fe; color: #6d28d9; cursor: pointer; padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;" title="عرض وإبراز هذا المحور في شريط الاستمرارية والتسلسل الزمني">
+                                        <button type="button" class="btn-action hide-in-presentation" onclick="showAxisContinuityBarFor('${safeClsAttr}', '${encAxTitle}', '${encLogNum}')" style="background: #faf5ff; border: 1.5px solid #d8b4fe; color: #6d28d9; cursor: pointer; padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;" title="عرض وإبراز هذا المحور في شريط الاستمرارية والتسلسل الزمني">
                                             <span data-lucide="git-commit" data-size="12"></span>
                                             <span>شريط الاستمرارية ⏳</span>
                                         </button>
-                                        <button type="button" class="btn-action hide-in-presentation" onclick="openLinkSessionsToAxisModal('${className}', '${encodeURIComponent(axTitle)}')" style="background: #f5f3ff; border: 1px solid #ddd6fe; color: #6d28d9; cursor: pointer; padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; display: inline-flex; align-items: center; gap: 3px;" title="ربط حصص مسجلة أخرى بهذا المحور لتكوين تسلسل زمني">
+                                        <button type="button" class="btn-action hide-in-presentation" onclick="openLinkSessionsToAxisModal('${safeClsAttr}', '${encAxTitle}')" style="background: #f5f3ff; border: 1px solid #ddd6fe; color: #6d28d9; cursor: pointer; padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; display: inline-flex; align-items: center; gap: 3px;" title="ربط حصص مسجلة أخرى بهذا المحور لتكوين تسلسل زمني">
                                             <span data-lucide="link-2" data-size="12"></span>
                                             <span>ربط حصص</span>
                                         </button>
-                                        <button type="button" class="btn-action hide-in-presentation" onclick="startNewSessionForExistingAxis('${className}', '${encodeURIComponent(log.number || '')}', '${encodeURIComponent(axTitle)}', ${globalAxisNum})" style="background: linear-gradient(135deg, #f3e8ff, #e9d5ff); border: 1.5px solid #d8b4fe; color: #6b21a8; cursor: pointer; padding: 3px 9px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(107,33,168,0.1);" title="تدوين وإجراء حصة جديدة متابعة لنفس هذا المحور">
+                                        <button type="button" class="btn-action hide-in-presentation" onclick="startNewSessionForExistingAxis('${safeClsAttr}', '${encLogNum}', '${encAxTitle}', ${globalAxisNum})" style="background: linear-gradient(135deg, #f3e8ff, #e9d5ff); border: 1.5px solid #d8b4fe; color: #6b21a8; cursor: pointer; padding: 3px 9px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 3px rgba(107,33,168,0.1);" title="تدوين وإجراء حصة جديدة متابعة لنفس هذا المحور">
                                             <span>➕ حصة جديدة في هذا المحور</span>
                                         </button>
                                     </div>
@@ -38466,7 +39233,7 @@ window.isPresentationMode = isPresentationMode;
                                 <!-- Inline Axis Continuity Stepper for Multi-Session Axes -->
                                 ${(totalAxisSessions > 1 && axInfo?.allSessionsOfAxis && axInfo.allSessionsOfAxis.length > 1) ? `
                                     <div class="inline-axis-continuity-bar" title="مسار استمرارية هذا المحور عبر ${totalAxisSessions} حصص متسلسلة">
-                                        <span onclick="showAxisContinuityBarFor('${className}', '${encodeURIComponent(axTitle)}', '${encodeURIComponent(log.number || '')}')" style="cursor: pointer; font-weight: 800; color: #6d28d9; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" title="عرض في الشريط الرئيسي لأعلى">
+                                        <span onclick="showAxisContinuityBarFor('${safeClsAttr}', '${encAxTitle}', '${encLogNum}')" style="cursor: pointer; font-weight: 800; color: #6d28d9; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" title="عرض في الشريط الرئيسي لأعلى">
                                             <span data-lucide="git-commit" data-size="12"></span>
                                             <span>مسار استمرارية المحور (${totalAxisSessions} حصص) ⏳:</span>
                                         </span>
@@ -38474,8 +39241,9 @@ window.isPresentationMode = isPresentationMode;
                                             ${axInfo.allSessionsOfAxis.map((sItem, sIdx) => {
                                                 const isCurrent = (sItem.logId === log.id);
                                                 const stageConf = LESSON_AXIS_STAGES[sItem.stage] || LESSON_AXIS_STAGES.applications;
+                                                const safeSItemIdAttr = escapeHtml(String(sItem.logId || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
                                                 return `
-                                                    <span onclick="highlightAndScrollToSession('${sItem.logId}')" style="cursor: pointer; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s; ${isCurrent ? 'background: #7c3aed; color: #ffffff; box-shadow: 0 1px 4px rgba(124,58,237,0.3);' : 'background: #ffffff; color: #581c87; border: 1px solid #d8b4fe;'}" title="${isCurrent ? 'هذه هي الحصة الحالية المعروضة' : `الانتقال للحصة #${sItem.sessionNum} (${sItem.date})`}">
+                                                    <span onclick="highlightAndScrollToSession('${safeSItemIdAttr}')" style="cursor: pointer; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 0.72rem; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s; ${isCurrent ? 'background: #7c3aed; color: #ffffff; box-shadow: 0 1px 4px rgba(124,58,237,0.3);' : 'background: #ffffff; color: #581c87; border: 1px solid #d8b4fe;'}" title="${isCurrent ? 'هذه هي الحصة الحالية المعروضة' : escapeHtml(`الانتقال للحصة #${sItem.sessionNum} (${sItem.date})`)}">
                                                         <span>${sIdx + 1}. ${stageConf.badge}</span>
                                                         ${isCurrent ? '📍' : ''}
                                                     </span>
@@ -38489,24 +39257,29 @@ window.isPresentationMode = isPresentationMode;
                                     <div>
                                         ${paragraphs.map((p, pIdx) => {
                                             const pTypeConfig = LESSON_PARAGRAPH_TYPES[p.type] || LESSON_PARAGRAPH_TYPES.activity;
+                                            const rawLink = String(p.resourceLink || '').trim();
+                                            const safeHref = (/^https?:\/\//i.test(rawLink) || /^\/(?!\/)/.test(rawLink)) ? rawLink : '';
+                                            const encResTitle = encodeURIComponent(p.resourceTitle || 'مورد الدرس').replace(/'/g, '%27');
+                                            const encResLink = encodeURIComponent(p.resourceLink || '').replace(/'/g, '%27');
+                                            const encResDesc = encodeURIComponent('مورد توضيحي مربوط بفقرة ' + globalAxisNum + '.' + (pIdx + 1) + ': ' + (p.title || '')).replace(/'/g, '%27');
                                             return `
                                                 <div class="lesson-card-paragraph-item">
                                                     <div class="lesson-card-paragraph-head" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
                                                         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                                                             <span class="paragraph-badge-num">فقرة ${globalAxisNum}.${pIdx + 1}</span>
-                                                            <span style="color: #0f172a; font-weight: 800;">${p.title || 'فقرة مبرمجة'}</span>
+                                                            <span style="color: #0f172a; font-weight: 800;">${escapeHtml(p.title || 'فقرة مبرمجة')}</span>
                                                             <span style="font-size: 0.72rem; padding: 2px 7px; border-radius: 5px; background: ${pTypeConfig.bg}; color: ${pTypeConfig.color}; border: 1px solid ${pTypeConfig.border}; font-weight: 800;">
                                                                 ${pTypeConfig.badge}
                                                             </span>
                                                         </div>
                                                         <div style="display: flex; align-items: center; gap: 6px;">
                                                             ${(p.resourceLink || p.resourceTitle) ? `
-                                                                <button type="button" class="btn-action" onclick="openParagraphResourceDirectly('${className}', '${log.id}', ${aIdx}, ${pIdx})" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff; border: none; padding: 4px 11px; border-radius: 6px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(5,150,105,0.25);" title="عرض وتشغيل المورد الرقمي / الفيديو التوضيحي المربوط بهذه الفقرة فوراً أثناء الدرس">
+                                                                <button type="button" class="btn-action" onclick="openParagraphResourceDirectly('${safeClsAttr}', '${safeLogIdAttr}', ${aIdx}, ${pIdx})" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff; border: none; padding: 4px 11px; border-radius: 6px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(5,150,105,0.25);" title="عرض وتشغيل المورد الرقمي / الفيديو التوضيحي المربوط بهذه الفقرة فوراً أثناء الدرس">
                                                                     <span data-lucide="play-circle" data-size="14"></span>
                                                                     <span>عرض المورد 🎬</span>
                                                                 </button>
                                                             ` : `
-                                                                <button type="button" class="btn-action hide-in-presentation" onclick="openPedagogicalLibraryPickerForSavedParagraph('${className}', '${log.id}', ${aIdx}, ${pIdx})" style="background: #f0fdf4; border: 1px dashed #86efac; color: #166534; padding: 3px 9px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="ربط هذه الفقرة بمورد رقمي أو فيديو توضيحي من المكتبة البيداغوجية">
+                                                                <button type="button" class="btn-action hide-in-presentation" onclick="openPedagogicalLibraryPickerForSavedParagraph('${safeClsAttr}', '${safeLogIdAttr}', ${aIdx}, ${pIdx})" style="background: #f0fdf4; border: 1px dashed #86efac; color: #166534; padding: 3px 9px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="ربط هذه الفقرة بمورد رقمي أو فيديو توضيحي من المكتبة البيداغوجية">
                                                                     <span data-lucide="link" data-size="12"></span>
                                                                     <span>+ ربط بمورد</span>
                                                                 </button>
@@ -38516,12 +39289,12 @@ window.isPresentationMode = isPresentationMode;
                                                     ${p.content ? `
                                                         <div class="lesson-card-paragraph-body">
                                                             <strong style="color: #1d4ed8; font-size: 0.74rem; display: block; margin-bottom: 2px;">المحتوى والأنشطة الخاصة:</strong>
-                                                            <div>${(window.renderMathInText ? window.renderMathInText(p.content) : p.content)}</div>
+                                                            <div>${(window.renderMathInText ? window.renderMathInText(p.content) : escapeHtml(p.content))}</div>
                                                         </div>
                                                     ` : ''}
                                                     ${p.techContent ? `
                                                         <div style="font-size: 0.75rem; color: #0369a1; background: #f0f9ff; border: 1px dashed #bae6fd; border-radius: 5px; padding: 4px 8px; margin-top: 4px;">
-                                                            <span style="font-weight: 800;">⚙️ محتوى تقني / ديداكتيكي:</span> ${p.techContent}
+                                                            <span style="font-weight: 800;">⚙️ محتوى تقني / ديداكتيكي:</span> ${escapeHtml(p.techContent)}
                                                         </div>
                                                     ` : ''}
                                                     ${p.specialNotes ? `
@@ -38536,15 +39309,15 @@ window.isPresentationMode = isPresentationMode;
                                                                 <span style="background: #22c55e; color: #ffffff; width: 26px; height: 26px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; flex-shrink: 0; box-shadow: 0 1px 3px rgba(34,197,94,0.3);">🎥</span>
                                                                 <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                                                     <span style="font-size: 0.7rem; color: #166534; font-weight: 700; display: block;">مورد توضيحي / فيديو رقمي:</span>
-                                                                    <strong style="color: #14532d; font-size: 0.82rem;">${(p.resourceTitle || 'فيديو وشرح توضيحي').replace(/</g, '&lt;')}</strong>
+                                                                    <strong style="color: #14532d; font-size: 0.82rem;">${escapeHtml(p.resourceTitle || 'فيديو وشرح توضيحي')}</strong>
                                                                 </div>
                                                             </div>
                                                             <div style="display: flex; align-items: center; gap: 5px;">
-                                                                <button type="button" onclick="playLessonVideoModal('${encodeURIComponent(p.resourceTitle || 'مورد الدرس')}', '${encodeURIComponent(p.resourceLink || '')}', '${encodeURIComponent('مورد توضيحي مربوط بفقرة ' + globalAxisNum + '.' + (pIdx + 1) + ': ' + (p.title || ''))}')" style="background: linear-gradient(135deg, #16a34a, #15803d); color: #ffffff; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(22,163,74,0.25);">
+                                                                <button type="button" onclick="playLessonVideoModal('${encResTitle}', '${encResLink}', '${encResDesc}')" style="background: linear-gradient(135deg, #16a34a, #15803d); color: #ffffff; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(22,163,74,0.25);">
                                                                     <span>مشاهدة المورد 🎬</span>
                                                                 </button>
-                                                                ${p.resourceLink ? `
-                                                                    <a href="${p.resourceLink}" target="_blank" rel="noopener noreferrer" style="background: #ffffff; border: 1px solid #bbf7d0; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 0.76rem; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center;" title="فتح في نافذة خارجية">
+                                                                ${safeHref ? `
+                                                                    <a href="${escapeHtml(safeHref)}" target="_blank" rel="noopener noreferrer" style="background: #ffffff; border: 1px solid #bbf7d0; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 0.76rem; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center;" title="فتح في نافذة خارجية">
                                                                         <span>🔗</span>
                                                                     </a>
                                                                 ` : ''}
@@ -38564,15 +39337,15 @@ window.isPresentationMode = isPresentationMode;
                                                 ${subParagraphs.map((sub, sIdx) => `
                                                     <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 5px; padding: 4px 8px; font-size: 0.75rem;">
                                                         <span style="font-weight: 800; color: #15803d; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 1px 5px; border-radius: 4px; font-size: 0.7rem;">فرعية ${globalAxisNum}.${sIdx + 1}</span>
-                                                        <strong style="color: #0f172a; margin-right: 4px;">${sub.title || 'فقرة تقنية'}</strong>
-                                                        ${sub.content ? `<div style="color: #475569; margin-top: 2px;">${sub.content}</div>` : ''}
+                                                        <strong style="color: #0f172a; margin-right: 4px;">${escapeHtml(sub.title || 'فقرة تقنية')}</strong>
+                                                        ${sub.content ? `<div style="color: #475569; margin-top: 2px;">${escapeHtml(sub.content)}</div>` : ''}
                                                     </div>
                                                 `).join('')}
                                             </div>
                                         ` : ''}
                                         ${techNotes ? `
                                             <div style="font-size: 0.74rem; color: #334155; margin-top: 4px; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 5px; padding: 4px 8px;">
-                                                <strong style="color: #0369a1;">💡 ملاحظات تقنية:</strong> ${techNotes}
+                                                <strong style="color: #0369a1;">💡 ملاحظات تقنية:</strong> ${escapeHtml(techNotes)}
                                             </div>
                                         ` : ''}
                                     </div>
@@ -38591,7 +39364,7 @@ window.isPresentationMode = isPresentationMode;
                     <div style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; margin-bottom: 14px; background: #ffffff;">
                         <div style="font-size: 0.78rem; font-weight: 800; color: #64748b; margin-bottom: 4px;">المحور:</div>
                         <div style="font-size: 0.95rem; font-weight: 800; color: #1e3a8a; background: #eff6ff; padding: 8px 12px; border-radius: 8px; border-right: 3px solid #2563eb;">
-                            ${title}
+                            ${escapeHtml(title)}
                         </div>
                     </div>
                 `;
@@ -38606,7 +39379,7 @@ window.isPresentationMode = isPresentationMode;
                         <div style="display: flex; flex-direction: column; gap: 6px;">
                             ${axes.map((ax, idx) => `
                                 <div style="font-size: 0.92rem; font-weight: 800; color: #1e3a8a; background: #eff6ff; padding: 6px 12px; border-radius: 8px; border-right: 3px solid #2563eb;">
-                                    ${axes.length > 1 ? `(${idx + 1}) ` : ''}${typeof ax === 'object' ? (ax.title || `محور ${idx + 1}`) : ax}
+                                    ${axes.length > 1 ? `(${idx + 1}) ` : ''}${escapeHtml(typeof ax === 'object' ? (ax.title || `محور ${idx + 1}`) : ax)}
                                 </div>
                             `).join('')}
                         </div>
@@ -38641,7 +39414,7 @@ window.isPresentationMode = isPresentationMode;
                                         <span style="background: #1e3a8a; color: #fff; padding: 2px 8px; border-radius: 6px; font-size: 0.74rem; font-weight: 800;">
                                             المحور ${aIdx + 1}
                                         </span>
-                                        <span>${axTitle}</span>
+                                        <span>${escapeHtml(axTitle)}</span>
                                     </div>
                                     ${paragraphs.length > 0 ? `
                                         <div style="display: flex; flex-direction: column; gap: 8px; padding: 10px 12px;">
@@ -38654,13 +39427,13 @@ window.isPresentationMode = isPresentationMode;
                                                                 <span style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; padding: 2px 7px; border-radius: 5px; font-size: 0.72rem; font-weight: 800;">
                                                                     فقرة ${aIdx + 1}.${pIdx + 1}
                                                                 </span>
-                                                                <span style="font-weight: 800; font-size: 0.85rem; color: #0f172a;">${p.title || 'فقرة مبرمجة'}</span>
+                                                                <span style="font-weight: 800; font-size: 0.85rem; color: #0f172a;">${escapeHtml(p.title || 'فقرة مبرمجة')}</span>
                                                                 <span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; background: ${pTypeConfig.bg}; color: ${pTypeConfig.color}; border: 1px solid ${pTypeConfig.border}; font-weight: 800;">
                                                                     ${pTypeConfig.badge}
                                                                 </span>
                                                             </div>
                                                             ${(p.resourceLink || p.resourceTitle) ? `
-                                                                <button type="button" onclick="playLessonVideoModal('${encodeURIComponent(p.resourceTitle || 'مورد الدرس')}', '${encodeURIComponent(p.resourceLink || '')}', '${encodeURIComponent('مورد توضيحي مربوط بفقرة ' + (aIdx + 1) + '.' + (pIdx + 1) + ': ' + (p.title || ''))}')" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #fff; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(5,150,105,0.25);" title="عرض وتشغيل المورد مباشرة">
+                                                                <button type="button" onclick="playLessonVideoModal('${encodeURIComponent(p.resourceTitle || 'مورد الدرس').replace(/'/g, '%27')}', '${encodeURIComponent(p.resourceLink || '').replace(/'/g, '%27')}', '${encodeURIComponent('مورد توضيحي مربوط بفقرة ' + (aIdx + 1) + '.' + (pIdx + 1) + ': ' + (p.title || '')).replace(/'/g, '%27')}')" style="background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #fff; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(5,150,105,0.25);" title="عرض وتشغيل المورد مباشرة">
                                                                     <span>عرض المورد 🎬</span>
                                                                 </button>
                                                             ` : ''}
@@ -38687,9 +39460,9 @@ window.isPresentationMode = isPresentationMode;
                                                         ${(p.resourceLink || p.resourceTitle) ? `
                                                             <div style="margin-top: 5px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 5px 8px; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
                                                                 <div style="font-size: 0.76rem; color: #166534; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                                                    <span>🎥 <strong>مورد توضيحي:</strong> ${(p.resourceTitle || 'فيديو وشرح توضيحي').replace(/</g, '&lt;')}</span>
+                                                                    <span>🎥 <strong>مورد توضيحي:</strong> ${escapeHtml(p.resourceTitle || 'فيديو وشرح توضيحي')}</span>
                                                                 </div>
-                                                                <button type="button" onclick="playLessonVideoModal('${encodeURIComponent(p.resourceTitle || 'مورد الدرس')}', '${encodeURIComponent(p.resourceLink || '')}', '${encodeURIComponent('مورد توضيحي مربوط بفقرة ' + (aIdx + 1) + '.' + (pIdx + 1) + ': ' + (p.title || ''))}')" style="background: #16a34a; color: #fff; border: none; padding: 3px 8px; border-radius: 5px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
+                                                                <button type="button" onclick="playLessonVideoModal('${encodeURIComponent(p.resourceTitle || 'مورد الدرس').replace(/'/g, '%27')}', '${encodeURIComponent(p.resourceLink || '').replace(/'/g, '%27')}', '${encodeURIComponent('مورد توضيحي مربوط بفقرة ' + (aIdx + 1) + '.' + (pIdx + 1) + ': ' + (p.title || '')).replace(/'/g, '%27')}')" style="background: #16a34a; color: #fff; border: none; padding: 3px 8px; border-radius: 5px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
                                                                     مشاهدة 🎬
                                                                 </button>
                                                             </div>
@@ -38707,8 +39480,8 @@ window.isPresentationMode = isPresentationMode;
                                                     ${subParagraphs.map((sub, sIdx) => `
                                                         <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 5px; padding: 4px 8px; font-size: 0.76rem;">
                                                             <span style="font-weight: 800; color: #15803d; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 1px 5px; border-radius: 4px; font-size: 0.7rem;">فرعية ${aIdx + 1}.${sIdx + 1}</span>
-                                                            <strong style="color: #0f172a; margin-right: 4px;">${sub.title || 'فقرة تقنية'}</strong>
-                                                            ${sub.content ? `<div style="color: #475569; margin-top: 2px;">${sub.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>` : ''}
+                                                            <strong style="color: #0f172a; margin-right: 4px;">${escapeHtml(sub.title || 'فقرة تقنية')}</strong>
+                                                            ${sub.content ? `<div style="color: #475569; margin-top: 2px;">${escapeHtml(sub.content)}</div>` : ''}
                                                         </div>
                                                     `).join('')}
                                                 </div>
@@ -38750,13 +39523,14 @@ window.isPresentationMode = isPresentationMode;
 
             const sequenceInfo = getLessonAxesSequenceInfo(className);
 
+            const safeClsAttr = escapeHtml(String(className || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
             // Populate Lesson Filter Dropdown
             const lessonFilterSelect = document.getElementById('lessonLogLessonFilter');
             if (lessonFilterSelect) {
                 const currentLessonVal = lessonFilterSelect.value;
                 let optHtml = `<option value="all">📚 جميع الدروس والمحاور (${sequenceInfo.lessonTitles.length} درس)</option>`;
                 sequenceInfo.lessonTitles.forEach(lt => {
-                    optHtml += `<option value="${lt.normKey}">${lt.title} (${lt.sessionsCount} حصص • ${lt.axesCount} محاور)</option>`;
+                    optHtml += `<option value="${escapeHtml(lt.normKey)}">${escapeHtml(lt.title)} (${lt.sessionsCount} حصص • ${lt.axesCount} محاور)</option>`;
                 });
                 lessonFilterSelect.innerHTML = optHtml;
                 if (currentLessonVal && (currentLessonVal === 'all' || sequenceInfo.lessonsMap[currentLessonVal])) {
@@ -38849,14 +39623,14 @@ window.isPresentationMode = isPresentationMode;
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span style="background: #2563eb; color: #fff; width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; box-shadow: 0 2px 4px rgba(37,99,235,0.3);">📚</span>
                         <div>
-                            <div style="font-weight: 900; color: #1e3a8a; font-size: 1rem;">مسار محاور درس: ${lData.title}</div>
+                            <div style="font-weight: 900; color: #1e3a8a; font-size: 1rem;">مسار محاور درس: ${escapeHtml(lData.title)}</div>
                             <div style="font-size: 0.78rem; color: #1e40af; font-weight: 700; margin-top: 2px;">
                                 يتكون هذا الدرس من <strong style="color: #0f172a;">(${lData.totalAxes})</strong> محاور بيداغوجية موزعة عبر <strong style="color: #0f172a;">(${lData.sessions.length})</strong> حصص دراسية مرتبة تسلسلياً
                             </div>
                         </div>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                        <button type="button" onclick="openReorderLessonAxesModal('${className}', '${encodeURIComponent(lData.title)}')" style="background: linear-gradient(135deg, #16a34a, #15803d); color: #fff; border: none; padding: 6px 14px; border-radius: 7px; font-size: 0.8rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(22,163,74,0.25);">
+                        <button type="button" onclick="openReorderLessonAxesModal('${safeClsAttr}', '${encodeURIComponent(lData.title || '').replace(/'/g, '%27')}')" style="background: linear-gradient(135deg, #16a34a, #15803d); color: #fff; border: none; padding: 6px 14px; border-radius: 7px; font-size: 0.8rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(22,163,74,0.25);">
                             <span data-lucide="arrow-down-up" data-size="14"></span>
                             <span>ترتيب محاور هذا الدرس</span>
                         </button>
@@ -38914,13 +39688,16 @@ window.isPresentationMode = isPresentationMode;
                     ? getLessonCurriculumProgress(className, log.number)
                     : (log.title && typeof getLessonCurriculumProgress === 'function' ? getLessonCurriculumProgress(className, log.title) : null);
 
+                const safeLogIdAttr = escapeHtml(String(log.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+                const encLogNum = encodeURIComponent(log.number || '').replace(/'/g, '%27');
+
                 div.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">
                         <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
                             <!-- Session Number Badge -->
                             <span style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: white; padding: 3px 10px; border-radius: 7px; font-size: 0.8rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(30,58,138,0.15);">
                                 <span data-lucide="hash" data-size="13"></span>
-                                <span>${sessionNumDisplay}</span>
+                                <span>${escapeHtml(sessionNumDisplay)}</span>
                             </span>
 
                             <!-- Session Type Badge -->
@@ -38932,16 +39709,16 @@ window.isPresentationMode = isPresentationMode;
                             <!-- Duration & Slot Badge -->
                             <span style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; padding: 3px 8px; border-radius: 7px; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
                                 <span data-lucide="clock" data-size="12"></span>
-                                <span>${log.timeSlot || '08:00 - 10:00'}</span>
-                                <span style="color: #0284c7; font-weight: 800;">(${log.duration || '2'} س)</span>
+                                <span>${escapeHtml(log.timeSlot || '08:00 - 10:00')}</span>
+                                <span style="color: #0284c7; font-weight: 800;">(${escapeHtml(log.duration || '2')} س)</span>
                             </span>
                             ${sessionAttBadgeHtml}
 
                             ${log.linkedCalendarEventTitle ? `
                                 <!-- Linked Calendar Event Badge -->
-                                <span style="background: #fff1f2; color: #9f1239; border: 1px solid #fecdd3; padding: 3px 8px; border-radius: 7px; font-size: 0.76rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;" title="حصة مرتبطة بموعد في التقويم: ${log.linkedCalendarEventDate || ''}">
+                                <span style="background: #fff1f2; color: #9f1239; border: 1px solid #fecdd3; padding: 3px 8px; border-radius: 7px; font-size: 0.76rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;" title="حصة مرتبطة بموعد في التقويم: ${escapeHtml(log.linkedCalendarEventDate || '')}">
                                     <span data-lucide="calendar-check" data-size="12"></span>
-                                    <span>مرتبط بالتقويم: ${log.linkedCalendarEventTitle}</span>
+                                    <span>مرتبط بالتقويم: ${escapeHtml(log.linkedCalendarEventTitle)}</span>
                                 </span>
                             ` : ''}
 
@@ -38949,7 +39726,7 @@ window.isPresentationMode = isPresentationMode;
                                 <!-- Extra Remedial Session Badge -->
                                 <span style="background: linear-gradient(135deg, #fdf4ff, #fae8ff); color: #86198f; border: 1.5px solid #e879f9; padding: 3px 10px; border-radius: 7px; font-size: 0.78rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 4px rgba(162,28,175,0.12);" title="حصة دعم استثنائية أو استدراكية خارج الجدول الزمني الرسمي">
                                     <span data-lucide="sparkles" data-size="13"></span>
-                                    <span>${log.remedialBadgeTitle || 'حصة استدراكية (خارج الجدول)'}</span>
+                                    <span>${escapeHtml(log.remedialBadgeTitle || 'حصة استدراكية (خارج الجدول)')}</span>
                                 </span>
                             ` : ''}
                         </div>
@@ -38958,34 +39735,34 @@ window.isPresentationMode = isPresentationMode;
                         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                             <span style="font-size: 0.82rem; font-weight: 800; color: #334155; background: #f1f5f9; padding: 3px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
                                 <span data-lucide="calendar" data-size="12"></span>
-                                <span>${dayName ? dayName + ' ' : ''}${log.date}</span>
+                                <span>${dayName ? dayName + ' ' : ''}${escapeHtml(log.date)}</span>
                             </span>
 
                             <!-- Preview Content Button -->
-                            <button class="btn-action hide-in-presentation" onclick="previewLessonLogContent('${className}', '${log.id}')" style="background: #eff6ff; border: 1.5px solid #93c5fd; color: #1d4ed8; cursor: pointer; padding: 4px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;" title="معاينة محتوى الحصة والبطاقة البيداغوجية">
+                            <button class="btn-action hide-in-presentation" onclick="previewLessonLogContent('${safeClsAttr}', '${safeLogIdAttr}')" style="background: #eff6ff; border: 1.5px solid #93c5fd; color: #1d4ed8; cursor: pointer; padding: 4px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; display: inline-flex; align-items: center; gap: 4px;" title="معاينة محتوى الحصة والبطاقة البيداغوجية">
                                 <span data-lucide="eye" data-size="13"></span>
                                 <span>معاينة</span>
                             </button>
 
                             <!-- Print Slip Button -->
-                            <button class="btn-action hide-in-presentation" onclick="printSingleSessionSlip('${className}', '${log.id}')" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #059669; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;" title="طباعة بطاقة الحصة">
+                            <button class="btn-action hide-in-presentation" onclick="printSingleSessionSlip('${safeClsAttr}', '${safeLogIdAttr}')" style="background: #ecfdf5; border: 1px solid #a7f3d0; color: #059669; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;" title="طباعة بطاقة الحصة">
                                 <span data-lucide="printer" data-size="13"></span>
                                 <span>بطاقة</span>
                             </button>
 
                             <!-- Duplicate / Repeat Session Button (تكرار الحصة) -->
-                            <button class="btn-action hide-in-presentation" onclick="openDuplicateSessionModal('${className}', '${log.id}')" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1.5px solid #93c5fd; color: #1d4ed8; cursor: pointer; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 3px rgba(37,99,235,0.12);" title="تكرار تفاصيل هذه الحصة إلى أقسام أخرى أو مواعيد أخرى بضغطة زر لتوفير الوقت">
+                            <button class="btn-action hide-in-presentation" onclick="openDuplicateSessionModal('${safeClsAttr}', '${safeLogIdAttr}')" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1.5px solid #93c5fd; color: #1d4ed8; cursor: pointer; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 3px rgba(37,99,235,0.12);" title="تكرار تفاصيل هذه الحصة إلى أقسام أخرى أو مواعيد أخرى بضغطة زر لتوفير الوقت">
                                 <span data-lucide="repeat" data-size="13"></span>
                                 <span>تكرار الحصة</span>
                             </button>
 
                             <!-- Edit Button -->
-                            <button class="btn-action hide-in-presentation" onclick="editLessonLog('${className}', '${log.id}')" style="background: #f8fafc; border: 1px solid #cbd5e1; color: #2563eb; cursor: pointer; padding: 4px 7px; border-radius: 6px;" title="تعديل هذه الحصة">
+                            <button class="btn-action hide-in-presentation" onclick="editLessonLog('${safeClsAttr}', '${safeLogIdAttr}')" style="background: #f8fafc; border: 1px solid #cbd5e1; color: #2563eb; cursor: pointer; padding: 4px 7px; border-radius: 6px;" title="تعديل هذه الحصة">
                                 <span data-lucide="edit-3" data-size="14"></span>
                             </button>
 
                             <!-- Delete Button -->
-                            <button class="btn-action hide-in-presentation" onclick="deleteLessonLog('${className}', '${log.id}')" style="background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; cursor: pointer; padding: 4px 7px; border-radius: 6px;" title="حذف الحصة">
+                            <button class="btn-action hide-in-presentation" onclick="deleteLessonLog('${safeClsAttr}', '${safeLogIdAttr}')" style="background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; cursor: pointer; padding: 4px 7px; border-radius: 6px;" title="حذف الحصة">
                                 <span data-lucide="trash-2" data-size="14"></span>
                             </button>
                         </div>
@@ -39006,9 +39783,9 @@ window.isPresentationMode = isPresentationMode;
                     <div style="margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;">
                         <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a; display: flex; align-items: center; gap: 6px;">
                             <span style="color: #2563eb; font-size: 0.8rem; font-weight: 700;">عنوان الدرس:</span>
-                            <span>${log.number || 'عنوان الدرس غير محدد'}</span>
+                            <span>${escapeHtml(log.number || 'عنوان الدرس غير محدد')}</span>
                         </div>
-                        <button type="button" onclick="openReorderLessonAxesModal('${className}', '${encodeURIComponent(log.number || '')}')" style="background: #f0fdf4; border: 1px solid #86efac; color: #166534; padding: 3px 9px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="ترتيب وتنظيم محاور هذا الدرس عبر الحصص">
+                        <button type="button" onclick="openReorderLessonAxesModal('${safeClsAttr}', '${encLogNum}')" style="background: #f0fdf4; border: 1px solid #86efac; color: #166534; padding: 3px 9px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="ترتيب وتنظيم محاور هذا الدرس عبر الحصص">
                             <span data-lucide="arrow-down-up" data-size="12"></span>
                             <span>ترتيب محاور هذا الدرس</span>
                         </button>
@@ -39051,14 +39828,14 @@ window.isPresentationMode = isPresentationMode;
                             <span data-lucide="align-right" data-size="13"></span>
                             <span>الأنشطة ومحتوى الحصة المنجزة:</span>
                         </div>
-                        <div>${(window.renderMathInText ? window.renderMathInText(cleanPedagogicalLogText(log.summary)) : cleanPedagogicalLogText(log.summary))}</div>
+                        <div>${(window.renderMathInText ? window.renderMathInText(cleanPedagogicalLogText(log.summary)) : escapeHtml(cleanPedagogicalLogText(log.summary)))}</div>
                     </div>` : (log.summary ? `
                     <details style="margin-bottom: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 12px; font-size: 0.82rem;">
                         <summary style="font-weight: 800; color: #1e3a8a; cursor: pointer; user-select: none;">
                             عرض الملخص الإجمالي التجميعي للحصة 📋
                         </summary>
                         <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #cbd5e1; white-space: pre-wrap; line-height: 1.6; color: #334155;">
-                            ${(window.renderMathInText ? window.renderMathInText(cleanPedagogicalLogText(log.summary)) : cleanPedagogicalLogText(log.summary))}
+                            ${(window.renderMathInText ? window.renderMathInText(cleanPedagogicalLogText(log.summary)) : escapeHtml(cleanPedagogicalLogText(log.summary)))}
                         </div>
                     </details>` : '')}
 
@@ -39071,7 +39848,7 @@ window.isPresentationMode = isPresentationMode;
                                 <span data-lucide="book-marked" data-size="13"></span>
                                 <span>العمل المطلوب إنجازه (واجب منزلي):</span>
                             </div>
-                            <div style="white-space: pre-wrap; color: #78350f;">${(window.renderMathInText ? window.renderMathInText(log.homework) : log.homework)}</div>
+                            <div style="white-space: pre-wrap; color: #78350f;">${(window.renderMathInText ? window.renderMathInText(log.homework) : escapeHtml(log.homework))}</div>
                         </div>` : ''}
                         ${log.notes ? `
                         <div style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; font-size: 0.82rem; color: #334155;">
@@ -39079,7 +39856,7 @@ window.isPresentationMode = isPresentationMode;
                                 <span data-lucide="message-square" data-size="13"></span>
                                 <span>ملاحظات وتتبع الحصة:</span>
                             </div>
-                            <div style="white-space: pre-wrap; color: #475569;">${log.notes}</div>
+                            <div style="white-space: pre-wrap; color: #475569;">${escapeHtml(log.notes)}</div>
                         </div>` : ''}
                     </div>` : ''}
                 `;
@@ -39507,9 +40284,9 @@ window.isPresentationMode = isPresentationMode;
             unlock();
         }
 
-        function deleteLessonLog(className, id) {
+        async function deleteLessonLog(className, id) {
             if (isPresentationMode()) return window.notifySafeToast("وضع العرض مفعل. لا يمكن الحذف.");
-            if (!confirm('هل أنت متأكد من رغبتك في حذف هذه الحصة من دفتر النصوص؟')) return;
+            if (!(await window.showConfirmDialog('هل أنت متأكد من رغبتك في حذف هذه الحصة من دفتر النصوص؟'))) return;
             if (db.lessonLogs && db.lessonLogs[className]) {
                 db.lessonLogs[className] = db.lessonLogs[className].filter(l => l.id !== id);
                 saveDB();
@@ -39986,15 +40763,15 @@ window.isPresentationMode = isPresentationMode;
                             <div style="text-align: right; font-size: 0.82rem; font-weight: 700; color: #334155; line-height: 1.4;">
                                 <div style="font-size: 0.95rem; font-weight: 900; color: #0f172a;">المملكة المغربية</div>
                                 <div style="font-weight: 800; color: #1e3a8a;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
-                                <div>الأكاديمية الجهوية: ${academy}</div>
-                                <div>المديرية الإقليمية: ${directorate}</div>
+                                <div>الأكاديمية الجهوية: ${escapeHtml(academy)}</div>
+                                <div>المديرية الإقليمية: ${escapeHtml(directorate)}</div>
                             </div>
                             <div style="text-align: center;">
                                 ${typeof getDualLogosHTML === 'function' ? getDualLogosHTML({ size: 50 }) : ''}
                             </div>
                             <div style="text-align: left; font-size: 0.82rem; font-weight: 700; color: #334155; line-height: 1.4;">
-                                <div>المؤسسة: <strong style="color: #1e3a8a;">${school}</strong></div>
-                                <div>الموسم الدراسي: <strong>${academicYear}</strong></div>
+                                <div>المؤسسة: <strong style="color: #1e3a8a;">${escapeHtml(school)}</strong></div>
+                                <div>الموسم الدراسي: <strong>${escapeHtml(academicYear)}</strong></div>
                                 <div>السلك: <strong>الثانوي التأهيلي</strong></div>
                             </div>
                         </div>
@@ -40006,21 +40783,21 @@ window.isPresentationMode = isPresentationMode;
                         </div>
 
                         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; max-width: 620px; margin: 0 auto; text-align: right; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 14px 18px; font-size: 0.88rem;">
-                            <div><strong>الأستاذ(ة):</strong> <span style="color: #0f172a; font-weight: 800;">${teacherName}</span></div>
-                            <div><strong>المادة المدرسة:</strong> <span style="color: #1e3a8a; font-weight: 800;">${subject}</span></div>
-                            <div><strong>القسم المسند:</strong> <span style="color: #2563eb; font-weight: 900; font-size: 1.05rem;">${className}</span></div>
-                            <div><strong>الموسم الدراسي:</strong> <strong>${academicYear}</strong></div>
+                            <div><strong>الأستاذ(ة):</strong> <span style="color: #0f172a; font-weight: 800;">${escapeHtml(teacherName)}</span></div>
+                            <div><strong>المادة المدرسة:</strong> <span style="color: #1e3a8a; font-weight: 800;">${escapeHtml(subject)}</span></div>
+                            <div><strong>القسم المسند:</strong> <span style="color: #2563eb; font-weight: 900; font-size: 1.05rem;">${escapeHtml(className)}</span></div>
+                            <div><strong>الموسم الدراسي:</strong> <strong>${escapeHtml(academicYear)}</strong></div>
                             <div><strong>إجمالي الحصص المنجزة:</strong> <span style="color: #15803d; font-weight: 800;">${logs.length} حصة (${distinctLessonsCount} دروس)</span></div>
                             <div><strong>مجموع الغلاف الزمني:</strong> <span style="color: #15803d; font-weight: 800;">${totalHours} ساعة</span></div>
                             <div style="grid-column: span 2; border-top: 1px dashed #cbd5e1; padding-top: 8px; font-size: 0.8rem; color: #64748b;">
-                                <strong>فترة التدوين:</strong> من ${startDate} إلى ${endDate} | <strong>المرجع:</strong> التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات
+                                <strong>فترة التدوين:</strong> من ${escapeHtml(startDate)} إلى ${escapeHtml(endDate)} | <strong>المرجع:</strong> التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات
                             </div>
                         </div>
 
                         <div style="margin-top: 28px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 0.82rem; font-weight: 700; color: #334155;">
                             <div style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px 8px; background: #fafafa;">
                                 <div style="color: #0f172a; font-weight: 800; margin-bottom: 2px;">توقيع أستاذ(ة) المادة</div>
-                                <div style="color: #1e3a8a; font-size: 0.74rem;">${teacherName}</div>
+                                <div style="color: #1e3a8a; font-size: 0.74rem;">${escapeHtml(teacherName)}</div>
                                 <div style="height: 46px;"></div>
                             </div>
                             <div style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px 8px; background: #fafafa;">
@@ -40284,7 +41061,7 @@ window.isPresentationMode = isPresentationMode;
                             <tr>
                                 <td style="width: 33%; vertical-align: top; padding: 6px;">
                                     <div style="margin-bottom: 32px;">تأشيرة وتوقيع الأستاذ(ة):</div>
-                                    <div style="color: #64748b; font-size: 0.74rem;">${teacherName}</div>
+                                    <div style="color: #64748b; font-size: 0.74rem;">${escapeHtml(teacherName)}</div>
                                 </td>
                                 <td style="width: 34%; vertical-align: top; padding: 6px; border-right: 1px dashed #cbd5e1; border-left: 1px dashed #cbd5e1;">
                                     <div style="margin-bottom: 32px;">تأشيرة وملاحظات السيد المفتش التربوي:</div>
@@ -40902,10 +41679,10 @@ window.isPresentationMode = isPresentationMode;
             if (container) container.scrollTop = container.scrollHeight;
         }
 
-        function deleteReorderAxis(index) {
+        async function deleteReorderAxis(index) {
             const axis = currentReorderState.axesList[index];
             if (!axis) return;
-            if (!confirm(`هل أنت متأكد من رغبتك في حذف "${axis.title || ('المحور ' + (index + 1))}"؟`)) return;
+            if (!(await window.showConfirmDialog(`هل أنت متأكد من رغبتك في حذف "${axis.title || ('المحور ' + (index + 1))}"؟`))) return;
 
             currentReorderState.axesList.splice(index, 1);
             renderReorderModalAxesList();
@@ -41624,7 +42401,7 @@ window.isPresentationMode = isPresentationMode;
             }
         }
 
-        function applyLinkSessionsToAxis() {
+        async function applyLinkSessionsToAxis() {
             const className = window.currentLinkModalState.className;
             const axisTitle = document.getElementById('linkModalCustomAxisTitle')?.value?.trim() || document.getElementById('linkModalAxisSelect')?.value?.trim();
             const checkedSessions = (window.currentLinkModalState.sessions || []).filter(s => s.isChecked);
@@ -41632,7 +42409,7 @@ window.isPresentationMode = isPresentationMode;
             if (!className) return window.notifySafeToast('يرجى اختيار القسم.');
             if (!axisTitle) return window.notifySafeToast('يرجى كتابة أو اختيار عنوان المحور المشترك المراد ربط الحصص به.');
             if (checkedSessions.length < 2) {
-                if (!confirm(`لقد حددت (${checkedSessions.length}) حصة فقط. هل ترغب في اعتماد هذا المحور لهذه الحصة على أي حال؟`)) {
+                if (!(await window.showConfirmDialog(`لقد حددت (${checkedSessions.length}) حصة فقط. هل ترغب في اعتماد هذا المحور لهذه الحصة على أي حال؟`))) {
                     return;
                 }
             }
@@ -43389,7 +44166,17 @@ ${log.notes || 'سير الحصة عادي'}
                 document.body.appendChild(iframe);
             }
 
-            const htmlContent = (typeof elementOrHtml === 'string') ? elementOrHtml : (elementOrHtml.outerHTML || elementOrHtml.innerHTML || '');
+            let htmlContent = (typeof elementOrHtml === 'string') ? elementOrHtml : (elementOrHtml.outerHTML || elementOrHtml.innerHTML || '');
+            let extractedStyles = '';
+            const styleMatches = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+            if (styleMatches) {
+                extractedStyles = styleMatches.join('\n');
+            }
+            const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+            if (bodyMatch) {
+                htmlContent = bodyMatch[1];
+            }
+            htmlContent = htmlContent.replace(/<script[\s\S]*?<\/script>/gi, '');
             const isPagedReport = htmlContent.includes('class="report-page') || htmlContent.includes('report-page-1');
             const hasExistingFooter = isPagedReport
                 || htmlContent.includes('منظومة التدبير التربوي')
@@ -43523,11 +44310,12 @@ ${log.notes || 'سير الحصة عادي'}
             }
         }
     </style>
+    ${extractedStyles}
 </head>
 <body>
     ${htmlContent}
     ${hasExistingFooter ? '' : `<div class="print-system-footer-fixed">
-        منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر
+        منظومة التدبير التربوي - مادة الرياضيات - السلك الثانوي التأهيلي
     </div>`}
 </body>
 </html>`;
@@ -43768,12 +44556,13 @@ ${log.notes || 'سير الحصة عادي'}
                     ${extractedStyles}
                     ${bodyHtml}
                     ${hasExistingPreviewFooter ? '' : `<div class="print-system-footer-fixed" style="margin-top:24px; padding-top:8px; border-top:1.5px solid #cbd5e1; text-align:center; font-size:0.8rem; font-weight:800; color:#1e3a8a; font-family:'Cairo',sans-serif;">
-                        منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر
+                        منظومة التدبير التربوي - مادة الرياضيات - السلك الثانوي التأهيلي
                     </div>`}
                 </div>
             `;
 
             document.body.appendChild(modal);
+            document.body.classList.add('printing-custom-preview');
             const sheetEl = document.getElementById('customReportPrintableSheet');
             updateSheetDimensions(sheetEl, currentOrientation, currentPageSize);
 
@@ -44004,23 +44793,52 @@ ${log.notes || 'سير الحصة عادي'}
                     const prevPadding = sheetEl.style.padding;
                     sheetEl.style.zoom = '100%';
                     if (!isReportDoc) sheetEl.style.padding = '0';
+                    const reportPageEls = isReportDoc ? Array.from(sheetEl.querySelectorAll('.report-page')) : [];
+                    const savedPageStyles = reportPageEls.map(el => ({
+                        el,
+                        minHeight: el.style.minHeight,
+                        marginBottom: el.style.marginBottom,
+                        border: el.style.border,
+                        boxShadow: el.style.boxShadow,
+                        padding: el.style.padding
+                    }));
+                    if (isReportDoc) {
+                        reportPageEls.forEach(el => {
+                            el.style.minHeight = '0';
+                            el.style.marginBottom = '0';
+                            el.style.border = 'none';
+                            el.style.boxShadow = 'none';
+                            el.style.padding = '2mm 3mm';
+                        });
+                    }
+                    const restoreReportPageStyles = () => {
+                        sheetEl.style.zoom = prevZoom;
+                        sheetEl.style.padding = prevPadding;
+                        savedPageStyles.forEach(s => {
+                            s.el.style.minHeight = s.minHeight;
+                            s.el.style.marginBottom = s.marginBottom;
+                            s.el.style.border = s.border;
+                            s.el.style.boxShadow = s.boxShadow;
+                            s.el.style.padding = s.padding;
+                        });
+                    };
                     const opt = {
                         margin: isReportDoc ? [4, 5, 4, 5] : activeMargins.array,
                         filename: `${docTitle.replace(/\s+/g, '_')}.pdf`,
                         image: { type: 'jpeg', quality: 0.98 },
                         html2canvas: { scale: 2, useCORS: true, logging: false },
                         jsPDF: { unit: 'mm', format: currentPageSize.toLowerCase(), orientation: currentOrientation },
-                        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                        pagebreak: isReportDoc
+                            ? { mode: ['css', 'legacy'], after: ['.report-page-1'] }
+                            : { mode: ['avoid-all', 'css', 'legacy'] }
                     };
                     window.html2pdf().set(opt).from(sheetEl).save().then(() => {
-                        sheetEl.style.zoom = prevZoom;
-                        sheetEl.style.padding = prevPadding;
+                        restoreReportPageStyles();
                         btn.disabled = false;
                         btn.innerHTML = origText;
                         if (typeof showToast === 'function') showToast('✅ تم تحميل التقرير بصيغة PDF بنجاح', 'success');
                     }).catch(() => {
-                        sheetEl.style.zoom = prevZoom;
-                        sheetEl.style.padding = prevPadding;
+                        restoreReportPageStyles();
                         btn.disabled = false;
                         btn.innerHTML = origText;
                         triggerModalDirectPrint();
@@ -44847,14 +45665,14 @@ ${log.notes || 'سير الحصة عادي'}
         window.closeCustomHeaderSvgIconsModal = closeCustomHeaderSvgIconsModal;
 
         function buildOfficialVisasSection(options) {
+            const pName = (db && db.teacherProfile && db.teacherProfile.name) || 'أستاذ المادة';
             const footerBarHtml = `
             <div class="official-universal-bottom-bar" style="margin-top: 14px; padding-top: 6px; border-top: 1.5px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; font-size: 0.74rem; color: #1e3a8a; font-weight: 800; page-break-inside: avoid; break-inside: avoid; font-family: 'Cairo', sans-serif;">
-                <div>منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر</div>
+                <div>منظومة التدبير التربوي - مادة الرياضيات - ${pName}</div>
                 <div style="color: #64748b; font-size: 0.68rem; font-weight: 700;">المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
             </div>`;
 
             if (options && options.optVisas === false) return footerBarHtml;
-            const pName = (db.teacherProfile && db.teacherProfile.name) || 'الأستاذ إبراهيم قزيبر';
             const printFont = getSelectedPrintFontFamily();
             const hwFont = getSelectedHandwritingFontFamily();
             return `
@@ -45004,7 +45822,7 @@ ${log.notes || 'سير الحصة عادي'}
                 </div>
             </div>
             <div style="margin-top: 4px; padding-top: 3px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; font-size: 0.65rem; color: #1e3a8a; font-weight: 800; page-break-inside: avoid; break-inside: avoid;">
-                <div>منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر</div>
+                <div>منظومة التدبير التربوي - مادة الرياضيات - ${(db && db.teacherProfile && db.teacherProfile.name) || 'أستاذ المادة'}</div>
                 <div style="color: #64748b;">تفريغ الغياب والمواظبة الرسمية</div>
             </div>`;
         }
@@ -46782,22 +47600,59 @@ ${log.notes || 'سير الحصة عادي'}
         window.buildHeatmapPdfHTML = buildHeatmapPdfHTML;
 
         function buildSpecificationPdfHTML(className, options) {
-            const upper = (className || '').toUpperCase();
-            const is2Bac = upper.includes('2BAC') || upper.includes('2 BAC') || upper.includes('ثانية') || upper.includes('2-BAC') || upper.includes('2-');
-            const is1Bac = !is2Bac && (upper.includes('1BAC') || upper.includes('1 BAC') || upper.includes('أولى') || upper.includes('1-BAC') || upper.includes('1-'));
-            const isLit = upper.includes('LSH') || upper.includes('آداب') || upper.includes('أدبي') || upper.includes('إنسانية') || upper.includes('LET');
-            const isSM = upper.includes('SM') || upper.includes('رياضي');
+            const opts = options || {};
+            const trackKey = opts.trackKey
+                || (typeof window.getCurriculumLevelForClass === 'function' ? window.getCurriculumLevelForClass(className || '') : '');
+            const currMap = window.MOROCCAN_SECONDARY_MATH_CURRICULUM || {};
+            const lvlData = currMap[trackKey] || null;
 
-            const cycleLabel = is2Bac ? 'السنة الثانية من سلك البكالوريا' : (is1Bac ? 'السنة الأولى من سلك البكالوريا' : 'الجذع المشترك العلمي والتكنولوجي');
-            const trackLabel = isSM ? 'شعبة العلوم الرياضية (أ و ب)' : (isLit ? 'شعبة الآداب والعلوم الإنسانية' : 'شعبة العلوم التجريبية والتكنولوجية');
-            const examDuration = isLit ? 'ساعة واحدة ونصف (1h30) إلى ساعتان' : 'ساعتان كاملتان (2h00)';
-            const mathCoef = getSubjectCoefForClass(className);
+            const upper = (className || trackKey || '').toUpperCase();
+            const is2Bac = trackKey ? trackKey.startsWith('2BAC') : (upper.includes('2BAC') || upper.includes('2 BAC') || upper.includes('ثانية') || upper.includes('2-BAC') || upper.includes('2-'));
+            const is1Bac = trackKey ? trackKey.startsWith('1BAC') : (!is2Bac && (upper.includes('1BAC') || upper.includes('1 BAC') || upper.includes('أولى') || upper.includes('1-BAC') || upper.includes('1-')));
+            const isLit = (trackKey === 'TCL' || trackKey === '1BAC_LSH' || trackKey === '2BAC_LSH')
+                || upper.includes('TCL') || upper.includes('LSH') || upper.includes('آداب') || upper.includes('أدبي') || upper.includes('إنسانية') || upper.includes('LET');
+            const isSM = (trackKey === '1BAC_SM' || trackKey === '2BAC_SM') || upper.includes('SM') || upper.includes('رياضي');
+
+            const semKey = opts.semester || document.getElementById('examReportSemester')?.value || 's1';
+            const examNum = Number(opts.examNumber || document.getElementById('examReportNumber')?.value || 1) || 1;
+            const semLabel = semKey === 's2' ? 'الدورة الثانية' : 'الدورة الأولى';
+
+            const cycleLabel = lvlData?.cycle || (is2Bac ? 'السنة الثانية من سلك البكالوريا' : (is1Bac ? 'السنة الأولى من سلك البكالوريا' : (isLit ? 'الجذع المشترك الأصيل والأدبي والفنون التطبيقية' : 'الجذع المشترك العلمي والتكنولوجي')));
+            const trackLabel = lvlData?.name || (isSM ? 'شعبة العلوم الرياضية (أ و ب)' : (isLit ? 'شعبة الآداب والعلوم الإنسانية والتعليم الأصيل والفنون التطبيقية' : 'شعبة العلوم التجريبية والتكنولوجية والاقتصادية'));
+            const examDuration = (lvlData ? lvlData.examDuration === 1 : isLit) ? 'ساعة واحدة (1h00)' : 'ساعتان كاملتان (2h00)';
+            const mathCoef = lvlData?.coefficient || getSubjectCoefForClass(className);
+
+            const semObj = lvlData?.semesters?.[semKey];
+            const exMatch = (semObj?.examSchedule || []).find(e => Number(e.examNumber || e.num) === examNum) || (semObj?.examSchedule || [])[0] || null;
+            const examTitle = exMatch?.title || `فرض المراقبة المستمرة المحروس رقم ${examNum} (${semLabel})`;
+            const weekInfo = exMatch?.week ? ` • الأسبوع الرسمي: ${exMatch.week} (التصحيح: ${exMatch.correctionWeek || '-'})` : '';
 
             const header = buildOfficialMoroccanHeader('بطاقة توصيف وجدول تخصيص فرض المراقبة المستمرة في الرياضيات · المذكرة 142-08', className, null, options);
 
-            // Dynamic exercise table for high school math based on curriculum
+            // Dynamic exercise table from official Note 142-08 Table 1-12 weights if available
             let exercisesHtml = '';
-            if (is2Bac) {
+            const parsedWeights = (exMatch && exMatch.officialWeights && typeof window.parseOfficialWeightsTo20Scale === 'function')
+                ? window.parseOfficialWeightsTo20Scale(exMatch.officialWeights)
+                : null;
+
+            if (parsedWeights && Array.isArray(parsedWeights.items) && parsedWeights.items.length > 0) {
+                exercisesHtml = parsedWeights.items.map((it, idx) => {
+                    const skillLabel = isLit
+                        ? (idx === 0 ? 'المستوى الأول: تطبيق مباشر للمعارف (60%)' : 'المستوى الثاني: استحضار وتطبيق في وضعية مألوفة (40%)')
+                        : (idx === 0 ? 'المستوى الأول: تطبيق مباشر للمعارف (40%)' : (idx === parsedWeights.items.length - 1 && parsedWeights.items.length >= 3 ? 'المستوى 2 و3: استدلال وتوليف (10%-20%)' : 'المستوى الثاني: استحضار وتطبيق في وضعية مألوفة (45%)'));
+                    const skillColor = idx === 0 ? '#15803d' : (idx === parsedWeights.items.length - 1 && !isLit && parsedWeights.items.length >= 3 ? '#7c3aed' : '#0284c7');
+                    return `
+                        <tr style="background: ${idx % 2 === 1 ? '#f8fafc' : '#ffffff'};">
+                            <td style="padding: 7px; border: 1px solid #cbd5e1; font-weight: 800;">التمرين ${it.index}</td>
+                            <td style="padding: 7px 10px; border: 1px solid #cbd5e1; text-align: right; font-weight: 700;">
+                                ${it.topic} ${it.weightPct ? `<span style="color:#1d4ed8; font-weight:800;">(نسبة الأهمية الرسمية بالمذكرة 142-08: ${it.weightPct}%)</span>` : ''}
+                            </td>
+                            <td style="padding: 7px; border: 1px solid #cbd5e1; font-weight: 700; color: ${skillColor};">${skillLabel}</td>
+                            <td style="padding: 7px; border: 1px solid #cbd5e1; font-weight: 900; color: #1e3a8a;">${it.points20.toFixed(1)} ن</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else if (is2Bac) {
                 exercisesHtml = `
                     <tr>
                         <td style="padding: 7px; border: 1px solid #cbd5e1; font-weight: 800;">التمرين 1</td>
@@ -46886,7 +47741,7 @@ ${log.notes || 'سير الحصة عادي'}
                 <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px;">
                         <span style="font-size: 0.8rem; font-weight: 900; color: #1e3a8a;">
-                            📌 المرجع الرسمي: المذكرة الوزارية رقم 142 بتاريخ 08 دجنبر 2008 والتوجيهات التربوية لمادة الرياضيات بالسلك الثانوي التأهيلي
+                            📌 المرجع الرسمي: المذكرة الوزارية رقم 142-08 بتاريخ 16 نونبر 2007 والتوجيهات التربوية لمادة الرياضيات بالثانوي التأهيلي (نونبر 2007)
                         </span>
                         <span style="font-size: 0.74rem; font-weight: 800; background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px;">
                             ${cycleLabel}
@@ -46894,7 +47749,7 @@ ${log.notes || 'سير الحصة عادي'}
                     </div>
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
                         <tr>
-                            <td style="padding: 4px; font-weight: 800; color: #1e3a8a;">• الاستحقاق التقويمي: <span style="color: #0f172a; font-weight: 700;">فرض المراقبة المستمرة المحروس رقم 1</span></td>
+                            <td style="padding: 4px; font-weight: 800; color: #1e3a8a;">• الاستحقاق التقويمي: <span style="color: #0f172a; font-weight: 700;">${examTitle}${weekInfo}</span></td>
                             <td style="padding: 4px; font-weight: 800; color: #1e3a8a;">• الشعبة والمسلك: <span style="color: #0f172a; font-weight: 700;">${trackLabel}</span></td>
                             <td style="padding: 4px; font-weight: 800; color: #1e3a8a;">• المعامل الرسمي لمسار: <span style="color: #0284c7; font-weight: 900;">${mathCoef}</span></td>
                             <td style="padding: 4px; font-weight: 800; color: #1e3a8a;">• الغلاف الزمني للإنجاز: <span style="color: #b91c1c; font-weight: 800;">${examDuration}</span></td>
@@ -46905,7 +47760,7 @@ ${log.notes || 'سير الحصة عادي'}
                 <!-- جدول التخصيص والمجالات المهارية الرسمية للمذكرة 142-08 -->
                 <div style="margin-bottom: 12px;">
                     <div style="font-weight: 800; color: #1e3a8a; font-size: 0.92rem; margin-bottom: 6px;">
-                        📊 جدول التخصيص حسب المستويات المهارية المعتمدة رسمياً في مادة الرياضيات بالثانوي التأهيلي (المذكرة 142-08):
+                        📊 جدول التخصيص حسب المستويات المهارية المعتمدة رسمياً في مادة الرياضيات بالثانوي التأهيلي (المذكرة 142-08 - الصفحة 9):
                     </div>
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: center;">
                         <thead>
@@ -46918,28 +47773,30 @@ ${log.notes || 'سير الحصة عادي'}
                         </thead>
                         <tbody>
                             <tr style="background: #ffffff;">
-                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #15803d;">1. استرداد المعارف والتطبيق المباشر</td>
-                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #15803d;">25% إلى 30%</td>
-                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 900; color: #15803d;">5 إلى 6 نقط</td>
-                                <td style="padding: 8px 12px; border: 1px solid #cbd5e1; text-align: right;">استحضار التعاريف والخاصيات والمبرهنات، حساب مباشر للنهايات والاشتقاق، تطبيق صيغ الحساب المثلثي وقواعد المتتاليات.</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #15803d;">1. المستوى الأول: تطبيق مباشر للمعارف</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #15803d;">${isLit ? '60%' : '40%'}</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 900; color: #15803d;">${isLit ? '12 نقطة' : '8 نقط'}</td>
+                                <td style="padding: 8px 12px; border: 1px solid #cbd5e1; text-align: right;">استحضار التعاريف والخاصيات والمبرهنات وتطبيقها مباشرة (نهايات مرجعية، اشتقاق، متتاليات، حساب مثلثي).</td>
                             </tr>
                             <tr style="background: #f8fafc;">
-                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #0284c7;">2. التطبيق في وضعية مألوفة والاستدلال الرياضي</td>
-                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #0284c7;">50% إلى 55%</td>
-                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 900; color: #0284c7;">10 إلى 11 نقطة</td>
-                                <td style="padding: 8px 12px; border: 1px solid #cbd5e1; text-align: right;">دراسة الدوال ورسم المنحنيات والمماسات، دراسة المتتاليات ورتابتها وتقاربها، توظيف الاستدلال بالترجع وبالخلف وبفصل الحالات، الحساب التكاملي والهندسة الفضائية.</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #0284c7;">2. المستوى الثاني: استحضار وتطبيق لمعارف غير معلنة</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #0284c7;">${isLit ? '40%' : '45%'}</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 900; color: #0284c7;">${isLit ? '8 نقط' : '9 نقط'}</td>
+                                <td style="padding: 8px 12px; border: 1px solid #cbd5e1; text-align: right;">دراسة الدوال ورسم المنحنيات والمماسات، دراسة المتتاليات ورتابتها وتقاربها، توظيف أنماط الاستدلال الرياضي في وضعيات مألوفة.</td>
                             </tr>
+                            ${isLit ? '' : `
                             <tr style="background: #ffffff;">
-                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #7c3aed;">3. الاستدلال وحل وضعيات مشكلة والتوليف</td>
-                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #7c3aed;">15% إلى 20%</td>
-                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 900; color: #7c3aed;">3 إلى 4 نقط</td>
-                                <td style="padding: 8px 12px; border: 1px solid #cbd5e1; text-align: right;">حل وضعيات مسألة غير مألوفة، التوليف بين فروع الرياضيات (دوال، متتاليات، أعداد عقدية)، استثمار الدوال المساعدة ومسائل الاستمثال والبرهان التركيبي.</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #7c3aed;">3. المستوى الثالث: توليف واستدلال وحل وضعيات غير مألوفة</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #7c3aed;">10% إلى 20%</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 900; color: #7c3aed;">2 إلى 4 نقط</td>
+                                <td style="padding: 8px 12px; border: 1px solid #cbd5e1; text-align: right;">معالجة وضعيات غير مألوفة بتوليف معارف ونتائج، والربط بين فروع الرياضيات واستثمار الدوال المساعدة ومسائل الاستمثال.</td>
                             </tr>
+                            `}
                             <tr style="background: #f1f5f9; font-weight: 900;">
                                 <td style="padding: 8px; border: 1px solid #cbd5e1; color: #0f172a;">المجموع الإجمالي للفرض</td>
                                 <td style="padding: 8px; border: 1px solid #cbd5e1; color: #0f172a;">100%</td>
                                 <td style="padding: 8px; border: 1px solid #cbd5e1; color: #1e3a8a; font-size: 0.95rem;">20 / 20</td>
-                                <td style="padding: 8px 12px; border: 1px solid #cbd5e1; text-align: right; color: #475569; font-weight: 700;">تغطية شاملة للوحدات المنجزة، احترام الإطار المرجعي والزمن البيداغوجي المخصص</td>
+                                <td style="padding: 8px 12px; border: 1px solid #cbd5e1; text-align: right; color: #475569; font-weight: 700;">تغطية ما لا يقل عن 75% من البرنامج المقرر في الدورة (المذكرة 142-08، ص 9)</td>
                             </tr>
                         </tbody>
                     </table>
@@ -46948,14 +47805,14 @@ ${log.notes || 'سير الحصة عادي'}
                 <!-- جدول توزيع تمارين الفرض وسلم التنقيط المعتمد للثانوي التأهيلي -->
                 <div style="margin-bottom: 12px; page-break-inside: avoid;">
                     <div style="font-weight: 800; color: #1e3a8a; font-size: 0.92rem; margin-bottom: 6px;">
-                        📝 جدول تفصيل تمارين الفرض ومؤشرات التنقيط لمادة الرياضيات (${cycleLabel}):
+                        📝 جدول تفصيل تمارين الفرض والأوزان النسبية الرسمية (${trackLabel} — ${examTitle}):
                     </div>
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: center;">
                         <thead>
                             <tr style="background: #334155; color: #fff;">
                                 <th style="padding: 7px; border: 1px solid #334155; width: 85px;">رقم التمرين</th>
-                                <th style="padding: 7px 10px; border: 1px solid #334155; text-align: right;">المضمون والدرس المستهدف (المقرر الرسمي بالثانوي التأهيلي)</th>
-                                <th style="padding: 7px; border: 1px solid #334155; width: 140px;">المستوى المهاري المستهدف</th>
+                                <th style="padding: 7px 10px; border: 1px solid #334155; text-align: right;">المضمون والدرس المستهدف ونسبة الأهمية (المذكرة 142-08)</th>
+                                <th style="padding: 7px; border: 1px solid #334155; width: 175px;">المستوى المهاري المستهدف</th>
                                 <th style="padding: 7px; border: 1px solid #334155; width: 75px;">التنقيط</th>
                             </tr>
                         </thead>
@@ -46977,6 +47834,7 @@ ${log.notes || 'سير الحصة عادي'}
             </div>
             ` + buildOfficialVisasSection(options);
         }
+        window.buildSpecificationPdfHTML = buildSpecificationPdfHTML;
 
         // --- Export / Print / Copy Operations ---
         async function downloadUniversalPdf() {
@@ -48410,14 +49268,16 @@ ${log.notes || 'سير الحصة عادي'}
                 window.notifySafeToast('يرجى اختيار القسم أولاً');
                 return;
             }
-            const students = (db.classes && db.classes[cls]) ? db.classes[cls] : [];
+            const rawClsObjM = (db.classes && db.classes[cls]) ? db.classes[cls] : [];
+            const students = Array.isArray(rawClsObjM) ? rawClsObjM : (Array.isArray(rawClsObjM.students) ? rawClsObjM.students : []);
             if (students.length === 0) {
                 window.notifySafeToast('لا يوجد تلاميذ في هذا القسم');
                 return;
             }
+            const nowM = typeof getAppNow === 'function' ? getAppNow() : new Date();
             let targetMonthNum = month || document.getElementById('universalPdfMonthSelect')?.value;
             if (!targetMonthNum || targetMonthNum === 'current') {
-                targetMonthNum = String(new Date().getMonth() + 1).padStart(2, '0');
+                targetMonthNum = String(nowM.getMonth() + 1).padStart(2, '0');
             }
 
             const monthNamesMap = {
@@ -48426,11 +49286,12 @@ ${log.notes || 'سير الحصة عادي'}
                 '05': 'ماي', '06': 'يونيو'
             };
             const monthLabel = monthNamesMap[targetMonthNum] || `شهر_${targetMonthNum}`;
+            const startYearM = (nowM.getMonth() + 1) >= 9 ? nowM.getFullYear() : nowM.getFullYear() - 1;
             const pAcademy = (db.teacherProfile && db.teacherProfile.academy) || 'الأكاديمية الجهوية للتربية والتكوين';
             const pDirectorate = (db.teacherProfile && db.teacherProfile.directorate) || 'المديرية الإقليمية';
             const pSchool = (db.teacherProfile && db.teacherProfile.school) || 'الثانوية التأهيلية';
             const pName = (db.teacherProfile && db.teacherProfile.name) || 'أستاذ مادة الرياضيات';
-            const pYear = (db.teacherProfile && db.teacherProfile.academicYear) || (new Date().getFullYear() + '-' + (new Date().getFullYear() + 1));
+            const pYear = (db.teacherProfile && db.teacherProfile.academicYear) || `${startYearM}/${startYearM + 1}`;
 
             const rows = [
                 ['المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل'],
@@ -48444,7 +49305,8 @@ ${log.notes || 'سير الحصة عادي'}
 
             const allRecords = db.records || [];
             const classMonthRecords = allRecords.filter(r => {
-                if (r.className !== cls || !r.date) return false;
+                if (!r || r.className !== cls || !r.date) return false;
+                if (typeof isRecordProtectedHolidayOrLeave === 'function' && isRecordProtectedHolidayOrLeave(r)) return false;
                 const parts = r.date.split('-');
                 return parts.length >= 2 && parts[1] === targetMonthNum;
             });
@@ -48456,11 +49318,11 @@ ${log.notes || 'سير الحصة عادي'}
             let zeroAbsentCount = 0;
 
             students.forEach((std, idx) => {
-                const stdRecords = classMonthRecords.filter(r => r.studentId === std.id);
+                const stdRecords = classMonthRecords.filter(r => String(r.studentId) === String(std.id));
                 let w1 = 0, w2 = 0, w3 = 0, w4 = 0, j = 0, un = 0, lates = 0;
                 stdRecords.forEach(r => {
                     const day = parseInt(r.date.split('-')[2], 10) || 1;
-                    const dur = Number(r.duration) || 1;
+                    const dur = typeof getRecordAbsenceDuration === 'function' ? getRecordAbsenceDuration(r) : (Number(r.duration || r.hours) || 1);
                     if (r.status === 'غائب' || r.status === 'مبرر') {
                         if (day <= 7) w1 += dur;
                         else if (day <= 14) w2 += dur;
@@ -48534,7 +49396,8 @@ ${log.notes || 'سير الحصة عادي'}
                 { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
                 { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 22 }
             ];
-            XLSX.utils.book_append_sheet(wb, ws, `تفريغ_غياب_${monthLabel}`);
+            const safeSheetName = String(`تفريغ_غياب_${monthLabel}`).replace(/[\\\/\?\*\[\]:]/g, '_').slice(0, 31);
+            XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
             XLSX.writeFile(wb, `لائحة_الغياب_الشهرية_الإدارية_${cls}_${monthLabel}.xlsx`);
             if (typeof showFeedbackToast === 'function') showFeedbackToast(`تم تنزيل لائحة الغياب الشهرية بصيغة إكسيل بنجاح! 📥`);
             else window.notifySafeToast('تم تنزيل لائحة الغياب الشهرية بنجاح!');
@@ -52853,9 +53716,9 @@ ${log.notes || 'سير الحصة عادي'}
             }
         }
 
-        function deleteWeeklyHomeworkItem(rawId, source, className) {
+        async function deleteWeeklyHomeworkItem(rawId, source, className) {
             if (isPresentationMode()) return window.notifySafeToast("وضع العرض مفعل.");
-            if (!confirm('هل أنت متأكد من رغبتك في حذف هذا الواجب من المفكرة؟')) return;
+            if (!(await window.showConfirmDialog('هل أنت متأكد من رغبتك في حذف هذا الواجب من المفكرة؟'))) return;
 
             if (source === 'agenda' && db.homeworkAgenda && db.homeworkAgenda[className]) {
                 db.homeworkAgenda[className] = db.homeworkAgenda[className].filter(a => a && a.id !== rawId);
@@ -55736,7 +56599,7 @@ ${log.notes || 'سير الحصة عادي'}
         }
 
         var _isSubmittingQuickAddStudent = false;
-        function submitQuickAddStudent(andKeepOpen = false) {
+        async function submitQuickAddStudent(andKeepOpen = false) {
             if (_isSubmittingQuickAddStudent) return;
             _isSubmittingQuickAddStudent = true;
             const unlock = () => { setTimeout(() => { _isSubmittingQuickAddStudent = false; }, 450); };
@@ -55817,7 +56680,7 @@ ${log.notes || 'سير الحصة عادي'}
                     if (otherClass !== className && Array.isArray(db.classes[otherClass])) {
                         const inOther = db.classes[otherClass].find(s => s.id === massar || s.massar === massar);
                         if (inOther) {
-                            if (!confirm(`تنبيه لمنع التكرار والازدواجية:\nرقم مسار (${massar}) مسجل بالفعل للتلميذ "${inOther.name}" في قسم [${otherClass}].\n\nهل ترغب بنقله/إضافته إلى قسم [${className}] أيضاً رغم ذلك؟`)) {
+                            if (!(await window.showConfirmDialog(`تنبيه لمنع التكرار والازدواجية:\nرقم مسار (${massar}) مسجل بالفعل للتلميذ "${inOther.name}" في قسم [${otherClass}].\n\nهل ترغب بنقله/إضافته إلى قسم [${className}] أيضاً رغم ذلك؟`))) {
                                 unlock();
                                 return;
                             }
@@ -56386,7 +57249,7 @@ ${log.notes || 'سير الحصة عادي'}
             const annualData = (typeof calculateStudentAnnualData === 'function') ? calculateStudentAnnualData(className, std.id) : { annualAvg: null };
 
             // بيانات الأستاذ والمؤسسة
-            const teacherName = (db.teacherProfile && db.teacherProfile.name) || (db.profile && db.profile.name) || 'الأستاذ إبراهيم قزيبر';
+            const teacherName = (db.teacherProfile && db.teacherProfile.name) || (db.profile && db.profile.name) || 'أستاذ المادة';
             const subjectName = (db.teacherProfile && db.teacherProfile.subject) || (db.profile && db.profile.subject) || 'مادة الرياضيات';
             const schoolName = (db.teacherProfile && db.teacherProfile.school) || (db.profile && db.profile.school) || 'المؤسسة التعليمية';
 
@@ -56503,7 +57366,7 @@ ${log.notes || 'سير الحصة عادي'}
         function openAiAbsenceWhatsAppForReportStudent() {
             let className = document.getElementById('reportClassSelect') ? document.getElementById('reportClassSelect').value : '';
             let studentId = document.getElementById('reportStudentSelect') ? document.getElementById('reportStudentSelect').value : '';
-            if (className === '__ALL__' && studentId && studentId.includes(':::')) {
+            if (studentId && studentId.includes(':::')) {
                 const parts = studentId.split(':::');
                 className = parts[0];
                 studentId = parts[1];
@@ -56729,7 +57592,8 @@ ${log.notes || 'سير الحصة عادي'}
                 actionCall = `🤝 *خطة الاستدراك والدعم التربوي:*\nندعو التلميذ(ة) إلى مراجعة المحاور الفائتة المذكورة أعلاه وإنجاز سلاسل التمارين المرتبطة بها، مع الحرص على حضور حصص الدعم والاستدراك المبرمجة لتجاوز أي تعثر قبل الفرض المحروس المقبل.`;
             }
 
-            const whatsappMessage = `السلام عليكم ورحمة الله وبركاته،\nتحية طيبة لولي أمر التلميذ(ة): *${studentName}*\n\n${headerTitle}\n${introLine}\n\n📌 *حصيلة المواظبة والتتبع الزمني:*\n• *إجمالي ساعات الغياب:* ${p.totalHours} ساعة (${p.absenceSessionsCount} حصص: ${p.unjustifiedHours} س غير مبررة / ${p.justifiedHours} س مبررة).\n${datesBullet}${patternBullet}${lessonsBullet}${hwLateBullet}${customBullet}\n${actionCall}\n\nمع خالص التقدير والاحترام،\n*منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر*`;
+            const waSignName = s.teacherName || (db && db.teacherProfile && db.teacherProfile.name) || 'أستاذ المادة';
+            const whatsappMessage = `السلام عليكم ورحمة الله وبركاته،\nتحية طيبة لولي أمر التلميذ(ة): *${studentName}*\n\n${headerTitle}\n${introLine}\n\n📌 *حصيلة المواظبة والتتبع الزمني:*\n• *إجمالي ساعات الغياب:* ${p.totalHours} ساعة (${p.absenceSessionsCount} حصص: ${p.unjustifiedHours} س غير مبررة / ${p.justifiedHours} س مبررة).\n${datesBullet}${patternBullet}${lessonsBullet}${hwLateBullet}${customBullet}\n${actionCall}\n\nمع خالص التقدير والاحترام،\n*منظومة التدبير التربوي - مادة الرياضيات - ${waSignName}*`;
 
             return {
                 source: 'local_pedagogical_engine',
@@ -56856,19 +57720,20 @@ ${log.notes || 'سير الحصة عادي'}
             const annualAvgText = (s.annualData && s.annualData.annualAvg !== null) ? s.annualData.annualAvg.toFixed(2) : null;
 
             let text = '';
+            const waTeacherSign = (db && db.teacherProfile && db.teacherProfile.name && db.teacherProfile.name.trim()) ? `الأستاذ(ة) ${db.teacherProfile.name.trim()}` : 'أستاذ(ة) المادة';
 
             if (type === 'absence') {
                 const p = s.patternStats || analyzeStudentAbsenceHistoryAndPatterns(s.className, s.studentId);
                 const datesLine = p.recentDates.length > 0 ? `• تواريخ الغياب المسجلة: ${p.recentDates.slice(0, 4).join(' ، ')}.\n` : '';
                 const freqLine = (p.mostFrequentDay && p.mostFrequentDayCount >= 2) ? `• ملاحظة التكرار: تكرر الغياب يوم *${p.mostFrequentDay}* (${p.mostFrequentDayCount} مرات).\n` : '';
                 if (s.currentStatus === 'غائب' || s.currentStatus === 'متأخر') {
-                    text = `السلام عليكم ورحمة الله وبركاته،\nإلى ولي أمر التلميذ(ة): *${s.student.name}* بالقسم: *${s.className}* (${s.schoolName}).\n\n🔔 *تنبيه غياب ومواظبة:*\nنحيطكم علماً بأن التلميذ(ة) سُجّل(ت) *${s.currentStatus === 'غائب' ? 'غائباً(ة)' : 'متأخراً(ة)'}* في حصة اليوم (${s.date} - الحصة ${s.session}).\n• إجمالي ساعات الغياب المتراكمة: *${s.totalAbsentHours} ساعة* (${p.unjustifiedHours} س غير مبررة / ${p.justifiedHours} س مبررة).\n${datesLine}${freqLine}${s.behaviorData.note ? `• ملاحظة: ${s.behaviorData.note}\n` : ''}\n⚠️ نرجو التفضل بموافاة إدارة المؤسسة بمبرر الغياب القانوني في أقرب وقت، وتوجيه التلميذ(ة) لتعويض ما فاته حفاظاً على مستواه الدراسي.\n\nمع خالص التقدير،\n*منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر*`;
+                    text = `السلام عليكم ورحمة الله وبركاته،\nإلى ولي أمر التلميذ(ة): *${s.student.name}* بالقسم: *${s.className}* (${s.schoolName}).\n\n🔔 *تنبيه غياب ومواظبة:*\nنحيطكم علماً بأن التلميذ(ة) سُجّل(ت) *${s.currentStatus === 'غائب' ? 'غائباً(ة)' : 'متأخراً(ة)'}* في حصة اليوم (${s.date} - الحصة ${s.session}).\n• إجمالي ساعات الغياب المتراكمة: *${s.totalAbsentHours} ساعة* (${p.unjustifiedHours} س غير مبررة / ${p.justifiedHours} س مبررة).\n${datesLine}${freqLine}${s.behaviorData.note ? `• ملاحظة: ${s.behaviorData.note}\n` : ''}\n⚠️ نرجو التفضل بموافاة إدارة المؤسسة بمبرر الغياب القانوني في أقرب وقت، وتوجيه التلميذ(ة) لتعويض ما فاته حفاظاً على مستواه الدراسي.\n\nمع خالص التقدير،\n*منظومة التدبير التربوي - مادة الرياضيات - ${waTeacherSign}*`;
                 } else {
-                    text = `السلام عليكم ورحمة الله وبركاته،\nإلى ولي أمر التلميذ(ة): *${s.student.name}* بالقسم: *${s.className}* (${s.schoolName}).\n\n🔔 *متابعة الغياب والمواظبة:*\nنحيطكم علماً بأن التلميذ(ة) حاضر(ة) بحصة اليوم، إلا أن مجموع ساعات الغياب المسجلة بحقه(ا) قد بلغ *${s.totalAbsentHours} ساعة*.\n${datesLine}${freqLine}⚠️ نهيب بكم الحرص على المواظبة التامة وتفادي الغيابات غير المبررة لضمان الاستيعاب المستمر للدروس.\n\nمع خالص التقدير،\n*منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر*`;
+                    text = `السلام عليكم ورحمة الله وبركاته،\nإلى ولي أمر التلميذ(ة): *${s.student.name}* بالقسم: *${s.className}* (${s.schoolName}).\n\n🔔 *متابعة الغياب والمواظبة:*\nنحيطكم علماً بأن التلميذ(ة) حاضر(ة) بحصة اليوم، إلا أن مجموع ساعات الغياب المسجلة بحقه(ا) قد بلغ *${s.totalAbsentHours} ساعة*.\n${datesLine}${freqLine}⚠️ نهيب بكم الحرص على المواظبة التامة وتفادي الغيابات غير المبررة لضمان الاستيعاب المستمر للدروس.\n\nمع خالص التقدير،\n*منظومة التدبير التربوي - مادة الرياضيات - ${waTeacherSign}*`;
                 }
             } else if (type === 'homework') {
                 const hwStatusText = s.hwStatus === 'لم ينجز' ? '❌ لم يُنجَز' : '✓ مُنجَز';
-                text = `السلام عليكم ورحمة الله وبركاته،\nإلى ولي أمر التلميذ(ة): *${s.student.name}* بالقسم: *${s.className}* (${s.schoolName}).\n\n📚 *تذكير بالواجبات المدرسية والانضباط:*\nنود لفت عنايتكم الكريمة إلى الوضعية الحالية للتلميذ(ة):\n• واجب الحصة (${s.date}): *${hwStatusText}*.\n• مجموع حالات الإخلال بالواجب المنزلي: *${s.totalMissedHw} مرة*.\n• تقييم الانضباط الصفي: *${s.behaviorData.status}* ${s.behaviorData.note ? `(${s.behaviorData.note})` : ''}.\n\n📌 نرجو منكم حث التلميذ(ة) على إنجاز الواجبات المنزلية بجدية وإحضار اللوازم والدفاتر بانتظام لما لذلك من أثر مباشر على نتائجه.\n\nمع خالص التقدير،\n*منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر*`;
+                text = `السلام عليكم ورحمة الله وبركاته،\nإلى ولي أمر التلميذ(ة): *${s.student.name}* بالقسم: *${s.className}* (${s.schoolName}).\n\n📚 *تذكير بالواجبات المدرسية والانضباط:*\nنود لفت عنايتكم الكريمة إلى الوضعية الحالية للتلميذ(ة):\n• واجب الحصة (${s.date}): *${hwStatusText}*.\n• مجموع حالات الإخلال بالواجب المنزلي: *${s.totalMissedHw} مرة*.\n• تقييم الانضباط الصفي: *${s.behaviorData.status}* ${s.behaviorData.note ? `(${s.behaviorData.note})` : ''}.\n\n📌 نرجو منكم حث التلميذ(ة) على إنجاز الواجبات المنزلية بجدية وإحضار اللوازم والدفاتر بانتظام لما لذلك من أثر مباشر على نتائجه.\n\nمع خالص التقدير،\n*منظومة التدبير التربوي - مادة الرياضيات - ${waTeacherSign}*`;
             } else if (type === 'grades') {
                 const f1 = s.grades.f1 !== undefined ? s.grades.f1 : '-';
                 const f2 = s.grades.f2 !== undefined ? s.grades.f2 : '-';
@@ -56879,10 +57744,10 @@ ${log.notes || 'سير الحصة عادي'}
                     ? '🌟 مستوى طيب ومشجع، نرجو مواصلة التحفيز والمثابرة للحفاظ على هذا التميز.'
                     : '⚠️ مستوى يستوجب المزيد من الجهد والمراجعة المنزلية الجادة لتدارك التعثرات وتحسين النقط القادمة.';
 
-                text = `السلام عليكم ورحمة الله وبركاته،\nإلى ولي أمر التلميذ(ة): *${s.student.name}* بالقسم: *${s.className}* (${s.schoolName}).\n\n📊 *بيان نقط المراقبة المستمرة (${semLabel}) - ${s.subjectName}:*\n• الفرض الأول: *${f1} / 20*\n• الفرض الثاني: *${f2} / 20*\n${f3 !== null ? `• الفرض الثالث: *${f3} / 20*\n` : ''}${f4 !== null ? `• الفرض الرابع: *${f4} / 20*\n` : ''}• معدل الدورة الحالي: *${avgText} / 20*\n${annualAvgText !== null ? `• المعدل السنوي العام: *${annualAvgText} / 20*\n` : ''}\n💡 *التوجيه التربوي:*\n${advice}\n\nمع خالص التقدير،\n*منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر*`;
+                text = `السلام عليكم ورحمة الله وبركاته،\nإلى ولي أمر التلميذ(ة): *${s.student.name}* بالقسم: *${s.className}* (${s.schoolName}).\n\n📊 *بيان نقط المراقبة المستمرة (${semLabel}) - ${s.subjectName}:*\n• الفرض الأول: *${f1} / 20*\n• الفرض الثاني: *${f2} / 20*\n${f3 !== null ? `• الفرض الثالث: *${f3} / 20*\n` : ''}${f4 !== null ? `• الفرض الرابع: *${f4} / 20*\n` : ''}• معدل الدورة الحالي: *${avgText} / 20*\n${annualAvgText !== null ? `• المعدل السنوي العام: *${annualAvgText} / 20*\n` : ''}\n💡 *التوجيه التربوي:*\n${advice}\n\nمع خالص التقدير،\n*منظومة التدبير التربوي - مادة الرياضيات - ${waTeacherSign}*`;
             } else {
                 // comprehensive
-                text = `السلام عليكم ورحمة الله وبركاته،\nإلى ولي أمر التلميذ(ة): *${s.student.name}* بالقسم: *${s.className}* (${s.schoolName}).\n\n📋 *تقرير المتابعة الشامل للتلميذ(ة):*\n1️⃣ *المواظبة والغياب:* ${s.totalAbsentHours} ساعة غياب مسجلة (حالة اليوم: ${s.currentStatus}).\n2️⃣ *الواجبات والانضباط:* مرات عدم إنجاز الواجب: ${s.totalMissedHw} | السلوك الصفي: ${s.behaviorData.status} ${s.behaviorData.note ? `(${s.behaviorData.note})` : ''}.\n3️⃣ *المراقبة المستمرة:* معدل ${semLabel}: *${avgText} / 20*.\n\n🤝 نضع هذا التقرير الموجز بين أيديكم للتعاون سوياً في تأطير التلميذ(ة) وتحفيزه(ا) نحو الأفضل.\n\nمع خالص التقدير،\n*منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر*`;
+                text = `السلام عليكم ورحمة الله وبركاته،\nإلى ولي أمر التلميذ(ة): *${s.student.name}* بالقسم: *${s.className}* (${s.schoolName}).\n\n📋 *تقرير المتابعة الشامل للتلميذ(ة):*\n1️⃣ *المواظبة والغياب:* ${s.totalAbsentHours} ساعة غياب مسجلة (حالة اليوم: ${s.currentStatus}).\n2️⃣ *الواجبات والانضباط:* مرات عدم إنجاز الواجب: ${s.totalMissedHw} | السلوك الصفي: ${s.behaviorData.status} ${s.behaviorData.note ? `(${s.behaviorData.note})` : ''}.\n3️⃣ *المراقبة المستمرة:* معدل ${semLabel}: *${avgText} / 20*.\n\n🤝 نضع هذا التقرير الموجز بين أيديكم للتعاون سوياً في تأطير التلميذ(ة) وتحفيزه(ا) نحو الأفضل.\n\nمع خالص التقدير،\n*منظومة التدبير التربوي - مادة الرياضيات - ${waTeacherSign}*`;
             }
 
             msgArea.value = text;
@@ -57103,7 +57968,7 @@ ${log.notes || 'سير الحصة عادي'}
          * تصدير كافة كشوفات الغياب لجميع الأقسام دفعة واحدة في ملف PDF مدمج مع صفحة غلاف لكل قسم
          */
         async function exportAllClassesAttendancePDFWithCovers() {
-            const classes = Object.keys(db.classes || {});
+            const classes = typeof getSortedClasses === 'function' ? getSortedClasses(true) : Object.keys(db.classes || {});
             if (classes.length === 0) {
                 window.notifySafeToast('لا توجد أقسام مسجلة لتصدير كشوفات الغياب.');
                 return;
@@ -57126,6 +57991,8 @@ ${log.notes || 'سير الحصة عادي'}
 
             let mainContainer = null;
             try {
+                const nowAtt = typeof getAppNow === 'function' ? getAppNow() : new Date();
+                const attStartYr = (nowAtt.getMonth() + 1) >= 9 ? nowAtt.getFullYear() : nowAtt.getFullYear() - 1;
                 const dateFrom = document.getElementById('reportDateFrom')?.value || '';
                 const dateTo = document.getElementById('reportDateTo')?.value || '';
                 const tp = (db && (db.teacherProfile || db.profile)) || {};
@@ -57133,7 +58000,7 @@ ${log.notes || 'سير الحصة عادي'}
                 const pDirectorate = tp.directorate || 'المديرية الإقليمية';
                 const pSchool = tp.school || 'الثانوية التأهيلية';
                 const pName = tp.name || 'أستاذ مادة الرياضيات';
-                const pYear = tp.academicYear || '2026 / 2027';
+                const pYear = tp.academicYear || `${attStartYr} / ${attStartYr + 1}`;
 
                 mainContainer = document.createElement('div');
                 mainContainer.style.backgroundColor = '#ffffff';
@@ -57142,7 +58009,8 @@ ${log.notes || 'سير الحصة عادي'}
                 mainContainer.style.color = '#0f172a';
 
                 classes.forEach((className, classIdx) => {
-                    const students = db.classes[className] || [];
+                    const rawC = db.classes[className];
+                    const students = Array.isArray(rawC) ? rawC : (Array.isArray(rawC?.students) ? rawC.students : []);
                     if (students.length === 0) return;
 
                     let totalClassAbsentHours = 0;
@@ -57213,19 +58081,19 @@ ${log.notes || 'سير الحصة عادي'}
                                 <div style="text-align: right; font-size: 0.84rem; line-height: 1.6; color: #1e293b; font-weight: 700;">
                                     <div>المملكة المغربية</div>
                                     <div>وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
-                                    <div>${pAcademy}</div>
-                                    <div>${pDirectorate}</div>
-                                    <div>${pSchool}</div>
+                                    <div>${escapeHtml(pAcademy)}</div>
+                                    <div>${escapeHtml(pDirectorate)}</div>
+                                    <div>${escapeHtml(pSchool)}</div>
                                 </div>
                                 <div style="text-align: center; padding-top: 4px;">
                                     <div style="font-size: 1.25rem; font-weight: 900; color: #1e3a8a; letter-spacing: 0.5px;">سجل المواظبة والغياب الإداري</div>
-                                    <div style="font-size: 0.8rem; color: #64748b; font-weight: 600; margin-top: 2px;">الموسم الدراسي: ${pYear}</div>
+                                    <div style="font-size: 0.8rem; color: #64748b; font-weight: 600; margin-top: 2px;">الموسم الدراسي: ${escapeHtml(pYear)}</div>
                                 </div>
                                 <div style="text-align: left; font-size: 0.84rem; line-height: 1.6; color: #1e293b; font-weight: 700;">
                                     <div>السلك: الثانوي التأهيلي</div>
                                     <div>المادة: الرياضيات</div>
-                                    <div>الأستاذ(ة): ${pName}</div>
-                                    <div>تاريخ الإصدار: ${formatLocalDate ? formatLocalDate() : new Date().toISOString().split('T')[0]}</div>
+                                    <div>الأستاذ(ة): ${escapeHtml(pName)}</div>
+                                    <div>تاريخ الإصدار: ${formatLocalDate ? formatLocalDate() : nowAtt.toISOString().split('T')[0]}</div>
                                 </div>
                             </div>
                         </div>
@@ -57235,10 +58103,10 @@ ${log.notes || 'سير الحصة عادي'}
                                 كشف تتبع وضبط الغياب الرسمي
                             </div>
                             <div style="font-size: 2.1rem; font-weight: 900; color: #1e3a8a; margin: 12px 0;">
-                                قسم: ${className}
+                                قسم: ${escapeHtml(className)}
                             </div>
                             <div style="font-size: 0.95rem; color: #475569; font-weight: 700;">
-                                ${dateFrom && dateTo ? `الفترة الإدارية: من <strong>${dateFrom}</strong> إلى <strong>${dateTo}</strong>` : 'كشف الغياب الإجمالي الشامل للموسم الدراسي'}
+                                ${dateFrom && dateTo ? `الفترة الإدارية: من <strong>${escapeHtml(dateFrom)}</strong> إلى <strong>${escapeHtml(dateTo)}</strong>` : 'كشف الغياب الإجمالي الشامل للموسم الدراسي'}
                             </div>
                         </div>
 
@@ -57367,23 +58235,23 @@ ${log.notes || 'سير الحصة عادي'}
                                     <div style="text-align: right; width: 33%; font-size: 0.72rem; line-height: 1.4; color: #334155; font-weight: 700;">
                                         <div style="font-weight: 900; color: #0f172a; font-size: 0.82rem;">المملكة المغربية</div>
                                         <div style="color: #1e3a8a; font-weight: 800; font-size: 0.73rem;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
-                                        <div>${pAcademy} · ${pDirectorate}</div>
-                                        <div>المؤسسة: <strong style="color: #0f172a;">${pSchool}</strong></div>
+                                        <div>${escapeHtml(pAcademy)} · ${escapeHtml(pDirectorate)}</div>
+                                        <div>المؤسسة: <strong style="color: #0f172a;">${escapeHtml(pSchool)}</strong></div>
                                     </div>
                                     <div style="text-align: center; width: 34%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
                                         <div style="background: linear-gradient(135deg, #1e3a8a, #172554); color: #ffffff; padding: 5px 14px; border-radius: 6px; box-shadow: 0 1px 3px rgba(30, 58, 138, 0.25); width: 100%; box-sizing: border-box;">
                                             <div style="font-weight: 900; font-size: 1.05rem; letter-spacing: 0.3px;">كشف تفريغ وتتبع الغياب الإداري</div>
                                         </div>
                                         <div style="display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 3px; font-size: 0.72rem; font-weight: 800; color: #475569;">
-                                            <span>القسم: <strong style="color: #1e3a8a; font-size: 0.85rem; background: #e0f2fe; padding: 0 6px; border-radius: 4px;">${className}</strong></span>
+                                            <span>القسم: <strong style="color: #1e3a8a; font-size: 0.85rem; background: #e0f2fe; padding: 0 6px; border-radius: 4px;">${escapeHtml(className)}</strong></span>
                                             <span>•</span>
                                             <span>عدد المسجلين: <strong style="color: #047857;">${students.length}</strong></span>
                                         </div>
                                     </div>
                                     <div style="text-align: left; width: 33%; font-size: 0.72rem; line-height: 1.4; color: #334155; font-weight: 700;">
                                         <div>المادة: <strong style="color: #1e3a8a;">الرياضيات</strong> | السلك: الثانوي التأهيلي</div>
-                                        <div>الأستاذ(ة): <strong style="color: #0f172a;">${pName}</strong></div>
-                                        <div>${dateFrom && dateTo ? `الفترة: <strong style="color: #1e3a8a;">${dateFrom}</strong> إلى <strong style="color: #1e3a8a;">${dateTo}</strong>` : `الموسم الدراسي: <strong style="color: #1e3a8a;">${pYear}</strong>`}</div>
+                                        <div>الأستاذ(ة): <strong style="color: #0f172a;">${escapeHtml(pName)}</strong></div>
+                                        <div>${dateFrom && dateTo ? `الفترة: <strong style="color: #1e3a8a;">${escapeHtml(dateFrom)}</strong> إلى <strong style="color: #1e3a8a;">${escapeHtml(dateTo)}</strong>` : `الموسم الدراسي: <strong style="color: #1e3a8a;">${escapeHtml(pYear)}</strong>`}</div>
                                         <div style="color: #64748b; font-size: 0.68rem;">المذكرة الوزارية 142-08 وتوجيهات اليقظة</div>
                                     </div>
                                 </div>
@@ -57409,16 +58277,16 @@ ${log.notes || 'سير الحصة عادي'}
                                     <tbody>
                                         ${studentAbsenceRows.map((r, rIdx) => `
                                             <tr style="height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; background: ${rIdx % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1;">
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: #334155; white-space: nowrap;">${r.order}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-family: monospace; font-size: ${dynSubFontSize}; font-weight: 700; color: #1e3a8a; white-space: nowrap;">${r.massar}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a;">${r.name}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: #334155; white-space: nowrap;">${escapeHtml(r.order)}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-family: monospace; font-size: ${dynSubFontSize}; font-weight: 700; color: #1e3a8a; white-space: nowrap;">${escapeHtml(r.massar)}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a;">${escapeHtml(r.name)}</td>
                                                 <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 900; color: ${r.absentHours > 0 ? '#dc2626' : '#16a34a'}; background: ${r.absentHours > 0 ? '#fef2f2' : '#ffffff'}; font-size: ${dynFontSize}; white-space: nowrap;">${r.absentHours > 0 ? r.absentHours + ' س' : '<span style="color:#16a34a;">0</span>'}</td>
                                                 <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #2563eb; font-weight: 800; white-space: nowrap;">${r.justHours > 0 ? r.justHours + ' س' : '-'}</td>
                                                 <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #dc2626; font-weight: 800; white-space: nowrap;">${r.unjustHours > 0 ? r.unjustHours + ' س' : '-'}</td>
                                                 <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.lateCount > 0 ? '#ea580c' : '#94a3b8'}; white-space: nowrap;">${r.lateCount > 0 ? r.lateCount : '-'}</td>
                                                 <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.missedHw > 0 ? '#7c3aed' : '#94a3b8'}; white-space: nowrap;">${r.missedHw > 0 ? r.missedHw : '-'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; font-weight: 700; white-space: nowrap;">${r.behavior}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; color: #334155; font-weight: 600;">${r.note}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; font-weight: 700; white-space: nowrap;">${escapeHtml(r.behavior)}</td>
+                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; color: #334155; font-weight: 600;">${escapeHtml(r.note)}</td>
                                             </tr>
                                         `).join('')}
                                     </tbody>
@@ -57515,6 +58383,27 @@ ${log.notes || 'سير الحصة عادي'}
         // =========================================================================
         // 1. نظام قفل الشاشة السريع وحماية القن السري
         // =========================================================================
+        function constantTimeStringEqual(a, b) {
+            const strA = String(a || '');
+            const strB = String(b || '');
+            if (strA.length !== strB.length) return false;
+            let diff = 0;
+            for (let i = 0; i < strA.length; i++) {
+                diff |= strA.charCodeAt(i) ^ strB.charCodeAt(i);
+            }
+            return diff === 0;
+        }
+
+        function normalizePinInput(rawVal) {
+            if (rawVal === null || rawVal === undefined) return '';
+            return String(rawVal)
+                .replace(/[٠-٩]/g, d => String(d.charCodeAt(0) - 0x0660))
+                .replace(/[۰-۹]/g, d => String(d.charCodeAt(0) - 0x06F0))
+                .replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '')
+                .trim();
+        }
+        window.normalizePinInput = normalizePinInput;
+
         async function hashPasswordSHA256(plainText) {
             const str = String(plainText || '');
             if (window.crypto && window.crypto.subtle && typeof TextEncoder !== 'undefined') {
@@ -57525,15 +58414,102 @@ ${log.notes || 'سير الحصة عادي'}
         }
         window.hashPasswordSHA256 = hashPasswordSHA256;
 
+        async function hashTeacherPasswordSecure(plainText) {
+            const normalized = normalizePinInput(plainText);
+            const str = normalized || String(plainText || '');
+            if (window.crypto && window.crypto.subtle && typeof window.crypto.getRandomValues === 'function' && typeof TextEncoder !== 'undefined') {
+                const iterations = 100000;
+                const saltBytes = new Uint8Array(16);
+                window.crypto.getRandomValues(saltBytes);
+                const saltHex = Array.from(saltBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                const keyMaterial = await window.crypto.subtle.importKey(
+                    'raw',
+                    new TextEncoder().encode(str),
+                    { name: 'PBKDF2' },
+                    false,
+                    ['deriveBits']
+                );
+                const derivedBits = await window.crypto.subtle.deriveBits(
+                    { name: 'PBKDF2', salt: saltBytes, iterations, hash: 'SHA-256' },
+                    keyMaterial,
+                    256
+                );
+                const hashHex = Array.from(new Uint8Array(derivedBits)).map(b => b.toString(16).padStart(2, '0')).join('');
+                return `pbkdf2$${iterations}$${saltHex}$${hashHex}`;
+            }
+            return await hashPasswordSHA256(str);
+        }
+        window.hashTeacherPasswordSecure = hashTeacherPasswordSecure;
+
         async function verifyPasswordMatch(inputPwd, storedPwd) {
             if (!storedPwd) return true;
-            if (inputPwd === storedPwd) return true;
-            try {
-                const hashed = await hashPasswordSHA256(inputPwd);
-                return hashed === storedPwd;
-            } catch (e) {
-                return inputPwd === storedPwd;
+            const stored = String(storedPwd).trim();
+            if (!stored) return true;
+            const enteredRaw = String(inputPwd || '');
+            const enteredTrimmed = enteredRaw.trim();
+            const enteredNormalized = normalizePinInput(enteredRaw);
+            const candidates = Array.from(new Set([enteredRaw, enteredTrimmed, enteredNormalized].filter(v => v.length > 0)));
+            if (candidates.length === 0) return false;
+
+            // 1. صيغة PBKDF2-SHA256 المحمية بملح عشوائي
+            if (stored.startsWith('pbkdf2$')) {
+                const parts = stored.split('$');
+                if (parts.length !== 4) return false;
+                const iterations = parseInt(parts[1], 10);
+                const saltHex = parts[2];
+                const expectedHashHex = parts[3];
+                if (!iterations || !saltHex || !expectedHashHex || !(window.crypto && window.crypto.subtle)) {
+                    return false;
+                }
+                try {
+                    const saltBytes = new Uint8Array(saltHex.match(/.{1,2}/g).map(h => parseInt(h, 16)));
+                    for (const candidate of candidates) {
+                        const keyMaterial = await window.crypto.subtle.importKey(
+                            'raw',
+                            new TextEncoder().encode(candidate),
+                            { name: 'PBKDF2' },
+                            false,
+                            ['deriveBits']
+                        );
+                        const derivedBits = await window.crypto.subtle.deriveBits(
+                            { name: 'PBKDF2', salt: saltBytes, iterations, hash: 'SHA-256' },
+                            keyMaterial,
+                            256
+                        );
+                        const actualHashHex = Array.from(new Uint8Array(derivedBits)).map(b => b.toString(16).padStart(2, '0')).join('');
+                        if (constantTimeStringEqual(actualHashHex, expectedHashHex)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                } catch (e) {
+                    return false;
+                }
             }
+
+            // 2. توافق عكسي مع تجزئة SHA-256 القديمة (64 خانة ست عشرية)
+            if (/^[a-f0-9]{64}$/i.test(stored)) {
+                try {
+                    for (const candidate of candidates) {
+                        const hashed = await hashPasswordSHA256(candidate);
+                        if (constantTimeStringEqual(hashed.toLowerCase(), stored.toLowerCase())) {
+                            return true;
+                        }
+                    }
+                    return false;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            // 3. توافق عكسي مع القن السري النصي القديم (يتم ترحيله تلقائياً إلى PBKDF2 فور نجاح الدخول)
+            const storedNorm = normalizePinInput(stored);
+            for (const candidate of candidates) {
+                if (constantTimeStringEqual(candidate, stored) || (storedNorm && constantTimeStringEqual(candidate, storedNorm))) {
+                    return true;
+                }
+            }
+            return false;
         }
         window.verifyPasswordMatch = verifyPasswordMatch;
 
@@ -57541,7 +58517,7 @@ ${log.notes || 'سير الحصة عادي'}
             const modal = document.getElementById('quickLockScreenModal');
             if (!modal) return;
             const tNameEl = document.getElementById('quickLockTeacherName');
-            const teacherName = (db && db.teacherProfile && db.teacherProfile.name) || 'ابراهيم قزيبر';
+            const teacherName = (db && db.teacherProfile && db.teacherProfile.name) || 'الأستاذ(ة)';
             if (tNameEl) tNameEl.textContent = `الأستاذ: ${teacherName}`;
             const statusNote = document.getElementById('quickLockStatusNote');
             if (statusNote) {
@@ -57558,14 +58534,37 @@ ${log.notes || 'سير الحصة عادي'}
         }
         window.lockScreenQuick = lockScreenQuick;
 
+        const _quickUnlockAttempts = { count: 0, lockedUntil: 0 };
+
         async function unlockScreenQuick() {
             const modal = document.getElementById('quickLockScreenModal');
             const inp = document.getElementById('quickUnlockPasswordInput');
             const errEl = document.getElementById('quickUnlockErrorMsg');
+            const now = Date.now();
+            if (_quickUnlockAttempts.lockedUntil > now) {
+                const secs = Math.ceil((_quickUnlockAttempts.lockedUntil - now) / 1000);
+                if (errEl) {
+                    errEl.textContent = `🔒 تم قفل فتح الشاشة مؤقتاً بعد 5 محاولات خاطئة. انتظر ${secs} ثانية.`;
+                    errEl.style.display = 'block';
+                }
+                return;
+            }
             const entered = inp ? inp.value : '';
             const stored = (db && db.teacherProfile && db.teacherProfile.password) || '';
             const matched = await verifyPasswordMatch(entered, stored);
             if (matched || !stored) {
+                _quickUnlockAttempts.count = 0;
+                _quickUnlockAttempts.lockedUntil = 0;
+                if (stored && !String(stored).startsWith('pbkdf2$') && entered) {
+                    try {
+                        db.teacherProfile.password = await hashTeacherPasswordSecure(entered);
+                        if (typeof performDBSave === 'function') {
+                            performDBSave();
+                        } else {
+                            saveDB();
+                        }
+                    } catch (_) {}
+                }
                 if (modal) modal.style.display = 'none';
                 if (inp) inp.value = '';
                 if (errEl) errEl.style.display = 'none';
@@ -57573,23 +58572,79 @@ ${log.notes || 'سير الحصة عادي'}
                     showNotification('🔓 تم إلغاء قفل الشاشة بنجاح', 'success');
                 }
             } else {
-                if (errEl) errEl.style.display = 'block';
+                _quickUnlockAttempts.count += 1;
+                if (_quickUnlockAttempts.count >= 5) {
+                    _quickUnlockAttempts.lockedUntil = Date.now() + 60 * 1000;
+                    _quickUnlockAttempts.count = 0;
+                    if (errEl) {
+                        errEl.textContent = '🔒 تم تجاوز 5 محاولات خاطئة. يرجى الانتظار 60 ثانية.';
+                        errEl.style.display = 'block';
+                    }
+                } else if (errEl) {
+                    errEl.textContent = `⚠️ القن السري غير صحيح (المتبقي ${5 - _quickUnlockAttempts.count} محاولات).`;
+                    errEl.style.display = 'block';
+                }
                 if (inp) inp.select();
             }
         }
         window.unlockScreenQuick = unlockScreenQuick;
 
-        function unlockViaGoogleReauth() {
+        async function unlockViaGoogleReauth() {
             const modal = document.getElementById('quickLockScreenModal');
-            if (localStorage.getItem('gdrive_authenticated') === 'true' || localStorage.getItem('userLoggedIn') === 'true') {
-                if (modal) modal.style.display = 'none';
-                if (typeof showNotification === 'function') {
-                    showNotification('🔓 تم التحقق من الجلسة الموثقة وإلغاء القفل', 'success');
+            const errEl = document.getElementById('quickUnlockErrorMsg');
+            const expectedEmail = (
+                (window.getCloudUserEmail && window.getCloudUserEmail()) ||
+                (db && db.teacherProfile && db.teacherProfile.email) ||
+                localStorage.getItem('gdrive_last_email') ||
+                ''
+            ).trim().toLowerCase();
+
+            if (typeof window.handleGoogleSignInOfficial !== 'function') {
+                if (errEl) {
+                    errEl.textContent = '⚠️ خدمة المصادقة الرسمية عبر Google غير متاحة حالياً؛ يرجى فتح القفل باستخدام القن السري.';
+                    errEl.style.display = 'block';
                 }
-            } else if (typeof window.handleDriveAuthClick === 'function') {
-                window.handleDriveAuthClick();
+                return;
+            }
+
+            try {
+                const token = await window.handleGoogleSignInOfficial({ forcePopup: true, skipUpdateCheck: true, strictReauth: true });
+                const verifiedUser = (typeof window.getVerifiedFirebaseAuthUser === 'function')
+                    ? window.getVerifiedFirebaseAuthUser()
+                    : null;
+
+                if (!token || !verifiedUser || !verifiedUser.email) {
+                    if (errEl) {
+                        errEl.textContent = '⚠️ تعذر إتمام إعادة المصادقة الرسمية عبر Google. يرجى إدخال القن السري.';
+                        errEl.style.display = 'block';
+                    }
+                    return;
+                }
+
+                const authedEmail = String(verifiedUser.email).trim().toLowerCase();
+                if (expectedEmail && expectedEmail.includes('@') && authedEmail !== expectedEmail) {
+                    if (errEl) {
+                        errEl.textContent = `⛔ البريد المصادق عليه (${authedEmail}) لا يطابق حساب الأستاذ المالك (${expectedEmail}).`;
+                        errEl.style.display = 'block';
+                    }
+                    return;
+                }
+
+                _quickUnlockAttempts.count = 0;
+                _quickUnlockAttempts.lockedUntil = 0;
+                if (modal) modal.style.display = 'none';
+                if (errEl) errEl.style.display = 'none';
+                if (typeof showNotification === 'function') {
+                    showNotification(`🔓 تم التحقق التشفيري من حساب Google (${authedEmail}) وإلغاء القفل`, 'success');
+                }
+            } catch (e) {
+                if (errEl) {
+                    errEl.textContent = '⚠️ تم إلغاء إعادة المصادقة عبر Google؛ الشاشة ما تزال مقفلة.';
+                    errEl.style.display = 'block';
+                }
             }
         }
+        window.unlockViaGoogleReauth = unlockViaGoogleReauth;
         // =========================================================================
         // نظام مؤقت الخمول والقفل التلقائي للشاشة (Auto-Lock Engine & Activity Watcher)
         // =========================================================================
@@ -58345,16 +59400,20 @@ ${log.notes || 'سير الحصة عادي'}
         }
 
         function exportUnifiedReportWord() {
-            const className = document.getElementById('reportClassSelect')?.value || 'القسم';
+            const rawCls = document.getElementById('reportClassSelect')?.value || 'القسم';
+            const resolved = resolveReportTargetClasses(rawCls);
+            const className = resolved.label || rawCls;
             const tableEl = document.getElementById('reportTableBody')?.closest('table');
             if (!tableEl) return;
-            exportHtmlAsWordDoc(`<h2>التقرير التربوي الشامل - ${className}</h2>` + tableEl.outerHTML, `التقرير_الشامل_${className}.doc`);
+            exportHtmlAsWordDoc(`<h2>التقرير التربوي الشامل - ${escapeHtml(className)}</h2>` + tableEl.outerHTML, `التقرير_الشامل_${className}.doc`);
             if (typeof showNotification === 'function') showNotification('تم تصدير التقرير بصيغة Word بنجاح', 'success');
         }
         window.exportUnifiedReportWord = exportUnifiedReportWord;
 
         async function exportUnifiedReportExcel() {
-            const className = document.getElementById('reportClassSelect')?.value || 'جميع_الأقسام';
+            const rawCls = document.getElementById('reportClassSelect')?.value || 'جميع_الأقسام';
+            const resolved = resolveReportTargetClasses(rawCls);
+            const className = resolved.label || rawCls;
             if (typeof XLSX === 'undefined' && typeof window.ensureXlsxLoaded === 'function') {
                 await window.ensureXlsxLoaded();
             }
@@ -58365,7 +59424,7 @@ ${log.notes || 'سير الحصة عادي'}
                 const ws = XLSX.utils.json_to_sheet(reportDataCache);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, 'التقرير_الشامل');
-                XLSX.writeFile(wb, `التقرير_الإحصائي_${className}.xlsx`);
+                XLSX.writeFile(wb, `التقرير_الإحصائي_${String(className).replace(/[\\\/\?\*\[\]:]/g, '_')}.xlsx`);
                 if (typeof showNotification === 'function') showNotification('تم استخراج البيانات بصيغة Excel بنجاح', 'success');
             }
         }
@@ -58408,14 +59467,20 @@ ${log.notes || 'سير الحصة عادي'}
         window.exportCahierDeTextesExcel = exportCahierDeTextesExcel;
 
         function openStudentStatisticalReport(studentId, className) {
-            const targetClass = className || document.getElementById('reportClassSelect')?.value || window.activeClass || '';
-            if (!targetClass || !studentId) return;
+            let resolvedStudentId = studentId;
+            let targetClass = className || document.getElementById('reportClassSelect')?.value || window.activeClass || '';
+            if (resolvedStudentId && String(resolvedStudentId).includes(':::')) {
+                const parts = String(resolvedStudentId).split(':::');
+                targetClass = parts[0];
+                resolvedStudentId = parts[1];
+            }
+            if (!targetClass || !resolvedStudentId) return;
             if (typeof window.openStudentPortfolioModal === 'function') {
-                window.openStudentPortfolioModal(studentId, targetClass);
+                window.openStudentPortfolioModal(resolvedStudentId, targetClass);
                 return;
             }
             if (typeof selectStudentForReport === 'function') {
-                selectStudentForReport(studentId, targetClass);
+                selectStudentForReport(resolvedStudentId, targetClass);
             }
         }
         window.openStudentStatisticalReport = openStudentStatisticalReport;
@@ -58441,7 +59506,7 @@ ${log.notes || 'سير الحصة عادي'}
                 academy: tp.academy || st.academy || 'الأكاديمية الجهوية للتربية والتكوين',
                 directorate: tp.directorate || st.directorate || 'المديرية الإقليمية',
                 school: tp.school || st.schoolName || 'الثانوية التأهيلية',
-                teacherName: tp.name || 'إبراهيم قزيبر',
+                teacherName: tp.name || 'أستاذ المادة',
                 subject: tp.subject || 'الرياضيات',
                 academicYear: tp.academicYear || st.academicYear || '2026 / 2027',
                 schoolLogo: tp.schoolLogo || tp.institutionLogo || '/institution-logo.svg',
@@ -59143,16 +60208,19 @@ ${log.notes || 'سير الحصة عادي'}
         // =========================================================================
         function openOfficialInspectorDossierModal() {
             const classesList = (typeof getSortedClasses === 'function') ? getSortedClasses() : Object.keys((db && db.classes) || {});
-            const teacherName = (db && db.settings && db.settings.teacherName) ? db.settings.teacherName : 'الأستاذ إبراهيم قزيبر';
-            const schoolName = (db && db.settings && db.settings.schoolName) ? db.settings.schoolName : 'الثانوية التأهيلية';
-            const schoolYear = (db && db.settings && db.settings.schoolYear) ? db.settings.schoolYear : '2025 / 2026';
-            const todayStr = (typeof formatLocalDate === 'function') ? formatLocalDate() : new Date().toISOString().slice(0, 10);
+            const nowDoss = typeof getAppNow === 'function' ? getAppNow() : new Date();
+            const dossStartYr = (nowDoss.getMonth() + 1) >= 9 ? nowDoss.getFullYear() : nowDoss.getFullYear() - 1;
+            const teacherName = (db && db.teacherProfile && db.teacherProfile.name) ? db.teacherProfile.name : ((db && db.settings && db.settings.teacherName) ? db.settings.teacherName : 'أستاذ المادة');
+            const schoolName = (db && db.teacherProfile && db.teacherProfile.school) ? db.teacherProfile.school : ((db && db.settings && db.settings.schoolName) ? db.settings.schoolName : 'الثانوية التأهيلية');
+            const schoolYear = (db && db.teacherProfile && db.teacherProfile.academicYear) ? db.teacherProfile.academicYear : ((db && db.settings && db.settings.schoolYear) ? db.settings.schoolYear : `${dossStartYr} / ${dossStartYr + 1}`);
+            const todayStr = (typeof formatLocalDate === 'function') ? formatLocalDate() : nowDoss.toISOString().slice(0, 10);
 
             let totalStudents = 0;
             let totalSessionsLogged = 0;
 
             const classRowsHtml = classesList.map((cls, idx) => {
-                const stds = (db && db.classes && db.classes[cls]) ? db.classes[cls] : [];
+                const rawC = (db && db.classes && db.classes[cls]) ? db.classes[cls] : [];
+                const stds = Array.isArray(rawC) ? rawC : (Array.isArray(rawC.students) ? rawC.students : []);
                 totalStudents += stds.length;
                 const logs = (db && db.lessonLogs && db.lessonLogs[cls]) ? db.lessonLogs[cls] : [];
                 totalSessionsLogged += logs.length;
@@ -59168,12 +60236,12 @@ ${log.notes || 'سير الحصة عادي'}
                 return `
                     <tr>
                         <td style="border:1px solid #cbd5e1; padding:6px 8px; text-align:center; font-weight:800;">${idx + 1}</td>
-                        <td style="border:1px solid #cbd5e1; padding:6px 8px; font-weight:900; color:#1e3a8a;">${cls}</td>
-                        <td style="border:1px solid #cbd5e1; padding:6px 8px; font-size:0.78rem; font-weight:700;">${statusData.levelObj?.name || 'ثانوي تأهيلي'}</td>
+                        <td style="border:1px solid #cbd5e1; padding:6px 8px; font-weight:900; color:#1e3a8a;">${escapeHtml(cls)}</td>
+                        <td style="border:1px solid #cbd5e1; padding:6px 8px; font-size:0.78rem; font-weight:700;">${escapeHtml(statusData.levelObj?.name || 'ثانوي تأهيلي')}</td>
                         <td style="border:1px solid #cbd5e1; padding:6px 8px; text-align:center; font-weight:800;">${stds.length}</td>
                         <td style="border:1px solid #cbd5e1; padding:6px 8px; text-align:center; font-weight:800; color:#0284c7;">${logs.length} حصة</td>
                         <td style="border:1px solid #cbd5e1; padding:6px 8px; text-align:center; font-weight:800; color:#15803d;">${statusData.completionPct}% (${statusData.totalCompletedAxes || 0}/${statusData.totalPlannedAxes || 0})</td>
-                        <td style="border:1px solid #cbd5e1; padding:6px 8px; font-size:0.78rem; font-weight:700;">${lastLessonTitle}</td>
+                        <td style="border:1px solid #cbd5e1; padding:6px 8px; font-size:0.78rem; font-weight:700;">${escapeHtml(lastLessonTitle)}</td>
                     </tr>
                 `;
             }).join('');
@@ -59184,16 +60252,16 @@ ${log.notes || 'سير الحصة عادي'}
                         <div style="font-size:0.8rem; font-weight:800; line-height:1.5;">
                             <div>المملكة المغربية</div>
                             <div>وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
-                            <div>المؤسسة: ${schoolName}</div>
+                            <div>المؤسسة: ${escapeHtml(schoolName)}</div>
                         </div>
                         <div style="text-align:center;">
                             <div style="font-size:1.1rem; font-weight:900; color:#1e3a8a;">الملف التربوي الموحد للمفتش والإدارة التربوية</div>
                             <div style="font-size:0.8rem; font-weight:700; color:#475569; margin-top:2px;">حصيلة تنفيذ المنهاج الوزاري ودفتر النصوص والمواظبة — مادة الرياضيات</div>
                         </div>
                         <div style="font-size:0.8rem; font-weight:800; line-height:1.5; text-align:left;">
-                            <div>الأستاذ: ${teacherName}</div>
-                            <div>الموسم الدراسي: ${schoolYear}</div>
-                            <div>تاريخ الإعداد: ${todayStr}</div>
+                            <div>الأستاذ: ${escapeHtml(teacherName)}</div>
+                            <div>الموسم الدراسي: ${escapeHtml(schoolYear)}</div>
+                            <div>تاريخ الإعداد: ${escapeHtml(todayStr)}</div>
                         </div>
                     </div>
 
@@ -59235,7 +60303,7 @@ ${log.notes || 'سير الحصة عادي'}
                     </table>
 
                     <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:18px; text-align:center; font-size:0.8rem; font-weight:800;">
-                        <div style="border:1px dashed #94a3b8; border-radius:8px; padding:10px; min-height:70px;">توقيع أستاذ المادة:<br><span style="color:#1e3a8a;">${teacherName}</span></div>
+                        <div style="border:1px dashed #94a3b8; border-radius:8px; padding:10px; min-height:70px;">توقيع أستاذ المادة:<br><span style="color:#1e3a8a;">${escapeHtml(teacherName)}</span></div>
                         <div style="border:1px dashed #94a3b8; border-radius:8px; padding:10px; min-height:70px;">تأشيرة الإدارة التربوية:<br><span style="color:#64748b; font-size:0.72rem;">(خاتم المؤسسة)</span></div>
                         <div style="border:1px dashed #94a3b8; border-radius:8px; padding:10px; min-height:70px;">تأشيرة وملاحظات السيد(ة) المفتش(ة) التربوي(ة):</div>
                     </div>
@@ -59257,28 +60325,39 @@ ${log.notes || 'سير الحصة عادي'}
         // قابلة للطباعة الرسمية والمصادقة الإدارية (الحراسة العامة وإدارة المؤسسة)
         // =========================================================================
         function resolveTargetClassForAbsenceReport(explicitClass = null) {
-            if (explicitClass && explicitClass !== '__ALL__' && db && db.classes && db.classes[explicitClass]) {
-                return explicitClass;
+            if (explicitClass) {
+                const expRes = resolveReportTargetClasses(explicitClass);
+                if (expRes.classes && expRes.classes.length > 0) {
+                    return explicitClass;
+                }
             }
             const reportsView = document.getElementById('reportsView');
             const isReportsVisible = reportsView && reportsView.style.display !== 'none';
             const reportCls = document.getElementById('reportClassSelect')?.value;
-            if (isReportsVisible && reportCls && reportCls !== '__ALL__' && db && db.classes && db.classes[reportCls]) {
-                return reportCls;
+            if (isReportsVisible && reportCls) {
+                const repRes = resolveReportTargetClasses(reportCls);
+                if (repRes.classes && repRes.classes.length > 0) {
+                    return reportCls;
+                }
             }
             const mainCls = document.getElementById('classSelect')?.value;
             if (mainCls && db && db.classes && db.classes[mainCls]) {
                 return mainCls;
             }
-            if (reportCls && reportCls !== '__ALL__' && db && db.classes && db.classes[reportCls]) {
-                return reportCls;
+            if (reportCls) {
+                const repRes = resolveReportTargetClasses(reportCls);
+                if (repRes.classes && repRes.classes.length > 0) {
+                    return reportCls;
+                }
             }
             const sorted = (typeof getSortedClasses === 'function') ? getSortedClasses(false) : Object.keys((db && db.classes) || {});
             return sorted[0] || '';
         }
 
         function computeUnifiedClassAbsenceAndLatenessData(targetClass = null, customDateFrom = undefined, customDateTo = undefined) {
-            const className = resolveTargetClassForAbsenceReport(targetClass);
+            const rawTarget = resolveTargetClassForAbsenceReport(targetClass);
+            const resolved = resolveReportTargetClasses(rawTarget);
+            const className = resolved.label || rawTarget;
             const dateFrom = customDateFrom !== undefined
                 ? customDateFrom
                 : (document.getElementById('reportDateFrom')?.value || '');
@@ -59286,6 +60365,8 @@ ${log.notes || 'سير الحصة عادي'}
                 ? customDateTo
                 : (document.getElementById('reportDateTo')?.value || '');
 
+            const nowUnif = typeof getAppNow === 'function' ? getAppNow() : new Date();
+            const unifStartYr = (nowUnif.getMonth() + 1) >= 9 ? nowUnif.getFullYear() : nowUnif.getFullYear() - 1;
             const tp = (db && (db.teacherProfile || db.profile)) || {};
             const st = (db && db.settings) || {};
             const meta = {
@@ -59293,43 +60374,47 @@ ${log.notes || 'سير الحصة عادي'}
                 academy: tp.academy || st.academy || 'الأكاديمية الجهوية للتربية والتكوين',
                 directorate: tp.directorate || st.directorate || 'المديرية الإقليمية',
                 school: tp.school || st.schoolName || 'الثانوية التأهيلية',
-                teacherName: tp.name || st.teacherName || 'إبراهيم قزيبر',
+                teacherName: tp.name || st.teacherName || 'أستاذ المادة',
                 subject: tp.subject || 'الرياضيات',
-                academicYear: tp.academicYear || st.academicYear || st.schoolYear || '2026 / 2027',
+                academicYear: tp.academicYear || st.academicYear || st.schoolYear || `${unifStartYr} / ${unifStartYr + 1}`,
                 schoolLogo: tp.schoolLogo || tp.institutionLogo || '/institution-logo.svg',
                 teacherLogo: tp.teacherLogo || tp.photo || '/logo.svg',
                 dateFrom,
                 dateTo,
-                issueDate: (typeof formatLocalDate === 'function') ? formatLocalDate() : new Date().toISOString().split('T')[0]
+                issueDate: (typeof formatLocalDate === 'function') ? formatLocalDate() : nowUnif.toISOString().split('T')[0]
             };
 
-            if (!className || !db || !db.classes || !db.classes[className]) {
+            if (!resolved.classes || resolved.classes.length === 0) {
                 return { meta, studentsSummary: [], chronologicalIncidents: [], totals: null };
             }
 
-            const rawStudents = db.classes[className] || [];
-            const students = (Array.isArray(rawStudents) ? rawStudents : (rawStudents.students || [])).slice().sort((a, b) => {
+            const combinedStudents = getCombinedStudentsForClasses(rawTarget);
+            const students = combinedStudents.slice().sort((a, b) => {
+                if (resolved.isMulti && a.className !== b.className) {
+                    return resolved.classes.indexOf(a.className) - resolved.classes.indexOf(b.className);
+                }
                 const oa = parseInt(a.orderNum, 10) || 9999;
                 const ob = parseInt(b.orderNum, 10) || 9999;
                 return oa !== ob ? oa - ob : String(a.name || '').localeCompare(String(b.name || ''), 'ar');
             });
 
+            const classSet = new Set(resolved.classes);
             const classRecords = ((db && db.records) || []).filter(r =>
                 r &&
-                r.className === className &&
+                classSet.has(r.className) &&
                 (!dateFrom || r.date >= dateFrom) &&
                 (!dateTo || r.date <= dateTo) &&
                 !(typeof isRecordProtectedHolidayOrLeave === 'function' && isRecordProtectedHolidayOrLeave(r))
             );
 
-            // إحصاء الحصص الفريدة المرصودة للقسم
+            // إحصاء الحصص الفريدة المرصودة للقسم (أو الأقسام المدمجة)
             const sessionKeysSet = new Set();
             const sessionHoursMap = new Map();
             classRecords.forEach(r => {
                 const normSess = (typeof normalizeSessionPeriodString === 'function')
                     ? normalizeSessionPeriodString(r.session || 'حصة')
                     : String(r.session || 'حصة');
-                const sKey = `${r.date || ''}|||${normSess}`;
+                const sKey = `${resolved.isMulti ? (r.className || '') + '|||' : ''}${r.date || ''}|||${normSess}`;
                 sessionKeysSet.add(sKey);
                 const dur = (typeof getRecordAbsenceDuration === 'function') ? getRecordAbsenceDuration(r, 1) : (Number(r.duration) || 1);
                 if (!sessionHoursMap.has(sKey) || dur > sessionHoursMap.get(sKey)) {
@@ -59354,8 +60439,10 @@ ${log.notes || 'سير الحصة عادي'}
             const chronologicalIncidents = [];
 
             const studentsSummary = students.map((std, idx) => {
+                const stdClass = std.className || resolved.classes[0];
+                const displayStdName = resolved.isMulti ? `${std.name || '-'} (${stdClass})` : (std.name || '-');
                 const stdRecs = classRecords
-                    .filter(r => String(r.studentId) === String(std.id))
+                    .filter(r => String(r.studentId) === String(std.id) && r.className === stdClass)
                     .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
 
                 let absSessions = 0;
@@ -59381,7 +60468,7 @@ ${log.notes || 'سير الحصة عادي'}
                             duration: dur,
                             orderNum: std.orderNum || (idx + 1),
                             massar: std.massar || '-',
-                            studentName: std.name || '-',
+                            studentName: displayStdName,
                             typeKey: 'unjustified',
                             typeLabel: 'غياب غير مبرر',
                             badgeBg: '#fef2f2',
@@ -59400,7 +60487,7 @@ ${log.notes || 'سير الحصة عادي'}
                             duration: dur,
                             orderNum: std.orderNum || (idx + 1),
                             massar: std.massar || '-',
-                            studentName: std.name || '-',
+                            studentName: displayStdName,
                             typeKey: 'justified',
                             typeLabel: 'غياب مبرر',
                             badgeBg: '#f0f9ff',
@@ -59417,7 +60504,7 @@ ${log.notes || 'سير الحصة عادي'}
                             duration: dur,
                             orderNum: std.orderNum || (idx + 1),
                             massar: std.massar || '-',
-                            studentName: std.name || '-',
+                            studentName: displayStdName,
                             typeKey: 'late',
                             typeLabel: 'تأخر عن الحصة',
                             badgeBg: '#fffbeb',
@@ -59469,7 +60556,7 @@ ${log.notes || 'سير الحصة عادي'}
                     index: idx + 1,
                     orderNum: std.orderNum || (idx + 1),
                     massar: std.massar || '-',
-                    name: std.name || '-',
+                    name: displayStdName,
                     absSessions,
                     absHours,
                     justHours,

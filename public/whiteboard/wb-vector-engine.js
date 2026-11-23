@@ -371,28 +371,278 @@
             return;
         }
 
-        // 8. Lesson Header Bar (Adaptive contrast on green/dark backgrounds)
+        // 8. Lesson Header Bar (Upgraded Moroccan Academic Chalkboard Header)
         if (tool === 'lesson_header') {
             const box = resolveBox(obj, env);
-            const isDark = env && (env.currentBg === 'green' || env.currentBg === 'dark');
+            const isDark = !!(env && (env.currentBg === 'green' || env.currentBg === 'dark'));
+            const theme = obj.styleTheme || 'academic';
+            const bx = box.x;
+            const by = box.y;
+            const bw = Math.max(220, box.w);
+            const bh = Math.max(40, box.h);
+
+            const fitRtlText = (text, maxWidth) => {
+                const str = String(text || '').trim();
+                if (!str || maxWidth <= 24) return '';
+                if (targetCtx.measureText(str).width <= maxWidth) return str;
+                const ell = '…';
+                let lo = 0;
+                let hi = str.length;
+                while (lo < hi) {
+                    const mid = Math.ceil((lo + hi) / 2);
+                    const cand = str.slice(0, mid).trimEnd() + ell;
+                    if (targetCtx.measureText(cand).width <= maxWidth) lo = mid;
+                    else hi = mid - 1;
+                }
+                return lo > 0 ? str.slice(0, lo).trimEnd() + ell : '';
+            };
+
+            // Theme palettes calibrated for WCAG AA readability on light & dark boards
+            let cardBg, topBandBg, borderCol, titleCol, metaCol, axisCol, dividerCol, badgeBg, badgeStroke, badgeTextCol;
+            if (theme === 'chalkboard') {
+                cardBg = isDark ? 'rgba(6, 55, 43, 0.96)' : '#0f3d2e';
+                topBandBg = isDark ? 'rgba(4, 38, 30, 0.92)' : '#0a2e22';
+                borderCol = '#d4b86a';
+                titleCol = '#ffffff';
+                metaCol = '#fef08a';
+                axisCol = '#a7f3d0';
+                dividerCol = 'rgba(212, 184, 106, 0.35)';
+                badgeBg = 'rgba(254, 240, 138, 0.14)';
+                badgeStroke = 'rgba(254, 240, 138, 0.45)';
+                badgeTextCol = '#fef08a';
+            } else if (theme === 'workshop') {
+                cardBg = isDark ? 'rgba(30, 27, 46, 0.95)' : '#fffdf5';
+                topBandBg = isDark ? 'rgba(49, 46, 82, 0.85)' : '#fef3c7';
+                borderCol = isDark ? '#fbbf24' : '#b45309';
+                titleCol = isDark ? '#f8fafc' : '#1e293b';
+                metaCol = isDark ? '#fde68a' : '#92400e';
+                axisCol = isDark ? '#cbd5e1' : '#475569';
+                dividerCol = isDark ? 'rgba(251, 191, 36, 0.28)' : 'rgba(180, 83, 9, 0.22)';
+                badgeBg = isDark ? 'rgba(251, 191, 36, 0.15)' : '#fef3c7';
+                badgeStroke = isDark ? 'rgba(251, 191, 36, 0.45)' : '#d97706';
+                badgeTextCol = isDark ? '#fde68a' : '#92400e';
+            } else if (theme === 'compact') {
+                cardBg = isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(248, 250, 252, 0.98)';
+                topBandBg = cardBg;
+                borderCol = isDark ? '#38bdf8' : '#1e3a8a';
+                titleCol = isDark ? '#f8fafc' : '#0f172a';
+                metaCol = isDark ? '#7dd3fc' : '#1e40af';
+                axisCol = isDark ? '#a7f3d0' : '#047857';
+                dividerCol = isDark ? 'rgba(56, 189, 248, 0.22)' : 'rgba(30, 58, 138, 0.14)';
+                badgeBg = isDark ? 'rgba(56, 189, 248, 0.14)' : '#eff6ff';
+                badgeStroke = isDark ? 'rgba(56, 189, 248, 0.4)' : '#93c5fd';
+                badgeTextCol = isDark ? '#bae6fd' : '#1e3a8a';
+            } else {
+                // 'academic' default
+                cardBg = isDark ? 'rgba(15, 23, 42, 0.95)' : '#ffffff';
+                topBandBg = isDark ? 'rgba(30, 41, 59, 0.9)' : '#f1f5f9';
+                borderCol = isDark ? '#38bdf8' : '#1e3a8a';
+                titleCol = isDark ? '#f8fafc' : '#0f172a';
+                metaCol = isDark ? '#cbd5e1' : '#334155';
+                axisCol = isDark ? '#6ee7b7' : '#047857';
+                dividerCol = isDark ? 'rgba(148, 163, 184, 0.26)' : '#cbd5e1';
+                badgeBg = isDark ? 'rgba(56, 189, 248, 0.15)' : '#eff6ff';
+                badgeStroke = isDark ? 'rgba(56, 189, 248, 0.45)' : '#bfdbfe';
+                badgeTextCol = isDark ? '#7dd3fc' : '#1e3a8a';
+            }
+
             targetCtx.save();
             targetCtx.globalCompositeOperation = 'source-over';
-            targetCtx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.9)' : 'rgba(239, 246, 255, 0.96)';
-            targetCtx.strokeStyle = isDark ? '#38bdf8' : '#1e3a8a';
-            targetCtx.lineWidth = 2;
-            drawRoundRectPath(targetCtx, box.x, box.y, box.w, box.h, 10);
+            targetCtx.direction = 'rtl';
+
+            // Main outer card background + clean border
+            targetCtx.fillStyle = cardBg;
+            drawRoundRectPath(targetCtx, bx, by, bw, bh, 10);
             targetCtx.fill();
+
+            const isCompactLayout = (theme === 'compact' || bh < 62);
+
+            if (!isCompactLayout) {
+                const topH = Math.min(28, Math.round(bh * 0.34));
+                targetCtx.save();
+                drawRoundRectPath(targetCtx, bx, by, bw, bh, 10);
+                targetCtx.clip();
+                targetCtx.fillStyle = topBandBg;
+                targetCtx.fillRect(bx, by, bw, topH);
+                targetCtx.strokeStyle = dividerCol;
+                targetCtx.lineWidth = 1;
+                targetCtx.beginPath();
+                targetCtx.moveTo(bx, by + topH);
+                targetCtx.lineTo(bx + bw, by + topH);
+                targetCtx.stroke();
+                targetCtx.restore();
+            }
+
+            targetCtx.strokeStyle = borderCol;
+            targetCtx.lineWidth = theme === 'chalkboard' ? 1.8 : 1.6;
+            drawRoundRectPath(targetCtx, bx, by, bw, bh, 10);
             targetCtx.stroke();
 
-            targetCtx.font = 'bold 13.5px "Cairo", sans-serif';
-            targetCtx.textBaseline = 'middle';
-            targetCtx.fillStyle = isDark ? '#e0f2fe' : '#1e3a8a';
-            targetCtx.textAlign = 'right';
-            targetCtx.fillText(`📅 ${obj.todayStr || ''}   |   🏫 القسم: ${obj.className || ''}`, box.x + box.w - 14, box.y + box.h / 2, box.w * 0.55);
+            if (theme === 'chalkboard' && !isCompactLayout) {
+                targetCtx.strokeStyle = 'rgba(212, 184, 106, 0.28)';
+                targetCtx.lineWidth = 1;
+                drawRoundRectPath(targetCtx, bx + 4, by + 4, bw - 8, bh - 8, 7);
+                targetCtx.stroke();
+            }
 
-            targetCtx.textAlign = 'left';
-            targetCtx.fillStyle = isDark ? '#6ee7b7' : '#047857';
-            targetCtx.fillText(`📘 الدرس: ${obj.lessonTitle || ''}`, box.x + 14, box.y + box.h / 2, box.w * 0.4);
+            const classText = obj.className ? `القسم: ${obj.className}` : '';
+            const levelText = obj.levelLabel ? String(obj.levelLabel).trim() : '';
+            const lessonText = obj.lessonTitle ? String(obj.lessonTitle).trim() : 'درس الرياضيات';
+            const axisText = obj.axisTitle ? String(obj.axisTitle).trim() : '';
+            const objectiveText = obj.objective ? String(obj.objective).trim() : '';
+            const dateText = obj.todayStr ? String(obj.todayStr).trim() : '';
+            const sessionNumText = obj.sessionNum ? `الحصة ${obj.sessionNum}` : '';
+            const sessionTypeText = obj.sessionTypeLabel ? String(obj.sessionTypeLabel).trim() : '';
+            const sessionCombined = [sessionNumText, sessionTypeText].filter(Boolean).join(' · ');
+            const showInst = obj.showInstitutionalMeta !== false;
+            const instParts = showInst
+                ? [obj.schoolName, obj.teacherName ? `ذ. ${obj.teacherName}` : ''].filter(Boolean)
+                : [];
+
+            if (isCompactLayout) {
+                // Single-band compact responsive layout (great for bh 44..60 or 'compact' theme)
+                const cy = by + bh / 2;
+                const padX = 14;
+                const leftParts = [sessionCombined, dateText].filter(Boolean).join('  |  ');
+                targetCtx.font = '700 11.5px "Cairo", sans-serif';
+                const leftStr = fitRtlText(leftParts, bw * 0.36);
+                const leftW = leftStr ? targetCtx.measureText(leftStr).width : 0;
+
+                if (leftStr) {
+                    targetCtx.textBaseline = 'middle';
+                    targetCtx.textAlign = 'left';
+                    targetCtx.fillStyle = metaCol;
+                    targetCtx.fillText(leftStr, bx + padX, cy);
+                }
+
+                const rightAvail = Math.max(100, bw - leftW - padX * 3);
+                const rightPrimary = [classText, lessonText, axisText].filter(Boolean).join('  —  ');
+                targetCtx.font = '800 13px "Cairo", sans-serif';
+                const rightStr = fitRtlText(rightPrimary, rightAvail);
+                targetCtx.textBaseline = 'middle';
+                targetCtx.textAlign = 'right';
+                targetCtx.fillStyle = titleCol;
+                targetCtx.fillText(rightStr, bx + bw - padX, cy);
+            } else {
+                // Full 2-tier structured academic header
+                const topH = Math.min(28, Math.round(bh * 0.34));
+                const topMidY = by + topH / 2 + 0.5;
+                const padX = 14;
+
+                // Top Row Left: Date + Teacher (clean typographic separator, zero pill soup)
+                const leftTopStrRaw = [instParts[1] || '', dateText].filter(Boolean).join('  |  ');
+                targetCtx.font = '700 11.2px "Cairo", sans-serif';
+                const leftTopStr = fitRtlText(leftTopStrRaw, bw * 0.42);
+                const leftTopW = leftTopStr ? targetCtx.measureText(leftTopStr).width : 0;
+                if (leftTopStr) {
+                    targetCtx.textBaseline = 'middle';
+                    targetCtx.textAlign = 'left';
+                    targetCtx.fillStyle = metaCol;
+                    targetCtx.fillText(leftTopStr, bx + padX, topMidY);
+                }
+
+                // Top Row Right: Institution · Track/Level · Class
+                const rightTopParts = [instParts[0] || '', levelText, classText].filter(Boolean);
+                const rightTopRaw = rightTopParts.join('  ·  ');
+                const rightTopAvail = Math.max(100, bw - leftTopW - padX * 3);
+                const rightTopStr = fitRtlText(rightTopRaw, rightTopAvail);
+                if (rightTopStr) {
+                    targetCtx.textBaseline = 'middle';
+                    targetCtx.textAlign = 'right';
+                    targetCtx.fillStyle = metaCol;
+                    targetCtx.fillText(rightTopStr, bx + bw - padX, topMidY);
+                }
+
+                // Bottom Main Area
+                const bodyTop = by + topH;
+                const bodyH = bh - topH;
+
+                // Left-side geometric coordinate / session status block
+                let leftBlockReserved = padX;
+                if (sessionCombined && bw >= 420) {
+                    targetCtx.font = '800 11px "Cairo", sans-serif';
+                    const badgeLabel = fitRtlText(sessionCombined, Math.min(210, bw * 0.3));
+                    const badgeTextW = targetCtx.measureText(badgeLabel).width;
+                    const badgeW = badgeTextW + 18;
+                    const badgeH = 24;
+                    const badgeX = bx + padX;
+                    const badgeY = bodyTop + (bodyH - badgeH) / 2;
+
+                    targetCtx.fillStyle = badgeBg;
+                    targetCtx.strokeStyle = badgeStroke;
+                    targetCtx.lineWidth = 1.2;
+                    drawRoundRectPath(targetCtx, badgeX, badgeY, badgeW, badgeH, 6);
+                    targetCtx.fill();
+                    targetCtx.stroke();
+
+                    targetCtx.textBaseline = 'middle';
+                    targetCtx.textAlign = 'center';
+                    targetCtx.fillStyle = badgeTextCol;
+                    targetCtx.fillText(badgeLabel, badgeX + badgeW / 2, badgeY + badgeH / 2 + 0.5);
+
+                    leftBlockReserved = padX + badgeW + 14;
+                }
+
+                // Subtle mathematical axes index mark on right margin
+                const markSize = bodyH >= 48 ? 26 : 20;
+                const markX = bx + bw - padX - markSize;
+                const markY = bodyTop + (bodyH - markSize) / 2;
+                targetCtx.fillStyle = badgeBg;
+                targetCtx.strokeStyle = badgeStroke;
+                targetCtx.lineWidth = 1.2;
+                drawRoundRectPath(targetCtx, markX, markY, markSize, markSize, 6);
+                targetCtx.fill();
+                targetCtx.stroke();
+
+                // Crisp vector coordinate axes icon inside index mark
+                const cxMark = markX + markSize / 2;
+                const cyMark = markY + markSize / 2 + 2;
+                targetCtx.strokeStyle = badgeTextCol;
+                targetCtx.lineWidth = 1.4;
+                targetCtx.beginPath();
+                targetCtx.moveTo(markX + 5, cyMark);
+                targetCtx.lineTo(markX + markSize - 5, cyMark);
+                targetCtx.moveTo(cxMark - 2, markY + markSize - 4);
+                targetCtx.lineTo(cxMark - 2, markY + 5);
+                targetCtx.stroke();
+                targetCtx.font = '700 9px "Cairo", sans-serif';
+                targetCtx.textAlign = 'center';
+                targetCtx.textBaseline = 'top';
+                targetCtx.fillStyle = badgeTextCol;
+                targetCtx.fillText('fx', cxMark + 4, markY + 3);
+
+                const rightTextX = markX - 10;
+                const textMaxW = Math.max(120, rightTextX - leftBlockReserved);
+                const subLineParts = [];
+                if (axisText) subLineParts.push(`المحور: ${axisText}`);
+                if (objectiveText) subLineParts.push(`الهدف: ${objectiveText}`);
+                const subLineRaw = subLineParts.join('  ·  ');
+
+                if (subLineRaw && bodyH >= 44) {
+                    const line1Y = bodyTop + bodyH * 0.36;
+                    const line2Y = bodyTop + bodyH * 0.72;
+
+                    targetCtx.font = '800 15.5px "Cairo", sans-serif';
+                    const titleFit = fitRtlText(lessonText, textMaxW);
+                    targetCtx.textBaseline = 'middle';
+                    targetCtx.textAlign = 'right';
+                    targetCtx.fillStyle = titleCol;
+                    targetCtx.fillText(titleFit, rightTextX, line1Y);
+
+                    targetCtx.font = '700 12px "Cairo", sans-serif';
+                    const subFit = fitRtlText(subLineRaw, textMaxW);
+                    targetCtx.fillStyle = axisCol;
+                    targetCtx.fillText(subFit, rightTextX, line2Y);
+                } else {
+                    targetCtx.font = '800 16px "Cairo", sans-serif';
+                    const titleFit = fitRtlText(lessonText, textMaxW);
+                    targetCtx.textBaseline = 'middle';
+                    targetCtx.textAlign = 'right';
+                    targetCtx.fillStyle = titleCol;
+                    targetCtx.fillText(titleFit, rightTextX, bodyTop + bodyH / 2);
+                }
+            }
+
             targetCtx.restore();
             return;
         }

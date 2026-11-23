@@ -43,7 +43,7 @@
             label: 'مقرر الجذع المشترك للآداب والعلوم الإنسانية والتعليم الأصيل (TCL)',
             topics: [
                 'الحساب العددي والتناسبية', 'المعادلات والمتراجحات والنظمات',
-                'الإحصاء', 'الدوال العددية (عموميات وتمثيل مبياني)'
+                'الإحصاء', 'الهندسة المستوية (المعلم في المستوى ومعادلة مستقيم)', 'الدوال العددية (عموميات وتمثيل مبياني)'
             ]
         },
         '1BAC': {
@@ -235,8 +235,10 @@
      */
     function getClassStudentCount(className) {
         if (!className || className === 'جميع الأقسام') return 0;
-        if (window.db && window.db.classes && Array.isArray(window.db.classes[className])) {
-            return window.db.classes[className].length;
+        if (window.db && window.db.classes && window.db.classes[className]) {
+            const raw = window.db.classes[className];
+            if (Array.isArray(raw)) return raw.length;
+            if (Array.isArray(raw.students)) return raw.students.length;
         }
         return 0;
     }
@@ -569,7 +571,7 @@
         const formClassSelect = document.getElementById('upcomingExamClassSelect');
         const filterClassSelect = document.getElementById('upcomingTimelineClassFilter');
         const reportClassSelect = document.getElementById('reportClassSelect');
-        const activeReportClass = reportClassSelect && reportClassSelect.value && reportClassSelect.value !== '__ALL__'
+        const activeReportClass = reportClassSelect && reportClassSelect.value && reportClassSelect.value !== '__ALL__' && reportClassSelect.value !== '__MULTI__' && !String(reportClassSelect.value).startsWith('__MULTI__')
             ? reportClassSelect.value
             : '';
 
@@ -836,6 +838,63 @@
             typeSelect.value = 'فرض محروس';
         }
         syncHomeworkFormUI();
+    };
+
+    /**
+     * تعبئة الدروس والمدة والعنوان تلقائياً من جداول المذكرة الوزارية رقم 142-08
+     */
+    window.prefillUpcomingExamFromNote142 = function () {
+        const classSel = document.getElementById('upcomingExamClassSelect');
+        const levelSel = document.getElementById('upcomingExamLevelFilter');
+        const semSel = document.getElementById('upcomingExamSemesterSelect');
+        const numSel = document.getElementById('upcomingExamNumberSelect');
+        const typeSel = document.getElementById('upcomingExamTypeSelect');
+        const durSel = document.getElementById('upcomingExamDurationSelect');
+        const topicsInp = document.getElementById('upcomingExamTopicsInput');
+        const titleInp = document.getElementById('upcomingExamTitleInput');
+        const lblEl = document.getElementById('upcomingExamLevelCurriculumLabel');
+
+        const classVal = classSel ? classSel.value : '';
+        const levelKey = (classVal && classVal !== 'جميع الأقسام')
+            ? detectLevelFromClassName(classVal)
+            : ((levelSel && levelSel.value && levelSel.value !== 'all') ? levelSel.value : 'TCS');
+        const semKey = (semSel && semSel.value === 's2') ? 's2' : 's1';
+        const numRaw = numSel ? numSel.value : '1';
+        const isHW = (typeSel && typeSel.value === 'فرض منزلي') || numRaw === 'dm1';
+        const examNum = isHW ? 1 : (parseInt(numRaw, 10) || 1);
+
+        const currMap = window.MOROCCAN_SECONDARY_MATH_CURRICULUM || {};
+        const lvlData = currMap[levelKey] || currMap.TCS;
+        if (!lvlData) return;
+
+        const semObj = lvlData.semesters && lvlData.semesters[semKey];
+        const exMatch = (semObj && Array.isArray(semObj.examSchedule))
+            ? (semObj.examSchedule.find(e => e.examNumber === examNum) || semObj.examSchedule[examNum - 1] || semObj.examSchedule[0])
+            : null;
+
+        if (!isHW && durSel) {
+            durSel.value = lvlData.examDuration === 1 ? '1h' : '2h';
+        } else if (isHW && durSel) {
+            durSel.value = 'أسبوع';
+        }
+
+        if (exMatch) {
+            if (topicsInp && exMatch.topics) {
+                topicsInp.value = exMatch.topics;
+            }
+            if (titleInp) {
+                const semLabel = semKey === 's2' ? 'الدورة الثانية' : 'الدورة الأولى';
+                titleInp.value = isHW
+                    ? `الفرض المنزلي المرتبط بالفرض ${exMatch.examNumber} - ${semLabel}`
+                    : `${exMatch.title || ('الفرض المحروس رقم ' + examNum)} - ${semLabel}`;
+            }
+            if (lblEl) {
+                lblEl.textContent = `${lvlData.shortName || levelKey} • ${exMatch.week || ''} • التصحيح: ${exMatch.correctionWeek || 'أسبوع التصحيح'}`;
+            }
+        }
+        if (typeof window.showToast === 'function') {
+            window.showToast(`✅ تمت تعبئة محاور الفرض والمدة الرسمية من المذكرة 142-08 (${lvlData.shortName || levelKey})`, 'success');
+        }
     };
 
     window.onUpcomingDistributionDateChange = function (distDateStr) {
@@ -2015,7 +2074,7 @@
     window.loadDefaultExamsPreset = function () {
         const classes = getAvailableClasses('all');
         const reportClassSelect = document.getElementById('reportClassSelect');
-        const activeClass = (reportClassSelect && reportClassSelect.value && reportClassSelect.value !== '__ALL__')
+        const activeClass = (reportClassSelect && reportClassSelect.value && reportClassSelect.value !== '__ALL__' && reportClassSelect.value !== '__MULTI__' && !String(reportClassSelect.value).startsWith('__MULTI__'))
             ? reportClassSelect.value
             : (classes[0] || 'جميع الأقسام');
 
@@ -2124,7 +2183,7 @@
         const totalCount = filtered.length;
         const doneCount = filtered.filter(e => {
             const p = computePrepProgress(e);
-            return p.percent === 100 || e.status === 'done';
+            return p.percent === 100 || e.status === 'completed' || e.status === 'done';
         }).length;
         const readyCount = filtered.filter(e => {
             const p = computePrepProgress(e);
@@ -2137,11 +2196,13 @@
         const rowsHtml = filtered.length > 0 ? filtered.map((e, i) => {
             const meta = getUrgencyMeta(e);
             const prep = computePrepProgress(e);
+            const pFlags = prep.prep || {};
             const stepsLabels = [
-                e.prepDrafted ? '✓ الموضوع' : '○ الموضوع',
-                e.prepPrinted ? '✓ الطبع' : '○ الطبع',
-                e.prepPassed ? '✓ التمرير' : '○ التمرير',
-                e.prepCorrected ? '✓ التصحيح' : '○ التصحيح'
+                pFlags.drafted ? '✓ الموضوع' : '○ الموضوع',
+                pFlags.scaleReady ? '✓ الباريم' : '○ الباريم',
+                pFlags.printed ? '✓ الطبع' : '○ الطبع',
+                pFlags.conducted ? '✓ التمرير' : '○ التمرير',
+                pFlags.graded ? '✓ التصحيح' : '○ التصحيح'
             ].join(' | ');
             return `
                 <tr style="background:${i % 2 === 1 ? '#f8fafc' : '#ffffff'}; page-break-inside:avoid;">
@@ -2257,7 +2318,7 @@
             reportSelect.addEventListener('change', function () {
                 const val = reportSelect.value;
                 const timelineFilter = document.getElementById('upcomingTimelineClassFilter');
-                if (val && val !== '__ALL__') {
+                if (val && val !== '__ALL__' && val !== '__MULTI__' && !String(val).startsWith('__MULTI__')) {
                     currentFilterClass = val;
                     if (timelineFilter) timelineFilter.value = val;
                 } else {

@@ -1180,24 +1180,39 @@
         @media (max-width: 768px) {
             .header-top-row,
             .header-bottom-row {
-                justify-content: center;
-                gap: 8px;
-                flex-wrap: wrap;
+                justify-content: center !important;
+                gap: 6px !important;
+                flex-wrap: wrap !important;
+                height: auto !important;
+                min-height: 0 !important;
+                overflow-x: visible !important;
+                max-width: 100% !important;
+            }
+            .header-brand-group,
+            .header-title-wrapper,
+            .header-cycle-companions-group,
+            .header-bottom-end-group {
+                flex-wrap: wrap !important;
+                height: auto !important;
+                max-width: 100% !important;
+                flex-shrink: 1 !important;
+                justify-content: center !important;
             }
             .header-level-1-group,
             .header-status-bar {
-                justify-content: center;
-                width: 100%;
-                gap: 6px;
-                flex-wrap: wrap;
+                justify-content: center !important;
+                width: 100% !important;
+                gap: 6px !important;
+                flex-wrap: wrap !important;
             }
             .header-level-2-group,
             .header-actions-bar {
-                justify-content: center;
-                width: 100%;
-                gap: 5px;
-                flex-wrap: wrap;
-                overflow-x: visible;
+                justify-content: center !important;
+                width: 100% !important;
+                gap: 5px !important;
+                flex-wrap: wrap !important;
+                overflow-x: visible !important;
+                height: auto !important;
             }
             .header-settings-main-btn {
                 padding: 4px 7px;
@@ -8587,6 +8602,8 @@ body.presentation-mode {
     justify-content: center;
     padding: 16px;
     box-sizing: border-box;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     animation: driveFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -8597,12 +8614,79 @@ body.presentation-mode {
     border: 1px solid #e2e8f0;
     width: 100%;
     max-width: 440px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 #f1f5f9;
     padding: 22px 24px;
     box-sizing: border-box;
     position: relative;
+    margin: auto;
     direction: rtl;
     text-align: right;
     animation: driveSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.drive-sync-modal-card::-webkit-scrollbar,
+.drive-sync-scroll-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.drive-sync-modal-card::-webkit-scrollbar-track,
+.drive-sync-scroll-body::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 8px;
+}
+
+.drive-sync-modal-card::-webkit-scrollbar-thumb,
+.drive-sync-scroll-body::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 8px;
+    border: 2px solid #f1f5f9;
+}
+
+.drive-sync-modal-card::-webkit-scrollbar-thumb:hover,
+.drive-sync-scroll-body::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+.drive-sync-scroll-body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 #f1f5f9;
+    overscroll-behavior: contain;
+}
+
+.drive-sync-scroll-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: #f8fafc;
+    border: 1.5px solid #cbd5e1;
+    color: #1e293b;
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: 0.73rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.drive-sync-scroll-nav-btn:hover {
+    background: #e0f2fe;
+    border-color: #0284c7;
+    color: #0369a1;
+    transform: translateY(-1px);
+}
+
+.drive-sync-scroll-nav-btn:active {
+    transform: translateY(0);
 }
 
 @keyframes driveFadeIn {
@@ -12086,6 +12170,16 @@ body.student-print-mode.print-mode-size-a5 .student-a4-minimalist-sheet .student
     margin-bottom: 10px !important;
 }
 
+@media (max-width: 640px) {
+    body:not(.student-print-mode) .student-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+    }
+    body:not(.student-print-mode) .shm-analytics-cards-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
 /* Minimalist A4 / A5 Sheet Typography & Structure */
 .student-a4-minimalist-sheet {
     font-family: 'Cairo', 'Tajawal', system-ui, -apple-system, sans-serif;
@@ -13033,3 +13127,105 @@ body.dark-mode #whiteboardDesktopHubModal .wb-desk-tab-btn.active {
     color: #0369a1;
 }
 
+/* =====================================================================
+   Responsive Polish, Tabular Numerals & Dark Mode Enhancement
+   ===================================================================== */
+
+.reports-top-actions-bar > button {
+    flex: 1 1 180px;
+    min-height: 36px;
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.reports-export-actions-bar > button {
+    flex: 0 1 auto;
+    min-height: 34px;
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.reports-axes-grid > button {
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.reports-top-actions-bar > button:hover,
+.reports-export-actions-bar > button:hover,
+.reports-axes-grid > button:hover,
+.lesson-log-header-actions > button:hover {
+    transform: translateY(-1px);
+}
+
+.reports-stats-bar,
+#statClassTotalSessions,
+#statClassTotalHours,
+#statClassExtraSupportSessions,
+#curriculumCardsContainer table,
+.lesson-log-card-item {
+    font-variant-numeric: tabular-nums;
+}
+
+.lesson-log-header-actions > button {
+    min-height: 36px;
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+@media (max-width: 1200px) {
+    .reports-axes-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 900px) {
+    .reports-stats-bar {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+    .reports-axes-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 580px) {
+    .reports-stats-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    .reports-axes-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    .reports-top-actions-bar > button,
+    .reports-export-actions-bar > button,
+    .lesson-log-header-actions > button {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+body.dark-mode #reportMasterFilterCard,
+body.dark-mode #reportsTabAxesNavCard {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode #reportMasterFilterCard h3,
+body.dark-mode #reportsTabAxesNavCard > div:first-child > span:first-child {
+    color: #93c5fd !important;
+}
+
+body.dark-mode #reportMasterFilterCard label {
+    color: #cbd5e1 !important;
+}
+
+body.dark-mode .lesson-log-card-item {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode .lesson-log-card-item .lesson-card-axis-item {
+    background-color: #0f172a !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .lesson-log-card-item .lesson-card-paragraph-item {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}

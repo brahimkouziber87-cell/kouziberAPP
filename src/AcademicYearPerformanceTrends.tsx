@@ -204,7 +204,8 @@ export default function AcademicYearPerformanceTrends({
 
     // First pass: check if real grades exist
     targetClasses.forEach((cName) => {
-      const students: Student[] = Array.isArray(db?.classes?.[cName]) ? db.classes[cName] : [];
+      const rawCls = db?.classes?.[cName];
+      const students: Student[] = Array.isArray(rawCls) ? rawCls : (rawCls?.students || []);
       const examsCount = getExamsCountSafe(cName);
       const validKeys = examsCount === 2 ? ['f1', 'f2'] : examsCount === 4 ? ['f1', 'f2', 'f3', 'f4'] : ['f1', 'f2', 'f3'];
       students.forEach((std) => {
@@ -217,10 +218,11 @@ export default function AcademicYearPerformanceTrends({
       });
     });
 
-    const isSimulating = useDemoSimulation || totalRealGradesCount === 0;
+    const isSimulating = useDemoSimulation;
 
     targetClasses.forEach((cName, clsIdx) => {
-      const students: Student[] = Array.isArray(db?.classes?.[cName]) ? db.classes[cName] : [];
+      const rawCls = db?.classes?.[cName];
+      const students: Student[] = Array.isArray(rawCls) ? rawCls : (rawCls?.students || []);
       const examsCount = getExamsCountSafe(cName);
       const validKeys = (examsCount === 2 ? ['f1', 'f2'] : examsCount === 4 ? ['f1', 'f2', 'f3', 'f4'] : ['f1', 'f2', 'f3']) as Array<'f1' | 'f2' | 'f3' | 'f4'>;
 
@@ -479,9 +481,17 @@ export default function AcademicYearPerformanceTrends({
   };
 
   const handlePrintAnnualTrendsReport = () => {
+    const esc = (s: any) =>
+      String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    const nowObj = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date();
     const scopeTitle = selectedClass === 'all' ? `جميع الأقسام المسندة (${classNames.length})` : `القسم: ${selectedClass}`;
-    const printDate = new Date().toLocaleDateString('ar-MA');
-    const teacherName = db?.teacherProfile?.name || 'الأستاذ إبراهيم قزيبر';
+    const printDate = nowObj.toLocaleDateString('ar-MA');
+    const teacherName = db?.teacherProfile?.name || 'أستاذ المادة';
     const schoolName = db?.teacherProfile?.school || 'الثانوية التأهيلية';
 
     const milestonesRows = analyticsData.milestones
@@ -489,7 +499,7 @@ export default function AcademicYearPerformanceTrends({
       .map(
         (m) => `
         <tr>
-          <td style="border:1px solid #334155;padding:5px;font-weight:800;">${m.fullLabel}</td>
+          <td style="border:1px solid #334155;padding:5px;font-weight:800;">${esc(m.fullLabel)}</td>
           <td style="border:1px solid #334155;padding:5px;text-align:center;">${m.gradedCount}</td>
           <td style="border:1px solid #334155;padding:5px;text-align:center;font-weight:900;color:#1e3a8a;">${m.avgMark !== null ? m.avgMark.toFixed(2) : '—'}</td>
           <td style="border:1px solid #334155;padding:5px;text-align:center;color:#0284c7;font-weight:700;">${m.topQuartileAvg !== null ? m.topQuartileAvg.toFixed(2) : '—'}</td>
@@ -503,7 +513,7 @@ export default function AcademicYearPerformanceTrends({
       .map(
         (c) => `
         <tr>
-          <td style="border:1px solid #334155;padding:5px;font-weight:900;">${c.className}</td>
+          <td style="border:1px solid #334155;padding:5px;font-weight:900;">${esc(c.className)}</td>
           <td style="border:1px solid #334155;padding:5px;text-align:center;">${c.studentCount}</td>
           <td style="border:1px solid #334155;padding:5px;text-align:center;font-weight:700;">${c.s1Avg !== null ? c.s1Avg.toFixed(2) : '—'}</td>
           <td style="border:1px solid #334155;padding:5px;text-align:center;font-weight:700;color:#312e81;">${c.s2Avg !== null ? c.s2Avg.toFixed(2) : '—'}</td>
@@ -519,15 +529,15 @@ export default function AcademicYearPerformanceTrends({
         <div style="border-bottom:2px solid #1e3a8a;padding-bottom:8px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
           <div style="font-size:11px;font-weight:800;line-height:1.5;">
             <div>المملكة المغربية · وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
-            <div>المؤسسة: ${schoolName} · المادة: الرياضيات</div>
+            <div>المؤسسة: ${esc(schoolName)} · المادة: الرياضيات</div>
           </div>
           <div style="text-align:center;">
             <div style="font-size:15px;font-weight:900;color:#1e3a8a;">حصيلة مسار تطور التحصيل الدراسي السنوي (S1 → S2)</div>
-            <div style="font-size:11px;font-weight:700;color:#475569;">${scopeTitle}</div>
+            <div style="font-size:11px;font-weight:700;color:#475569;">${esc(scopeTitle)}</div>
           </div>
           <div style="font-size:11px;font-weight:800;text-align:left;line-height:1.5;">
-            <div>الأستاذ: ${teacherName}</div>
-            <div>التاريخ: ${printDate}</div>
+            <div>الأستاذ: ${esc(teacherName)}</div>
+            <div>التاريخ: ${esc(printDate)}</div>
           </div>
         </div>
 
@@ -582,7 +592,7 @@ export default function AcademicYearPerformanceTrends({
         </table>
 
         <div class="official-universal-bottom-bar" style="margin-top:16px;padding-top:6px;border-top:1.5px solid #cbd5e1;text-align:center;font-size:10.5px;font-weight:800;color:#1e3a8a;">
-          منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر
+          منظومة التدبير التربوي - مادة الرياضيات - ${esc(teacherName)}
         </div>
       </div>
     `;

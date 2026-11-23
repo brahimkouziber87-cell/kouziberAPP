@@ -50,11 +50,13 @@ interface ExamPoint {
 }
 
 function parseGrade(val: any): number | null {
-  if (val === undefined || val === null || val === '' || isNaN(parseFloat(val))) {
+  if (val === undefined || val === null) return null;
+  const normalized = String(val).trim().replace(',', '.');
+  if (!normalized || !/^-?\d+(\.\d+)?$/.test(normalized)) {
     return null;
   }
-  const n = parseFloat(val);
-  return (n >= 0 && n <= 20) ? n : null;
+  const n = parseFloat(normalized);
+  return (!isNaN(n) && n >= 0 && n <= 20) ? n : null;
 }
 
 function getAppreciation(mark: number | null): { text: string; color: string } {
@@ -82,13 +84,16 @@ export default function QuickProfileSparkline({
   const [viewMode, setViewMode] = useState<'line' | 'bar'>('line');
 
   const examKeys = useMemo(() => {
-    return examCount === 2 ? ['f1', 'f2'] : ['f1', 'f2', 'f3'];
+    if (examCount === 2) return ['f1', 'f2'];
+    if (examCount >= 4) return ['f1', 'f2', 'f3', 'f4'];
+    return ['f1', 'f2', 'f3'];
   }, [examCount]);
 
   const examTitles: Record<string, string> = {
     f1: 'فرض 1',
     f2: 'فرض 2',
-    f3: 'فرض 3'
+    f3: 'فرض 3',
+    f4: 'فرض 4'
   };
 
   const data: ExamPoint[] = useMemo(() => {

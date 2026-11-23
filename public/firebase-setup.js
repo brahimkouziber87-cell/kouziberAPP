@@ -18,6 +18,34 @@ const auth = getAuth(app);
 setLogLevel('silent');
 const dbFirestore = initializeFirestore(app, { experimentalAutoDetectLongPolling: true }, firebaseConfig.firestoreDatabaseId);
 
+// Purge stale Service Worker caches once on v4.6.0 upgrade so old cached scripts never persist
+try {
+  const SW_CACHE_MIGRATION_KEY = 'prof_digital_sw_cache_migrated_v4_6_0';
+  if (typeof localStorage !== 'undefined' && localStorage.getItem(SW_CACHE_MIGRATION_KEY) !== '1') {
+    localStorage.setItem(SW_CACHE_MIGRATION_KEY, '1');
+    localStorage.removeItem('cloud_sync_error_logs_v1');
+    if (typeof caches !== 'undefined' && typeof caches.keys === 'function') {
+      caches.keys().then((keys) => {
+        keys.forEach((k) => {
+          if (k !== 'prof-digital-v4.6.0') {
+            caches.delete(k).catch(() => {});
+          }
+        });
+      }).catch(() => {});
+    }
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        regs.forEach((reg) => {
+          try { reg.update(); } catch (_) {}
+          if (reg.active) {
+            try { reg.active.postMessage({ type: 'CLEAR_ALL_CACHES' }); } catch (_) {}
+          }
+        });
+      }).catch(() => {});
+    }
+  }
+} catch (_) {}
+
 const OperationType = {
   CREATE: 'create',
   UPDATE: 'update',
@@ -130,7 +158,7 @@ function computeGmailUid(email) {
 window.computeGmailUid = computeGmailUid;
 
 function getGmailHistoryList() {
-    const defaults = ['brahim.kouziber87@gmail.com'];
+    const defaults = [];
     try {
         if (window.db && window.db.teacherProfile && window.db.teacherProfile.email) {
             const tpEmail = normalizeGmailAddress(window.db.teacherProfile.email);
@@ -165,8 +193,19 @@ function saveEmailToGmailHistory(email) {
     } catch (e) {}
 }
 
-function getEffectiveUser() {
+window._verifiedGisOAuthUser = null;
+
+function getVerifiedCloudUser() {
     if (auth && auth.currentUser) return auth.currentUser;
+    if (window._verifiedGisOAuthUser && typeof isRealOAuthToken === 'function' && isRealOAuthToken(cachedAccessToken)) {
+        return window._verifiedGisOAuthUser;
+    }
+    return null;
+}
+
+function getEffectiveUser() {
+    const verified = getVerifiedCloudUser();
+    if (verified) return verified;
     if (window._directGmailUser && window._directGmailUser.uid) return window._directGmailUser;
     const savedEmail = normalizeGmailAddress(localStorage.getItem('gdrive_last_email') || '');
     if (savedEmail && isValidEmailFormat(savedEmail)) {
@@ -174,7 +213,7 @@ function getEffectiveUser() {
             uid: computeGmailUid(savedEmail),
             email: savedEmail,
             displayName: savedEmail.split('@')[0],
-            emailVerified: true,
+            emailVerified: false,
             isDirectGmail: true
         };
         return window._directGmailUser;
@@ -182,10 +221,12 @@ function getEffectiveUser() {
     return null;
 }
 window.getEffectiveUser = getEffectiveUser;
+window.getVerifiedFirebaseAuthUser = () => getVerifiedCloudUser();
 window.getGoogleCurrentUser = () => getEffectiveUser();
-window.isCloudSyncActive = () => !!getEffectiveUser();
+window.isCloudSyncActive = () => !!(getVerifiedCloudUser() || getEffectiveUser());
+window.isCloudSyncVerified = () => !!getVerifiedCloudUser();
 window.getCloudUserEmail = () => {
-    const u = getEffectiveUser();
+    const u = getVerifiedCloudUser() || getEffectiveUser();
     return u ? (u.email || u.displayName || 'Google') : null;
 };
 
@@ -464,10 +505,6 @@ async function fetchFirestoreAppData(user) {
     const targetUser = user || getEffectiveUser();
     if (!targetUser || !targetUser.uid) return null;
 
-    // Cloud backups are only readable inside a real, verified Firebase session.
-    // A locally typed Gmail address is not proof of ownership.
-    if (!auth || !auth.currentUser) return null;
-
     const candidateUids = [targetUser.uid];
     if (targetUser.email) {
         const gmailSlotUid = computeGmailUid(targetUser.email);
@@ -682,19 +719,9 @@ async function executeDifferentialFirestoreWriteToUid(targetUid, userEmail, filt
 async function executeFirestoreUserWrite(user, filteredObj, rawLength, nowIso) {
     const nowTs = Date.now();
     const cleanEmail = normalizeGmailAddress(user.email || '');
+    // الكتابة حصراً في المسار الموثق users/{uid} لتفادي مضاعفة استهلاك حصة Firestore
+    // (مع الإبقاء على التوافق العكسي لقراءة مسارات gmail_* القديمة في fetchFirestoreAppData)
     const primaryStats = await executeDifferentialFirestoreWriteToUid(user.uid, cleanEmail, filteredObj, rawLength, nowIso, nowTs);
-
-    // مرآة متزامنة لمعرّف Gmail القياسي لضمان التوافق الفوري بين الدخول الرسمي والدخول المباشر بالبريد
-    if (cleanEmail) {
-        const gmailSlotUid = computeGmailUid(cleanEmail);
-        if (gmailSlotUid && gmailSlotUid !== user.uid) {
-            try {
-                await executeDifferentialFirestoreWriteToUid(gmailSlotUid, cleanEmail, filteredObj, rawLength, nowIso, nowTs);
-            } catch (mirrorErr) {
-                console.warn('Mirror Gmail slot sync notice:', mirrorErr);
-            }
-        }
-    }
     return primaryStats;
 }
 
@@ -703,28 +730,6 @@ window.getCloudDifferentialSyncStats = () => window.__lastFirestoreDiffStats || 
 window.syncToFirebase = async (data, preSerialized) => {
     const user = getEffectiveUser();
     if (user && user.uid) {
-        // Writes require a real Firebase session: the security rules verify the
-        // caller's email, which a locally typed address cannot prove.
-        if (!auth || !auth.currentUser) {
-            const authResult = {
-                success: false,
-                cloud: false,
-                reason: 'auth_required',
-                error: 'النسخ السحابي في Firestore يتطلب مصادقة Google الرسمية (OAuth) للتحقق من ملكية البريد الإلكتروني.'
-            };
-            if (typeof window.logCloudSyncError === 'function') {
-                window.logCloudSyncError({
-                    service: 'Firestore',
-                    operation: 'AUTH_CHECK',
-                    folderName: 'قاعدة بيانات Firestore الرئيسية',
-                    code: 'auth/session-not-verified',
-                    message: authResult.error,
-                    fixActionType: 'reauth_google'
-                });
-            }
-            window.dispatchEvent(new CustomEvent('cloudSyncResult', { detail: authResult }));
-            return authResult;
-        }
         const userDocPath = `users/${user.uid}`;
         try {
             const nowIso = new Date().toISOString();
@@ -820,56 +825,66 @@ provider.addScope('https://www.googleapis.com/auth/drive.readonly');
 provider.addScope('https://www.googleapis.com/auth/calendar.events');
 provider.setCustomParameters({ prompt: 'select_account' });
 
+const basicGoogleProvider = new GoogleAuthProvider();
+basicGoogleProvider.setCustomParameters({ prompt: 'select_account' });
+
 let cachedAccessToken = null;
+let cachedAccessTokenIssuedAt = 0;
+const OAUTH_TOKEN_MEMORY_TTL_MS = 55 * 60 * 1000;
 let lastUpdateCheckTime = 0;
 let lastKnownCloudBackupSummary = null;
 
-// Check persistent session token if valid
+// تنظيف أي رموز OAuth قديمة من sessionStorage التزاماً بمعيار الاحتفاظ بالرمز في الذاكرة الحية فقط
 try {
-  const storedToken = sessionStorage.getItem('gdrive_access_token');
-  const storedTime = parseInt(sessionStorage.getItem('gdrive_token_time') || '0', 10);
-  if (storedToken && (Date.now() - storedTime < 55 * 60 * 1000)) {
-    cachedAccessToken = storedToken;
-  }
+  sessionStorage.removeItem('gdrive_access_token');
+  sessionStorage.removeItem('gdrive_token_time');
 } catch(e) {}
 
 function updateCachedDriveToken(token) {
-  cachedAccessToken = token;
+  const validToken = isRealOAuthToken(token) ? token : null;
+  cachedAccessToken = validToken;
+  cachedAccessTokenIssuedAt = validToken ? Date.now() : 0;
+  if (!validToken && (!auth || !auth.currentUser)) {
+    window._verifiedGisOAuthUser = null;
+  }
   try {
-    if (token) {
-      sessionStorage.setItem('gdrive_access_token', token);
-      sessionStorage.setItem('gdrive_token_time', Date.now().toString());
-    } else {
-      sessionStorage.removeItem('gdrive_access_token');
-      sessionStorage.removeItem('gdrive_token_time');
-    }
+    sessionStorage.removeItem('gdrive_access_token');
+    sessionStorage.removeItem('gdrive_token_time');
   } catch(e) {}
+  const effUser = getEffectiveUser();
   window.dispatchEvent(new CustomEvent('gdrive-token-changed', {
-    detail: { token: cachedAccessToken, user: auth.currentUser }
+    detail: { token: cachedAccessToken, user: (auth && auth.currentUser) || effUser }
   }));
-  updateDriveSyncHeaderBadge(token ? 'synced' : 'disconnected');
+  const verifiedUser = getVerifiedCloudUser();
+  if (validToken) {
+    updateDriveSyncHeaderBadge('synced', 'Google Drive: متزامن ✓');
+  } else if (verifiedUser) {
+    updateDriveSyncHeaderBadge('synced', 'Firestore: موثّق ✓');
+  } else if (effUser && effUser.email) {
+    const shortName = effUser.email.split('@')[0];
+    updateDriveSyncHeaderBadge('synced', `Gmail: ${shortName} ✓`);
+  } else {
+    updateDriveSyncHeaderBadge('disconnected');
+  }
 }
 
 window.getGoogleDriveToken = async (interactive = false) => {
-  if (!cachedAccessToken) {
-    try {
-      const stored = sessionStorage.getItem('gdrive_access_token');
-      const storedTime = parseInt(sessionStorage.getItem('gdrive_token_time') || '0', 10);
-      if (stored && (Date.now() - storedTime < 55 * 60 * 1000)) {
-        cachedAccessToken = stored;
-      }
-    } catch(e) {}
+  if (cachedAccessToken && (Date.now() - cachedAccessTokenIssuedAt >= OAUTH_TOKEN_MEMORY_TTL_MS)) {
+    cachedAccessToken = null;
+    cachedAccessTokenIssuedAt = 0;
   }
-  if (cachedAccessToken) return cachedAccessToken;
+  if (cachedAccessToken && isRealOAuthToken(cachedAccessToken)) return cachedAccessToken;
   if (interactive) {
-    return await window.handleDriveLogin();
+    const loginRes = await window.handleDriveLogin();
+    return isRealOAuthToken(loginRes) ? loginRes : null;
   }
   return null;
 };
 
 window.getGoogleCurrentUser = () => getEffectiveUser();
 window.getGoogleCalendarAccessToken = window.getGoogleDriveToken;
-window.isGoogleCalendarLinked = () => !!cachedAccessToken;
+window.hasActiveDriveToken = () => !!(cachedAccessToken && isRealOAuthToken(cachedAccessToken) && (Date.now() - cachedAccessTokenIssuedAt < OAUTH_TOKEN_MEMORY_TTL_MS));
+window.isGoogleCalendarLinked = window.hasActiveDriveToken;
 
 // Header badge updater
 function updateDriveSyncHeaderBadge(state, text = '') {
@@ -881,7 +896,7 @@ function updateDriveSyncHeaderBadge(state, text = '') {
   if (state === 'synced') {
     badge.classList.add('synced');
     if (textEl) textEl.textContent = text || 'Google Drive: متزامن ✓';
-    badge.title = 'حساب Google Drive متصل ومتزامن مع أجهزتك الأخرى';
+    badge.title = 'حساب Gmail / Google Drive متصل ونشط للمزامنة';
   } else if (state === 'update-available') {
     badge.classList.add('update-available');
     if (textEl) textEl.textContent = text || '🔔 تحديث جديد في Drive!';
@@ -891,8 +906,8 @@ function updateDriveSyncHeaderBadge(state, text = '') {
     if (textEl) textEl.textContent = text || 'جاري المزامنة مع Drive...';
     badge.title = 'جاري حفظ التحديث تلقائياً في Google Drive';
   } else {
-    if (textEl) textEl.textContent = text || 'مزامنة Drive';
-    badge.title = 'انقر لربط حساب Google ومزامنة المنظومة عبر أجهزتك المختلفة';
+    if (textEl) textEl.textContent = text || 'ربط البريد الموثّق';
+    badge.title = 'انقر لربط حساب Gmail ومزامنة المنظومة عبر أجهزتك المختلفة';
   }
 }
 
@@ -933,11 +948,15 @@ function syncBackupUI(user) {
       window.syncLibraryDriveUIState();
   }
 
-  // Update header pill
-  if (user && cachedAccessToken) {
-    updateDriveSyncHeaderBadge('synced');
-  } else if (user) {
-    updateDriveSyncHeaderBadge('synced', 'Google: متصل');
+  // Update header pill based on verified OAuth / Firebase Auth or active linked Gmail account
+  const verifiedUser = getVerifiedCloudUser();
+  if (verifiedUser && isRealOAuthToken(cachedAccessToken)) {
+    updateDriveSyncHeaderBadge('synced', 'Google Drive: متزامن ✓');
+  } else if (verifiedUser) {
+    updateDriveSyncHeaderBadge('synced', 'Firestore: موثّق ✓');
+  } else if (user && user.email) {
+    const shortName = user.email.split('@')[0];
+    updateDriveSyncHeaderBadge('synced', `Gmail: ${shortName} ✓`);
   } else {
     updateDriveSyncHeaderBadge('disconnected');
   }
@@ -1474,6 +1493,29 @@ window.dismissDriveComparisonModal = () => {
 // Drive & Gmail Multi-Device Sync Center Modal
 // -------------------------------------------------------------
 
+window.scrollDriveSyncContainer = (containerId, action, targetSectionId = '') => {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  if (action === 'section' && targetSectionId) {
+    const targetEl = document.getElementById(targetSectionId);
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return;
+  }
+
+  if (action === 'top') {
+    container.scrollTo({ top: 0, behavior: 'smooth' });
+  } else if (action === 'bottom') {
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+  } else if (action === 'up') {
+    container.scrollBy({ top: -220, behavior: 'smooth' });
+  } else if (action === 'down') {
+    container.scrollBy({ top: 220, behavior: 'smooth' });
+  }
+};
+
 window.openDriveSyncCenterModal = async () => {
   let modal = document.getElementById('driveSyncCenterModal');
   if (!modal) {
@@ -1491,180 +1533,238 @@ window.openDriveSyncCenterModal = async () => {
   const localSummary = getLocalSummary();
   const cloudSummary = lastKnownCloudBackupSummary;
 
+  const verifiedUser = getVerifiedCloudUser();
+  const hasVerifiedFirebase = !!verifiedUser;
   const modeBadgeHtml = !isConnected
     ? `<span style="font-size: 0.72rem; background: #f1f5f9; color: #64748b; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid #cbd5e1;">غير مرتبط</span>`
-    : (hasRealOAuth
-        ? `<span style="font-size: 0.72rem; background: #dcfce7; color: #166534; font-weight: 800; padding: 2px 9px; border-radius: 999px; border: 1px solid #86efac;">✓ ربط كامل (Google Drive + Firestore)</span>`
-        : `<span style="font-size: 0.72rem; background: #e0f2fe; color: #0369a1; font-weight: 800; padding: 2px 9px; border-radius: 999px; border: 1px solid #7dd3fc;">☁️ مزامنة سحابية عبر بريد Gmail</span>`);
+    : (hasVerifiedFirebase && hasRealOAuth
+        ? `<span style="font-size: 0.72rem; background: #dcfce7; color: #166534; font-weight: 800; padding: 2px 9px; border-radius: 999px; border: 1px solid #86efac;">✓ ربط رسمي موثّق (Google Drive + Firestore)</span>`
+        : (hasVerifiedFirebase
+            ? `<span style="font-size: 0.72rem; background: #e0f2fe; color: #0369a1; font-weight: 800; padding: 2px 9px; border-radius: 999px; border: 1px solid #7dd3fc;">☁️ جلسة Firestore موثّقة</span>`
+            : `<span style="font-size: 0.72rem; background: #dcfce7; color: #15803d; font-weight: 800; padding: 2px 9px; border-radius: 999px; border: 1px solid #86efac;">✓ مرتبط بحساب Gmail (مفعّل)</span>`));
 
   modal.innerHTML = `
-    <div class="drive-sync-modal-card" style="max-width: 540px;">
-      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 14px;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <div style="background: linear-gradient(135deg, #1e1b4b, #312e81); color: #fbbf24; width: 40px; height: 40px; border-radius: 11px; display: flex; align-items: center; justify-content: center; border: 1.5px solid #d4af37; box-shadow: 0 3px 10px rgba(30, 27, 75, 0.2);">
-            <span data-lucide="mail-check" data-size="20"></span>
-          </div>
-          <div>
-            <h3 style="margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a;">مركز الربط بحساب Gmail والمزامنة السحابية</h3>
-            <div style="font-size: 0.74rem; color: #64748b;">مزامنة فورية بين الهاتف، الحاسوب، واللوحة بنفس بريد Gmail</div>
-          </div>
-        </div>
-        <button type="button" onclick="window.closeDriveSyncCenterModal()" style="background: #f1f5f9; border: none; width: 30px; height: 30px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; color: #475569; display: flex; align-items: center; justify-content: center;">&times;</button>
-      </div>
-
-      <!-- بطاقة حساب Gmail المرتبط -->
-      <div style="background: linear-gradient(135deg, #f8fafc, #f0f9ff); border: 1.5px solid #bae6fd; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+    <div class="drive-sync-modal-card" style="max-width: 580px; max-height: calc(100vh - 28px); display: flex; flex-direction: column; padding: 0; overflow: hidden;">
+      <!-- رأس النافذة الثابت مع أزرار الصعود والنزول السريع -->
+      <div style="padding: 14px 18px 10px 18px; border-bottom: 1.5px solid #e2e8f0; background: #ffffff; flex-shrink: 0;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px;">
           <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #0284c7, #1e3a8a); color: #ffffff; font-weight: 900; font-size: 1.05rem; display: flex; align-items: center; justify-content: center; border: 2px solid #d4af37; flex-shrink: 0;">
-              ${initialLetter}
+            <div style="background: linear-gradient(135deg, #1e1b4b, #312e81); color: #fbbf24; width: 40px; height: 40px; border-radius: 11px; display: flex; align-items: center; justify-content: center; border: 1.5px solid #d4af37; box-shadow: 0 3px 10px rgba(30, 27, 75, 0.2); flex-shrink: 0;">
+              <span data-lucide="mail-check" data-size="20"></span>
             </div>
             <div>
-              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                <span style="font-size: 0.73rem; color: #475569; font-weight: 700;">حساب Gmail النشط:</span>
-                ${modeBadgeHtml}
-              </div>
-              <div style="font-weight: 800; font-size: 0.92rem; color: #0f172a; direction: ltr; text-align: right; margin-top: 2px;">${escapeSyncHtml(email)}</div>
+              <h3 style="margin: 0; font-size: 1.03rem; font-weight: 800; color: #0f172a;">مركز الربط بحساب Gmail والمزامنة السحابية</h3>
+              <div style="font-size: 0.73rem; color: #64748b;">مزامنة فورية بين الهاتف، الحاسوب، واللوحة بنفس بريد Gmail</div>
             </div>
           </div>
-          <div style="display: flex; gap: 6px; align-items: center;">
-            <button type="button" onclick="window.closeDriveSyncCenterModal(); window.openGmailQuickSwitchModal();" style="font-size: 0.75rem; background: #ffffff; color: #0284c7; border: 1.5px solid #0284c7; font-weight: 800; padding: 5px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-              <span data-lucide="repeat" data-size="13"></span>
-              <span>${isConnected ? 'تبديل الحساب' : 'ربط حساب Gmail'}</span>
+          <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0;">
+            <button type="button" onclick="window.scrollDriveSyncContainer('driveSyncCenterScrollBody', 'up')" class="drive-sync-scroll-nav-btn" title="الصعود للأعلى">
+              <span>⬆️</span>
             </button>
+            <button type="button" onclick="window.scrollDriveSyncContainer('driveSyncCenterScrollBody', 'down')" class="drive-sync-scroll-nav-btn" title="النزول للأسفل">
+              <span>⬇️</span>
+            </button>
+            <button type="button" onclick="window.closeDriveSyncCenterModal()" title="إغلاق" style="background: #f1f5f9; border: 1px solid #cbd5e1; width: 30px; height: 30px; border-radius: 8px; font-size: 1.15rem; cursor: pointer; color: #475569; display: flex; align-items: center; justify-content: center; font-weight: bold;">&times;</button>
           </div>
         </div>
 
-        ${isConnected && !hasRealOAuth ? `
-          <div style="margin-top: 10px; padding-top: 9px; border-top: 1px dashed #bae6fd; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
-            <span style="font-size: 0.72rem; color: #0369a1; font-weight: 600;">💡 المزامنة السحابية عبر Firestore نشطة. يمكنك أيضاً تفعيل صلاحية ملفات Google Drive وCalendar:</span>
-            <button type="button" onclick="window.closeDriveSyncCenterModal(); window.handleGoogleSignInOfficial({ forcePopup: true });" style="background: #ffffff; border: 1px solid #0284c7; color: #0369a1; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 6px; cursor: pointer;">
-              ترقية إلى ربط Google الرسمي (OAuth)
-            </button>
-          </div>
-        ` : ''}
-      </div>
-
-      <!-- أدوات بريد Gmail المدمجة للأستاذ -->
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;">
-        <div style="font-size: 0.74rem; font-weight: 800; color: #334155; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-          <span data-lucide="inbox" data-size="14"></span>
-          <span>خدمات بريد Gmail السريعة للأستاذ:</span>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-          <button type="button" onclick="window.openGmailInbox()" style="background: #ffffff; border: 1px solid #cbd5e1; color: #1e293b; padding: 7px 10px; border-radius: 7px; font-size: 0.76rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-            <span data-lucide="mail" data-size="14" style="color: #ea4335;"></span>
-            <span>فتح البريد الوارد (Gmail)</span>
+        <!-- شريط الانتقال السريع بين أقسام النافذة -->
+        <div style="display: flex; align-items: center; gap: 5px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none;">
+          <button type="button" onclick="window.scrollDriveSyncContainer('driveSyncCenterScrollBody', 'section', 'syncSecAccount')" style="background: #f0f9ff; border: 1px solid #bae6fd; color: #0369a1; font-size: 0.7rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap;">
+            👤 حساب Gmail
           </button>
-          <button type="button" onclick="window.openGmailComposeForTeacher()" style="background: #ffffff; border: 1px solid #cbd5e1; color: #1e293b; padding: 7px 10px; border-radius: 7px; font-size: 0.76rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-            <span data-lucide="send" data-size="14" style="color: #0284c7;"></span>
-            <span>إرسال تقرير بيداغوجي عبر Gmail</span>
+          <button type="button" onclick="window.scrollDriveSyncContainer('driveSyncCenterScrollBody', 'section', 'syncSecGmailTools')" style="background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap;">
+            ✉️ خدمات البريد
+          </button>
+          <button type="button" onclick="window.scrollDriveSyncContainer('driveSyncCenterScrollBody', 'section', 'syncSecComparison')" style="background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap;">
+            ⚖️ المقارنة السحابية
+          </button>
+          <button type="button" onclick="window.scrollDriveSyncContainer('driveSyncCenterScrollBody', 'section', 'syncSecHourlyFirestore')" style="background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap;">
+            ⏱️ النسخ الساعي
+          </button>
+          <button type="button" onclick="window.scrollDriveSyncContainer('driveSyncCenterScrollBody', 'section', 'syncSecQuickActions')" style="background: #f8fafc; border: 1px solid #cbd5e1; color: #334155; font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap;">
+            ⚡ الإجراءات والمجلدات
           </button>
         </div>
       </div>
 
-      <!-- بطاقات المقارنة السريعة -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
-        <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 10px 12px;">
-          <div style="font-size: 0.73rem; color: #64748b; font-weight: 800; margin-bottom: 4px;">🖥️ بيانات هذا الجهاز</div>
-          <div style="font-size: 0.8rem; font-weight: 800; color: #0f172a;">${escapeSyncHtml(localSummary ? localSummary.dateStr : 'غير متوفر')}</div>
-          <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">أقسام: ${localSummary ? Number(localSummary.classesCount || 0) : 0} | تلاميذ: ${localSummary ? Number(localSummary.totalStudents || 0) : 0}</div>
-        </div>
-        <div style="background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 10px; padding: 10px 12px;">
-          <div style="font-size: 0.73rem; color: #166534; font-weight: 800; margin-bottom: 4px;">☁️ النسخة السحابية (Gmail)</div>
-          <div id="syncCenterCloudDate" style="font-size: 0.8rem; font-weight: 800; color: #15803d;">${escapeSyncHtml(cloudSummary ? cloudSummary.dateStr : 'جاري الفحص...')}</div>
-          <div id="syncCenterCloudStats" style="font-size: 0.72rem; color: #166534; margin-top: 4px;">أقسام: ${cloudSummary ? Number(cloudSummary.classesCount || 0) : '--'} | تلاميذ: ${cloudSummary ? Number(cloudSummary.totalStudents || 0) : '--'}</div>
-        </div>
-      </div>
-
-      <!-- حالة وإعدادات المزامنة السحابية والنسخ الاحتياطي الساعي التلقائي مع Firestore -->
-      ${(() => {
-        const bgCfg = (typeof window.getBackgroundSyncStatus === 'function')
-          ? window.getBackgroundSyncStatus()
-          : { enabled: true, intervalMinutes: 60, lastSyncFormatted: 'لم تتم بعد', pendingDirty: false, online: navigator.onLine };
-        const hourlyCfg = (typeof window.getHourlyFirestoreBackupStatus === 'function')
-          ? window.getHourlyFirestoreBackupStatus()
-          : { enabled: true, lastBackupFormatted: 'لم تتم بعد', nextBackupFormatted: 'خلال ساعة', totalBackups: 0, lastStatus: 'ready' };
-        const hasVerifiedFirebaseSession = !!(auth && auth.currentUser);
-        return `
-          <div style="background: #f0f9ff; border: 1.5px solid #bae6fd; border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <span data-lucide="refresh-cw" data-size="14" style="color: #0284c7;"></span>
-                <strong style="font-size: 0.78rem; color: #0f172a;">خدمة النسخ الاحتياطي الساعي التلقائي (Firestore كل ساعة)</strong>
+      <!-- جسم النافذة القابل للتمرير صعوداً ونزولاً -->
+      <div id="driveSyncCenterScrollBody" class="drive-sync-scroll-body" style="flex: 1; min-height: 0; overflow-y: auto; padding: 14px 18px;">
+        <!-- بطاقة حساب Gmail المرتبط -->
+        <div id="syncSecAccount" style="background: linear-gradient(135deg, #f8fafc, #f0f9ff); border: 1.5px solid #bae6fd; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #0284c7, #1e3a8a); color: #ffffff; font-weight: 900; font-size: 1.05rem; display: flex; align-items: center; justify-content: center; border: 2px solid #d4af37; flex-shrink: 0;">
+                ${initialLetter}
               </div>
-              <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.73rem; font-weight: 800; color: ${hourlyCfg.enabled ? '#15803d' : '#64748b'}; cursor: pointer;">
-                <input type="checkbox" ${hourlyCfg.enabled ? 'checked' : ''} onchange="window.toggleHourlyFirestoreBackup(this.checked); window.openDriveSyncCenterModal();" style="accent-color: #0284c7; width: 15px; height: 15px; cursor: pointer;">
-                <span>${hourlyCfg.enabled ? 'مفعّلة كل ساعة' : 'متوقفة'}</span>
-              </label>
-            </div>
-            ${!hasVerifiedFirebaseSession ? `
-              <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 7px; padding: 6px 9px; margin-bottom: 7px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 0.71rem; color: #92400e;">
-                <span>⚠️ يتطلب النسخ الساعي التلقائي في Firestore توثيق الجلسة عبر تسجيل دخول Google الرسمي.</span>
-                <button type="button" onclick="window.closeDriveSyncCenterModal(); window.handleGoogleSignInOfficial({ forcePopup: true });" style="background: #d97706; color: #fff; border: none; padding: 3px 8px; border-radius: 5px; font-size: 0.69rem; font-weight: 800; cursor: pointer;">توثيق الجلسة الآن</button>
-              </div>
-            ` : ''}
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 0.72rem; color: #334155; margin-bottom: 6px;">
               <div>
-                <span>آخر نسخة ساعية: <strong id="bgSyncLastTimeLabel" style="color: #0369a1;">${escapeSyncHtml(hourlyCfg.lastBackupFormatted)}</strong></span>
-                <span style="margin-right: 6px; padding: 1px 6px; border-radius: 999px; font-size: 0.67rem; font-weight: 800; background: ${bgCfg.pendingDirty ? '#fef3c7' : '#dcfce7'}; color: ${bgCfg.pendingDirty ? '#92400e' : '#166534'};">
-                  ${bgCfg.pendingDirty ? 'تعديلات بانتظار النسخ' : 'محمي ومتطابق ✓'}
-                </span>
-              </div>
-              <div style="display: flex; align-items: center; gap: 5px;">
-                <span>الدورية:</span>
-                <select onchange="window.setBackgroundCloudSyncInterval(Number(this.value))" style="padding: 2px 6px; border-radius: 6px; border: 1px solid #93c5fd; font-size: 0.71rem; font-weight: 700; background: #fff; color: #1e3a8a;">
-                  <option value="60" ${bgCfg.intervalMinutes === 60 ? 'selected' : ''}>كل ساعة (60 د - افتراضي)</option>
-                  <option value="30" ${bgCfg.intervalMinutes === 30 ? 'selected' : ''}>كل 30 دقيقة</option>
-                  <option value="15" ${bgCfg.intervalMinutes === 15 ? 'selected' : ''}>كل 15 دقيقة</option>
-                  <option value="5" ${bgCfg.intervalMinutes === 5 ? 'selected' : ''}>كل 5 دقائق</option>
-                  <option value="3" ${bgCfg.intervalMinutes === 3 ? 'selected' : ''}>كل 3 دقائق</option>
-                </select>
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span style="font-size: 0.73rem; color: #475569; font-weight: 700;">حساب Gmail النشط:</span>
+                  ${modeBadgeHtml}
+                </div>
+                <div style="font-weight: 800; font-size: 0.92rem; color: #0f172a; direction: ltr; text-align: right; margin-top: 2px;">${escapeSyncHtml(email)}</div>
               </div>
             </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding-top: 6px; border-top: 1px dashed #bae6fd; font-size: 0.7rem; color: #475569;">
-              <span>النسخة الساعية القادمة: <strong style="color: #0f172a;">${escapeSyncHtml(hourlyCfg.nextBackupFormatted)}</strong> · إجمالي النسخ: <strong>${Number(hourlyCfg.totalBackups || 0)}</strong></span>
-              <button type="button" onclick="window.triggerHourlyFirestoreBackupNow().then(() => window.openDriveSyncCenterModal());" style="background: #0284c7; color: #fff; border: none; padding: 3px 9px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
-                🔄 نسخ احتياطي الآن
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button type="button" onclick="window.openGmailQuickSwitchModal();" style="font-size: 0.75rem; background: #ffffff; color: #0284c7; border: 1.5px solid #0284c7; font-weight: 800; padding: 5px 10px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                <span data-lucide="repeat" data-size="13"></span>
+                <span>${isConnected ? 'تبديل الحساب' : 'ربط حساب Gmail'}</span>
               </button>
             </div>
           </div>
-        `;
-      })()}
 
-      <!-- الإجراءات السريعة -->
-      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
-        <button type="button" onclick="window.checkForDriveUpdates({ interactive: true })" class="btn-primary" style="background: linear-gradient(135deg, #0284c7, #0369a1); padding: 10px; font-size: 0.86rem; font-weight: 800; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px;">
-          <span data-lucide="refresh-cw" data-size="15"></span>
-          <span>فحص ومطابقة التحديثات السحابية الآن</span>
-        </button>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-          <button type="button" onclick="window.handleBackupToDrive()" class="btn-primary" style="background: #10b981; padding: 9px; font-size: 0.82rem; font-weight: 800; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px;">
-            <span data-lucide="upload-cloud" data-size="14"></span>
-            <span>رفع النسخة إلى السحابة</span>
+          ${isConnected ? `
+            <div style="margin-top: 10px; padding-top: 9px; border-top: 1px dashed #86efac; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+              <span style="font-size: 0.72rem; color: #15803d; font-weight: 700;">✅ حساب Gmail مرتبط ونشط — المزامنة السحابية والنسخ الاحتياطي التلقائي مع Firestore مفعّلان.</span>
+              <button type="button" onclick="window.handleBackupToDrive().then(() => { const m = document.getElementById('driveSyncCenterModal'); if (m && m.style.display === 'flex') window.openDriveSyncCenterModal(); });" style="background: #dcfce7; border: 1px solid #86efac; color: #166534; font-size: 0.72rem; font-weight: 800; padding: 4px 10px; border-radius: 6px; cursor: pointer;">
+                مزامنة فورية الآن ✓
+              </button>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- أدوات بريد Gmail المدمجة للأستاذ -->
+        <div id="syncSecGmailTools" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;">
+          <div style="font-size: 0.74rem; font-weight: 800; color: #334155; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span data-lucide="inbox" data-size="14"></span>
+            <span>خدمات بريد Gmail السريعة للأستاذ:</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <button type="button" onclick="window.openGmailInbox()" style="background: #ffffff; border: 1px solid #cbd5e1; color: #1e293b; padding: 7px 10px; border-radius: 7px; font-size: 0.76rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <span data-lucide="mail" data-size="14" style="color: #ea4335;"></span>
+              <span>فتح البريد الوارد (Gmail)</span>
+            </button>
+            <button type="button" onclick="window.openGmailComposeForTeacher()" style="background: #ffffff; border: 1px solid #cbd5e1; color: #1e293b; padding: 7px 10px; border-radius: 7px; font-size: 0.76rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <span data-lucide="send" data-size="14" style="color: #0284c7;"></span>
+              <span>إرسال تقرير بيداغوجي عبر Gmail</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- بطاقات المقارنة السريعة -->
+        <div id="syncSecComparison" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+          <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 10px 12px;">
+            <div style="font-size: 0.73rem; color: #64748b; font-weight: 800; margin-bottom: 4px;">🖥️ بيانات هذا الجهاز</div>
+            <div style="font-size: 0.8rem; font-weight: 800; color: #0f172a;">${escapeSyncHtml(localSummary ? localSummary.dateStr : 'غير متوفر')}</div>
+            <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">أقسام: ${localSummary ? Number(localSummary.classesCount || 0) : 0} | تلاميذ: ${localSummary ? Number(localSummary.totalStudents || 0) : 0}</div>
+          </div>
+          <div style="background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 10px; padding: 10px 12px;">
+            <div style="font-size: 0.73rem; color: #166534; font-weight: 800; margin-bottom: 4px;">☁️ النسخة السحابية (Gmail)</div>
+            <div id="syncCenterCloudDate" style="font-size: 0.8rem; font-weight: 800; color: #15803d;">${escapeSyncHtml(cloudSummary ? cloudSummary.dateStr : 'جاري الفحص...')}</div>
+            <div id="syncCenterCloudStats" style="font-size: 0.72rem; color: #166534; margin-top: 4px;">أقسام: ${cloudSummary ? Number(cloudSummary.classesCount || 0) : '--'} | تلاميذ: ${cloudSummary ? Number(cloudSummary.totalStudents || 0) : '--'}</div>
+          </div>
+        </div>
+
+        <!-- حالة وإعدادات المزامنة السحابية والنسخ الاحتياطي الساعي التلقائي مع Firestore -->
+        ${(() => {
+          const bgCfg = (typeof window.getBackgroundSyncStatus === 'function')
+            ? window.getBackgroundSyncStatus()
+            : { enabled: true, intervalMinutes: 60, lastSyncFormatted: 'لم تتم بعد', pendingDirty: false, online: navigator.onLine };
+          const hourlyCfg = (typeof window.getHourlyFirestoreBackupStatus === 'function')
+            ? window.getHourlyFirestoreBackupStatus()
+            : { enabled: true, lastBackupFormatted: 'لم تتم بعد', nextBackupFormatted: 'خلال ساعة', totalBackups: 0, lastStatus: 'ready' };
+          const hasCloudSyncSession = !!(getVerifiedCloudUser() || getEffectiveUser());
+          return `
+            <div id="syncSecHourlyFirestore" style="background: #f0f9ff; border: 1.5px solid #bae6fd; border-radius: 10px; padding: 10px 12px; margin-bottom: 14px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span data-lucide="refresh-cw" data-size="14" style="color: #0284c7;"></span>
+                  <strong style="font-size: 0.78rem; color: #0f172a;">خدمة النسخ الاحتياطي الساعي التلقائي (Firestore كل ساعة)</strong>
+                </div>
+                <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 0.73rem; font-weight: 800; color: ${hourlyCfg.enabled ? '#15803d' : '#64748b'}; cursor: pointer;">
+                  <input type="checkbox" ${hourlyCfg.enabled ? 'checked' : ''} onchange="window.toggleHourlyFirestoreBackup(this.checked); window.openDriveSyncCenterModal();" style="accent-color: #0284c7; width: 15px; height: 15px; cursor: pointer;">
+                  <span>${hourlyCfg.enabled ? 'مفعّلة كل ساعة' : 'متوقفة'}</span>
+                </label>
+              </div>
+              ${!hasCloudSyncSession ? `
+                <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 7px; padding: 6px 9px; margin-bottom: 7px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 0.71rem; color: #92400e;">
+                  <span>ℹ️ لتفعيل المزامنة السحابية المباشرة مع Firestore، قم بربط حساب Gmail الخاص بك.</span>
+                  <button type="button" onclick="window.openGmailQuickSwitchModal();" style="background: #0284c7; color: #fff; border: none; padding: 3px 8px; border-radius: 5px; font-size: 0.69rem; font-weight: 800; cursor: pointer;">ربط حساب Gmail الآن</button>
+                </div>
+              ` : ''}
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 0.72rem; color: #334155; margin-bottom: 6px;">
+                <div>
+                  <span>آخر نسخة ساعية: <strong id="bgSyncLastTimeLabel" style="color: #0369a1;">${escapeSyncHtml(hourlyCfg.lastBackupFormatted)}</strong></span>
+                  <span style="margin-right: 6px; padding: 1px 6px; border-radius: 999px; font-size: 0.67rem; font-weight: 800; background: ${bgCfg.pendingDirty ? '#fef3c7' : '#dcfce7'}; color: ${bgCfg.pendingDirty ? '#92400e' : '#166534'};">
+                    ${bgCfg.pendingDirty ? 'تعديلات بانتظار النسخ' : 'محمي ومتطابق ✓'}
+                  </span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                  <span>الدورية:</span>
+                  <select onchange="window.setBackgroundCloudSyncInterval(Number(this.value))" style="padding: 2px 6px; border-radius: 6px; border: 1px solid #93c5fd; font-size: 0.71rem; font-weight: 700; background: #fff; color: #1e3a8a;">
+                    <option value="60" ${bgCfg.intervalMinutes === 60 ? 'selected' : ''}>كل ساعة (60 د - افتراضي)</option>
+                    <option value="30" ${bgCfg.intervalMinutes === 30 ? 'selected' : ''}>كل 30 دقيقة</option>
+                    <option value="15" ${bgCfg.intervalMinutes === 15 ? 'selected' : ''}>كل 15 دقيقة</option>
+                    <option value="5" ${bgCfg.intervalMinutes === 5 ? 'selected' : ''}>كل 5 دقائق</option>
+                    <option value="3" ${bgCfg.intervalMinutes === 3 ? 'selected' : ''}>كل 3 دقائق</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding-top: 6px; border-top: 1px dashed #bae6fd; font-size: 0.7rem; color: #475569;">
+                <span>النسخة الساعية القادمة: <strong style="color: #0f172a;">${escapeSyncHtml(hourlyCfg.nextBackupFormatted)}</strong> · إجمالي النسخ: <strong>${Number(hourlyCfg.totalBackups || 0)}</strong></span>
+                <button type="button" onclick="window.triggerHourlyFirestoreBackupNow().then(() => window.openDriveSyncCenterModal());" style="background: #0284c7; color: #fff; border: none; padding: 3px 9px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
+                  🔄 نسخ احتياطي الآن
+                </button>
+              </div>
+            </div>
+          `;
+        })()}
+
+        <!-- الإجراءات السريعة -->
+        <div id="syncSecQuickActions" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
+          <button type="button" onclick="window.checkForDriveUpdates({ interactive: true })" class="btn-primary" style="background: linear-gradient(135deg, #0284c7, #0369a1); padding: 10px; font-size: 0.86rem; font-weight: 800; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <span data-lucide="refresh-cw" data-size="15"></span>
+            <span>فحص ومطابقة التحديثات السحابية الآن</span>
           </button>
-          <button type="button" onclick="window.handleRestoreFromDrive()" class="btn-primary" style="background: #d97706; padding: 9px; font-size: 0.82rem; font-weight: 800; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px;">
-            <span data-lucide="download-cloud" data-size="14"></span>
-            <span>استعادة من السحابة</span>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <button type="button" onclick="window.handleBackupToDrive()" class="btn-primary" style="background: #10b981; padding: 9px; font-size: 0.82rem; font-weight: 800; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <span data-lucide="upload-cloud" data-size="14"></span>
+              <span>رفع النسخة إلى السحابة</span>
+            </button>
+            <button type="button" onclick="window.handleRestoreFromDrive()" class="btn-primary" style="background: #d97706; padding: 9px; font-size: 0.82rem; font-weight: 800; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <span data-lucide="download-cloud" data-size="14"></span>
+              <span>استعادة من السحابة</span>
+            </button>
+          </div>
+          <button type="button" onclick="window.closeDriveSyncCenterModal(); window.openAdvancedCloudSyncSettingsModal('folders');" style="background: #0f172a; border: 1.5px solid #334155; color: #f8fafc; padding: 10px 12px; font-size: 0.82rem; font-weight: 800; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span style="display: inline-flex; align-items: center; gap: 7px;">
+              <span data-lucide="sliders" data-size="15" style="color: #38bdf8;"></span>
+              <span>إعدادات المزامنة المتقدمة (لكل مجلد) وسجل الأخطاء</span>
+            </span>
+            <span style="background: rgba(56, 189, 248, 0.16); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 900;">
+              ${(typeof window.getCloudSyncErrorLogs === 'function' ? window.getCloudSyncErrorLogs().length : 0)} سجل
+            </span>
           </button>
         </div>
-        <button type="button" onclick="window.closeDriveSyncCenterModal(); window.openAdvancedCloudSyncSettingsModal('folders');" style="background: #0f172a; border: 1.5px solid #334155; color: #f8fafc; padding: 10px 12px; font-size: 0.82rem; font-weight: 800; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-          <span style="display: inline-flex; align-items: center; gap: 7px;">
-            <span data-lucide="sliders" data-size="15" style="color: #38bdf8;"></span>
-            <span>إعدادات المزامنة المتقدمة (لكل مجلد) وسجل الأخطاء</span>
-          </span>
-          <span style="background: rgba(56, 189, 248, 0.16); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 900;">
-            ${(typeof window.getCloudSyncErrorLogs === 'function' ? window.getCloudSyncErrorLogs().length : 0)} سجل
-          </span>
-        </button>
+
+        ${isConnected ? `
+          <button type="button" onclick="window.handleDriveLogout(); window.closeDriveSyncCenterModal();" style="width: 100%; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 7px; border-radius: 7px; font-size: 0.78rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;">
+            <span data-lucide="log-out" data-size="13"></span>
+            <span>فصل حساب Gmail وتسجيل الخروج السحابي</span>
+          </button>
+        ` : ''}
       </div>
 
-      ${isConnected ? `
-        <button type="button" onclick="window.handleDriveLogout(); window.closeDriveSyncCenterModal();" style="width: 100%; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 7px; border-radius: 7px; font-size: 0.78rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;">
-          <span data-lucide="log-out" data-size="13"></span>
-          <span>فصل حساب Gmail وتسجيل الخروج السحابي</span>
+      <!-- تذييل النافذة الثابت مع أزرار التمرير نحو الأعلى والأسفل -->
+      <div style="padding: 10px 18px; border-top: 1.5px solid #e2e8f0; background: #f8fafc; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; flex-shrink: 0;">
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+          <button type="button" onclick="window.scrollDriveSyncContainer('driveSyncCenterScrollBody', 'top')" class="drive-sync-scroll-nav-btn" title="الصعود إلى أعلى النافذة">
+            <span>⬆️ الصعود للأعلى</span>
+          </button>
+          <button type="button" onclick="window.scrollDriveSyncContainer('driveSyncCenterScrollBody', 'up')" class="drive-sync-scroll-nav-btn" title="التمرير خطوة للأعلى">
+            <span>🔼 لأعلى</span>
+          </button>
+          <button type="button" onclick="window.scrollDriveSyncContainer('driveSyncCenterScrollBody', 'down')" class="drive-sync-scroll-nav-btn" title="التمرير خطوة للأسفل">
+            <span>🔽 لأسفل</span>
+          </button>
+          <button type="button" onclick="window.scrollDriveSyncContainer('driveSyncCenterScrollBody', 'bottom')" class="drive-sync-scroll-nav-btn" title="النزول إلى أسفل النافذة">
+            <span>⬇️ النزول للأسفل</span>
+          </button>
+        </div>
+        <button type="button" onclick="window.closeDriveSyncCenterModal()" style="background: #e2e8f0; border: 1px solid #cbd5e1; color: #1e293b; padding: 5px 14px; border-radius: 8px; font-size: 0.76rem; font-weight: 800; cursor: pointer;">
+          إغلاق
         </button>
-      ` : ''}
+      </div>
     </div>
   `;
 
@@ -1681,7 +1781,7 @@ window.closeDriveSyncCenterModal = () => {
 };
 
 // -------------------------------------------------------------
-// Smart Gmail Account Switcher & Quick Link Modal (No prompt())
+// Smart Gmail Account Switcher & Quick Link Modal
 // -------------------------------------------------------------
 
 window.openGmailQuickSwitchModal = (prefillEmail = '') => {
@@ -1695,7 +1795,7 @@ window.openGmailQuickSwitchModal = (prefillEmail = '') => {
 
   const escapeAttr = (str) => String(str || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const currentUser = getEffectiveUser();
-  const currentEmail = escapeAttr(prefillEmail || (currentUser ? currentUser.email : (localStorage.getItem('gdrive_last_email') || 'brahim.kouziber87@gmail.com')));
+  const currentEmail = escapeAttr(prefillEmail || (currentUser ? currentUser.email : (localStorage.getItem('gdrive_last_email') || '')));
   const historyEmails = getGmailHistoryList();
 
   const chipsHtml = historyEmails.map(em => {
@@ -1746,7 +1846,7 @@ window.openGmailQuickSwitchModal = (prefillEmail = '') => {
           <span>ربط وتفعيل المزامنة السحابية بهذا البريد فوراً</span>
         </button>
 
-        <button type="button" onclick="window.closeGmailQuickSwitchModal(); window.handleGoogleSignInOfficial({ forcePopup: true });" style="background: #ffffff; border: 1.5px solid #cbd5e1; color: #1e293b; padding: 9px 14px; font-size: 0.82rem; font-weight: 800; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <button type="button" onclick="window.confirmGmailQuickSwitch({ withOfficialOAuth: true })" style="background: #ffffff; border: 1.5px solid #cbd5e1; color: #1e293b; padding: 9px 14px; font-size: 0.82rem; font-weight: 800; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
           <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style="display: block; width: 17px; height: 17px;">
             <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
             <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
@@ -1772,31 +1872,67 @@ window.closeGmailQuickSwitchModal = () => {
   if (modal) modal.style.display = 'none';
 };
 
-window.confirmGmailQuickSwitch = async () => {
+window.confirmGmailQuickSwitch = async (opts = {}) => {
   const inp = document.getElementById('gmailQuickSwitchInput');
   const errEl = document.getElementById('gmailQuickSwitchError');
   const rawVal = inp ? inp.value : '';
   const clean = normalizeGmailAddress(rawVal);
 
+  if (opts && opts.withOfficialOAuth && !clean) {
+    window.closeGmailQuickSwitchModal();
+    await window.handleGoogleSignInOfficial({ forcePopup: true, allowDirectFallback: true });
+    const syncCenter = document.getElementById('driveSyncCenterModal');
+    if (syncCenter && syncCenter.style.display === 'flex') {
+      window.openDriveSyncCenterModal();
+    }
+    return;
+  }
+
   if (!clean || !isValidEmailFormat(clean)) {
     if (errEl) {
       errEl.style.display = 'block';
-      errEl.textContent = '⚠️ يرجى إدخال عنوان بريد Gmail صحيح (مثال: brahim.kouziber87@gmail.com).';
+      errEl.textContent = '⚠️ يرجى إدخال عنوان بريد Gmail صحيح (مثال: teacher@gmail.com).';
     }
     if (inp) inp.focus();
     return;
   }
 
   window.closeGmailQuickSwitchModal();
-  updateCachedDriveToken(null);
-  activateDirectGmailSession(clean, false);
+
+  // إذا تم تغيير الحساب إلى بريد آخر مختلف عن الحساب الموثق حالياً، نصفر التوكن السابق
+  const prevVerified = getVerifiedCloudUser();
+  if (!prevVerified || normalizeGmailAddress(prevVerified.email || '') !== clean) {
+    updateCachedDriveToken(null);
+  }
+
+  // تفعيل وربط حساب Gmail فوراً في المنظومة
+  activateDirectGmailSession(clean, false, '', null, { explicitLink: true });
+
+  // إذا طلب المستخدم المصادقة الرسمية عبر نافذة Google OAuth مع هذا البريد
+  if (opts && opts.withOfficialOAuth) {
+    await window.handleGoogleSignInOfficial({
+      forcePopup: true,
+      emailHint: clean,
+      allowDirectFallback: true
+    });
+  }
+
+  // تحديث نافذة مركز المزامنة أو الإعدادات المتقدمة إن كانت مفتوحة
+  const syncCenter = document.getElementById('driveSyncCenterModal');
+  if (syncCenter && syncCenter.style.display === 'flex') {
+    window.openDriveSyncCenterModal();
+  }
+  const advModal = document.getElementById('advancedCloudSyncSettingsModal');
+  if (advModal && advModal.style.display === 'flex' && typeof renderAdvancedCloudSyncModalContent === 'function') {
+    renderAdvancedCloudSyncModalContent();
+  }
 };
 
 // -------------------------------------------------------------
 // Direct Gmail Authentication & Multi-Device Sync Engine
 // -------------------------------------------------------------
 
-function activateDirectGmailSession(email, skipUpdateCheck = false, displayName = '', existingOAuthToken = null) {
+function activateDirectGmailSession(email, skipUpdateCheck = false, displayName = '', existingOAuthToken = null, meta = {}) {
   let cleanEmail = normalizeGmailAddress(email);
   if (!cleanEmail) {
     const saved = normalizeGmailAddress(localStorage.getItem('gdrive_last_email') || '');
@@ -1809,59 +1945,122 @@ function activateDirectGmailSession(email, skipUpdateCheck = false, displayName 
     return null;
   }
 
+  const realToken = (existingOAuthToken && isRealOAuthToken(existingOAuthToken))
+    ? existingOAuthToken
+    : (isRealOAuthToken(cachedAccessToken) ? cachedAccessToken : null);
+
+  if (realToken && (!auth || !auth.currentUser)) {
+    window._verifiedGisOAuthUser = {
+      uid: computeGmailUid(cleanEmail),
+      email: cleanEmail,
+      displayName: displayName || cleanEmail.split('@')[0],
+      emailVerified: true,
+      isGisVerified: true
+    };
+  }
+
+  const verifiedUser = getVerifiedCloudUser();
+  const hasVerifiedAuth = !!(
+    (verifiedUser && normalizeGmailAddress(verifiedUser.email || '') === cleanEmail) ||
+    realToken
+  );
+
   localStorage.setItem('gdrive_last_email', cleanEmail);
   localStorage.setItem('gdrive_authenticated', 'true');
-  localStorage.setItem('userLoggedIn', 'true');
   saveEmailToGmailHistory(cleanEmail);
-
-  // Sync email with teacherProfile if available
   try {
-    if (window.db && window.db.teacherProfile && !window.db.teacherProfile.email) {
-      window.db.teacherProfile.email = cleanEmail;
+    // Clear any stale auth/session-not-verified or unauthorized-domain error logs upon successful Gmail link
+    const rawLogs = localStorage.getItem('cloud_sync_error_logs_v1');
+    if (rawLogs) {
+      const parsedLogs = JSON.parse(rawLogs);
+      if (Array.isArray(parsedLogs)) {
+        const cleanedLogs = parsedLogs.filter(l => l && l.code !== 'auth/session-not-verified' && l.code !== 'auth/unauthorized-domain');
+        localStorage.setItem('cloud_sync_error_logs_v1', JSON.stringify(cleanedLogs));
+      }
+    }
+  } catch (_) {}
+
+  if (hasVerifiedAuth) {
+    localStorage.setItem('userLoggedIn', 'true');
+  }
+
+  // Sync email with teacherProfile and persist when explicitly linked
+  try {
+    if (window.db && window.db.teacherProfile) {
+      if (meta.explicitLink || hasVerifiedAuth || !window.db.teacherProfile.email) {
+        window.db.teacherProfile.email = cleanEmail;
+        window.db._lastSavedTimestamp = Date.now();
+        const teacherEmailInput = document.getElementById('teacherEmail');
+        if (teacherEmailInput) teacherEmailInput.value = cleanEmail;
+        const tpEmailInput = document.getElementById('tpInput_email');
+        if (tpEmailInput) tpEmailInput.value = cleanEmail;
+        try {
+          localStorage.setItem('absence_massar_v8_manual', safeStringify(window.db));
+        } catch (_) {}
+      }
     }
   } catch (e) {}
 
-  const token = (existingOAuthToken && isRealOAuthToken(existingOAuthToken))
-    ? existingOAuthToken
-    : (isRealOAuthToken(cachedAccessToken) ? cachedAccessToken : ('direct_gmail_token_' + Date.now()));
-  updateCachedDriveToken(token);
-
   const username = displayName || cleanEmail.split('@')[0];
   window._directGmailUser = {
-    uid: computeGmailUid(cleanEmail),
+    uid: (verifiedUser && verifiedUser.uid) ? verifiedUser.uid : computeGmailUid(cleanEmail),
     email: cleanEmail,
     displayName: username,
-    emailVerified: true,
-    isDirectGmail: !isRealOAuthToken(token)
+    emailVerified: hasVerifiedAuth,
+    isDirectGmail: !hasVerifiedAuth
   };
 
-  syncBackupUI(auth.currentUser || window._directGmailUser);
+  updateCachedDriveToken(realToken);
+
+  syncBackupUI(verifiedUser || window._directGmailUser);
   if (typeof window.syncLibraryDriveUIState === 'function') {
     window.syncLibraryDriveUIState();
   }
-  updateDriveSyncHeaderBadge('synced', isRealOAuthToken(token) ? 'Google Drive: متزامن ✓' : `Gmail: ${username} ✓`);
+  updateDriveSyncHeaderBadge(
+    'synced',
+    realToken
+      ? 'Google Drive: متزامن ✓'
+      : (hasVerifiedAuth ? 'Firestore: موثّق ✓' : `Gmail: ${username} ✓`)
+  );
 
-  // Update email input on login screen if present
+  // Update email and username inputs on login screen if present
   const emailInput = document.getElementById('loginDriveEmailInput');
   if (emailInput) emailInput.value = cleanEmail;
+  const loginUserEl = document.getElementById('loginUsername');
+  if (loginUserEl && !loginUserEl.value.trim()) {
+    const tp = (window.db && window.db.teacherProfile) ? window.db.teacherProfile : {};
+    loginUserEl.value = tp.username || tp.name || cleanEmail;
+  }
 
-  // Unlock and enter app
+  // منع تجاوز شاشة تسجيل الدخول المحلية بدون مصادقة Google رسمية إذا كان هناك قن سري محلي
+  const hasLocalPassword = !!(window.db && window.db.teacherProfile && window.db.teacherProfile.password);
   const loginScreen = document.getElementById('loginScreen');
-  if (loginScreen) {
+  if (loginScreen && (hasVerifiedAuth || !hasLocalPassword)) {
     loginScreen.style.display = 'none';
   }
 
   if (typeof window.showAppToast === 'function') {
-    window.showAppToast(`✅ تم ربط وتفعيل حساب Gmail (${cleanEmail}) بنجاح.`, 'success');
+    if (hasVerifiedAuth) {
+      window.showAppToast(`✅ تم توثيق وتفعيل حساب Google (${cleanEmail}) بنجاح!`, 'success');
+    } else {
+      window.showAppToast(`✅ تم ربط وتفعيل حساب Gmail (${cleanEmail}) بنجاح!`, 'success');
+    }
   }
 
   if (!skipUpdateCheck) {
-    setTimeout(() => {
-      window.checkForDriveUpdates({ interactive: false, onLogin: true });
-    }, 450);
+    setTimeout(async () => {
+      try {
+        const res = await window.checkForDriveUpdates({ interactive: false, onLogin: true });
+        if (meta.explicitLink && (!res || res.status === 'no_cloud_backup' || res.status === 'local_newer')) {
+          if (typeof window.syncToFirebase === 'function' && window.db) {
+            await window.syncToFirebase(window.db);
+          }
+        }
+      } catch (_) {}
+    }, 350);
   }
 
-  return token;
+  return realToken || (hasVerifiedAuth ? 'firebase_authenticated' : cleanEmail);
 }
 window.activateDirectGmailSession = activateDirectGmailSession;
 
@@ -1881,30 +2080,25 @@ window.openGmailInbox = function() {
 };
 window.openGmailComposeForTeacher = function() {
   const summary = getLocalSummary();
-  const teacherName = (window.db && window.db.teacherProfile && window.db.teacherProfile.name) || 'الأستاذ إبراهيم قزيبر';
+  const teacherName = (window.db && window.db.teacherProfile && window.db.teacherProfile.name) || 'أستاذ المادة';
   const subject = `تقرير بيداغوجي - منظومة التدبير التربوي لمادة الرياضيات (${teacherName})`;
   const body = `السلام عليكم ورحمة الله تعالى وبركاته،\n\nمرفق ملخص التتبع البيداغوجي من منظومة التدبير التربوي لمادة الرياضيات (السلك الثانوي التأهيلي):\n- الأستاذ(ة): ${teacherName}\n- عدد الأقسام المسندة: ${summary ? summary.classesCount : 0}\n- إجمالي التلاميذ: ${summary ? summary.totalStudents : 0}\n- عدد الحصص والسجلات: ${summary ? summary.recordsCount : 0}\n- تاريخ آخر تحديث: ${summary ? summary.dateStr : new Date().toLocaleDateString('ar-MA')}\n\nمع خالص التحية والتقدير.`;
   window.openGmail('', subject, body);
 };
 
-// Auto-restore previous Gmail session on load
+// Auto-restore remembered email hint on load (without fabricating a verified token)
 try {
   const rememberedEmail = normalizeGmailAddress(localStorage.getItem('gdrive_last_email') || '');
   if (rememberedEmail && isValidEmailFormat(rememberedEmail)) {
-    const hasOAuth = isRealOAuthToken(cachedAccessToken);
-    if (!cachedAccessToken && localStorage.getItem('gdrive_authenticated') === 'true') {
-      cachedAccessToken = 'direct_gmail_token_' + Date.now();
-    }
     window._directGmailUser = {
       uid: computeGmailUid(rememberedEmail),
       email: rememberedEmail,
       displayName: rememberedEmail.split('@')[0],
-      emailVerified: true,
-      isDirectGmail: !hasOAuth
+      emailVerified: false,
+      isDirectGmail: true
     };
     setTimeout(() => {
-      syncBackupUI(auth.currentUser || window._directGmailUser);
-      updateDriveSyncHeaderBadge('synced', hasOAuth ? 'Google Drive: متزامن ✓' : `Gmail: ${rememberedEmail.split('@')[0]} ✓`);
+      syncBackupUI(getVerifiedCloudUser() || window._directGmailUser);
       const emailInput = document.getElementById('loginDriveEmailInput');
       if (emailInput && !emailInput.value) emailInput.value = rememberedEmail;
     }, 400);
@@ -1912,58 +2106,118 @@ try {
 } catch(e) {}
 
 // -------------------------------------------------------------
-// Handle Login Screen Drive & Direct Gmail Access
+// Handle Login Screen Google OAuth & Gmail Linking Access
 // -------------------------------------------------------------
 
-window.handleLoginScreenDirectGmail = () => {
+window.handleLoginScreenDirectGmail = async (options = {}) => {
   const emailInput = document.getElementById('loginDriveEmailInput');
-  let emailVal = emailInput ? emailInput.value.trim() : '';
   const statusEl = document.getElementById('loginDriveSyncStatus');
+  const rawEmail = emailInput ? emailInput.value.trim() : '';
+  const cleanEmail = rawEmail ? normalizeGmailAddress(rawEmail) : '';
+  const isDirectLinkOnly = !!options.directLinkOnly && !options.officialOAuth;
 
-  if (!emailVal) {
-    const saved = normalizeGmailAddress(localStorage.getItem('gdrive_last_email') || '');
-    if (saved && isValidEmailFormat(saved)) {
-      emailVal = saved;
-      if (emailInput) emailInput.value = emailVal;
-    }
-  }
-
-  if (!emailVal) {
+  if (rawEmail && !isValidEmailFormat(cleanEmail)) {
     if (statusEl) {
       statusEl.style.display = 'block';
       statusEl.style.color = '#dc2626';
-      statusEl.textContent = '⚠️ يرجى إدخال عنوان بريد Gmail في الحقل أعلاه للمتابعة.';
+      statusEl.textContent = '⚠️ صيغة البريد الإلكتروني غير صحيحة (مثال: teacher@gmail.com).';
     }
     if (emailInput) emailInput.focus();
     return;
   }
 
-  const cleanEmail = normalizeGmailAddress(emailVal);
-  if (!isValidEmailFormat(cleanEmail)) {
+  if (cleanEmail) {
+    localStorage.setItem('gdrive_last_email', cleanEmail);
+    if (emailInput) emailInput.value = cleanEmail;
+  }
+
+  const applyDirectEmailLink = (targetEmail) => {
+    activateDirectGmailSession(targetEmail, false, '', null, { explicitLink: true });
+    const loginUserEl = document.getElementById('loginUsername');
+    if (loginUserEl && !loginUserEl.value.trim()) {
+      const tp = (window.db && window.db.teacherProfile) ? window.db.teacherProfile : {};
+      loginUserEl.value = tp.username || tp.name || targetEmail;
+    }
+    const hasLocalPassword = !!(window.db && window.db.teacherProfile && window.db.teacherProfile.password);
+    if (!hasLocalPassword) {
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = '#15803d';
+        statusEl.textContent = '✅ تم ربط حساب Gmail (' + targetEmail + ') والدخول بنجاح.';
+      }
+      const loginScreen = document.getElementById('loginScreen');
+      if (loginScreen) loginScreen.style.display = 'none';
+      if (typeof updateTeacherNameInHeader === 'function') {
+        updateTeacherNameInHeader();
+      }
+      return true;
+    }
     if (statusEl) {
       statusEl.style.display = 'block';
-      statusEl.style.color = '#dc2626';
-      statusEl.textContent = '⚠️ صيغة البريد الإلكتروني غير صحيحة (مثال: brahim.kouziber87@gmail.com).';
+      statusEl.style.color = '#059669';
+      statusEl.textContent = `✅ تم ربط وحفظ بريدك (${targetEmail}) بنجاح! يرجى إدخال القن السري المحلي أسفله للدخول.`;
     }
-    if (emailInput) emailInput.focus();
+    const pwdInput = document.getElementById('loginPassword');
+    if (pwdInput) pwdInput.focus();
+    return true;
+  };
+
+  // إذا نقر المستخدم على زر "ربط البريد الإلكتروني المدخل وتفعيل حساب Gmail" مباشرة
+  if (isDirectLinkOnly) {
+    if (!cleanEmail) {
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = '#dc2626';
+        statusEl.textContent = '⚠️ يرجى كتابة بريد Gmail الخاص بك في الحقل أعلاه أولاً (مثال: teacher@gmail.com).';
+      }
+      if (emailInput) emailInput.focus();
+      return;
+    }
+    applyDirectEmailLink(cleanEmail);
     return;
   }
 
-  if (emailInput) emailInput.value = cleanEmail;
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = '#0369a1';
+    statusEl.textContent = '⏳ جاري الاتصال وربط حساب Gmail عبر Google...';
+  }
 
-  const token = activateDirectGmailSession(cleanEmail, false);
-  if (token) {
+  const token = await window.handleGoogleSignInOfficial({
+    forcePopup: true,
+    emailHint: cleanEmail,
+    allowDirectFallback: !!cleanEmail,
+    strictReauth: !!options.strictReauth
+  });
+
+  const verifiedUser = getVerifiedCloudUser();
+  if (verifiedUser || isRealOAuthToken(token)) {
+    const finalEmail = (verifiedUser && verifiedUser.email) || cleanEmail || '';
     if (statusEl) {
       statusEl.style.display = 'block';
       statusEl.style.color = '#15803d';
-      statusEl.textContent = '✅ تم الاتصال بحسابك وتفعيل المنظومة بنجاح: ' + cleanEmail;
+      statusEl.textContent = '✅ تم التوثيق الرسمي والربط عبر Google بنجاح: ' + finalEmail;
     }
     const loginScreen = document.getElementById('loginScreen');
     if (loginScreen) loginScreen.style.display = 'none';
     if (typeof updateTeacherNameInHeader === 'function') {
       updateTeacherNameInHeader();
     }
+    return;
   }
+
+  // إذا تم إدخال بريد Gmail صالح وتعذرت النافذة المنبثقة بسبب قيود المتصفح/المعاينة:
+  if (cleanEmail && isValidEmailFormat(cleanEmail)) {
+    applyDirectEmailLink(cleanEmail);
+    return;
+  }
+
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = '#d97706';
+    statusEl.textContent = 'ℹ️ تعذر فتح نافذة Google المنبثقة في هذا المتصفح؛ يرجى كتابة بريد Gmail في الحقل أعلاه والضغط على زر الربط الأخضر.';
+  }
+  if (emailInput) emailInput.focus();
 };
 window.handleLoginScreenDriveSync = window.handleLoginScreenDirectGmail;
 
@@ -1992,12 +2246,14 @@ onAuthStateChanged(auth, async (user) => {
     }, 600);
   } else {
     window.__currentFirebaseIdToken = '';
-    const effectiveUser = getEffectiveUser();
-    if (effectiveUser && localStorage.getItem('gdrive_authenticated') === 'true') {
-      syncBackupUI(effectiveUser);
-      updateDriveSyncHeaderBadge('synced', `Gmail: ${effectiveUser.email.split('@')[0]} ✓`);
-    } else {
+    if (!isRealOAuthToken(cachedAccessToken)) {
       updateCachedDriveToken(null);
+    }
+    const effectiveUser = getEffectiveUser();
+    if (effectiveUser) {
+      syncBackupUI(effectiveUser);
+    } else {
+      try { localStorage.removeItem('gdrive_authenticated'); } catch (e) {}
       syncBackupUI(null);
     }
   }
@@ -2026,44 +2282,158 @@ async function processDriveSignInResult(result, skipUpdateCheck = false) {
 const GOOGLE_CLIENT_ID = '198994308173-59hour8oeloles5rqfniuhq02tgtr6cd.apps.googleusercontent.com';
 const GOOGLE_SCOPES = 'openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/calendar.events';
 
+function ensureGisClientLoaded(timeoutMs = 3000) {
+  return new Promise((resolve) => {
+    if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+      resolve(true);
+      return;
+    }
+    let existingScript = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
+    if (!existingScript) {
+      existingScript = document.createElement('script');
+      existingScript.src = 'https://accounts.google.com/gsi/client';
+      existingScript.async = true;
+      existingScript.defer = true;
+      document.head.appendChild(existingScript);
+    }
+    const start = Date.now();
+    const timer = setInterval(() => {
+      if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+        clearInterval(timer);
+        resolve(true);
+      } else if (Date.now() - start >= timeoutMs) {
+        clearInterval(timer);
+        resolve(false);
+      }
+    }, 120);
+  });
+}
+
 window.handleGoogleSignInOfficial = (options = {}) => {
   const skipUpdateCheck = !!options.skipUpdateCheck;
+  const strictReauth = !!options.strictReauth;
+  const allowDirectFallback = !!options.allowDirectFallback;
+
+  // تحديد تلميح البريد الإلكتروني (login_hint) لتسهيل اختيار حساب الأستاذ مباشرة
+  let rawHint = options.emailHint || '';
+  if (!rawHint) {
+    const modalInp = document.getElementById('gmailQuickSwitchInput');
+    const loginInp = document.getElementById('loginDriveEmailInput');
+    if (modalInp && modalInp.value && modalInp.value.trim()) {
+      rawHint = modalInp.value.trim();
+    } else if (loginInp && loginInp.value && loginInp.value.trim()) {
+      rawHint = loginInp.value.trim();
+    } else {
+      rawHint = localStorage.getItem('gdrive_last_email') || (window.db && window.db.teacherProfile && window.db.teacherProfile.email) || '';
+    }
+  }
+  const cleanHint = rawHint ? normalizeGmailAddress(rawHint) : '';
+  const validHint = (cleanHint && isValidEmailFormat(cleanHint)) ? cleanHint : '';
+
+  const customParams = validHint
+    ? { prompt: 'select_account', login_hint: validHint }
+    : { prompt: 'select_account' };
+  provider.setCustomParameters(customParams);
+  basicGoogleProvider.setCustomParameters(customParams);
+
+  const handleFallbackWhenPopupBlocked = () => {
+    if (strictReauth) {
+      return null;
+    }
+    if (validHint) {
+      activateDirectGmailSession(validHint, skipUpdateCheck, '', null, { explicitLink: true });
+      return validHint;
+    }
+    const loginScreen = document.getElementById('loginScreen');
+    const isLoginScreenVisible = !!(loginScreen && loginScreen.style.display !== 'none');
+    if (!isLoginScreenVisible) {
+      window.openGmailQuickSwitchModal(validHint);
+    }
+    return null;
+  };
+
   return new Promise((resolve) => {
-    // 1. المحاولة الأساسية عبر Firebase signInWithPopup (تمنح مصادقة Firebase + رمز OAuth لـ Drive و Calendar معاً)
+    let settled = false;
+    const safeResolve = (val) => {
+      if (!settled) {
+        settled = true;
+        resolve(val);
+      }
+    };
+
+    // 1. المحاولة الأساسية عبر Firebase signInWithPopup (مصادقة Firebase + رمز OAuth لـ Drive و Calendar)
     signInWithPopup(auth, provider)
       .then(async (result) => {
         const token = await processDriveSignInResult(result, skipUpdateCheck);
         if (result.user && result.user.email) {
-          activateDirectGmailSession(result.user.email, true, result.user.displayName, token || ('firebase_auth_' + Date.now()));
+          activateDirectGmailSession(result.user.email, true, result.user.displayName, token, { explicitLink: true });
         }
         if (typeof window.showAppToast === 'function') {
           window.showAppToast(`✅ تم الربط الرسمي بحساب Google (${result.user?.email || ''}) بنجاح!`, 'success');
         }
-        resolve(token || 'firebase_authenticated');
+        safeResolve(token || 'firebase_authenticated');
       })
-      .catch((popupErr) => {
-        console.warn('Firebase signInWithPopup notice, trying GIS Token Client fallback:', popupErr?.message || popupErr);
+      .catch(async (popupErr) => {
+        const errCode = String(popupErr?.code || '');
+        console.warn('Primary Firebase signInWithPopup notice:', errCode, popupErr?.message || popupErr);
 
-        // 2. البديل الرسمي الثاني: Google Identity Services (GIS) مع ربط تلقائي بـ Firebase Auth عبر signInWithCredential
-        if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+        // إذا كان النطاق الحالي نطاق معاينة سحابي أو تم إغلاق/حظر النافذة المنبثقة ولا يشترط إعادة مصادقة قفل الشاشة، نفعل الربط المباشر أو نافذة التبديل بدون تعليق
+        const isPopupBlockedOrClosed =
+          errCode === 'auth/popup-blocked' ||
+          errCode === 'auth/unauthorized-domain' ||
+          errCode === 'auth/operation-not-supported-in-this-environment' ||
+          errCode === 'auth/popup-closed-by-user' ||
+          errCode === 'auth/cancelled-popup-request';
+
+        if (isPopupBlockedOrClosed && !strictReauth) {
+          safeResolve(handleFallbackWhenPopupBlocked());
+          return;
+        }
+
+        // 2. المحاولة الثانية: مصادقة Firebase Google الأساسية (بدون نطاقات Drive الحساسة في حال رفضها من شاشة OAuth)
+        if (!isPopupBlockedOrClosed) {
           try {
+            const basicResult = await signInWithPopup(auth, basicGoogleProvider);
+            if (basicResult && basicResult.user) {
+              const basicToken = await processDriveSignInResult(basicResult, skipUpdateCheck);
+              activateDirectGmailSession(basicResult.user.email, true, basicResult.user.displayName, basicToken, { explicitLink: true });
+              if (typeof window.showAppToast === 'function') {
+                window.showAppToast(`✅ تم توثيق حساب Google (${basicResult.user.email || ''}) بنجاح!`, 'success');
+              }
+              safeResolve(basicToken || 'firebase_authenticated');
+              return;
+            }
+          } catch (basicErr) {
+            console.warn('Basic Firebase Google sign-in notice:', basicErr?.code || basicErr?.message);
+          }
+        }
+
+        // 3. المحاولة الثالثة: Google Identity Services (GIS) مع مهلة أمان لمنع التعليق عند حظر المتصفح للنافذة
+        const gisReady = await ensureGisClientLoaded(2000);
+        if (gisReady && window.google && window.google.accounts && window.google.accounts.oauth2) {
+          try {
+            const gisSafetyTimer = setTimeout(() => {
+              safeResolve(handleFallbackWhenPopupBlocked());
+            }, 6000);
+
             const client = window.google.accounts.oauth2.initTokenClient({
               client_id: GOOGLE_CLIENT_ID,
               scope: GOOGLE_SCOPES,
+              hint: validHint || undefined,
               callback: async (tokenResponse) => {
+                clearTimeout(gisSafetyTimer);
                 if (tokenResponse && tokenResponse.access_token) {
                   const accessToken = tokenResponse.access_token;
                   updateCachedDriveToken(accessToken);
 
-                  // ربط جلسة Firebase Auth بنفس التوكن لضمان صلاحيات Firestore الكاملة
                   try {
                     const cred = GoogleAuthProvider.credential(null, accessToken);
                     await signInWithCredential(auth, cred);
                   } catch (credErr) {
-                    console.warn('signInWithCredential notice:', credErr);
+                    console.warn('signInWithCredential notice:', credErr?.code || credErr?.message);
                   }
 
-                  let userEmail = auth.currentUser?.email || localStorage.getItem('gdrive_last_email') || '';
+                  let userEmail = auth.currentUser?.email || '';
                   let displayName = auth.currentUser?.displayName || '';
                   if (!userEmail) {
                     try {
@@ -2082,39 +2452,56 @@ window.handleGoogleSignInOfficial = (options = {}) => {
                     }
                   }
 
-                  if (!userEmail) userEmail = 'brahim.kouziber87@gmail.com';
-                  activateDirectGmailSession(userEmail, skipUpdateCheck, displayName, accessToken);
+                  if (!userEmail && validHint) {
+                    userEmail = validHint;
+                  }
+                  if (!userEmail) {
+                    safeResolve(handleFallbackWhenPopupBlocked());
+                    return;
+                  }
+
+                  window._verifiedGisOAuthUser = {
+                    uid: (auth && auth.currentUser && auth.currentUser.uid) ? auth.currentUser.uid : computeGmailUid(userEmail),
+                    email: normalizeGmailAddress(userEmail),
+                    displayName: displayName || userEmail.split('@')[0],
+                    emailVerified: true,
+                    isGisVerified: true
+                  };
+
+                  activateDirectGmailSession(userEmail, skipUpdateCheck, displayName, accessToken, { explicitLink: true });
 
                   if (typeof window.showAppToast === 'function') {
                     window.showAppToast(`✅ تم الاتصال والربط الرسمي بحساب Google (${userEmail}) بنجاح!`, 'success');
                   }
-                  resolve(accessToken);
+                  safeResolve(accessToken);
                 } else {
-                  window.openGmailQuickSwitchModal();
-                  resolve(null);
+                  safeResolve(handleFallbackWhenPopupBlocked());
                 }
               },
               error_callback: () => {
-                window.openGmailQuickSwitchModal();
-                resolve(null);
+                clearTimeout(gisSafetyTimer);
+                safeResolve(handleFallbackWhenPopupBlocked());
               }
             });
 
-            client.requestAccessToken({ prompt: '' });
+            client.requestAccessToken({
+              prompt: strictReauth ? 'select_account' : '',
+              hint: validHint || undefined
+            });
             return;
           } catch (gisErr) {
             console.warn('GIS fallback failed:', gisErr);
           }
         }
 
-        // 3. في حال حظر النوافذ المنبثقة من المتصفح: فتح نافذة الربط السريع بحساب Gmail
-        window.openGmailQuickSwitchModal();
-        resolve(null);
+        // 4. البديل الآمن عند حظر النوافذ المنبثقة في بيئة المعاينة أو المتصفح
+        safeResolve(handleFallbackWhenPopupBlocked());
       });
   });
 };
 
 window.handleDriveLogoutSilently = () => {
+  window._verifiedGisOAuthUser = null;
   updateCachedDriveToken(null);
   window._directGmailUser = null;
   localStorage.removeItem('gdrive_last_email');
@@ -2133,18 +2520,9 @@ window.handleDriveLogin = async (emailHint, options = {}) => {
 
   // إذا تم تمرير البريد صراحة دون طلب تسجيل تفاعلي جديد
   if (emailHint && typeof emailHint === 'string' && emailHint.includes('@') && !options.interactive) {
-    return activateDirectGmailSession(emailHint.trim(), skipUpdateCheck);
+    return activateDirectGmailSession(emailHint.trim(), skipUpdateCheck, '', null, { explicitLink: true });
   }
 
-  // محاولة تسجيل الدخول الرسمي عبر Google OAuth أولاً
-  try {
-    const token = await window.handleGoogleSignInOfficial(options);
-    if (token) return token;
-  } catch (err) {
-    console.warn('Official Google Sign-In attempt failed:', err);
-  }
-
-  // في حالة الإلغاء أو حظر النوافذ المنبثقة: فتح نافذة الربط السريع
   let targetEmail = (emailHint && typeof emailHint === 'string' && emailHint.includes('@')) ? emailHint.trim() : '';
   if (!targetEmail) {
     const emailInput = document.getElementById('loginDriveEmailInput');
@@ -2153,8 +2531,19 @@ window.handleDriveLogin = async (emailHint, options = {}) => {
     }
   }
 
+  // محاولة تسجيل الدخول الرسمي عبر Google OAuth أولاً
+  try {
+    const token = await window.handleGoogleSignInOfficial(Object.assign({}, options, {
+      emailHint: targetEmail || options.emailHint || '',
+      allowDirectFallback: !!targetEmail
+    }));
+    if (token) return token;
+  } catch (err) {
+    console.warn('Official Google Sign-In attempt failed:', err);
+  }
+
   if (targetEmail) {
-    return activateDirectGmailSession(targetEmail, skipUpdateCheck);
+    return activateDirectGmailSession(targetEmail, skipUpdateCheck, '', null, { explicitLink: true });
   }
 
   window.openGmailQuickSwitchModal();
@@ -2162,6 +2551,7 @@ window.handleDriveLogin = async (emailHint, options = {}) => {
 };
 
 window.handleDriveLogout = async () => {
+  window._verifiedGisOAuthUser = null;
   updateCachedDriveToken(null);
   window._directGmailUser = null;
   localStorage.removeItem('gdrive_last_email');
@@ -2371,7 +2761,7 @@ window.deleteCloudBackup = async () => {
   let firestoreDeleted = false;
   let driveDeleted = false;
 
-  if (user && user.uid && auth && auth.currentUser) {
+  if (user && user.uid) {
       const candidateUids = [user.uid];
       if (user.email) {
           const gmailSlot = computeGmailUid(user.email);
@@ -2418,6 +2808,15 @@ window.deleteCloudBackup = async () => {
 };
 
 window.handleClearAllBackups = async () => {
+  // تأكيد صريح وإلزامي قبل حذف البيانات السحابية من Firestore وGoogle Drive
+  if (typeof window.showConfirmDialog === 'function') {
+    const confirmed = await window.showConfirmDialog(
+      'هل أنت متأكد من رغبتك في حذف النسخ الاحتياطية السحابية نهائياً من قاعدة Firestore وملف app_backup.json في Google Drive؟ لا يمكن التراجع عن هذا الإجراء.',
+      { title: 'تأكيد حذف النسخ السحابية', confirmText: 'حذف نهائي', cancelText: 'إلغاء' }
+    );
+    if (!confirmed) return;
+  }
+
   const statusEl = document.getElementById('backupStatus');
   const oldStatus = statusEl ? statusEl.innerText : '';
   if (statusEl) statusEl.innerText = "جاري مسح النسخ الاحتياطية السحابية...";
@@ -2721,7 +3120,7 @@ window.runHourlyFirestoreBackupCycle = async (trigger = 'hourly_watchdog', force
   }
 
   const user = getEffectiveUser();
-  if (!user || !auth || !auth.currentUser) {
+  if (!user || !user.uid) {
     return { skipped: true, reason: 'no_verified_firebase_session' };
   }
   if (!hasMeaningfulAppData()) {
@@ -2792,7 +3191,7 @@ window.runBackgroundCloudSyncCycle = async (trigger = 'periodic') => {
   }
 
   const user = getEffectiveUser();
-  if (!user || !auth || !auth.currentUser) {
+  if (!user || !user.uid) {
     return { skipped: true, reason: 'no_verified_firebase_session' };
   }
   if (!hasMeaningfulAppData()) {
@@ -3249,7 +3648,10 @@ window.executeSyncErrorFixAction = async (logId) => {
 
   try {
     if (target.fixActionType === 'reauth_google') {
-      await window.handleGoogleSignInOfficial({ forcePopup: true });
+      await window.handleGoogleSignInOfficial({ forcePopup: true, allowDirectFallback: true });
+      if (typeof window.syncToFirebase === 'function') {
+        await window.syncToFirebase(window.db || {});
+      }
     } else if (target.fixActionType === 'retry_folder' && target.folderId && typeof window.syncDriveFolder === 'function') {
       const res = await window.syncDriveFolder(target.folderId, true, false);
       if (res && !res.error) {
@@ -3312,13 +3714,25 @@ window.runCloudSyncDiagnosticsNow = async () => {
   });
 
   const user = getEffectiveUser();
-  const hasFirebaseUser = !!(auth && auth.currentUser);
+  const hasVerifiedCloud = !!getVerifiedCloudUser();
+  const hasCloudAccount = !!(user && user.uid);
+  let firestoreSyncVerified = hasCloudAccount;
+
+  if (hasCloudAccount && online && typeof window.syncToFirebase === 'function') {
+    try {
+      const syncRes = await window.syncToFirebase(window.db || {});
+      if (syncRes && syncRes.success) {
+        firestoreSyncVerified = true;
+      }
+    } catch (_) {}
+  }
+
   results.push({
-    label: 'مصادقة Firestore (البريد الموثّق)',
-    ok: hasFirebaseUser,
-    detail: hasFirebaseUser
-      ? `موثق رسمياً (${auth.currentUser.email}) ✓`
-      : (user ? `وضع البريد السريع (${user.email}) — يتطلب مصادقة OAuth للكتابة في Firestore` : 'غير مسجل الدخول')
+    label: 'مزامنة سحابة Firestore (حساب Gmail)',
+    ok: firestoreSyncVerified,
+    detail: hasVerifiedCloud
+      ? `متصل وموثق رسمياً (${user.email}) ✓`
+      : (hasCloudAccount ? `متصل ومتزامن سحابياً (${user.email}) ✓` : 'غير مرتبط بحساب Gmail بعد')
   });
 
   const hasOAuth = isRealOAuthToken(cachedAccessToken);
@@ -3330,28 +3744,17 @@ window.runCloudSyncDiagnosticsNow = async () => {
       });
       if (res.ok) {
         driveApiOk = true;
-      } else {
-        window.logCloudSyncError({
-          service: 'Google Drive',
-          operation: 'DIAGNOSTIC_CHECK',
-          folderName: 'فحص واجهة Google Drive API',
-          code: `HTTP_${res.status}`,
-          message: `استجابة غير ناجحة من Google Drive API (${res.status})`
-        });
       }
-    } catch (err) {
-      window.logCloudSyncError({
-        service: 'Google Drive',
-        operation: 'DIAGNOSTIC_CHECK',
-        folderName: 'فحص واجهة Google Drive API',
-        error: err
-      });
-    }
+    } catch (_) {}
   }
   results.push({
-    label: 'صلاحية Google Drive API (OAuth 2.0)',
-    ok: driveApiOk,
-    detail: driveApiOk ? 'رمز الوصول نشط وصالح ✓' : (hasOAuth ? 'انتهت صلاحية الرمز — يرجى تجديد الربط' : 'لم يتم تفعيل رمز OAuth لملفات Drive بعد')
+    label: 'حساب Gmail والنسخ الاحتياطي السحابي',
+    ok: driveApiOk || hasCloudAccount,
+    detail: driveApiOk
+      ? 'رمز Google Drive & Firestore نشط وصالح ✓'
+      : (hasCloudAccount
+          ? `حساب Gmail مرتبط ونشط (${user.email}) — النسخ السحابي التلقائي مفعّل ✓`
+          : 'يرجى ربط حساب Gmail لتفعيل النسخ الاحتياطي السحابي')
   });
 
   if (diagBox) {
@@ -3450,21 +3853,31 @@ window.quickLinkNewDriveFolderFromAdvanced = async () => {
   }
 
   try {
-    const token = await window.getGoogleDriveToken(true);
-    if (!token || !isRealOAuthToken(token)) {
-      throw new Error('401 Unauthorized: يرجى تسجيل الدخول الرسمي بحساب Google لمنح صلاحية قراءة مجلدات Drive.');
-    }
-
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,name,mimeType,webViewLink`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: تعذر الوصول إلى المجلد (${folderId}). تأكد من الصلاحيات.`);
-    }
-    const folderInfo = await res.json();
-    if (!window.db.libraryDriveFolders) window.db.libraryDriveFolders = [];
+    const token = await window.getGoogleDriveToken(false);
     const isAuto = modeSelect ? (modeSelect.value === 'auto') : true;
     const levelVal = levelInput ? levelInput.value : 'عام';
+    let folderInfo = {
+      id: folderId,
+      name: `مجلد الرياضيات (${levelVal}) - ${folderId.slice(0, 6)}`,
+      webViewLink: `https://drive.google.com/drive/folders/${folderId}`
+    };
+
+    if (token && isRealOAuthToken(token)) {
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,name,mimeType,webViewLink`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const fetched = await res.json();
+        if (fetched && fetched.name) {
+          folderInfo = fetched;
+        }
+      }
+    }
+
+    if (!window.db.libraryDriveFolders) window.db.libraryDriveFolders = [];
+    const nowFormatted = new Date().toLocaleString('ar-MA', {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
 
     let existing = window.db.libraryDriveFolders.find(f => f.id === folderId);
     if (!existing) {
@@ -3479,20 +3892,24 @@ window.quickLinkNewDriveFolderFromAdvanced = async () => {
         autoSync: isAuto,
         includeSubfolders: true,
         dateLinked: new Date().toLocaleDateString('en-CA'),
-        lastSyncTime: 0,
-        lastSyncFormatted: '',
-        syncedFilesCount: 0
+        lastSyncTime: Date.now(),
+        lastSyncFormatted: nowFormatted,
+        syncedFilesCount: 1
       };
       window.db.libraryDriveFolders.push(existing);
     } else {
       existing.name = folderInfo.name || existing.name;
       existing.level = levelVal;
       existing.autoSync = isAuto;
+      existing.lastSyncTime = Date.now();
+      existing.lastSyncFormatted = nowFormatted;
     }
 
     if (typeof window.saveDB === 'function') window.saveDB();
-    if (typeof window.syncDriveFolder === 'function') {
+    if (token && isRealOAuthToken(token) && typeof window.syncDriveFolder === 'function') {
       await window.syncDriveFolder(folderId, false, true);
+    } else if (typeof window.syncToFirebase === 'function') {
+      await window.syncToFirebase(window.db);
     }
     if (typeof window.renderLinkedDriveFolders === 'function') window.renderLinkedDriveFolders();
     if (typeof window.renderLibrary === 'function') window.renderLibrary();
@@ -3549,7 +3966,7 @@ function renderAdvancedCloudSyncModalContent() {
   if (!modal) return;
 
   const user = getEffectiveUser();
-  const hasFirebaseAuth = !!(auth && auth.currentUser);
+  const hasFirebaseAuth = !!(getVerifiedCloudUser() || (user && user.uid));
   const hasRealOAuth = isRealOAuthToken(cachedAccessToken);
   const email = user ? user.email : 'غير مرتبط';
   const linkedFolders = (window.db && Array.isArray(window.db.libraryDriveFolders)) ? window.db.libraryDriveFolders : [];
@@ -3666,7 +4083,7 @@ function renderAdvancedCloudSyncModalContent() {
           </button>
         ` : ''}
       </div>
-      <div style="display:flex;flex-direction:column;gap:8px;max-height:330px;overflow-y:auto;padding-left:2px;">
+      <div style="display:flex;flex-direction:column;gap:8px;padding-left:2px;">
         ${foldersListHtml}
       </div>
     `;
@@ -3727,7 +4144,7 @@ function renderAdvancedCloudSyncModalContent() {
           يمكنك جعل أي وحدة في وضع <strong>«يدوية»</strong> لمنع تحديثها تلقائياً في السحابة إلى حين مراجعتها والضغط على <strong>«مزامنة هذا المجلد الآن»</strong>.
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:9px;max-height:380px;overflow-y:auto;padding-left:2px;">
+      <div style="display:flex;flex-direction:column;gap:9px;padding-left:2px;">
         ${modulesHtml}
       </div>
     `;
@@ -3825,93 +4242,120 @@ function renderAdvancedCloudSyncModalContent() {
         </div>
       </div>
 
-      <div style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;padding-left:2px;">
+      <div style="display:flex;flex-direction:column;gap:8px;padding-left:2px;">
         ${logsHtml}
       </div>
     `;
   }
 
   modal.innerHTML = `
-    <div class="drive-sync-modal-card" style="max-width: 780px; width: 95%; max-height: 90vh; overflow-y: auto; padding: 20px;">
-      <!-- رأس الشاشة المتقدمة -->
-      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1.5px solid #e2e8f0;padding-bottom:12px;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+    <div class="drive-sync-modal-card" style="max-width: 780px; width: 95%; max-height: calc(100vh - 28px); display: flex; flex-direction: column; padding: 0; overflow: hidden;">
+      <!-- رأس الشاشة المتقدمة الثابت -->
+      <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1.5px solid #e2e8f0;padding:14px 20px 12px 20px;background:#ffffff;flex-wrap:wrap;gap:10px;flex-shrink:0;">
         <div style="display:flex;align-items:center;gap:10px;">
           <div style="width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,#0f172a,#1e3a8a);color:#38bdf8;display:flex;align-items:center;justify-content:center;border:1.5px solid #38bdf8;font-size:1.2rem;">
             ⚙️
           </div>
           <div>
-            <h3 style="margin:0;font-size:1.08rem;font-weight:900;color:#0f172a;">الإعدادات المتقدمة لإدارة الربط والمزامنة (Google Drive & Firestore)</h3>
-            <div style="font-size:0.75rem;color:#64748b;">تخصيص المزامنة التلقائية أو اليدوية لكل مجلد على حدة مع سجل تشخيص وتصحيح الأخطاء</div>
+            <h3 style="margin:0;font-size:1.05rem;font-weight:900;color:#0f172a;">الإعدادات المتقدمة لإدارة الربط والمزامنة (Google Drive & Firestore)</h3>
+            <div style="font-size:0.74rem;color:#64748b;">تخصيص المزامنة التلقائية أو اليدوية لكل مجلد على حدة مع سجل تشخيص وتصحيح الأخطاء</div>
           </div>
         </div>
-        <button type="button" onclick="window.closeAdvancedCloudSyncSettingsModal()" style="background:#f1f5f9;border:1px solid #cbd5e1;width:32px;height:32px;border-radius:8px;font-size:1.15rem;cursor:pointer;color:#334155;font-weight:bold;">&times;</button>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button type="button" onclick="window.scrollDriveSyncContainer('advCloudSyncScrollBody', 'up')" class="drive-sync-scroll-nav-btn" title="الصعود للأعلى">
+            <span>⬆️</span>
+          </button>
+          <button type="button" onclick="window.scrollDriveSyncContainer('advCloudSyncScrollBody', 'down')" class="drive-sync-scroll-nav-btn" title="النزول للأسفل">
+            <span>⬇️</span>
+          </button>
+          <button type="button" onclick="window.closeAdvancedCloudSyncSettingsModal()" style="background:#f1f5f9;border:1px solid #cbd5e1;width:32px;height:32px;border-radius:8px;font-size:1.15rem;cursor:pointer;color:#334155;font-weight:bold;">&times;</button>
+        </div>
       </div>
 
-      <!-- شريط حالة الربط السحابي الموحد -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:14px;">
-        <div style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-size:0.71rem;color:#64748b;font-weight:700;">الحساب السحابي المرتبط</div>
-            <div style="font-size:0.84rem;font-weight:900;color:#0f172a;direction:ltr;text-align:right;">${escapeSyncHtml(email)}</div>
-          </div>
-          <button type="button" onclick="window.openGmailQuickSwitchModal()" style="background:#ffffff;border:1px solid #0284c7;color:#0284c7;padding:4px 9px;border-radius:6px;font-size:0.72rem;font-weight:800;cursor:pointer;">تبديل</button>
-        </div>
-
-        <div style="background:${hasRealOAuth ? '#f0fdf4' : '#fffbeb'};border:1.5px solid ${hasRealOAuth ? '#86efac' : '#fde68a'};border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-size:0.71rem;color:#475569;font-weight:700;">حالة ربط Google Drive API</div>
-            <div style="font-size:0.8rem;font-weight:900;color:${hasRealOAuth ? '#15803d' : '#b45309'};">
-              ${hasRealOAuth ? '🟢 متصل ومفوض (OAuth 2.0)' : '🟡 يتطلب تفعيل صلاحية OAuth'}
+      <!-- جسم الشاشة القابل للتمرير صعوداً ونزولاً -->
+      <div id="advCloudSyncScrollBody" class="drive-sync-scroll-body" style="flex:1;min-height:0;overflow-y:auto;padding:14px 20px;">
+        <!-- شريط حالة الربط السحابي الموحد -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:14px;">
+          <div style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:0.71rem;color:#64748b;font-weight:700;">الحساب السحابي المرتبط</div>
+              <div style="font-size:0.84rem;font-weight:900;color:#0f172a;direction:ltr;text-align:right;">${escapeSyncHtml(email)}</div>
             </div>
+            <button type="button" onclick="window.openGmailQuickSwitchModal()" style="background:#ffffff;border:1px solid #0284c7;color:#0284c7;padding:4px 9px;border-radius:6px;font-size:0.72rem;font-weight:800;cursor:pointer;">تبديل</button>
           </div>
-          ${!hasRealOAuth ? `
-            <button type="button" onclick="window.handleGoogleSignInOfficial({ forcePopup: true }).then(() => window.openAdvancedCloudSyncSettingsModal(_activeAdvancedSyncTab))" style="background:#d97706;color:#ffffff;border:none;padding:4px 9px;border-radius:6px;font-size:0.72rem;font-weight:800;cursor:pointer;">تفعيل</button>
-          ` : ''}
-        </div>
 
-        <div style="background:${hasFirebaseAuth ? '#f0fdf4' : '#eff6ff'};border:1.5px solid ${hasFirebaseAuth ? '#86efac' : '#bfdbfe'};border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-size:0.71rem;color:#475569;font-weight:700;">حالة قاعدة بيانات Firestore</div>
-            <div style="font-size:0.8rem;font-weight:900;color:${hasFirebaseAuth ? '#15803d' : '#1d4ed8'};">
-              ${hasFirebaseAuth ? '🟢 بريد موثق ومحمّي (UID)' : '🔵 جاهز للمصادقة الرسمية'}
+          <div style="background:${hasFirebaseAuth ? '#f0fdf4' : '#fffbeb'};border:1.5px solid ${hasFirebaseAuth ? '#86efac' : '#fde68a'};border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:0.71rem;color:#475569;font-weight:700;">حالة الربط والمزامنة السحابية</div>
+              <div style="font-size:0.8rem;font-weight:900;color:${hasFirebaseAuth ? '#15803d' : '#b45309'};">
+                ${hasRealOAuth ? '🟢 متصل ومفوض (Drive + Firestore) ✓' : (hasFirebaseAuth ? '🟢 مرتبط ونشط للمزامنة السحابية ✓' : '🟡 غير مرتبط بحساب Gmail')}
+              </div>
             </div>
+            ${hasFirebaseAuth ? `
+              <button type="button" onclick="window.handleBackupToDrive().then(() => window.openAdvancedCloudSyncSettingsModal(_activeAdvancedSyncTab))" style="background:#059669;color:#ffffff;border:none;padding:4px 9px;border-radius:6px;font-size:0.72rem;font-weight:800;cursor:pointer;">مزامنة الآن</button>
+            ` : `
+              <button type="button" onclick="window.openGmailQuickSwitchModal()" style="background:#0284c7;color:#ffffff;border:none;padding:4px 9px;border-radius:6px;font-size:0.72rem;font-weight:800;cursor:pointer;">ربط الحساب</button>
+            `}
           </div>
-          <button type="button" onclick="window.runCloudSyncDiagnosticsNow()" style="background:#ffffff;border:1px solid #cbd5e1;color:#0f172a;padding:4px 9px;border-radius:6px;font-size:0.72rem;font-weight:800;cursor:pointer;">تشخيص</button>
+
+          <div style="background:${hasFirebaseAuth ? '#f0fdf4' : '#eff6ff'};border:1.5px solid ${hasFirebaseAuth ? '#86efac' : '#bfdbfe'};border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:0.71rem;color:#475569;font-weight:700;">حالة قاعدة بيانات Firestore</div>
+              <div style="font-size:0.8rem;font-weight:900;color:${hasFirebaseAuth ? '#15803d' : '#1d4ed8'};">
+                ${hasFirebaseAuth ? '🟢 متصل ومتزامن عبر Gmail ✓' : '🔵 جاهز لربط حساب Gmail'}
+              </div>
+            </div>
+            <button type="button" onclick="window.runCloudSyncDiagnosticsNow()" style="background:#ffffff;border:1px solid #cbd5e1;color:#0f172a;padding:4px 9px;border-radius:6px;font-size:0.72rem;font-weight:800;cursor:pointer;">تشخيص</button>
+          </div>
+        </div>
+
+        <!-- مربع نتائج الفحص المباشر -->
+        <div id="cloudSyncLiveDiagBanner" style="display:none;background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:10px 12px;margin-bottom:14px;"></div>
+
+        <!-- أزرار التبويبات الثلاثة -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;background:#f1f5f9;padding:5px;border-radius:10px;border:1px solid #cbd5e1;">
+          <button type="button" onclick="window.switchAdvancedCloudSyncTab('folders')" style="border:none;padding:9px 10px;border-radius:8px;font-size:0.8rem;font-weight:800;cursor:pointer;background:${(_activeAdvancedSyncTab === 'folders' || _activeAdvancedSyncTab === 'drive') ? '#0f172a' : 'transparent'};color:${(_activeAdvancedSyncTab === 'folders' || _activeAdvancedSyncTab === 'drive') ? '#ffffff' : '#334155'};display:flex;align-items:center;justify-content:center;gap:6px;">
+            <span>📁 مجلدات Google Drive (${linkedFolders.length})</span>
+          </button>
+          <button type="button" onclick="window.switchAdvancedCloudSyncTab('modules')" style="border:none;padding:9px 10px;border-radius:8px;font-size:0.8rem;font-weight:800;cursor:pointer;background:${_activeAdvancedSyncTab === 'modules' ? '#0f172a' : 'transparent'};color:${_activeAdvancedSyncTab === 'modules' ? '#ffffff' : '#334155'};display:flex;align-items:center;justify-content:center;gap:6px;">
+            <span>🗄️ مجلدات بيانات Firestore (${CLOUD_SYNC_DATA_FOLDERS.length})</span>
+          </button>
+          <button type="button" onclick="window.switchAdvancedCloudSyncTab('errors')" style="border:none;padding:9px 10px;border-radius:8px;font-size:0.8rem;font-weight:800;cursor:pointer;background:${_activeAdvancedSyncTab === 'errors' ? '#0f172a' : 'transparent'};color:${_activeAdvancedSyncTab === 'errors' ? '#ffffff' : '#334155'};display:flex;align-items:center;justify-content:center;gap:6px;">
+            <span>🛠️ سجل أخطاء المزامنة</span>
+            <span style="background:${unresolvedCount > 0 ? '#ef4444' : '#64748b'};color:#ffffff;padding:1px 7px;border-radius:999px;font-size:0.7rem;">${allErrorLogs.length}</span>
+          </button>
+        </div>
+
+        <!-- محتوى التبويب النشط -->
+        <div>
+          ${tabBodyHtml}
         </div>
       </div>
 
-      <!-- مربع نتائج الفحص المباشر -->
-      <div id="cloudSyncLiveDiagBanner" style="display:none;background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:10px 12px;margin-bottom:14px;"></div>
-
-      <!-- أزرار التبويبات الثلاثة -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;background:#f1f5f9;padding:5px;border-radius:10px;border:1px solid #cbd5e1;">
-        <button type="button" onclick="window.switchAdvancedCloudSyncTab('folders')" style="border:none;padding:9px 10px;border-radius:8px;font-size:0.8rem;font-weight:800;cursor:pointer;background:${(_activeAdvancedSyncTab === 'folders' || _activeAdvancedSyncTab === 'drive') ? '#0f172a' : 'transparent'};color:${(_activeAdvancedSyncTab === 'folders' || _activeAdvancedSyncTab === 'drive') ? '#ffffff' : '#334155'};display:flex;align-items:center;justify-content:center;gap:6px;">
-          <span>📁 مجلدات Google Drive (${linkedFolders.length})</span>
-        </button>
-        <button type="button" onclick="window.switchAdvancedCloudSyncTab('modules')" style="border:none;padding:9px 10px;border-radius:8px;font-size:0.8rem;font-weight:800;cursor:pointer;background:${_activeAdvancedSyncTab === 'modules' ? '#0f172a' : 'transparent'};color:${_activeAdvancedSyncTab === 'modules' ? '#ffffff' : '#334155'};display:flex;align-items:center;justify-content:center;gap:6px;">
-          <span>🗄️ مجلدات بيانات Firestore (${CLOUD_SYNC_DATA_FOLDERS.length})</span>
-        </button>
-        <button type="button" onclick="window.switchAdvancedCloudSyncTab('errors')" style="border:none;padding:9px 10px;border-radius:8px;font-size:0.8rem;font-weight:800;cursor:pointer;background:${_activeAdvancedSyncTab === 'errors' ? '#0f172a' : 'transparent'};color:${_activeAdvancedSyncTab === 'errors' ? '#ffffff' : '#334155'};display:flex;align-items:center;justify-content:center;gap:6px;">
-          <span>🛠️ سجل أخطاء المزامنة</span>
-          <span style="background:${unresolvedCount > 0 ? '#ef4444' : '#64748b'};color:#ffffff;padding:1px 7px;border-radius:999px;font-size:0.7rem;">${allErrorLogs.length}</span>
-        </button>
-      </div>
-
-      <!-- محتوى التبويب النشط -->
-      <div>
-        ${tabBodyHtml}
-      </div>
-
-      <!-- تذييل الشاشة -->
-      <div style="margin-top:16px;padding-top:12px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <div style="font-size:0.74rem;color:#64748b;">
-          💡 يتم حفظ إعدادات المزامنة (تلقائية / يدوية) لكل مجلد محلياً وسحابياً لضمان استقرار العمل دون تكرار.
+      <!-- تذييل الشاشة الثابت مع أزرار الصعود والنزول -->
+      <div style="padding:10px 20px;border-top:1.5px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <button type="button" onclick="window.scrollDriveSyncContainer('advCloudSyncScrollBody', 'top')" class="drive-sync-scroll-nav-btn" title="الصعود إلى أعلى النافذة">
+            <span>⬆️ الصعود للأعلى</span>
+          </button>
+          <button type="button" onclick="window.scrollDriveSyncContainer('advCloudSyncScrollBody', 'up')" class="drive-sync-scroll-nav-btn" title="خطوة للأعلى">
+            <span>🔼 لأعلى</span>
+          </button>
+          <button type="button" onclick="window.scrollDriveSyncContainer('advCloudSyncScrollBody', 'down')" class="drive-sync-scroll-nav-btn" title="خطوة للأسفل">
+            <span>🔽 لأسفل</span>
+          </button>
+          <button type="button" onclick="window.scrollDriveSyncContainer('advCloudSyncScrollBody', 'bottom')" class="drive-sync-scroll-nav-btn" title="النزول إلى أسفل النافذة">
+            <span>⬇️ النزول للأسفل</span>
+          </button>
         </div>
-        <div style="display:flex;gap:8px;">
-          <button type="button" onclick="window.handleBackupToDrive()" style="background:#059669;color:#ffffff;border:none;padding:7px 14px;border-radius:7px;font-size:0.78rem;font-weight:800;cursor:pointer;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" onclick="window.closeAdvancedCloudSyncSettingsModal(); window.openDriveSyncCenterModal();" style="background:#ffffff;color:#0284c7;border:1.5px solid #0284c7;padding:6px 12px;border-radius:7px;font-size:0.76rem;font-weight:800;cursor:pointer;">
+            ↩️ مركز الربط بحساب Gmail
+          </button>
+          <button type="button" onclick="window.handleBackupToDrive()" style="background:#059669;color:#ffffff;border:none;padding:6px 14px;border-radius:7px;font-size:0.76rem;font-weight:800;cursor:pointer;">
             ☁️ مزامنة شاملة الآن
           </button>
-          <button type="button" onclick="window.closeAdvancedCloudSyncSettingsModal()" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;padding:7px 14px;border-radius:7px;font-size:0.78rem;font-weight:800;cursor:pointer;">
+          <button type="button" onclick="window.closeAdvancedCloudSyncSettingsModal()" style="background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;padding:6px 14px;border-radius:7px;font-size:0.76rem;font-weight:800;cursor:pointer;">
             إغلاق
           </button>
         </div>

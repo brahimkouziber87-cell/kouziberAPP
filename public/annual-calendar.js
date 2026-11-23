@@ -271,14 +271,32 @@
         },
         {
             id: 'ms_exam1_math_s1_2026',
-            title: 'فروض المراقبة المستمرة 1 لمادة الرياضيات (الأسدوس الأول)',
+            title: 'فروض المراقبة المستمرة 1 لمادة الرياضيات (الأسدوس الأول - المذكرة 142-08)',
             category: 'exam',
             categoryLabel: 'فروض الرياضيات',
             semester: 's1',
             semesterLabel: 'الأسدوس الأول',
-            startDate: '2026-11-09',
-            endDate: '2026-11-21',
-            description: 'إجراء وتصحيح الفرض المحروس الأول لمادة الرياضيات لجميع شعب الثانوي التأهيلي واستثمار حصص التصحيح والدعم البيداغوجي.',
+            startDate: '2026-10-12',
+            endDate: '2026-10-17',
+            description: 'إجراء وتصحيح الفرض المحروس رقم 1 لمادة الرياضيات لجميع شعب الثانوي التأهيلي واستثمار حصة التصحيح والدعم المندمج (المذكرة 142-08).',
+            targetLevels: 'جميع أقسام الثانوي التأهيلي المسندة',
+            importance: 'high',
+            icon: 'award',
+            color: '#dc2626',
+            isMath: true,
+            isSecondary: true,
+            isTeacher: false
+        },
+        {
+            id: 'ms_exam2_math_s1_2026',
+            title: 'فروض المراقبة المستمرة 2 لمادة الرياضيات (الأسدوس الأول - المذكرة 142-08)',
+            category: 'exam',
+            categoryLabel: 'فروض الرياضيات',
+            semester: 's1',
+            semesterLabel: 'الأسدوس الأول',
+            startDate: '2026-11-23',
+            endDate: '2026-12-05',
+            description: 'إجراء الفرض المحروس رقم 2 لمادة الرياضيات (والفرض 2/3 لشعبة العلوم الرياضية) وحصة التصحيح والدعم التربوي المندمج قبل العطلة البينية الثانية.',
             targetLevels: 'جميع أقسام الثانوي التأهيلي المسندة',
             importance: 'high',
             icon: 'award',
@@ -306,24 +324,6 @@
             isTeacher: false
         },
         {
-            id: 'ms_exam2_math_s1_2026',
-            title: 'فروض المراقبة المستمرة 2 لمادة الرياضيات (الأسدوس الأول)',
-            category: 'exam',
-            categoryLabel: 'فروض الرياضيات',
-            semester: 's1',
-            semesterLabel: 'الأسدوس الأول',
-            startDate: '2026-12-14',
-            endDate: '2026-12-24',
-            description: 'إجراء الفرض المحروس الثاني لمادة الرياضيات وتدوين النقط وتتبع مستويات المتعلمين المتعثرين قبل نهاية الأسدوس.',
-            targetLevels: 'جميع أقسام الثانوي التأهيلي المسندة',
-            importance: 'high',
-            icon: 'award',
-            color: '#dc2626',
-            isMath: true,
-            isSecondary: true,
-            isTeacher: false
-        },
-        {
             id: 'ms_prof_competency_exam_2026',
             title: 'امتحان الكفاءة المهنية لأطر هيئة التدريس (الامتحان المهني للترقية)',
             category: 'admin',
@@ -342,15 +342,33 @@
             isMath: false
         },
         {
+            id: 'ms_exam3_math_s1_2027',
+            title: 'فروض المراقبة المستمرة 3 (والفرض 4 للعلوم الرياضية) لمادة الرياضيات (الأسدوس الأول)',
+            category: 'exam',
+            categoryLabel: 'فروض الرياضيات',
+            semester: 's1',
+            semesterLabel: 'الأسدوس الأول',
+            startDate: '2027-01-04',
+            endDate: '2027-01-13',
+            description: 'إجراء وتصحيح الفرض المحروس رقم 3 للشعب العلمية والتقنية والاقتصادية (والفرض 4 لشعبة العلوم الرياضية) وفق المذكرة 142-08 قبل إغلاق مسك النقط في مسار.',
+            targetLevels: 'الشعب العلمية والتقنية والاقتصادية والعلوم الرياضية',
+            importance: 'high',
+            icon: 'award',
+            color: '#dc2626',
+            isMath: true,
+            isSecondary: true,
+            isTeacher: false
+        },
+        {
             id: 'ms_massar_s1_2027',
             title: 'المسك النهائي لنقط المراقبة المستمرة في منظومة مسار (S1)',
             category: 'massar',
             categoryLabel: 'مسار وتدبير النقط',
             semester: 's1',
             semesterLabel: 'الأسدوس الأول',
-            startDate: '2027-01-09',
-            endDate: '2027-01-16',
-            description: 'إنهاء إدخال وتدقيق كافة نقط فروض الرياضيات والأنشطة والمواظبة في منظومة مسار واستخراج بيانات النقط الأولية.',
+            startDate: '2027-01-12',
+            endDate: '2027-01-18',
+            description: 'إنهاء إدخال وتدقيق كافة نقط فروض الرياضيات المحروسة (100% من المعدل الدوري وفق المذكرة 142-08) في منظومة مسار واستخراج بيانات النقط الأولية.',
             targetLevels: 'الأساتذة والإدارة التربوية',
             importance: 'critical',
             icon: 'check-square',
@@ -415,14 +433,14 @@
         },
         {
             id: 'ms_exam1_math_s2_2027',
-            title: 'فروض المراقبة المستمرة 1 لمادة الرياضيات (الأسدوس الثاني)',
+            title: 'فروض المراقبة المستمرة 1 لمادة الرياضيات (الأسدوس الثاني - المذكرة 142-08)',
             category: 'exam',
             categoryLabel: 'فروض الرياضيات',
             semester: 's2',
             semesterLabel: 'الأسدوس الثاني',
-            startDate: '2027-03-22',
-            endDate: '2027-04-03',
-            description: 'فترة إجراء فروض المراقبة المستمرة الأولى للأسدوس الثاني لمادة الرياضيات، وتصحيحها واستثمار التعثرات قبل العطلة البينية.',
+            startDate: '2027-03-01',
+            endDate: '2027-03-13',
+            description: 'فترة إجراء فروض المراقبة المستمرة الأولى للأسدوس الثاني لمادة الرياضيات، وتصحيحها واستثمار التعثرات قبل العطلة البينية الثالثة.',
             targetLevels: 'جميع أقسام الثانوي التأهيلي المسندة',
             importance: 'high',
             icon: 'award',
@@ -450,6 +468,24 @@
             isTeacher: false
         },
         {
+            id: 'ms_exam2_math_s2_2027',
+            title: 'فروض المراقبة المستمرة 2 لمادة الرياضيات (الأسدوس الثاني - المذكرة 142-08)',
+            category: 'exam',
+            categoryLabel: 'فروض الرياضيات',
+            semester: 's2',
+            semesterLabel: 'الأسدوس الثاني',
+            startDate: '2027-04-19',
+            endDate: '2027-04-30',
+            description: 'إجراء وتصحيح الفرض المحروس رقم 2 للأسدوس الثاني لمادة الرياضيات وحصة التصحيح والدعم المندمج قبل العطلة البينية الرابعة.',
+            targetLevels: 'جميع أقسام الثانوي التأهيلي المسندة',
+            importance: 'high',
+            icon: 'award',
+            color: '#dc2626',
+            isMath: true,
+            isSecondary: true,
+            isTeacher: false
+        },
+        {
             id: 'ms_orientation_secondary_2027',
             title: 'عمليات التوجيه المدرسي ومجالس إعادة التوجيه بالثانوي التأهيلي',
             category: 'orientation',
@@ -468,15 +504,15 @@
             isMath: false
         },
         {
-            id: 'ms_exam2_math_s2_2027',
-            title: 'فروض المراقبة المستمرة 2 لمادة الرياضيات وإنهاء المقررات (S2)',
+            id: 'ms_exam3_math_s2_2027',
+            title: 'فروض المراقبة المستمرة 3 (والفرض 4 للعلوم الرياضية) وإنهاء المقررات (S2)',
             category: 'exam',
             categoryLabel: 'فروض الرياضيات',
             semester: 's2',
             semesterLabel: 'الأسدوس الثاني',
             startDate: '2027-05-17',
             endDate: '2027-05-29',
-            description: 'إجراء الفروض الختامية لمادة الرياضيات وإكمال إنجاز مفردات المقررات والبرامج الدراسية وتكثيف حصص الدعم والمراجعة للامتحانات.',
+            description: 'إجراء الفرض المحروس رقم 3 للشعب العلمية والتقنية والاقتصادية (والفرض 4 للعلوم الرياضية) وفق المذكرة 142-08، وإكمال المقررات وتكثيف الدعم للامتحانات الإشهادية.',
             targetLevels: 'جميع أقسام الثانوي التأهيلي',
             importance: 'high',
             icon: 'award',
@@ -3088,12 +3124,12 @@
     /**
      * حذف عطلة رسمية
      */
-    function deleteOfficialHoliday(id) {
+    async function deleteOfficialHoliday(id) {
         const holidays = getOfficialHolidays();
         const hol = holidays.find(h => h.id === id);
         if (!hol) return;
 
-        if (!confirm(`هل أنت متأكد من حذف العطلة الرسمية: "${hol.title}"؟`)) {
+        if (!(await window.showConfirmDialog(`هل أنت متأكد من حذف العطلة الرسمية: "${hol.title}"؟`))) {
             return;
         }
 
@@ -3139,8 +3175,8 @@
     /**
      * استعادة اللائحة الرسمية المعتمدة لوزارة التربية الوطنية
      */
-    function confirmResetOfficialHolidays() {
-        if (!confirm('هل أنت متأكد من استعادة اللائحة الرسمية المعتمدة للعطل المدرسية للموسم الدراسي 2026-2027؟\nسيتم تحديث كافة العطل والفترات البينية وإعادة ربطها بنظام الغياب.')) {
+    async function confirmResetOfficialHolidays() {
+        if (!(await window.showConfirmDialog('هل أنت متأكد من استعادة اللائحة الرسمية المعتمدة للعطل المدرسية للموسم الدراسي 2026-2027؟\nسيتم تحديث كافة العطل والفترات البينية وإعادة ربطها بنظام الغياب.'))) {
             return;
         }
 
@@ -3163,7 +3199,8 @@
      */
     function getCalendarPrintHeaderMetadata() {
         const s = (window.db && window.db.settings) ? window.db.settings : {};
-        const teacherName = s.teacherName || localStorage.getItem('prof_name') || 'الأستاذ إبراهيم قزيبر';
+        const tp = (window.db && window.db.teacherProfile) ? window.db.teacherProfile : {};
+        const teacherName = tp.name || s.teacherName || localStorage.getItem('prof_name') || 'أستاذ المادة';
         const schoolName = s.schoolName || localStorage.getItem('school_name') || 'الثانوية التأهيلية';
         const academyName = s.academyName || localStorage.getItem('academy_name') || 'الأكاديمية الجهوية للتربية والتكوين';
         const directorateName = s.directorateName || localStorage.getItem('directorate_name') || 'المديرية الإقليمية';
@@ -6680,7 +6717,7 @@
                                     سجل رخص وإجازات الأستاذ وتدبير الغياب القانوني
                                 </h2>
                                 <span style="font-size: 0.72rem; padding: 3px 10px; border-radius: 9999px; background: rgba(255, 255, 255, 0.15); color: #e0f2fe; border: 1px solid rgba(224, 242, 254, 0.3); font-weight: 800;">
-                                    الأستاذ إبراهيم قزيبر • مادة الرياضيات
+                                    مادة الرياضيات • السلك الثانوي التأهيلي
                                 </span>
                                 <span style="font-size: 0.7rem; padding: 2px 8px; border-radius: 9999px; background: rgba(16, 185, 129, 0.25); color: #86efac; border: 1px solid rgba(134, 239, 172, 0.3); font-weight: 800;">
                                     🛡️ غياب التلاميذ معفى ومحمي تلقائياً
@@ -7124,8 +7161,8 @@
     /**
      * حذف رخصة من سجل رخص الأستاذ
      */
-    function deleteTeacherLeave(id) {
-        if (!confirm('هل أنت متأكد من حذف هذه الرخصة من سجل رخص الأستاذ؟\nسيتم حذفها تلقائياً من التقويم السنوي والشهري.')) return;
+    async function deleteTeacherLeave(id) {
+        if (!(await window.showConfirmDialog('هل أنت متأكد من حذف هذه الرخصة من سجل رخص الأستاذ؟\nسيتم حذفها تلقائياً من التقويم السنوي والشهري.'))) return;
         const leaves = getTeacherLeaves();
         window.db.teacherLeaves = leaves.filter(l => l.id !== id);
 
@@ -7618,7 +7655,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `سجل_رخص_الاستاذ_ابراهيم_قزيبر_${new Date().toISOString().slice(0, 10)}.xls`;
+        a.download = `سجل_رخص_الأستاذ_${new Date().toISOString().slice(0, 10)}.xls`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

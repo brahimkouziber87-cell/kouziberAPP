@@ -194,14 +194,28 @@ export default function StrategicRoadmapSuite({ dbProp, classNamesProp }: Strate
       return Number(r?.duration) || 1;
     };
 
+    const isProtectedRecord =
+      typeof window !== 'undefined' && typeof (window as any).isRecordProtectedHolidayOrLeave === 'function'
+        ? (window as any).isRecordProtectedHolidayOrLeave
+        : null;
+    const isDisabledDate =
+      typeof window !== 'undefined' && typeof (window as any).isAbsenceDisabledOnDate === 'function'
+        ? (window as any).isAbsenceDisabledOnDate
+        : null;
+
     // Determine peak weekday per class
     const weekdayCountsByClass: Record<string, Record<number, number>> = {};
     records.forEach((r) => {
       if (!r || !r.date || (r.status !== 'غائب' && r.status !== 'مبرر')) return;
+      if (isProtectedRecord && isProtectedRecord(r)) return;
+      if (isDisabledDate) {
+        const chk = isDisabledDate(r.date, r.session);
+        if (typeof chk === 'boolean' ? chk : !!(chk && chk.disabled)) return;
+      }
       const dt = new Date(r.date + 'T12:00:00');
       if (isNaN(dt.getTime())) return;
       const dayIdx = dt.getDay();
-      const cls = r.className || 'عام';
+      const cls = r.className || r.class || 'عام';
       if (!weekdayCountsByClass[cls]) weekdayCountsByClass[cls] = {};
       weekdayCountsByClass[cls][dayIdx] = (weekdayCountsByClass[cls][dayIdx] || 0) + getDur(r);
     });
@@ -225,26 +239,28 @@ export default function StrategicRoadmapSuite({ dbProp, classNamesProp }: Strate
     targetClasses.forEach((cls) => {
       const students = normalizeStudentsList(db?.classes?.[cls]);
       const peakDay = peakDayByClass[cls] ?? 5;
+      const clsExamCnt =
+        typeof window !== 'undefined' && typeof (window as any).getExamsCountForClass === 'function'
+          ? Number((window as any).getExamsCountForClass(cls)) || 4
+          : 4;
 
       students.forEach((std: any, idx: number) => {
         const stdId = String(std.id || idx + 1);
         const g = getGradesForStudent(cls, stdId, selectedSemester);
         const f1 = parseGradeNum(g.f1);
         const f2 = parseGradeNum(g.f2);
-        const f3 = parseGradeNum(g.f3);
+        const f3 = clsExamCnt >= 3 ? parseGradeNum(g.f3) : null;
+        const f4 = clsExamCnt >= 4 ? parseGradeNum(g.f4) : null;
 
-        const validExams = [f1, f2, f3].filter((v): v is number => v !== null && v >= 0 && v <= 20);
+        const validExams = [f1, f2, f3, f4].filter((v): v is number => v !== null && v >= 0 && v <= 20);
         const avg =
           validExams.length > 0
             ? Number((validExams.reduce((a, b) => a + b, 0) / validExams.length).toFixed(2))
             : null;
 
         let gradeTrendDelta: number | null = null;
-        if (f1 !== null && f2 !== null) {
-          gradeTrendDelta = Number((f2 - f1).toFixed(2));
-        }
-        if (f2 !== null && f3 !== null) {
-          gradeTrendDelta = Number((f3 - f2).toFixed(2));
+        if (validExams.length >= 2) {
+          gradeTrendDelta = Number((validExams[validExams.length - 1] - validExams[validExams.length - 2]).toFixed(2));
         }
 
         let totalAbsenceHours = 0;
@@ -253,7 +269,12 @@ export default function StrategicRoadmapSuite({ dbProp, classNamesProp }: Strate
         let lateCount = 0;
 
         records.forEach((r) => {
-          if (!r || r.className !== cls || String(r.studentId) !== stdId) return;
+          if (!r || (r.className || r.class || '') !== cls || String(r.studentId) !== stdId) return;
+          if (isProtectedRecord && isProtectedRecord(r)) return;
+          if (r.date && isDisabledDate) {
+            const chk = isDisabledDate(r.date, r.session);
+            if (typeof chk === 'boolean' ? chk : !!(chk && chk.disabled)) return;
+          }
           const dur = getDur(r);
           if (r.status === 'غائب' || r.status === 'مبرر') {
             totalAbsenceHours += dur;
@@ -344,78 +365,7 @@ export default function StrategicRoadmapSuite({ dbProp, classNamesProp }: Strate
       });
     });
 
-    // Fallback preview if no students triggered risk yet so the teacher can inspect the system
-    const isDemo = items.length === 0;
-    if (isDemo) {
-      const sampleCls = classNames[0] || '2BAC-PC-1';
-      const demoRaw = [
-        {
-          id: 'demo-1',
-          name: 'ياسين المرابط',
-          massar: 'M139482711',
-          className: sampleCls,
-          f1: 11.5,
-          f2: 7.5,
-          f3: null,
-          avg: 9.5,
-          gradeTrendDelta: -4.0,
-          totalAbsenceHours: 8,
-          unjustifiedHours: 6,
-          peakDayAbsences: 4,
-          lateCount: 2,
-          riskScore: 86,
-          riskCategory: 'dual_critical' as const,
-          riskLabel: 'خطر مزدوج حرج (غياب + تراجع -4.0 ن)',
-          recommendedAction: 'إحالة فورية على التوجيه التربوي + استدعاء ولي الأمر + دعم مدمج'
-        },
-        {
-          id: 'demo-2',
-          name: 'سلمى بنجلون',
-          massar: 'M140293844',
-          className: sampleCls,
-          f1: 13.0,
-          f2: 8.5,
-          f3: null,
-          avg: 10.75,
-          gradeTrendDelta: -4.5,
-          totalAbsenceHours: 2,
-          unjustifiedHours: 0,
-          peakDayAbsences: 0,
-          lateCount: 1,
-          riskScore: 54,
-          riskCategory: 'grade_drop' as const,
-          riskLabel: 'تراجع حاد بين الفرض 1 والفرض 2 (-4.5 ن)',
-          recommendedAction: 'معالجة فورية لتعثرات الفرض الثاني قبل إجراء الفرض المحروس الثالث'
-        },
-        {
-          id: 'demo-3',
-          name: 'أنس الشرايبي',
-          massar: 'M138827165',
-          className: sampleCls,
-          f1: 12.0,
-          f2: 11.5,
-          f3: null,
-          avg: 11.75,
-          gradeTrendDelta: -0.5,
-          totalAbsenceHours: 6,
-          unjustifiedHours: 6,
-          peakDayAbsences: 4,
-          lateCount: 3,
-          riskScore: 62,
-          riskCategory: 'absence_peak' as const,
-          riskLabel: 'نزيف غياب متكرر يوم الجمعة (4 ساعات)',
-          recommendedAction: 'إشعار استباقي لولي الأمر عبر واتساب وتطبيق رائز قصير في بداية حصة الجمعة'
-        }
-      ];
-      demoRaw.forEach((d, i) =>
-        items.push({
-          ...d,
-          displayName: formatStudentNameForDisplay(d.name, i + 1),
-          displayMassar: formatMassarForDisplay(d.massar)
-        })
-      );
-    }
-
+    const isDemo = false;
     items.sort((a, b) => b.riskScore - a.riskScore);
     return { items, isDemo };
   }, [db, classNames, selectedClass, selectedSemester, privacyActive]);

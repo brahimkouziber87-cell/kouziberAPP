@@ -925,7 +925,7 @@
                         <tbody>
                             <tr>
                                 <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:800; background:#f1f5f9; width:28%;">اسم الأستاذ(ة) طالب السحب:</td>
-                                <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:700;">${escapeHtmlSafe(info.teacher || 'إبراهيم قزيبر')}</td>
+                                <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:700;">${escapeHtmlSafe(info.teacher || 'أستاذ المادة')}</td>
                                 <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:800; background:#f1f5f9; width:22%;">طبيعة الوثيقة:</td>
                                 <td style="border:1px solid #0f172a; padding:8px 12px; font-weight:700;">${escapeHtmlSafe(docTitle)}</td>
                             </tr>

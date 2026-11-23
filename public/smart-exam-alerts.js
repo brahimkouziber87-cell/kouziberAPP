@@ -267,13 +267,13 @@
         const numCol = isLiveNow ? '#dc2626' : isCritical ? '#c2410c' : '#1e3a8a';
 
         return `
-        <div class="smart-exam-countdown-card" id="${idPrefix}_exam_cd_card_${exam.id}" data-exam-id="${exam.id}" data-exam-date="${exam.startDate}" style="background: ${bgCol}; border: 1.5px solid ${borderCol}55; border-radius: 12px; padding: ${compact ? '6px 12px' : '8px 14px'}; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <div class="smart-exam-countdown-card" id="${idPrefix}_exam_cd_card_${exam.id}" data-exam-id="${exam.id}" data-exam-date="${exam.startDate}" style="background: ${bgCol}; border: 1.5px solid ${borderCol}55; border-radius: 12px; padding: ${compact ? '6px 10px' : '8px 14px'}; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; max-width: 100%; box-sizing: border-box;">
             ${showHeader ? `
-            <div style="display: flex; align-items: center; gap: 6px;">
+            <div style="display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%;">
                 <div style="background: ${borderCol}; color: #ffffff; width: ${compact ? '26px' : '30px'}; height: ${compact ? '26px' : '30px'}; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.15);">
                     <span data-lucide="${isLiveNow ? 'flame' : isCritical ? 'alert-triangle' : 'hourglass'}" data-size="${compact ? 13 : 16}"></span>
                 </div>
-                <div>
+                <div style="min-width: 0;">
                     <span style="font-size: ${compact ? '0.72rem' : '0.78rem'}; font-weight: 800; color: ${numCol}; display: block; line-height: 1.2;">
                         ${isLiveNow ? '🚨 موعد الفرض جارٍ اليوم!' : isCritical ? '⚠️ اقتراب موعد الفرض (أقل من 48 ساعة):' : '⏱️ العد التنازلي لموعد الفرض القادم:'}
                     </span>
@@ -283,7 +283,7 @@
                 </div>
             </div>
             ` : ''}
-            <div class="smart-exam-digits-display" id="${idPrefix}_digits_${exam.id}" style="display: inline-flex; align-items: center; gap: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 800; direction: ltr;">
+            <div class="smart-exam-digits-display" id="${idPrefix}_digits_${exam.id}" style="display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 800; direction: ltr;">
                 <div style="background: #ffffff; border: 1px solid ${borderCol}33; border-radius: 7px; padding: 2px 7px; text-align: center; min-width: 36px; box-shadow: 0 1px 2px rgba(0,0,0,0.03);">
                     <span class="exam-cd-val-days" style="font-size: ${compact ? '0.86rem' : '1.05rem'}; color: ${numCol}; font-weight: 900;">${cd.days}</span>
                     <span style="font-size: 0.58rem; color: #64748b; display: block; line-height: 1; font-family: 'Cairo', sans-serif;">يوم</span>
@@ -436,7 +436,8 @@
         const results = [];
 
         relevantClasses.forEach(className => {
-            const students = window.db.classes[className] || [];
+            const rawCls = window.db.classes[className];
+            const students = Array.isArray(rawCls) ? rawCls : (rawCls && Array.isArray(rawCls.students) ? rawCls.students : []);
             students.forEach(std => {
                 let totalAbsent = 0;
                 let unjustifiedHours = 0;
@@ -447,8 +448,11 @@
 
                 if (Array.isArray(window.db.records)) {
                     window.db.records.forEach(r => {
-                        if (r.studentId === std.id && r.className === className) {
-                            const dur = r.duration || 1;
+                        if (!r || r.status === 'عطلة رسمية' || r.migratedHoliday) return;
+                        if (typeof window.isRecordProtectedHolidayOrLeave === 'function' && window.isRecordProtectedHolidayOrLeave(r)) return;
+                        if (typeof window.isAbsenceDisabledOnDate === 'function' && window.isAbsenceDisabledOnDate(r.date, r.session)) return;
+                        if (r.studentId === std.id && (r.className === className || r.class === className)) {
+                            const dur = Number(r.duration || r.hours) || 1;
                             if (r.status === 'غائب') {
                                 totalAbsent += dur;
                                 unjustifiedHours += dur;
@@ -1138,14 +1142,14 @@
             }
 
             cardsHtml += `
-                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid ${daysLeft <= 2 ? '#ea580c' : '#3b82f6'}; border-radius: 10px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-                    <div style="display: flex; align-items: flex-start; gap: 10px; flex: 1; min-width: 250px;">
-                        <span style="background: #f8fafc; border: 1px solid #cbd5e1; color: #1e293b; font-weight: 800; font-size: 0.78rem; padding: 3px 8px; border-radius: 6px; white-space: nowrap; margin-top: 2px;">
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-right: 4px solid ${daysLeft <= 2 ? '#ea580c' : '#3b82f6'}; border-radius: 10px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; max-width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                    <div style="display: flex; align-items: flex-start; flex-wrap: wrap; gap: 10px; flex: 1 1 220px; min-width: 0; max-width: 100%;">
+                        <span style="background: #f8fafc; border: 1px solid #cbd5e1; color: #1e293b; font-weight: 800; font-size: 0.78rem; padding: 3px 8px; border-radius: 6px; margin-top: 2px; max-width: 100%; white-space: normal; word-break: break-word;">
                             ${escapeHtml(exam.targetLevels || 'جميع الأقسام')}
                         </span>
-                        <div>
+                        <div style="min-width: 0; flex: 1 1 180px; max-width: 100%;">
                             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                <strong style="font-size: 0.9rem; color: #0f172a;">${escapeHtml(exam.title)}</strong>
+                                <strong style="font-size: 0.9rem; color: #0f172a; word-break: break-word;">${escapeHtml(exam.title)}</strong>
                                 <span style="font-size: 0.7rem; font-weight: 800; padding: 2px 7px; border-radius: 999px; ${countdownBadgeStyle}">
                                     ${countdownBadgeText}
                                 </span>
@@ -1155,7 +1159,7 @@
                                     ? `<span style="color: #dc2626; font-weight: 700;">⚠️ تم رصد ${count} تلاميذ لديهم غيابات متكررة أو تعثر بيداغوجي بالقسم</span>`
                                     : `<span style="color: #059669; font-weight: 700;">✅ لا توجد غيابات مقلقة بالقسم المعني</span>`}
                             </div>
-                            <div style="margin-top: 6px;">
+                            <div style="margin-top: 6px; max-width: 100%;">
                                 ${buildExamCountdownWidgetHtml(exam, { compact: true, showHeader: false, idPrefix: 'dash_item' })}
                             </div>
                         </div>
@@ -1588,7 +1592,9 @@
             return;
         }
 
-        const studentObj = (window.db.classes[className] || []).find(s => s.id === studentId);
+        const rawCls = window.db.classes && window.db.classes[className];
+        const clsList = Array.isArray(rawCls) ? rawCls : (rawCls && Array.isArray(rawCls.students) ? rawCls.students : []);
+        const studentObj = clsList.find(s => s && s.id === studentId);
         const name = studentObj ? studentObj.name : 'تلميذ';
 
         window.db.tutoringStudents.push({

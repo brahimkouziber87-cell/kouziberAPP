@@ -32,6 +32,26 @@
             .replace(/'/g, '&#039;');
     }
 
+    function escapeJsAttr(str) {
+        return escapeHtml(String(str ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r|\n/g, ' '));
+    }
+
+    function getClassStudentsSafe(className) {
+        const raw = window.db && window.db.classes ? window.db.classes[className] : null;
+        return Array.isArray(raw) ? raw : (raw && Array.isArray(raw.students) ? raw.students : []);
+    }
+
+    function getDynamicAcademicYear() {
+        const now = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth() + 1;
+        return m >= 8 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
+    }
+
+    function sanitizeFilenamePart(str) {
+        return String(str || '').replace(/[\\/?*[\]:"<>|\s]+/g, '_').replace(/^_+|_+$/g, '');
+    }
+
     /**
      * الحصول على تاريخ اليوم بنسق YYYY-MM-DD
      */
@@ -106,7 +126,7 @@
 
         targetClasses.forEach(className => {
             classAbsenceStats[className] = {
-                totalStudents: (classes[className] || []).length,
+                totalStudents: getClassStudentsSafe(className).length,
                 atRiskCount: 0,
                 absenceHours: 0
             };
@@ -133,6 +153,9 @@
             if (absenceType === 'justified' && !isJustified) continue;
 
             // استثناء العطل الرسمية ورخص الأستاذ المعفاة
+            if (typeof window.isRecordProtectedHolidayOrLeave === 'function' && window.isRecordProtectedHolidayOrLeave(r)) {
+                continue;
+            }
             if (typeof window.isAbsenceDisabledOnDate === 'function' && window.isAbsenceDisabledOnDate(r.date, r.session)) {
                 continue;
             }
@@ -149,7 +172,8 @@
                 weekdayAbsenceMap[dayName] += dur;
             }
 
-            const key = `${r.studentId}_${r.className}`;
+            const recCls = r.className || r.class || '';
+            const key = `${r.studentId}_${recCls}`;
             if (!studentWeeklyRecords.has(key)) {
                 studentWeeklyRecords.set(key, []);
             }
@@ -166,7 +190,7 @@
 
         // فحص تلاميذ الأقسام المستهدفة
         targetClasses.forEach(className => {
-            const studentList = classes[className] || [];
+            const studentList = getClassStudentsSafe(className);
             allStudentsCount += studentList.length;
             const classBehaviors = behaviors[className] || {};
 
@@ -196,7 +220,8 @@
                 let allTimeAbsenceHours = 0;
                 for (let j = 0; j < records.length; j++) {
                     const r = records[j];
-                    if (r.studentId === std.id && r.className === className && (r.status === 'غائب' || r.status === 'مبرر')) {
+                    const recCls = r.className || r.class || '';
+                    if (String(r.studentId) === String(std.id) && recCls === className && (r.status === 'غائب' || r.status === 'مبرر')) {
                         if (typeof window.isRecordProtectedHolidayOrLeave === 'function' && window.isRecordProtectedHolidayOrLeave(r)) continue;
                         allTimeAbsenceHours += (typeof window.getRecordAbsenceDuration === 'function')
                             ? window.getRecordAbsenceDuration(r)
@@ -354,7 +379,7 @@
                         ممتاز! انضباط تام أو عدم تجاوز لعتبة الغياب خلال آخر 7 أيام
                     </h4>
                     <p style="margin: 0 auto; max-width: 580px; font-size: 0.82rem; color: #047857; line-height: 1.6;">
-                        لم يتم تسجيل أي تلميذ تجاوز عتبة <strong>${data.threshold} ساعات غياب</strong> في الفترة من <strong>${data.startDate}</strong> إلى <strong>${data.endDate}</strong>.
+                        لم يتم تسجيل أي تلميذ تجاوز عتبة <strong>${escapeHtml(data.threshold)} ساعات غياب</strong> في الفترة من <strong>${escapeHtml(data.startDate)}</strong> إلى <strong>${escapeHtml(data.endDate)}</strong>.
                         يمكنك خفض العتبة (مثلاً إلى ساعتين أو ساعة واحدة) لرصد الغيابات الطفيفة، أو مراجعة تاريخ نهاية الأسبوع.
                     </p>
                     <div style="display: flex; justify-content: center; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
@@ -422,10 +447,10 @@
                         </td>
                         <td style="padding: 12px 10px; text-align: center;">
                             <div style="display: flex; align-items: center; justify-content: center; gap: 5px;">
-                                <button type="button" onclick="notifyParentWeeklyAbsence('${escapeHtml(item.id)}', '${escapeHtml(item.className)}')" title="إشعار ولي الأمر عبر WhatsApp بحالات غياب هذا الأسبوع" style="background: #25d366; color: #fff; border: none; border-radius: 7px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.15s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+                                <button type="button" onclick="notifyParentWeeklyAbsence('${escapeJsAttr(item.id)}', '${escapeJsAttr(item.className)}')" title="إشعار ولي الأمر عبر WhatsApp بحالات غياب هذا الأسبوع" style="background: #25d366; color: #fff; border: none; border-radius: 7px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.15s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
                                     <span data-lucide="message-circle" data-size="14"></span>
                                 </button>
-                                <button type="button" onclick="openStudentPortfolio('${escapeHtml(item.id)}', '${escapeHtml(item.className)}')" title="معاينة الملف التربوي الشامل للتلميذ" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; border-radius: 7px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                                <button type="button" onclick="openStudentPortfolio('${escapeJsAttr(item.id)}', '${escapeJsAttr(item.className)}')" title="معاينة الملف التربوي الشامل للتلميذ" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; border-radius: 7px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
                                     <span data-lucide="user" data-size="14"></span>
                                 </button>
                             </div>
@@ -486,7 +511,7 @@
                             </div>
                             <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #64748b;">
                                 رصد تلقائي للتلاميذ المتجاوزين لعتبة الغياب خلال آخر 7 أيام
-                                (من <strong style="color: #0369a1;">${data.startDate}</strong> إلى <strong style="color: #0369a1;">${data.endDate}</strong>)
+                                (من <strong style="color: #0369a1;">${escapeHtml(data.startDate)}</strong> إلى <strong style="color: #0369a1;">${escapeHtml(data.endDate)}</strong>)
                                 مع خيار إرسال التقرير الرسمي للإدارة التربوية بنقرة واحدة.
                             </p>
                         </div>
@@ -514,7 +539,7 @@
                     <!-- 1. المتجاوزون للعتبة -->
                     <div style="background: ${hasStudents ? '#fef2f2' : '#f0fdf4'}; border: 1px solid ${hasStudents ? '#fecaca' : '#bbf7d0'}; border-radius: 10px; padding: 12px 14px;">
                         <div style="font-size: 0.74rem; font-weight: 700; color: ${hasStudents ? '#991b1b' : '#166534'};">
-                            التلاميذ المتجاوزون للعتبة (≥ ${data.threshold}س)
+                            التلاميذ المتجاوزون للعتبة (≥ ${escapeHtml(data.threshold)}س)
                         </div>
                         <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 4px;">
                             <span style="font-size: 1.6rem; font-weight: 900; color: ${hasStudents ? '#dc2626' : '#15803d'}; line-height: 1.1;">
@@ -701,13 +726,13 @@
     /**
      * إرسال التقرير للإدارة بنقرة واحدة
      */
-    function sendWeeklySummaryToAdminOneClick() {
+    async function sendWeeklySummaryToAdminOneClick() {
         const data = getWeeklyAbsenceSummaryData();
         const db = window.db || {};
 
         if (data.students.length === 0) {
             // تنبيه الأستاذ في حال عدم وجود تلاميذ متجاوزين
-            const proceed = confirm(
+            const proceed = await window.showConfirmDialog(
                 `لا توجد حالات تجاوزت عتبة ${data.threshold} ساعات في الفترة المحددة (${data.startDate} إلى ${data.endDate}).\n` +
                 `هل ترغب بإرسال "تقرير استقرار المواظبة وخلو القسم من الغيابات الحرجة" للإدارة؟`
             );
@@ -716,7 +741,10 @@
 
         // 1. توليد رقم إشاري رسمي للتقرير الأسبوعي
         const nowObj = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
-        const dateCode = nowObj.toISOString().slice(2, 10).replace(/-/g, '');
+        const yy = String(nowObj.getFullYear()).slice(-2);
+        const mm = String(nowObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(nowObj.getDate()).padStart(2, '0');
+        const dateCode = `${yy}${mm}${dd}`;
         const randomCode = Math.floor(100 + Math.random() * 900);
         const slipNumber = `WK-${dateCode}-${randomCode}`;
 
@@ -953,7 +981,7 @@
         const schoolName = profile.school || profile.institution || 'المؤسسة التعليمية';
         const academy = profile.academy || 'الأكاديمية الجهوية للتربية والتكوين';
         const directorate = profile.directorate || 'المديرية الإقليمية';
-        const season = profile.academicYear || profile.schoolYear || '2026/2027';
+        const season = profile.academicYear || profile.schoolYear || getDynamicAcademicYear();
         const printFont = typeof window.getSelectedPrintFontFamily === 'function' ? window.getSelectedPrintFontFamily() : "'Cairo', sans-serif";
         const hwFont = typeof window.getSelectedHandwritingFontFamily === 'function' ? window.getSelectedHandwritingFontFamily() : "'Aref Ruqaa', serif";
 
@@ -1075,7 +1103,7 @@
                     </div>
                 </div>
                 <div style="margin-top: 14px; padding-top: 8px; border-top: 1.5px solid #cbd5e1; text-align: center; font-size: 11px; font-weight: 800; color: #1e3a8a;">
-                    منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر
+                    منظومة التدبير التربوي - مادة الرياضيات - السلك الثانوي التأهيلي
                 </div>
             </div>
         `;
@@ -1170,7 +1198,7 @@
             const data = getWeeklyAbsenceSummaryData();
             const opt = {
                 margin: [10, 10, 10, 10],
-                filename: `تقرير_الغياب_الأسبوعي_${data.startDate}_إلى_${data.endDate}.pdf`,
+                filename: `تقرير_الغياب_الأسبوعي_${sanitizeFilenamePart(data.startDate)}_إلى_${sanitizeFilenamePart(data.endDate)}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -1295,8 +1323,8 @@
      */
     function notifyParentWeeklyAbsence(studentId, className) {
         const db = window.db || {};
-        const studentList = (db.classes && db.classes[className]) || [];
-        const student = studentList.find(s => s.id === studentId);
+        const studentList = getClassStudentsSafe(className);
+        const student = studentList.find(s => String(s.id) === String(studentId));
         if (!student) return;
 
         const data = getWeeklyAbsenceSummaryData({ classFilter: className });
@@ -1387,7 +1415,8 @@
 
         for (let i = 0; i < allRecords.length; i++) {
             const r = allRecords[i];
-            if (!r || !r.studentId || !r.className) continue;
+            const recCls = r ? (r.className || r.class || '') : '';
+            if (!r || !r.studentId || !recCls) continue;
             if (typeof window.isRecordProtectedHolidayOrLeave === 'function' && window.isRecordProtectedHolidayOrLeave(r)) {
                 continue;
             }
@@ -1395,7 +1424,7 @@
             const dur = (typeof window.getRecordAbsenceDuration === 'function')
                 ? window.getRecordAbsenceDuration(r)
                 : (r.part === 'h1' || r.part === 'h2' ? 1 : (parseFloat(r.duration || r.hours) || 1));
-            const key = `${r.className}:::${r.studentId}`;
+            const key = `${recCls}:::${r.studentId}`;
 
             if (isAbs) {
                 annualHoursByStudent.set(key, (annualHoursByStudent.get(key) || 0) + dur);
@@ -1424,7 +1453,7 @@
         let totalStudentsInScope = 0;
 
         classKeys.forEach(cName => {
-            const students = Array.isArray(classesMap[cName]) ? classesMap[cName] : [];
+            const students = getClassStudentsSafe(cName);
             students.forEach(std => {
                 if (!std || !std.id) return;
                 totalStudentsInScope++;
@@ -1571,8 +1600,8 @@
 
         const dayHeadersHtml = data.weekDays.map(wd => `
             <th style="padding: 9px 6px; text-align: center; border-left: 1px solid #e2e8f0; min-width: 72px; background: #f1f5f9;">
-                <div style="font-size: 0.78rem; font-weight: 800; color: #0f172a;">${wd.dayName}</div>
-                <div style="font-size: 0.68rem; font-weight: 700; color: #0f766e; font-family: monospace;">${wd.shortDate}</div>
+                <div style="font-size: 0.78rem; font-weight: 800; color: #0f172a;">${escapeHtml(wd.dayName)}</div>
+                <div style="font-size: 0.68rem; font-weight: 700; color: #0f766e; font-family: monospace;">${escapeHtml(wd.shortDate)}</div>
             </th>
         `).join('');
 
@@ -1632,7 +1661,7 @@
                     <tr style="border-bottom: 1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                         <td style="padding: 9px 8px; text-align: center; font-weight: 800; color: #64748b; font-size: 0.78rem;">${idx + 1}</td>
                         <td style="padding: 9px 10px;">
-                            <div style="font-weight: 800; color: #0f172a; font-size: 0.85rem; cursor: pointer;" onclick="if(typeof openStudentQuickModal==='function') openStudentQuickModal('${escapeHtml(row.className)}', '${escapeHtml(row.id)}')">
+                            <div style="font-weight: 800; color: #0f172a; font-size: 0.85rem; cursor: pointer;" onclick="if(typeof openStudentQuickModal==='function') openStudentQuickModal('${escapeJsAttr(row.className)}', '${escapeJsAttr(row.id)}')">
                                 ${escapeHtml(row.name)}
                             </div>
                             <div style="font-size: 0.7rem; color: #64748b; font-family: monospace;">
@@ -1660,10 +1689,10 @@
                         </td>
                         <td style="padding: 9px 8px; text-align: center;">
                             <div style="display: inline-flex; gap: 4px; align-items: center; justify-content: center;">
-                                <button type="button" onclick="if(typeof openStudentWhatsAppReminderModal==='function') openStudentWhatsAppReminderModal('${escapeHtml(row.className)}', '${escapeHtml(row.id)}', 'ai_absence')" title="توليد ملخص بيداغوجي ذكي بالذكاء الاصطناعي لغياب التلميذ وإرساله لولي الأمر عبر واتساب" style="background: linear-gradient(135deg, #25d366, #059669); color: #ffffff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;">
+                                <button type="button" onclick="if(typeof openStudentWhatsAppReminderModal==='function') openStudentWhatsAppReminderModal('${escapeJsAttr(row.className)}', '${escapeJsAttr(row.id)}', 'ai_absence')" title="توليد ملخص بيداغوجي ذكي بالذكاء الاصطناعي لغياب التلميذ وإرساله لولي الأمر عبر واتساب" style="background: linear-gradient(135deg, #25d366, #059669); color: #ffffff; border: none; padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;">
                                     ✨ واتساب AI
                                 </button>
-                                <button type="button" onclick="if(typeof openStudentDigitalPortfolio==='function') openStudentDigitalPortfolio('${escapeHtml(row.className)}', '${escapeHtml(row.id)}')" title="فتح ملف الإنجاز الرقمي للتلميذ" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 4px 7px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer;">
+                                <button type="button" onclick="if(typeof openStudentDigitalPortfolio==='function') openStudentDigitalPortfolio('${escapeJsAttr(row.className)}', '${escapeJsAttr(row.id)}')" title="فتح ملف الإنجاز الرقمي للتلميذ" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 4px 7px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer;">
                                     📋 الملف
                                 </button>
                             </div>
@@ -1692,7 +1721,7 @@
                                 جدول التتبع الأسبوعي لغياب التلاميذ (الساعات المفقودة)
                             </h3>
                             <span style="font-size: 0.72rem; background: #ccfbf1; color: #115e59; border: 1px solid #99f6e4; padding: 2px 9px; border-radius: 999px; font-weight: 800;">
-                                ${weekLabelBadge}
+                                ${escapeHtml(weekLabelBadge)}
                             </span>
                             <span style="font-size: 0.72rem; background: ${data.grandWeekLostHours > 0 ? '#fee2e2' : '#dcfce7'}; color: ${data.grandWeekLostHours > 0 ? '#b91c1c' : '#15803d'}; border: 1px solid ${data.grandWeekLostHours > 0 ? '#fecaca' : '#bbf7d0'}; padding: 2px 9px; border-radius: 999px; font-weight: 800;">
                                 إجمالي الساعات المفقودة: ${data.grandWeekLostHours} ساعة
@@ -1892,7 +1921,7 @@
             ''
         ]);
 
-        const filename = `جدول_التتبع_الأسبوعي_للغياب_${data.startDate}_إلى_${data.endDate}`;
+        const filename = sanitizeFilenamePart(`جدول_التتبع_الأسبوعي_للغياب_${data.startDate}_إلى_${data.endDate}`);
 
         if (!window.XLSX && typeof window.ensureXlsxLoaded === 'function') {
             await window.ensureXlsxLoaded();
@@ -1921,12 +1950,12 @@
         const data = getWeeklyTrackingMatrixData();
         const db = window.db || {};
         const profile = db.teacherProfile || db.profile || {};
-        const teacherName = profile.name || 'الأستاذ إبراهيم قزيبر';
+        const teacherName = profile.name || 'أستاذ المادة';
         const subjectName = profile.subject || 'مادة الرياضيات';
         const schoolName = profile.school || profile.institution || 'المؤسسة التعليمية';
         const academy = profile.academy || 'الأكاديمية الجهوية للتربية والتكوين';
         const directorate = profile.directorate || 'المديرية الإقليمية';
-        const season = profile.academicYear || profile.schoolYear || '2026/2027';
+        const season = profile.academicYear || profile.schoolYear || getDynamicAcademicYear();
 
         const dayHeaders = data.weekDays.map(wd => `
             <th style="border: 1px solid #1e293b; padding: 5px 4px; text-align: center; background: #f1f5f9; font-size: 10.5px;">
@@ -2016,14 +2045,14 @@
                 </div>
 
                 <div style="margin-top: 18px; padding-top: 8px; border-top: 1.5px solid #cbd5e1; text-align: center; font-size: 11px; font-weight: 800; color: #1e3a8a;">
-                    منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر
+                    منظومة التدبير التربوي - مادة الرياضيات - ${escapeHtml(teacherName)}
                 </div>
             </div>
         `;
 
         if (typeof window.openCustomPrintPreviewModal === 'function') {
             window.openCustomPrintPreviewModal(htmlContent, {
-                title: `جدول_التتبع_الأسبوعي_${data.startDate}_${data.endDate}`,
+                title: sanitizeFilenamePart(`جدول_التتبع_الأسبوعي_${data.startDate}_${data.endDate}`),
                 orientation: 'landscape',
                 subtitle: `جدول التتبع الأسبوعي للساعات المفقودة (${data.startDate} إلى ${data.endDate})`
             });
@@ -2052,7 +2081,7 @@
             });
         }
         txt += `────────────────────\n`;
-        txt += `*منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر*`;
+        txt += `*منظومة التدبير التربوي - مادة الرياضيات - السلك الثانوي التأهيلي*`;
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(txt).then(() => {

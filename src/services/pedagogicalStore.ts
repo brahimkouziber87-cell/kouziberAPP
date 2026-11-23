@@ -123,7 +123,12 @@ function computeSnapshot(): PedagogicalStoreSnapshot {
     classNames,
     totalStudents,
     teacherName: String(db.teacherProfile?.name || 'الأستاذ(ة)'),
-    academicYear: String(db.teacherProfile?.academicYear || '2025/2026'),
+    academicYear: String(
+      db.teacherProfile?.academicYear ||
+      ((new Date().getMonth() + 1) >= 9
+        ? `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`
+        : `${new Date().getFullYear() - 1}/${new Date().getFullYear()}`)
+    ),
     db,
   };
 }

@@ -44,7 +44,9 @@
             title: 'التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات بسلك التعليم الثانوي التأهيلي',
             category: 'المنهاج والتوجيهات البيداغوجية',
             color: '#0284c7',
-            summary: 'الوثيقة المرجعية الأساسية الصادرة عن مديرية المناهج لتأطير تدريس الرياضيات بالثانوي التأهيلي؛ تحدد الكفايات المستهدفة، القدرات المنتظرة، الغلاف الزمني الرسمي لكل درس، والاختيارات الديداكتيكية.',
+            pdfUrl: '/assets/aistudio/_____________________________________________________3a655c1c.pdf',
+            pdfFileName: 'التوجيهات_التربوية_لمادة_الرياضيات_بالثانوي_التأهيلي_2007.pdf',
+            summary: 'الوثيقة المرجعية الرسمية الكاملة الصادرة عن مديرية المناهج (نونبر 2007) لتأطير تدريس الرياضيات بالثانوي التأهيلي؛ تحدد الكفايات المستهدفة، القدرات المنتظرة، الغلاف الزمني الرسمي لكل درس، والاختيارات الديداكتيكية لجميع الجذوع والشعب والمسالك.',
             keyArticles: [
                 {
                     title: 'المقاربة بالكفايات وبناء المفاهيم عبر وضعيات-مسائل',
@@ -52,38 +54,40 @@
                 },
                 {
                     title: 'احترام الغلاف الزمني والتدرج البيداغوجي للدرس',
-                    text: 'يلتزم الأستاذ باحترام الغلاف الزمني الرسمي المحدد لكل درس ومفصل في التوزيع السنوي، مع الموازنة بين بناء المفهوم، التمارين التطبيقية، والمسائل التوليفية.'
+                    text: 'يلتزم الأستاذ باحترام الغلاف الزمني الرسمي المحدد لكل درس ومفصل في التوزيع السنوي (34 أسبوعاً دراسياً؛ 17 أسبوعاً لكل دورة)، مع الموازنة بين بناء المفهوم، التمارين التطبيقية، والمسائل التوليفية.'
                 },
                 {
-                    title: 'تنمية الاستدلال الرياضي والتواصل العلمي',
-                    text: 'تستهدف حصص الرياضيات تدريب المتعلمين على أنماط الاستدلال المنطقي (الاستنتاجي، الترجع، الخلف، فصل الحالات، المثال المضاد) وتحرير البراهين بلغة رياضية سليمة.'
+                    title: 'تنمية الاستدلال الرياضي والتواصل العلمي وإدماج التكنولوجيا',
+                    text: 'تستهدف حصص الرياضيات تدريب المتعلمين على أنماط الاستدلال المنطقي (الاستنتاجي، الترجع، الخلف، فصل الحالات، الاستلزام المضاد للعكس، المثال المضاد) وتوظيف الآلة الحاسبة العلمية والبرمجيات الهندسية.'
                 }
             ]
         },
         {
             id: 'note_142_08',
             number: 'المذكرة الوزارية رقم 142-08',
-            date: '04 نونبر 2008',
-            title: 'التقويم التربوي بالسلك الثانوي التأهيلي - مادة الرياضيات',
+            date: '16 نونبر 2007',
+            title: 'التقويم التربوي بالسلك الثانوي التأهيلي لمادة الرياضيات',
             category: 'التقويم والمراقبة المستمرة',
             color: '#1e3a8a',
-            summary: 'تحدد المذكرة أوزان ومواصفات المراقبة المستمرة لمادة الرياضيات بجميع شعب ومسالك الثانوي التأهيلي، وعدد الفروض المحروسة والمنزلية ومدتها الزمنية وحصص التصحيح والدعم.',
+            pdfUrl: '/assets/aistudio/n14208_evalped_08_a6af9323.pdf',
+            pdfFileName: 'المذكرة_الوزارية_142-08_التقويم_التربوي_لمادة_الرياضيات.pdf',
+            summary: 'الوثيقة الرسمية الكاملة المؤطرة للتقويم التربوي والمراقبة المستمرة لمادة الرياضيات بجميع جذوع وشعب ومسالك الثانوي التأهيلي؛ تحدد جداول الفروض المنزلية والمحروسة، أسابيع الإنجاز والتصحيح، مكونات كل فرض ونسب الأهمية (%)، ومواصفات ومستويات الأسئلة.',
             keyArticles: [
                 {
-                    title: 'المعدل الدوري للمراقبة المستمرة (منظومة مسار)',
-                    text: 'يُحتسب المعدل الدوري للمراقبة المستمرة في مادة الرياضيات حصراً من المعدل الحسابي لنقط الفروض المحروسة المنجزة حضورياً خلال الدورة الدراسية.'
+                    title: 'المعدل الدوري للمراقبة المستمرة وتغطية البرنامج (75% على الأقل)',
+                    text: 'يُحتسب المعدل الدوري للمراقبة المستمرة في مادة الرياضيات من نقط الفروض المحروسة المنجزة حضورياً خلال الدورة الدراسية، ويشترط في مواضيع الفروض المحروسة ألا تقل التغطية لبرنامج الدورة أو الفترة المراد تقييمها عن 75%.'
                 },
                 {
-                    title: 'وثيرة وعدد الفروض المحروسة حسب الشعب',
-                    text: 'يُجرى في كل دورة: 4 فروض محروسة (2س) لشعبة العلوم الرياضية، و3 فروض محروسة (2س) لشعب العلوم التجريبية والتكنولوجيات والاقتصاد والتدبير والجذع العلمي، وفرضان محروسان (1س) لشعبة الآداب والعلوم الإنسانية (1BAC SH / LSH و 2BAC LSH) والجذع الأدبي.'
+                    title: 'وثيرة وعدد الفروض المحروسة والمنزلية حسب الجذوع والشعب',
+                    text: 'يُجرى في كل دورة: 4 فروض محروسة (2س) + 4 منزلية لشعبة العلوم الرياضية (1BAC/2BAC SM)، و3 فروض محروسة (2س) + 3 منزلية للجذع العلمي والتكنولوجي وشعب العلوم التجريبية والتكنولوجيات والاقتصاد والتدبير، وفرضان محروسان (1س) + 2 منزلية للجذع الأدبي والأصيل وشعبتي الآداب والعلوم الإنسانية والفنون التطبيقية.'
                 },
                 {
-                    title: 'حصة التصحيح والدعم المندمج',
-                    text: 'تُبرمج وجوباً حصة لتصحيح كل فرض محروس داخل الفصل بمعية التلاميذ، وتُستثمر في تحليل الأخطاء المتكررة وتشخيص التعثرات وتقديم دعم تربوي مندمج.'
+                    title: 'توزيع المستويات المهارية في الفروض المحروسة والمنزلية (البند 4 - ص 9)',
+                    text: 'في الفروض المنزلية: أسئلة من المستويين المهاريين الثاني والثالث بنسبة تتراوح بين 30% و60%. وفي الفروض المحروسة: لشعب التعليم الأصيل والآداب والعلوم الإنسانية والفنون التطبيقية (60% مستوى مهاري أول + 40% مستوى مهاري ثانٍ)، ولباقي الجذوع والشعب العلمية والتقنية والاقتصادية (10% إلى 20% مستوى مهاري ثالث مع التوازن بين المستويين الأول والثاني).'
                 },
                 {
-                    title: 'الفروض المنزلية ومسطرة الفروض التعويضية',
-                    text: 'يُكلَف التلاميذ بفروض منزلية منتظمة تُصحح جماعياً لترسيخ التعلمات، ويستفيد التلميذ المتغيب بمبرر قانوني من فرض تعويضي مكافئ تفادياً لمنحه نقطة الصفر.'
+                    title: 'إلزامية حصص التصحيح والدعم المندمج وفق الأسابيع المحددة',
+                    text: 'تُبرمج وجوباً حصة لتصحيح كل فرض منزلي وكل فرض محروس في الأسابيع المحددة بجداول المذكرة 142-08 بمعية التلاميذ، وتُستثمر في تحليل الأخطاء المتكررة وتشخيص التعثرات وتقديم دعم تربوي مندمج.'
                 }
             ]
         },
@@ -106,7 +110,7 @@
                 },
                 {
                     title: 'نسب الأهمية لشعبة الاقتصاد والتدبير وشعبة الآداب (LSH)',
-                    text: 'في الاقتصاد والتدبير: التحليل 65% (الدوال والتكامل 50% + المتتاليات 15%) والاحتمالات 35%. وفي شعبة الآداب والعلوم الإنسانية (2BAC LSH): المتتاليات والدوال اللوغاريتمية والأسية (65%) وحساب الاحتمالات (35%).'
+                    text: 'في الاقتصاد والتدبير: التحليل 65% (الدوال والتكامل 50% + المتتاليات 15%) والاحتمالات 35%. وفي شعبة الآداب والعلوم الإنسانية (2BAC LSH): التحليل 75% (المتتاليات 20% + الدوال اللوغاريتمية والأسية 55%) وحساب الاحتمالات 25%.'
                 }
             ]
         },
@@ -121,7 +125,7 @@
             keyArticles: [
                 {
                     title: 'بنية ومكونات الإطار المرجعي للامتحان الجهوي (1BAC SH / LSH)',
-                    text: 'يغطي الامتحان الجهوي الموحد للسنة الأولى بكالوريا آداب وعلوم إنسانية أربعة مجالات أساسية: المعادلات والمتراجحات والنظمات والنسب المئوية (25%)، المتتاليات العددية الحسابية والهندسية (20%)، التعداد (20%)، والاشتقاق ودراسة وتمثيل الدوال العددية (35%).'
+                    text: 'يغطي الامتحان الجهوي الموحد للسنة الأولى بكالوريا آداب وعلوم إنسانية أربعة مجالات أساسية: المعادلات والمتراجحات والنظمات والنسب المئوية (25%)، المتتاليات العددية الحسابية والهندسية (15%)، التعداد (20%)، والنهايات والاشتقاق ودراسة وتمثيل الدوال العددية (40%).'
                 },
                 {
                     title: 'توجيهات التقويم وبناء الوضعيات الاختبارية',
@@ -279,7 +283,10 @@
                 { keywords: ['تحويلات', 'ازاحه', 'تحاكي', 'دوران', 'تماثل'], target: ['تحويلات', 'دوران'] },
                 { keywords: ['مجموعات', 'تطبيقات', 'تبايني', 'شمولي', 'تقابلي'], target: ['مجموعات', 'تطبيقات'] },
                 { keywords: ['ترتيب في r', 'مجالات', 'قيمه مطلقه', 'مقاربه'], target: ['ترتيب'] },
-                { keywords: ['عموميات حول الدوال', 'مجموعه تعريف', 'زوجيه', 'فرديه', 'معدل تغير'], target: ['عموميات حول الدوال', 'دوال عدديه'] }
+                { keywords: ['عموميات حول الدوال', 'مجموعه تعريف', 'زوجيه', 'فرديه', 'معدل تغير', 'شفعيه', 'تمثيل مبياني'], target: ['عموميات حول الدوال', 'دوال عدديه', 'تمثيلها'] },
+                { keywords: ['معلم في المستوي', 'معادله مستقيم', 'احداثيتا', 'توازي مستقيمين', 'هندسه مستويه'], target: ['هندسه مستويه', 'مستقيم في المستوي'] },
+                { keywords: ['مصفوف', 'محدده', 'تعميل مصفوفه'], target: ['مصفوف', 'بنيات'] },
+                { keywords: ['لوغاريتم عشري', 'log'], target: ['لوغاريتم', 'عشري'] }
             ];
 
             for (const cluster of topicClusters) {
@@ -395,7 +402,7 @@
         let decreeDate = 'نونبر 2007 / 17 نونبر 2011';
         let decreeTitle = 'التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات ومسك دفاتر النصوص';
         let secondaryDecreeNumber = 'المذكرة الوزارية رقم 142-08';
-        let secondaryDecreeTitle = 'التقويم التربوي والمراقبة المستمرة لمادة الرياضيات (04 نونبر 2008)';
+        let secondaryDecreeTitle = 'التقويم التربوي والمراقبة المستمرة لمادة الرياضيات (16 نونبر 2007)';
         let color = '#1d4ed8';
         let bg = '#eff6ff';
         let border = '#bfdbfe';
@@ -414,8 +421,8 @@
             contextLabel = 'تقويم تشخيصي للمستلزمات الدراسية';
         } else if (isExamSession) {
             decreeId = 'note_142_08';
-            decreeNumber = 'المذكرة الوزارية رقم 142-08 (04 نونبر 2008)';
-            decreeDate = '04 نونبر 2008';
+            decreeNumber = 'المذكرة الوزارية رقم 142-08 (16 نونبر 2007)';
+            decreeDate = '16 نونبر 2007';
             decreeTitle = 'التقويم التربوي والمراقبة المستمرة لمادة الرياضيات بالثانوي التأهيلي';
             secondaryDecreeNumber = 'المذكرة الوزارية رقم 155 (17 نونبر 2011)';
             secondaryDecreeTitle = 'إلزامية تدوين مواضيع ومحاور الفروض المحروسة في دفتر النصوص';
@@ -426,7 +433,7 @@
         } else if (isCorrectionSession) {
             decreeId = 'note_142_08';
             decreeNumber = 'المذكرة الوزارية رقم 142-08 (مادة التصحيح والدعم المندمج)';
-            decreeDate = '04 نونبر 2008';
+            decreeDate = '16 نونبر 2007';
             decreeTitle = 'إلزامية برمجة حصة تصحيح الفرض المحروس وتحليل الأخطاء ومعالجة التعثرات';
             secondaryDecreeNumber = 'التوجيهات التربوية الرسمية (نونبر 2007)';
             secondaryDecreeTitle = 'استثمار أخطاء المتعلمين في البناء الديداكتيكي والدعم التربوي المندمج';
@@ -437,7 +444,7 @@
         } else if (isHomeworkSession) {
             decreeId = 'note_142_08';
             decreeNumber = 'المذكرة الوزارية رقم 142-08 + المذكرة الوزارية رقم 155';
-            decreeDate = '04 نونبر 2008 / 17 نونبر 2011';
+            decreeDate = '16 نونبر 2007 / 17 نونبر 2011';
             decreeTitle = 'تأطير الفروض والواجبات المنزلية واستثمارها في التقويم التكويني وتثبيت التعلمات';
             secondaryDecreeNumber = 'التوجيهات التربوية الرسمية (نونبر 2007)';
             secondaryDecreeTitle = 'تنمية الاستقلالية والبحث الشخصي لدى المتعلم خارج الفصل';
@@ -448,7 +455,7 @@
         } else if (isSupportSession) {
             decreeId = 'note_diagnostic_soutien';
             decreeNumber = 'المذكرة الوزارية رقم 142-08 + القرار الوزاري 2385-06';
-            decreeDate = '04 نونبر 2008 / 16 أكتوبر 2006';
+            decreeDate = '16 نونبر 2007 / 16 أكتوبر 2006';
             decreeTitle = 'تنظيم حصص الدعم التربوي المندمج والاستدراكي وتثبيت المكتسبات الرياضية';
             secondaryDecreeNumber = isCertificative2Bac
                 ? 'المذكرة الوزارية رقم 142-10 (الأطر المرجعية للبكالوريا)'
@@ -479,7 +486,7 @@
                 decreeNumber = 'التوجيهات التربوية الرسمية (نونبر 2007) + المذكرة الوزارية رقم 155';
                 decreeDate = 'نونبر 2007 / 17 نونبر 2011';
                 decreeTitle = 'التوجيهات التربوية والبرامج الخاصة بتدريس الرياضيات ومسك دفتر النصوص';
-                secondaryDecreeNumber = 'المذكرة الوزارية رقم 142-08 (04 نونبر 2008)';
+                secondaryDecreeNumber = 'المذكرة الوزارية رقم 142-08 (16 نونبر 2007)';
                 secondaryDecreeTitle = 'تأطير التقويم التربوي والمراقبة المستمرة لمادة الرياضيات';
             }
 
@@ -758,6 +765,9 @@
                             <button type="button" onclick="window.openMinisterialDecreesModal('${safeDecreeId}')" style="background: ${ref.color}; border: none; color: #ffffff; padding: 4px 9px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="فتح المذكرة الوزارية ذات الصلة">
                                 <span>⚖️ عرض المذكرة</span>
                             </button>
+                            <button type="button" onclick="window.openOfficialPdfViewerModal('${safeDecreeId === 'note_142_08' ? '/assets/aistudio/n14208_evalped_08_a6af9323.pdf' : '/assets/aistudio/_____________________________________________________3a655c1c.pdf'}', '${safeDecreeId === 'note_142_08' ? 'المذكرة الوزارية رقم 142-08 الخاصة بالتقويم التربوي لمادة الرياضيات بالثانوي التأهيلي' : 'التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات بالثانوي التأهيلي (نونبر 2007)'}', '${safeDecreeId === 'note_142_08' ? 'المذكرة_142-08_الرياضيات.pdf' : 'التوجيهات_التربوية_الرياضيات_2007.pdf'}')" style="background: #0f172a; border: none; color: #ffffff; padding: 4px 9px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="معاينة الوثيقة الوزارية الرسمية الأصلية (PDF)">
+                                <span>📄 الوثيقة الرسمية (PDF)</span>
+                            </button>
                         </div>
                     </div>
                 `;
@@ -894,12 +904,22 @@
 
         return filtered.map(d => `
         <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-right: 5px solid ${d.color}; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
                 <div>
                     <span style="background: #f1f5f9; color: ${d.color}; font-weight: 900; font-size: 0.76rem; padding: 3px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">${d.category}</span>
                     <h4 style="margin: 6px 0 2px 0; color: #0f172a; font-size: 1.05rem; font-weight: 900;">${d.number}: ${d.title}</h4>
                     <div style="font-size: 0.74rem; color: #64748b;">تاريخ الصدور الرسمي: ${d.date}</div>
                 </div>
+                ${d.pdfUrl ? `
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <button type="button" onclick="window.openOfficialPdfViewerModal('${d.pdfUrl}', '${d.number.replace(/'/g, "\\'")}: ${d.title.replace(/'/g, "\\'")}', '${(d.pdfFileName || 'document.pdf').replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, ${d.color}, #1e40af); color: #ffffff; border: none; padding: 6px 12px; border-radius: 8px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(30,58,138,0.2);">
+                            <span>📄 معاينة الوثيقة الرسمية الأصلية (PDF)</span>
+                        </button>
+                        <a href="${d.pdfUrl}" download="${d.pdfFileName || 'document.pdf'}" style="background: #f8fafc; color: ${d.color}; border: 1.5px solid #cbd5e1; padding: 5px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                            <span>⬇️ تحميل PDF</span>
+                        </a>
+                    </div>
+                ` : ''}
             </div>
             <div style="font-size: 0.8rem; color: #334155; line-height: 1.5; margin-bottom: 12px; background: #f8fafc; padding: 10px; border-radius: 8px;">
                 ${d.summary}
@@ -920,6 +940,46 @@
             </div>
         </div>
         `).join('');
+    }
+
+    /**
+     * فتح نافذة معاينة الوثيقة الوزارية الرسمية الأصلية (PDF) داخل التطبيق
+     */
+    function openOfficialPdfViewerModal(pdfUrl, title, downloadFileName) {
+        if (!pdfUrl) return;
+        let modal = document.getElementById('officialPdfViewerModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'officialPdfViewerModal';
+            modal.style.cssText = 'display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.82); backdrop-filter: blur(5px); z-index: 10120; align-items: center; justify-content: center; padding: 14px; direction: rtl;';
+            modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+            document.body.appendChild(modal);
+        }
+        const safeTitle = String(title || 'الوثيقة الوزارية الرسمية (PDF)').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const safeDownload = String(downloadFileName || 'official_document.pdf').replace(/"/g, '');
+        modal.innerHTML = `
+            <div class="card" style="width: 100%; max-width: 1120px; height: 92vh; display: flex; flex-direction: column; background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45); border: 1.5px solid #cbd5e1;">
+                <div style="padding: 12px 18px; background: linear-gradient(135deg, #0f172a, #1e3a8a); color: #ffffff; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="background: rgba(255,255,255,0.16); padding: 6px 10px; border-radius: 8px; font-size: 1rem;">📄</span>
+                        <div>
+                            <h3 style="margin: 0; font-size: 0.98rem; font-weight: 900; color: #ffffff;">${safeTitle}</h3>
+                            <div style="font-size: 0.73rem; color: #bae6fd;">نسخة رسمية أصلية مدمجة للمعاينة المباشرة والتحميل</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <a href="${pdfUrl}" download="${safeDownload}" style="background: #10b981; color: #ffffff; padding: 6px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(16,185,129,0.3);">
+                            <span>⬇️ تحميل الوثيقة (PDF)</span>
+                        </a>
+                        <button type="button" onclick="document.getElementById('officialPdfViewerModal').style.display='none'" style="background: rgba(255,255,255,0.15); border: none; color: #ffffff; width: 32px; height: 32px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; font-weight: bold;">✕</button>
+                    </div>
+                </div>
+                <div style="flex: 1; background: #334155; position: relative;">
+                    <iframe src="${pdfUrl}" title="${safeTitle}" style="width: 100%; height: 100%; border: none;"></iframe>
+                </div>
+            </div>
+        `;
+        modal.style.display = 'flex';
     }
 
     /**
@@ -974,8 +1034,10 @@
                         <div style="font-size: 0.76rem; color: #64748b; font-weight: 600;">المرجعيات القانونية والديداكتيكية الرسمية للمراقبة المستمرة، دفاتر النصوص، الأطر المرجعية، ومجالس الأقسام</div>
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="text" id="decreesSearchInput" placeholder="بحث سريع في المذكرات والمواد..." oninput="window.onDecreesSearch(this.value)" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 0.82rem; outline: none; width: 220px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" onclick="window.openOfficialPdfViewerModal('/assets/aistudio/_____________________________________________________3a655c1c.pdf', 'التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات بالثانوي التأهيلي (نونبر 2007)', 'التوجيهات_التربوية_الرياضيات_2007.pdf')" style="background: #0284c7; color: #ffffff; border: none; padding: 6px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 800; cursor: pointer;">📄 التوجيهات التربوية 2007 (PDF)</button>
+                    <button type="button" onclick="window.openOfficialPdfViewerModal('/assets/aistudio/n14208_evalped_08_a6af9323.pdf', 'المذكرة الوزارية رقم 142-08 الخاصة بالتقويم التربوي لمادة الرياضيات بالثانوي التأهيلي', 'المذكرة_142-08_الرياضيات.pdf')" style="background: #1e3a8a; color: #ffffff; border: none; padding: 6px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 800; cursor: pointer;">📋 المذكرة 142-08 (PDF)</button>
+                    <input type="text" id="decreesSearchInput" placeholder="بحث سريع في المذكرات والمواد..." oninput="window.onDecreesSearch(this.value)" style="padding: 7px 14px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 0.82rem; outline: none; width: 200px;">
                     <button type="button" onclick="document.getElementById('decreesSearchInput').value=''; window.onDecreesSearch('');" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; padding: 6px 10px; border-radius: 8px; font-size: 0.76rem; font-weight: 800; cursor: pointer;">عرض الكل</button>
                     <button type="button" onclick="window.closeMinisterialDecreesModal()" style="background: #f1f5f9; border: none; color: #64748b; width: 32px; height: 32px; border-radius: 8px; font-size: 1.2rem; cursor: pointer;">✕</button>
                 </div>
@@ -1003,5 +1065,6 @@
     window.copyLegalCitation = copyLegalCitation;
     window.openMinisterialDecreesModal = openMinisterialDecreesModal;
     window.closeMinisterialDecreesModal = closeMinisterialDecreesModal;
+    window.openOfficialPdfViewerModal = openOfficialPdfViewerModal;
 
 })(window);

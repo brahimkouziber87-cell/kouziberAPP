@@ -224,7 +224,7 @@
             ? window.getStudentClassRecordsFast(studentId, className)
             : [];
         if ((!Array.isArray(rawRecords) || rawRecords.length === 0) && Array.isArray(window.db.records)) {
-            rawRecords = window.db.records.filter(r => r && String(r.studentId) === String(studentId) && r.className === className);
+            rawRecords = window.db.records.filter(r => r && String(r.studentId) === String(studentId) && (r.className === className || r.class === className));
         }
         const isProtFn = (typeof window.isRecordProtectedHolidayOrLeave === 'function')
             ? window.isRecordProtectedHolidayOrLeave
@@ -304,7 +304,7 @@
 
         // حساب معدلات القسم لكل فرض للمقارنة في دورة واحدة (O(N) بدلاً من 6 دورات منفصلة)
         const examKeys = examsCount === 2 ? ['f1', 'f2'] : (examsCount === 4 ? ['f1', 'f2', 'f3', 'f4'] : ['f1', 'f2', 'f3']);
-        const classStudents = window.db.classes[className] || [];
+        const classStudents = clsList;
         const classExamBenchmarks = { s1: {}, s2: {} };
         examKeys.forEach(k => {
             classExamBenchmarks.s1[k] = { sum: 0, count: 0, max: 0 };
@@ -317,7 +317,7 @@
                     ? window.getStudentGradesBySemester(className, st.id, sem)
                     : {};
                 examKeys.forEach(k => {
-                    const val = parseFloat(g[k]);
+                    const val = parseFloat(String(g[k] ?? '').replace(',', '.'));
                     if (!isNaN(val)) {
                         const b = classExamBenchmarks[sem][k];
                         b.sum += val;
@@ -341,7 +341,7 @@
         // فحص الأسدوس الأول
         examKeys.forEach(k => {
             const rawS1 = s1Grades[k];
-            const parsedS1 = (rawS1 !== undefined && rawS1 !== null && rawS1 !== '') ? parseFloat(rawS1) : NaN;
+            const parsedS1 = (rawS1 !== undefined && rawS1 !== null && rawS1 !== '') ? parseFloat(String(rawS1).replace(',', '.')) : NaN;
             const mark = !isNaN(parsedS1) ? parsedS1 : null;
             const classBenchmark = getClassExamAverage('s1', k);
             const labelMap = { f1: 'الفرض 1 (د1)', f2: 'الفرض 2 (د1)', f3: 'الفرض 3 (د1)', f4: 'الفرض 4 (د1)' };
@@ -358,7 +358,7 @@
         // فحص الأسدوس الثاني
         examKeys.forEach(k => {
             const rawS2 = s2Grades[k];
-            const parsedS2 = (rawS2 !== undefined && rawS2 !== null && rawS2 !== '') ? parseFloat(rawS2) : NaN;
+            const parsedS2 = (rawS2 !== undefined && rawS2 !== null && rawS2 !== '') ? parseFloat(String(rawS2).replace(',', '.')) : NaN;
             const mark = !isNaN(parsedS2) ? parsedS2 : null;
             const classBenchmark = getClassExamAverage('s2', k);
             const labelMap = { f1: 'الفرض 1 (د2)', f2: 'الفرض 2 (د2)', f3: 'الفرض 3 (د2)', f4: 'الفرض 4 (د2)' };
@@ -395,7 +395,7 @@
         // نسبة الحضور الإجمالية (بناءً على الحصص الفعلية المسجلة للقسم عبر الفهرس السريع)
         const clsFastRecords = (typeof window.getClassRecordsFast === 'function')
             ? window.getClassRecordsFast(className)
-            : (window.db.records || []).filter(r => r && r.className === className);
+            : (window.db.records || []).filter(r => r && (r.className === className || r.class === className));
         const classSessionDates = new Set(
             clsFastRecords
                 .filter(r => r && r.date && !(isProtFn && isProtFn(r)))
@@ -558,7 +558,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
                     <div style="display: flex; align-items: center; gap: 14px;">
                         <div style="width: 58px; height: 58px; border-radius: 14px; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 800; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35); flex-shrink: 0;">
-                            ${firstLetter}
+                            ${escapeHtml(firstLetter)}
                         </div>
                         <div>
                             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -566,11 +566,11 @@
                                 <span style="background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; font-size: 0.76rem; font-weight: 800; padding: 2px 8px; border-radius: 6px;">
                                     ${escapeHtml(d.className)}
                                 </span>
-                                ${std.orderNum ? `<span style="font-size: 0.74rem; background: #f1f5f9; color: #475569; padding: 2px 7px; border-radius: 6px; font-weight: 700;">رقم: ${std.orderNum}</span>` : ''}
+                                ${std.orderNum ? `<span style="font-size: 0.74rem; background: #f1f5f9; color: #475569; padding: 2px 7px; border-radius: 6px; font-weight: 700;">رقم: ${escapeHtml(std.orderNum)}</span>` : ''}
                             </div>
                             <div style="font-size: 0.8rem; color: #64748b; margin-top: 4px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                                 <span>مسار: <strong style="color: #1e293b;">${escapeHtml(std.massar || '-')}</strong></span>
-                                ${birth ? `<span>• ${birth}</span>` : ''}
+                                ${birth ? `<span>• ${escapeHtml(birth)}</span>` : ''}
                                 <span>• مادة الرياضيات - الموسم الدراسي الحالي</span>
                             </div>
                         </div>
@@ -581,7 +581,7 @@
                         <button type="button" onclick="switchPortfolioTab('qrpass')" style="background: linear-gradient(135deg, #b45309, #d97706); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 6px rgba(217, 119, 6, 0.35);" title="بطاقة التتبع الفردي الذكية للتلميذ برمز الاستجابة السريعة (QR Pass) القابلة للطباعة والمسح الفوري">
                             <span data-lucide="qr-code" data-size="14"></span> بطاقة التلميذ الذكية (QR Pass)
                         </button>
-                        <button type="button" onclick="if(window.openShareRecordModal) window.openShareRecordModal({ type: 'student', className: '${escapeHtml(d.className)}', studentId: '${escapeHtml(std.id)}', studentName: '${escapeHtml(std.name)}' });" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 6px rgba(124, 58, 237, 0.35);" title="مشاركة السجل البيداغوجي المشفر مع الزملاء عبر رمز QR أو رابط مباشر">
+                        <button type="button" onclick="if(window.openShareRecordModal) window.openShareRecordModal({ type: 'student', className: '${escapeJsAttr(d.className)}', studentId: '${escapeJsAttr(std.id)}', studentName: '${escapeJsAttr(std.name)}' });" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 6px rgba(124, 58, 237, 0.35);" title="مشاركة السجل البيداغوجي المشفر مع الزملاء عبر رمز QR أو رابط مباشر">
                             <span data-lucide="share-2" data-size="14"></span> مشاركة مع الزملاء
                         </button>
                         <button type="button" onclick="switchPortfolioTab('ical')" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; box-shadow: 0 2px 5px rgba(2, 132, 199, 0.25);">
@@ -635,7 +635,7 @@
                         <div style="font-size: 0.72rem; color: ${behCol}; font-weight: 700;">تقييم السلوك العام</div>
                         <div style="font-size: 1.05rem; font-weight: 800; color: ${behCol}; margin-top: 2px; display: flex; align-items: center; gap: 4px;">
                             <span data-lucide="${behIcon}" data-size="16"></span>
-                            <span>${d.behaviorRecord.status}</span>
+                            <span>${escapeHtml(d.behaviorRecord.status)}</span>
                         </div>
                     </div>
                 </div>
@@ -904,7 +904,7 @@
         if (!d) return;
         const std = d.student;
         const profile = (window.db && window.db.teacherProfile) || {};
-        const teacherName = profile.name || 'إبراهيم قزيبر';
+        const teacherName = profile.name || 'أستاذ المادة';
         const schoolName = profile.school || 'الثانوية التأهيلية';
         const academicYear = profile.academicYear || '2026 / 2027';
         const fr = d.failureRiskData || { riskScore: 0, riskLevelAr: 'آمن', riskColor: '#10b981', riskBg: '#ecfdf5', riskBorder: '#a7f3d0' };
@@ -1028,7 +1028,7 @@
                         <!-- تذييل البطاقة الرسمي الموحد -->
                         <div style="background: #f1f5f9; padding: 8px 18px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; font-weight: 800; color: #1e3a8a;">
                             <span>إشراف الأستاذ: ${escapeHtml(teacherName)}</span>
-                            <span>منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر</span>
+                            <span>منظومة التدبير التربوي - مادة الرياضيات - السلك الثانوي التأهيلي</span>
                         </div>
                     </div>
                 </div>
@@ -1170,7 +1170,7 @@
             // تقسيم البطاقات إلى صفحات A4 (20 بطاقة في كل صفحة: 4 أعمدة × 5 صفوف مع رمز QR أكبر ومساحة قص مصغرة)
             const CARDS_PER_PAGE = 20;
             const totalPages = Math.ceil(preparedCards.length / CARDS_PER_PAGE);
-            const todayFormatted = new Date().toLocaleDateString('ar-MA');
+            const todayFormatted = ((typeof window.getAppNow === 'function') ? window.getAppNow() : new Date()).toLocaleDateString('ar-MA');
             let pagesHtml = '';
 
             for (let p = 0; p < totalPages; p++) {
@@ -1225,7 +1225,7 @@
                         <!-- تذييل الصفحة الموحد -->
                         <div class="print-official-footer-bar" style="margin-top: 4px; padding-top: 3px; border-top: 1px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center; font-size: 0.64rem; font-weight: 800; color: #1e3a8a;">
                             <span>✂️ قص على طول الخط المتقطع للإلصاق</span>
-                            <span>منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر</span>
+                            <span>منظومة التدبير التربوي - مادة الرياضيات - السلك الثانوي التأهيلي</span>
                         </div>
                     </div>
                 `;
@@ -2163,7 +2163,7 @@
             ? window.analyzePedagogicalNoteDimensions({ text, category: rawCat !== 'auto' ? rawCat : undefined })
             : { category: rawCat !== 'auto' ? rawCat : 'pedagogical', sentiment: 'guidance' };
 
-        const dateStr = typeof window.formatLocalDate === 'function' ? window.formatLocalDate() : new Date().toISOString().split('T')[0];
+        const dateStr = typeof window.formatLocalDate === 'function' ? window.formatLocalDate() : getPortfolioLocalDate();
         window.db.portfolioNotes[d.studentId].unshift({
             id: 'pnote_' + Date.now(),
             text,
@@ -2224,9 +2224,9 @@
     function buildStudentPortfolioCalendarEvents(studentId, className) {
         const events = [];
         const seenIds = new Set();
-        const stdObj = (window.db && window.db.classes && window.db.classes[className])
-            ? window.db.classes[className].find(s => s.id === studentId)
-            : null;
+        const rawCls = window.db && window.db.classes ? window.db.classes[className] : null;
+        const clsArr = Array.isArray(rawCls) ? rawCls : (rawCls && Array.isArray(rawCls.students) ? rawCls.students : []);
+        const stdObj = clsArr.find(s => String(s.id) === String(studentId)) || null;
         const studentName = stdObj ? stdObj.name : 'التلميذ';
 
         // 1. الفروض المحروسة والامتحانات الرسمية من التقويم السنوي
@@ -2294,7 +2294,7 @@
             if (!seenIds.has(absId)) {
                 seenIds.add(absId);
                 // تاريخ اليوم أو غداً كموعد للمتابعة
-                const nowStr = typeof window.formatLocalDate === 'function' ? window.formatLocalDate() : new Date().toISOString().split('T')[0];
+                const nowStr = typeof window.formatLocalDate === 'function' ? window.formatLocalDate() : getPortfolioLocalDate();
                 events.push({
                     id: absId,
                     studentId,
@@ -2419,7 +2419,7 @@
 
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = `portfolio-tasks-${d.student.name}.ics`;
+        a.download = `portfolio-tasks-${String(d.student.name || 'student').replace(/[\\/?*[\]:"<>|\s]+/g, '_')}.ics`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -2516,11 +2516,11 @@
     /**
      * حذف مهمة من ملف الإنجاز
      */
-    function deletePortfolioTask(taskId) {
+    async function deletePortfolioTask(taskId) {
         const d = currentStudentPortfolioData;
         if (!d || !window.db.portfolioTasks || !window.db.portfolioTasks[d.studentId]) return;
 
-        if (!confirm('هل أنت متأكد من حذف هذا الموعد من ملف الإنجاز؟')) return;
+        if (!(await window.showConfirmDialog('هل أنت متأكد من حذف هذا الموعد من ملف الإنجاز؟'))) return;
 
         window.db.portfolioTasks[d.studentId] = window.db.portfolioTasks[d.studentId].filter(t => t.id !== taskId);
         if (typeof window.saveDB === 'function') window.saveDB();
@@ -2562,7 +2562,7 @@
 
         const events = buildStudentPortfolioCalendarEvents(d.studentId, d.className);
         const { httpFeedUrl } = getPortfolioWebCalUrls(d.studentId);
-        const todayStr = typeof window.formatLocalDate === 'function' ? window.formatLocalDate() : new Date().toISOString().split('T')[0];
+        const todayStr = typeof window.formatLocalDate === 'function' ? window.formatLocalDate() : getPortfolioLocalDate();
 
         // بناء صفوف جدول المهام المجدولة
         let rowsHtml = '';
@@ -2787,7 +2787,7 @@
         const academyName = tp.academy || 'الأكاديمية الجهوية للتربية والتكوين';
         const directorateName = tp.directorate || 'المديرية الإقليمية';
         const schoolName = tp.school || tp.institution || 'الثانوية التأهيلية';
-        const academicYear = tp.academicYear || '2026-2027';
+        const academicYear = tp.academicYear || tp.schoolYear || getPortfolioAcademicYear();
         const printFont = typeof window.getSelectedPrintFontFamily === 'function' ? window.getSelectedPrintFontFamily() : "'Cairo', 'Amiri', sans-serif";
         const hwFont = typeof window.getSelectedHandwritingFontFamily === 'function' ? window.getSelectedHandwritingFontFamily() : "'Aref Ruqaa', serif";
 
@@ -2811,7 +2811,7 @@
                         <div>مادة: <strong>الرياضيات</strong></div>
                         <div>الأستاذ(ة): <strong>${escapeHtml(teacherName)}</strong></div>
                         <div>القسم: <strong>${escapeHtml(d.className)}</strong></div>
-                        <div>التاريخ: <strong>${new Date().toLocaleDateString('ar-MA')}</strong></div>
+                        <div>التاريخ: <strong>${((typeof window.getAppNow === 'function') ? window.getAppNow() : new Date()).toLocaleDateString('ar-MA')}</strong></div>
                     </div>
                 </div>
 
@@ -2819,10 +2819,10 @@
                 <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 0.85rem;">
                     <div>الاسم الكامل: <strong>${escapeHtml(std.name)}</strong></div>
                     <div>رقم مسار: <strong>${escapeHtml(std.massar || '-')}</strong></div>
-                    <div>الترتيب باللائحة: <strong>${std.orderNum || '-'}</strong></div>
+                    <div>الترتيب باللائحة: <strong>${escapeHtml(std.orderNum || '-')}</strong></div>
                     <div>المعدل السنوي: <strong style="color: ${d.annualAvg >= 10 ? '#10b981' : '#dc2626'};">${d.annualAvg !== null ? d.annualAvg.toFixed(2) : '-'} / 20</strong></div>
                     <div>نسبة المواظبة: <strong>${d.attendanceRate}%</strong></div>
-                    <div>السلوك والانضباط: <strong>${d.behaviorRecord.status}</strong></div>
+                    <div>السلوك والانضباط: <strong>${escapeHtml(d.behaviorRecord.status)}</strong></div>
                 </div>
 
                 <!-- ملخص الفروض والنقط -->
@@ -2881,7 +2881,7 @@
                     </div>
                 </div>
                 <div style="margin-top: 16px; padding-top: 8px; border-top: 1.5px solid #cbd5e1; text-align: center; font-size: 0.82rem; font-weight: 800; color: #1e3a8a;">
-                    منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر
+                    منظومة التدبير التربوي - مادة الرياضيات - ${escapeHtml(teacherName)}
                 </div>
             </div>
         `;
@@ -3004,6 +3004,17 @@
         document.body.appendChild(modalDiv);
     }
 
+    function getPortfolioLocalDate() {
+        const d = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function getPortfolioAcademicYear() {
+        const d = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+        const y = d.getFullYear();
+        return (d.getMonth() + 1) >= 8 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
+    }
+
     function escapeHtml(str) {
         if (!str) return '';
         return String(str)
@@ -3012,6 +3023,10 @@
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
+    }
+
+    function escapeJsAttr(str) {
+        return escapeHtml(String(str ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r|\n/g, ' '));
     }
 
     // تصدير الدوال

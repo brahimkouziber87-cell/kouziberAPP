@@ -26,6 +26,30 @@
             .replace(/'/g, '&#39;');
     }
 
+    function escapeJsAttr(str) {
+        return escapeHtml(String(str ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r|\n/g, ' '));
+    }
+
+    function getClassStudentsSafe(className) {
+        const raw = window.db && window.db.classes ? window.db.classes[className] : null;
+        return Array.isArray(raw) ? raw : (raw && Array.isArray(raw.students) ? raw.students : []);
+    }
+
+    function getLocalTodayIso(dObj) {
+        const d = dObj || ((typeof getAppNow === 'function') ? getAppNow() : new Date());
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function getDynamicAcademicYear() {
+        const now = (typeof getAppNow === 'function') ? getAppNow() : new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth() + 1;
+        return m >= 8 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
+    }
+
     /**
      * حساب إحصائيات الغياب الموزعة عبر أيام الأسبوع
      * @param {string} filterClass 'all' أو اسم القسم
@@ -69,12 +93,16 @@
             if (rec.status !== 'غائب' && rec.status !== 'مبرر') continue;
 
             // استثناء أيام العطل والرخص الرسمية المعفاة تلقائياً
+            if (typeof isRecordProtectedHolidayOrLeave === 'function' && isRecordProtectedHolidayOrLeave(rec)) {
+                continue;
+            }
             if (typeof isAbsenceDisabledOnDate === 'function' && isAbsenceDisabledOnDate(rec.date, rec.session)) {
                 continue;
             }
 
             // تصفية حسب القسم
-            if (filterClass !== 'all' && rec.className !== filterClass) {
+            const recCls = rec.className || rec.class || 'عام';
+            if (filterClass !== 'all' && recCls !== filterClass) {
                 continue;
             }
 
@@ -114,7 +142,7 @@
             }
 
             // توزيع الأقسام
-            const cls = rec.className || 'عام';
+            const cls = recCls;
             bucket.classesMap[cls] = (bucket.classesMap[cls] || 0) + dur;
 
             // تتبع التلاميذ
@@ -250,7 +278,7 @@
                 peakBadge.style.background = '#fef2f2';
                 peakBadge.style.color = '#dc2626';
                 peakBadge.style.borderColor = '#fecaca';
-                peakBadge.innerHTML = `🔴 ذروة الغياب: يوم ${stats.peakDay.dayName} (${stats.peakDay.percentOfTotal}%)`;
+                peakBadge.innerHTML = `🔴 ذروة الغياب: يوم ${escapeHtml(stats.peakDay.dayName)} (${stats.peakDay.percentOfTotal}%)`;
             } else {
                 peakBadge.style.background = '#ecfdf5';
                 peakBadge.style.color = '#059669';
@@ -272,7 +300,7 @@
                             <div>
                                 <div style="font-weight: 800; color: #166534; font-size: 0.88rem;">وضعية نموذجية: انضباط وحضور تام لكافة الحصص</div>
                                 <div style="font-size: 0.78rem; color: #15803d; margin-top: 2px;">
-                                    لم يتم تسجيل أي ساعات غياب في النطاق المحدد (${selectedClass === 'all' ? 'جميع الأقسام' : 'قسم ' + selectedClass}).
+                                    لم يتم تسجيل أي ساعات غياب في النطاق المحدد (${selectedClass === 'all' ? 'جميع الأقسام' : 'قسم ' + escapeHtml(selectedClass)}).
                                 </div>
                             </div>
                         </div>
@@ -290,7 +318,7 @@
                 } else if (peak.dayIdx === 1) {
                     trendNote = `ظاهرة 'صعوبة استئناف الأسبوع': يسجل يوم الإثنين أعلى معدل غياب بسبب إرهاق ما بعد العطلة أو تراكم الواجبات.`;
                 } else {
-                    trendNote = `تركز الغياب في منتصف الأسبوع (يوم ${peak.dayName}) يرتبط غالباً بضغط الحصص المسائية أو كثافة المواد المبرمجة.`;
+                    trendNote = `تركز الغياب في منتصف الأسبوع (يوم ${escapeHtml(peak.dayName)}) يرتبط غالباً بضغط الحصص المسائية أو كثافة المواد المبرمجة.`;
                 }
 
                 bannerContainer.innerHTML = `
@@ -303,23 +331,23 @@
                                 <div>
                                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                         <h4 style="margin: 0; font-size: 0.95rem; font-weight: 800; color: #9a3412;">
-                                            تشخيص الذروة: يوم <span style="color: #c2410c; text-decoration: underline;">${peak.dayName}</span> يسجل أعلى معدل غياب أسبوعي
+                                            تشخيص الذروة: يوم <span style="color: #c2410c; text-decoration: underline;">${escapeHtml(peak.dayName)}</span> يسجل أعلى معدل غياب أسبوعي
                                         </h4>
                                         <span style="background: #ea580c; color: #fff; font-size: 0.7rem; font-weight: 800; padding: 1px 7px; border-radius: 6px;">
                                             ${peak.totalHours} ساعة (${peak.percentOfTotal}%)
                                         </span>
                                     </div>
                                     <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #7c2d12; line-height: 1.45;">
-                                        ${trendNote} معدل غياب يوم ${peak.dayName} أعلى بـ <strong>${ratioVsAvg} أضعاف</strong> مقارنة بمتوسط باقي أيام الأسبوع (${stats.averageDayHours} س/يوم).
-                                        ${sec ? `<span style="color: #9a3412;">(يليه يوم ${sec.dayName} بـ ${sec.totalHours} س بنسبة ${sec.percentOfTotal}%).</span>` : ''}
+                                        ${trendNote} معدل غياب يوم ${escapeHtml(peak.dayName)} أعلى بـ <strong>${ratioVsAvg} أضعاف</strong> مقارنة بمتوسط باقي أيام الأسبوع (${stats.averageDayHours} س/يوم).
+                                        ${sec ? `<span style="color: #9a3412;">(يليه يوم ${escapeHtml(sec.dayName)} بـ ${sec.totalHours} س بنسبة ${sec.percentOfTotal}%).</span>` : ''}
                                     </p>
                                 </div>
                             </div>
 
                             <div style="display: flex; align-items: center; gap: 6px; align-self: center;">
-                                <button type="button" onclick="toggleDashboardPreventativePlan(${peak.dayIdx})" class="btn-action" style="background: #059669; color: #fff; border: none; font-size: 0.78rem; font-weight: 800; padding: 6px 14px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25); cursor: pointer;" title="عرض الخطة الوقائية المخصصة ليوم ${peak.dayName}">
+                                <button type="button" onclick="toggleDashboardPreventativePlan(${peak.dayIdx})" class="btn-action" style="background: #059669; color: #fff; border: none; font-size: 0.78rem; font-weight: 800; padding: 6px 14px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25); cursor: pointer;" title="عرض الخطة الوقائية المخصصة ليوم ${escapeHtml(peak.dayName)}">
                                     <span data-lucide="shield-check" data-size="14"></span>
-                                    <span>تفعيل خطة يوم ${peak.dayName}</span>
+                                    <span>تفعيل خطة يوم ${escapeHtml(peak.dayName)}</span>
                                 </button>
                             </div>
                         </div>
@@ -370,10 +398,10 @@
                 }
 
                 cardsHtml += `
-                    <div onclick="selectWeekdayForDetails(${day.dayIdx})" style="cursor: pointer; border-radius: 10px; background: #fff; transition: transform 0.15s, box-shadow 0.15s; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; ${borderStyle}" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'" title="انقر لعرض تفاصيل التلاميذ الغائبين يوم ${day.dayName}">
+                    <div onclick="selectWeekdayForDetails(${day.dayIdx})" style="cursor: pointer; border-radius: 10px; background: #fff; transition: transform 0.15s, box-shadow 0.15s; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; ${borderStyle}" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'" title="انقر لعرض تفاصيل التلاميذ الغائبين يوم ${escapeHtml(day.dayName)}">
                         <!-- Top Header -->
                         <div style="background: ${headerBg}; padding: 10px 12px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
-                            <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">${day.dayName}</div>
+                            <div style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">${escapeHtml(day.dayName)}</div>
                             <div>${rankBadgeHtml}</div>
                         </div>
 
@@ -586,7 +614,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="color: #10b981;"><span data-lucide="check-circle" data-size="16"></span></span>
-                        <span style="font-weight: 700; color: #15803d; font-size: 0.84rem;">لا توجد أي غيابات مسجلة يوم ${dayData.dayName}.</span>
+                        <span style="font-weight: 700; color: #15803d; font-size: 0.84rem;">لا توجد أي غيابات مسجلة يوم ${escapeHtml(dayData.dayName)}.</span>
                     </div>
                     <button type="button" onclick="selectWeekdayForDetails(null)" style="background: none; border: none; cursor: pointer; color: #64748b; font-weight: 800;">✕ إغلاق</button>
                 </div>
@@ -596,9 +624,8 @@
 
         let studentsRowsHtml = '';
         dayData.students.forEach((s, idx) => {
-            const phone = (window.db && window.db.classes && window.db.classes[s.className])
-                ? (window.db.classes[s.className].find(std => String(std.id) === String(s.id))?.phone || '')
-                : '';
+            const matchedStd = getClassStudentsSafe(s.className).find(std => String(std.id) === String(s.id));
+            const phone = matchedStd ? (matchedStd.guardianPhone || matchedStd.phone || '') : '';
 
             studentsRowsHtml += `
                 <tr style="border-bottom: 1px solid #f1f5f9; font-size: 0.78rem;">
@@ -614,10 +641,10 @@
                         ${s.justified > 0 ? `<span style="font-size: 0.7rem; color: #047857;"> | ${s.justified} س مبرر</span>` : ''}
                     </td>
                     <td style="padding: 7px 10px; text-align: center; font-size: 0.72rem; color: #64748b;">
-                        ${s.dates.slice(-3).reverse().join(', ')}${s.dates.length > 3 ? '...' : ''}
+                        ${escapeHtml(s.dates.slice(-3).reverse().join(', '))}${s.dates.length > 3 ? '...' : ''}
                     </td>
                     <td style="padding: 7px 10px; text-align: center;">
-                        <button type="button" onclick="sendIndividualDayAlertWhatsApp('${escapeHtml(s.name)}', '${escapeHtml(s.className)}', '${phone}', '${dayData.dayName}', ${s.hours})" style="background: #25d366; color: #fff; border: none; padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="مراسلة ولي الأمر بنص تنبيهي خاص بيوم ${dayData.dayName}">
+                        <button type="button" onclick="sendIndividualDayAlertWhatsApp('${escapeJsAttr(s.name)}', '${escapeJsAttr(s.className)}', '${escapeJsAttr(phone)}', '${escapeJsAttr(dayData.dayName)}', ${s.hours})" style="background: #25d366; color: #fff; border: none; padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="مراسلة ولي الأمر بنص تنبيهي خاص بيوم ${escapeHtml(dayData.dayName)}">
                             <span data-lucide="message-circle" data-size="12"></span>
                             <span>واتساب</span>
                         </button>
@@ -633,13 +660,13 @@
                         <span data-lucide="users" data-size="16"></span>
                     </span>
                     <h4 style="margin: 0; font-size: 0.9rem; font-weight: 800; color: #0f172a;">
-                        قائمة التلاميذ الغائبين يوم <span style="color: #2563eb;">${dayData.dayName}</span> (${dayData.students.length} تلميذ • مجموع ${dayData.totalHours} ساعة)
+                        قائمة التلاميذ الغائبين يوم <span style="color: #2563eb;">${escapeHtml(dayData.dayName)}</span> (${dayData.students.length} تلميذ • مجموع ${dayData.totalHours} ساعة)
                     </h4>
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <button type="button" onclick="toggleDashboardPreventativePlan(${dayData.dayIdx})" class="btn-action" style="background: #059669; color: #fff; border: none; font-size: 0.74rem; font-weight: 700; padding: 4px 10px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                         <span data-lucide="shield-check" data-size="13"></span>
-                        <span>اقتراح خطة وقائية ليوم ${dayData.dayName}</span>
+                        <span>اقتراح خطة وقائية ليوم ${escapeHtml(dayData.dayName)}</span>
                     </button>
                     <button type="button" onclick="selectWeekdayForDetails(null)" style="background: #e2e8f0; border: none; cursor: pointer; color: #475569; font-weight: 800; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem;">✕ إغلاق</button>
                 </div>
@@ -777,18 +804,22 @@
                         <span style="font-size: 0.72rem; color: #ea580c;">ينصح بإنصات فردي وتنبيه ولي الأمر</span>
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px;">
-                        ${topFour.map(s => `
+                        ${topFour.map(s => {
+                            const matchedStd = getClassStudentsSafe(s.className).find(std => String(std.id) === String(s.id));
+                            const sPhone = matchedStd ? (matchedStd.guardianPhone || matchedStd.phone || '') : '';
+                            return `
                             <div style="background: #fff7ed; border: 1px solid #ffedd5; border-radius: 8px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center;">
                                 <div>
                                     <div style="font-weight: 800; font-size: 0.8rem; color: #0f172a;">${escapeHtml(s.name)}</div>
                                     <div style="font-size: 0.7rem; color: #7c2d12;">${escapeHtml(s.className)} • <strong>${s.hours} ساعة</strong> (${s.count} مرات)</div>
                                 </div>
-                                <button type="button" onclick="sendIndividualDayAlertWhatsApp('${escapeHtml(s.name)}', '${escapeHtml(s.className)}', '', '${dayName}', ${s.hours})" style="background: #25d366; color: #fff; border: none; border-radius: 6px; padding: 4px 7px; font-size: 0.7rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;" title="مراسلة سريعة لولي الأمر">
+                                <button type="button" onclick="sendIndividualDayAlertWhatsApp('${escapeJsAttr(s.name)}', '${escapeJsAttr(s.className)}', '${escapeJsAttr(sPhone)}', '${escapeJsAttr(dayName)}', ${s.hours})" style="background: #25d366; color: #fff; border: none; border-radius: 6px; padding: 4px 7px; font-size: 0.7rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 3px;" title="مراسلة سريعة لولي الأمر">
                                     <span data-lucide="message-circle" data-size="11"></span>
                                     <span>تنبيه</span>
                                 </button>
                             </div>
-                        `).join('')}
+                        `;
+                        }).join('')}
                     </div>
                 </div>
             `;
@@ -817,19 +848,19 @@
 
                     <!-- Action Buttons Toolbar -->
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" onclick="openWeekdayWhatsAppBroadcastModal('${dayName}')" class="btn-action" style="background: #25d366; color: #fff; border: none; font-weight: 700; font-size: 0.8rem; padding: 7px 13px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; box-shadow: 0 2px 6px rgba(37, 211, 102, 0.25);" title="مراسلة توعوية استباقية لأولياء الأمور">
+                        <button type="button" onclick="openWeekdayWhatsAppBroadcastModal('${escapeJsAttr(dayName)}')" class="btn-action" style="background: #25d366; color: #fff; border: none; font-weight: 700; font-size: 0.8rem; padding: 7px 13px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; box-shadow: 0 2px 6px rgba(37, 211, 102, 0.25);" title="مراسلة توعوية استباقية لأولياء الأمور">
                             <span data-lucide="send" data-size="14"></span>
                             <span>رسالة واتساب استباقية للأولياء</span>
                         </button>
-                        <button type="button" onclick="openPreventativePlanDocModal('${dayName}')" class="btn-action" style="background: #1e293b; color: #fff; border: none; font-weight: 700; font-size: 0.8rem; padding: 7px 13px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; box-shadow: 0 2px 6px rgba(30, 41, 59, 0.2);" title="طباعة أو تحميل الخطة كوثيقة رسمية للإدارة التربوية">
+                        <button type="button" onclick="openPreventativePlanDocModal('${escapeJsAttr(dayName)}')" class="btn-action" style="background: #1e293b; color: #fff; border: none; font-weight: 700; font-size: 0.8rem; padding: 7px 13px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; box-shadow: 0 2px 6px rgba(30, 41, 59, 0.2);" title="طباعة أو تحميل الخطة كوثيقة رسمية للإدارة التربوية">
                             <span data-lucide="printer" data-size="14"></span>
                             <span>طباعة الوثيقة الرسمية (PDF)</span>
                         </button>
-                        <button type="button" onclick="copyPreventativePlanText('${dayName}')" class="btn-action" style="background: #4f46e5; color: #fff; border: none; font-weight: 700; font-size: 0.8rem; padding: 7px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" title="نسخ نص الخطة بالكامل">
+                        <button type="button" onclick="copyPreventativePlanText('${escapeJsAttr(dayName)}')" class="btn-action" style="background: #4f46e5; color: #fff; border: none; font-weight: 700; font-size: 0.8rem; padding: 7px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" title="نسخ نص الخطة بالكامل">
                             <span data-lucide="copy" data-size="14"></span>
                             <span>نسخ الخطة</span>
                         </button>
-                        <button type="button" onclick="savePreventativePlanToNotes('${dayName}')" class="btn-action" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; font-weight: 700; font-size: 0.8rem; padding: 7px 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" title="تثبيت الخطة في سجل التوجيهات التربوية">
+                        <button type="button" onclick="savePreventativePlanToNotes('${escapeJsAttr(dayName)}')" class="btn-action" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; font-weight: 700; font-size: 0.8rem; padding: 7px 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;" title="تثبيت الخطة في سجل التوجيهات التربوية">
                             <span data-lucide="bookmark-check" data-size="14"></span>
                             <span>تثبيت في السجل</span>
                         </button>
@@ -997,17 +1028,17 @@
                             <span data-lucide="message-circle" data-size="18"></span>
                         </span>
                         <h4 style="margin: 0; font-size: 1rem; font-weight: 800; color: #0f172a;">
-                            رسالة تذكير وقائية استباقية لأولياء الأمور (يوم ${dayName})
+                            رسالة تذكير وقائية استباقية لأولياء الأمور (يوم ${escapeHtml(dayName)})
                         </h4>
                     </div>
                     <button type="button" onclick="closeWeekdayWhatsAppBroadcastModal()" style="background: #f1f5f9; border: none; font-size: 1.1rem; border-radius: 6px; width: 28px; height: 28px; cursor: pointer; color: #64748b;">✕</button>
                 </div>
 
                 <p style="font-size: 0.8rem; color: #64748b; margin: 0 0 10px 0;">
-                    يمكنك تعديل نص الرسالة أو نسخها وإرسالها فوراً إلى مجموعات أولياء الأمور (WhatsApp) عشية يوم ${dayName}:
+                    يمكنك تعديل نص الرسالة أو نسخها وإرسالها فوراً إلى مجموعات أولياء الأمور (WhatsApp) عشية يوم ${escapeHtml(dayName)}:
                 </p>
 
-                <textarea id="dashPreventativeWaTextarea" style="width: 100%; height: 220px; font-family: inherit; font-size: 0.84rem; padding: 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; outline: none; line-height: 1.5; resize: vertical; box-sizing: border-box; background: #fafafa;">${defaultMsg}</textarea>
+                <textarea id="dashPreventativeWaTextarea" style="width: 100%; height: 220px; font-family: inherit; font-size: 0.84rem; padding: 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; outline: none; line-height: 1.5; resize: vertical; box-sizing: border-box; background: #fafafa;">${escapeHtml(defaultMsg)}</textarea>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; flex-wrap: wrap; gap: 8px;">
                     <button type="button" onclick="closeWeekdayWhatsAppBroadcastModal()" class="btn-secondary" style="font-size: 0.8rem; padding: 7px 14px; border-radius: 7px;">إلغاء</button>
@@ -1127,8 +1158,7 @@
         if (!window.db) return;
         if (!window.db.notes) window.db.notes = {};
 
-        const now = (typeof getAppNow === 'function') ? getAppNow() : new Date();
-        const dateStr = now.toISOString().slice(0, 10);
+        const dateStr = getLocalTodayIso();
         const classFilterEl = document.getElementById('dashWeekdayClassFilter');
         const selectedClass = classFilterEl ? classFilterEl.value : 'all';
 
@@ -1188,8 +1218,8 @@
         const schoolName = (window.db && window.db.teacherProfile && window.db.teacherProfile.school)
             ? window.db.teacherProfile.school.trim() : 'المؤسسة التعليمية';
         const academicYear = (window.db && window.db.teacherProfile && window.db.teacherProfile.academicYear)
-            ? window.db.teacherProfile.academicYear : '2026/2027';
-        const todayFormatted = (typeof formatLocalDate === 'function') ? formatLocalDate() : new Date().toISOString().slice(0, 10);
+            ? window.db.teacherProfile.academicYear : getDynamicAcademicYear();
+        const todayFormatted = (typeof formatLocalDate === 'function') ? formatLocalDate() : getLocalTodayIso();
 
         modal.innerHTML = `
             <div class="card" style="width: 100%; max-width: 950px; background: #fff; border-radius: 14px; padding: 20px 24px; max-height: 94vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.35);">
@@ -1231,17 +1261,17 @@
                         <div style="text-align: center;">
                             <div style="font-size: 1.1rem; font-weight: 900; color: #0f172a; border: 2px solid #0f172a; padding: 6px 14px; border-radius: 6px; background: #f8fafc;">
                                 وثيقة الخطة الوقائية الاستباقية<br>
-                                <span style="font-size: 0.9rem; color: #dc2626;">للحد من ظاهرة الغياب في يوم ${dayName}</span>
+                                <span style="font-size: 0.9rem; color: #dc2626;">للحد من ظاهرة الغياب في يوم ${escapeHtml(dayName)}</span>
                             </div>
                             <div style="font-size: 0.75rem; color: #475569; margin-top: 4px; font-weight: 700;">
-                                الموسم الدراسي: ${academicYear}
+                                الموسم الدراسي: ${escapeHtml(academicYear)}
                             </div>
                         </div>
                         <div style="text-align: left; font-size: 0.8rem; line-height: 1.4; font-weight: 700;">
                             الأستاذ(ة): <strong>${escapeHtml(teacherName)}</strong><br>
                             مادة: <strong>الرياضيات</strong><br>
-                            الفصول المستهدفة: <strong>${selectedClass === 'all' ? 'جميع الأقسام المسندة' : selectedClass}</strong><br>
-                            التاريخ: <strong>${todayFormatted}</strong>
+                            الفصول المستهدفة: <strong>${selectedClass === 'all' ? 'جميع الأقسام المسندة' : escapeHtml(selectedClass)}</strong><br>
+                            التاريخ: <strong>${escapeHtml(todayFormatted)}</strong>
                         </div>
                     </div>
 
@@ -1401,7 +1431,7 @@
         if (typeof window.html2pdf !== 'undefined') {
             const opt = {
                 margin: [8, 8, 8, 8],
-                filename: `وثيقة_الخطة_الوقائية_للغياب_${new Date().toISOString().slice(0, 10)}.pdf`,
+                filename: `وثيقة_الخطة_الوقائية_للغياب_${getLocalTodayIso()}.pdf`,
                 image: { type: 'jpeg', quality: 0.98 },
                 html2canvas: { scale: 2, useCORS: true, logging: false },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },

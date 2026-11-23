@@ -862,12 +862,21 @@ export default function PedagogicalCouncilOrientationView({
     };
   }, [classAverages.overall, classAverages.stdDev]);
 
+  const nowObj = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date();
+  const fallbackStartYear = (nowObj.getMonth() + 1) >= 9 ? nowObj.getFullYear() : nowObj.getFullYear() - 1;
+  const esc = (s: any) =>
+    String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   const teacherProfile = db?.teacherProfile || {};
   const schoolName = teacherProfile.school || teacherProfile.schoolName || 'الثانوية التأهيلية';
   const directorate = teacherProfile.directorate || 'المديرية الإقليمية';
   const academy = teacherProfile.academy || 'الأكاديمية الجهوية للتربية والتكوين';
-  const teacherName = teacherProfile.name || 'الأستاذ: إبراهيم قزيبر';
-  const academicYear = teacherProfile.academicYear || '2026 / 2027';
+  const teacherName = teacherProfile.name || 'أستاذ المادة';
+  const academicYear = teacherProfile.academicYear || `${fallbackStartYear} / ${fallbackStartYear + 1}`;
   const classTitle = selectedClass === 'all' ? 'جميع الأقسام المسندة' : selectedClass;
   const semesterTitle = semester === 's1' ? 'الدورة الأولى (الأسدوس الأول)' : 'الدورة الثانية (الأسدوس الثاني)';
 
@@ -1011,7 +1020,7 @@ export default function PedagogicalCouncilOrientationView({
 <html dir="rtl" lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>بطاقة التوجيه والمشروع الشخصي — ${student.name}</title>
+  <title>بطاقة التوجيه والمشروع الشخصي — ${esc(student.name)}</title>
   <style>
     @page { size: A4 portrait; margin: 12mm; }
     * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -1035,17 +1044,17 @@ export default function PedagogicalCouncilOrientationView({
     <div>
       <strong>المملكة المغربية</strong><br>
       وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
-      ${academy}<br>
-      ${directorate} — ${schoolName}
+      ${esc(academy)}<br>
+      ${esc(directorate)} — ${esc(schoolName)}
     </div>
     <div style="text-align:center;">
       <strong style="font-size:13.5pt; color:#0369a1;">🧭 بطاقة التوجيه المدرسي والمهني الفردية</strong><br>
       <span style="font-size:9.5pt; color:#475569;">مواكبة المشروع الشخصي للمتعلم(ة) — مادة الرياضيات</span>
     </div>
     <div style="text-align:left;">
-      الموسم الدراسي: <strong>${academicYear}</strong><br>
-      الفترة: <strong>${semesterTitle}</strong><br>
-      الأستاذ(ة): <strong>${teacherName}</strong>
+      الموسم الدراسي: <strong>${esc(academicYear)}</strong><br>
+      الفترة: <strong>${esc(semesterTitle)}</strong><br>
+      الأستاذ(ة): <strong>${esc(teacherName)}</strong>
     </div>
   </div>
 
@@ -1054,9 +1063,9 @@ export default function PedagogicalCouncilOrientationView({
   </div>
 
   <div class="student-meta">
-    <div>الاسم الكامل: <strong>${student.name}</strong></div>
-    <div>رقم مسار: <strong>${student.massar || '—'}</strong></div>
-    <div>القسم الحالي: <strong>${student.className}</strong></div>
+    <div>الاسم الكامل: <strong>${esc(student.name)}</strong></div>
+    <div>رقم مسار: <strong>${esc(student.massar || '—')}</strong></div>
+    <div>القسم الحالي: <strong>${esc(student.className)}</strong></div>
   </div>
 
   <div class="kpi-grid">
@@ -1069,24 +1078,24 @@ export default function PedagogicalCouncilOrientationView({
 
   <div class="box" style="background:#f0fdf4; border-color:#86efac;">
     <div class="box-title" style="color:#166534;">1. المسلك أو التوجه الأساسي الموصى به (الخيار الأول):</div>
-    <div style="font-size:12pt; font-weight:bold; color:#065f46; margin-bottom:4px;">${orientation.primaryPath}</div>
-    <div style="font-size:10pt; color:#334155;"><strong>البديل الثاني الملائم:</strong> ${orientation.secondaryPath}</div>
+    <div style="font-size:12pt; font-weight:bold; color:#065f46; margin-bottom:4px;">${esc(orientation.primaryPath)}</div>
+    <div style="font-size:10pt; color:#334155;"><strong>البديل الثاني الملائم:</strong> ${esc(orientation.secondaryPath)}</div>
   </div>
 
   <div class="box">
     <div class="box-title">2. آفاق الدراسات العليا والمدارس والمعاهد الملائمة للمؤهلات الرياضية:</div>
     <ul style="margin:6px 0; padding-right:18px;">
-      ${orientation.postBacTracks.map(t => `<li style="margin-bottom:4px; font-weight:bold;">${t}</li>`).join('')}
+      ${orientation.postBacTracks.map(t => `<li style="margin-bottom:4px; font-weight:bold;">${esc(t)}</li>`).join('')}
     </ul>
   </div>
 
   <div class="box" style="background:#eff6ff; border-color:#93c5fd;">
     <div class="box-title">3. التوصية البيداغوجية لأستاذ(ة) الرياضيات ومستشار(ة) التوجيه:</div>
-    <div>${orientation.counselorNote}</div>
+    <div>${esc(orientation.counselorNote)}</div>
   </div>
 
   <div class="sign-grid">
-    <div class="sign-cell">توقيع أستاذ(ة) مادة الرياضيات<br><span style="font-weight:normal; font-size:8.5pt; color:#64748b;">${teacherName}</span></div>
+    <div class="sign-cell">توقيع أستاذ(ة) مادة الرياضيات<br><span style="font-weight:normal; font-size:8.5pt; color:#64748b;">${esc(teacherName)}</span></div>
     <div class="sign-cell">توقيع مستشار(ة) التوجيه التربوي<br><span style="font-weight:normal; font-size:8.5pt; color:#64748b;">المواكبة التربوية</span></div>
     <div class="sign-cell">اطلاع وتوقيع ولي الأمر والتلميذ(ة)<br><span style="font-weight:normal; font-size:8.5pt; color:#64748b;">المشروع الشخصي للمتعلم</span></div>
   </div>
@@ -1122,7 +1131,7 @@ export default function PedagogicalCouncilOrientationView({
 <html dir="rtl" lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>تقرير ومحضر مجلس القسم — ${classTitle}</title>
+  <title>تقرير ومحضر مجلس القسم — ${esc(classTitle)}</title>
   <style>
     @page { size: A4 portrait; margin: 10mm; }
     * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -1139,7 +1148,7 @@ export default function PedagogicalCouncilOrientationView({
     th, td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: right; }
     th { background: #1e293b; color: #ffffff; font-weight: bold; text-align: center; }
     .section-title { font-size: 10.5pt; font-weight: bold; color: #1e3a8a; margin: 10px 0 6px 0; border-right: 4px solid #1e3a8a; padding-right: 8px; }
-    .notes-box { border: 1px solid #93c5fd; background: #eff6ff; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; font-size: 9.5pt; }
+    .notes-box { border: 1px solid #93c5fd; background: #eff6ff; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; font-size: 9.5pt; white-space: pre-wrap; }
     .sign-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; page-break-inside: avoid; }
     .sign-cell { border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; height: 85px; background: #fafafa; font-size: 9pt; text-align: center; font-weight: bold; }
   </style>
@@ -1149,18 +1158,18 @@ export default function PedagogicalCouncilOrientationView({
     <div style="width: 36%;">
       <strong>المملكة المغربية</strong><br>
       وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
-      ${academy}<br>
-      ${directorate} — ${schoolName}
+      ${esc(academy)}<br>
+      ${esc(directorate)} — ${esc(schoolName)}
     </div>
     <div style="width: 28%; text-align: center;">
       <div style="font-size: 14pt; font-weight: 900; color: #1e3a8a;">📐 مادة الرياضيات</div>
       <div style="font-size: 9pt; color: #047857; font-weight: bold;">السلك الثانوي التأهيلي</div>
     </div>
     <div style="width: 36%; text-align: left;">
-      الموسم الدراسي: <strong>${academicYear}</strong><br>
-      القسم: <strong>${classTitle}</strong><br>
-      الفترة التقويمية: <strong>${semesterTitle}</strong><br>
-      الأستاذ(ة): <strong>${teacherName}</strong>
+      الموسم الدراسي: <strong>${esc(academicYear)}</strong><br>
+      القسم: <strong>${esc(classTitle)}</strong><br>
+      الفترة التقويمية: <strong>${esc(semesterTitle)}</strong><br>
+      الأستاذ(ة): <strong>${esc(teacherName)}</strong>
     </div>
   </div>
 
@@ -1195,42 +1204,42 @@ export default function PedagogicalCouncilOrientationView({
         <td style="text-align:center;">16.00 — 20.00</td>
         <td style="text-align:center; font-weight:bold;">${councilCategories.feliciations.length}</td>
         <td style="text-align:center;">${councilCategories.evaluatedCount ? Math.round((councilCategories.feliciations.length / councilCategories.evaluatedCount) * 100) : 0}%</td>
-        <td>${councilCategories.feliciations.slice(0, 6).map(s => `${s.name} (${s.avg})`).join(' ، ') || '—'}</td>
+        <td>${councilCategories.feliciations.slice(0, 6).map(s => `${esc(s.name)} (${s.avg})`).join(' ، ') || '—'}</td>
       </tr>
       <tr>
         <td><strong>👏 تشجيع (Encouragements)</strong></td>
         <td style="text-align:center;">14.00 — 15.99</td>
         <td style="text-align:center; font-weight:bold;">${councilCategories.encouragements.length}</td>
         <td style="text-align:center;">${councilCategories.evaluatedCount ? Math.round((councilCategories.encouragements.length / councilCategories.evaluatedCount) * 100) : 0}%</td>
-        <td>${councilCategories.encouragements.slice(0, 6).map(s => `${s.name} (${s.avg})`).join(' ، ') || '—'}</td>
+        <td>${councilCategories.encouragements.slice(0, 6).map(s => `${esc(s.name)} (${s.avg})`).join(' ، ') || '—'}</td>
       </tr>
       <tr>
         <td><strong>🏅 لوحة الشرف (Tableau d'honneur)</strong></td>
         <td style="text-align:center;">12.00 — 13.99</td>
         <td style="text-align:center; font-weight:bold;">${councilCategories.tableauHonneur.length}</td>
         <td style="text-align:center;">${councilCategories.evaluatedCount ? Math.round((councilCategories.tableauHonneur.length / councilCategories.evaluatedCount) * 100) : 0}%</td>
-        <td>${councilCategories.tableauHonneur.slice(0, 6).map(s => `${s.name} (${s.avg})`).join(' ، ') || '—'}</td>
+        <td>${councilCategories.tableauHonneur.slice(0, 6).map(s => `${esc(s.name)} (${s.avg})`).join(' ، ') || '—'}</td>
       </tr>
       <tr>
         <td><strong>✅ تحكم مقبول (Passable)</strong></td>
         <td style="text-align:center;">10.00 — 11.99</td>
         <td style="text-align:center; font-weight:bold;">${councilCategories.passable.length}</td>
         <td style="text-align:center;">${councilCategories.evaluatedCount ? Math.round((councilCategories.passable.length / councilCategories.evaluatedCount) * 100) : 0}%</td>
-        <td>${councilCategories.passable.slice(0, 6).map(s => `${s.name} (${s.avg})`).join(' ، ') || '—'}</td>
+        <td>${councilCategories.passable.slice(0, 6).map(s => `${esc(s.name)} (${s.avg})`).join(' ، ') || '—'}</td>
       </tr>
       <tr>
         <td><strong>⚠️ دعم استدراكي إلزامي (Soutien intégré)</strong></td>
         <td style="text-align:center;">08.00 — 09.99</td>
         <td style="text-align:center; font-weight:bold; color:#b45309;">${councilCategories.mandatorySupport.length}</td>
         <td style="text-align:center;">${councilCategories.evaluatedCount ? Math.round((councilCategories.mandatorySupport.length / councilCategories.evaluatedCount) * 100) : 0}%</td>
-        <td>${councilCategories.mandatorySupport.slice(0, 8).map(s => `${s.name} (${s.avg})`).join(' ، ') || '—'}</td>
+        <td>${councilCategories.mandatorySupport.slice(0, 8).map(s => `${esc(s.name)} (${s.avg})`).join(' ، ') || '—'}</td>
       </tr>
       <tr>
         <td><strong>🚨 تعثر حاد وخطة علاجية مستعجلة</strong></td>
         <td style="text-align:center;">أقل من 08.00</td>
         <td style="text-align:center; font-weight:bold; color:#dc2626;">${councilCategories.criticalAlert.length}</td>
         <td style="text-align:center;">${councilCategories.evaluatedCount ? Math.round((councilCategories.criticalAlert.length / councilCategories.evaluatedCount) * 100) : 0}%</td>
-        <td>${councilCategories.criticalAlert.slice(0, 8).map(s => `${s.name} (${s.avg})`).join(' ، ') || '—'}</td>
+        <td>${councilCategories.criticalAlert.slice(0, 8).map(s => `${esc(s.name)} (${s.avg})`).join(' ، ') || '—'}</td>
       </tr>
     </tbody>
   </table>
@@ -1258,12 +1267,10 @@ export default function PedagogicalCouncilOrientationView({
   </table>
 
   <div class="section-title">3. الملاحظات والتوصيات البيداغوجية المرفوعة لمجلس القسم والتوجيه</div>
-  <div class="notes-box">
-    ${councilCustomNotes}
-  </div>
+  <div class="notes-box">${esc(councilCustomNotes)}</div>
 
   <div class="sign-grid">
-    <div class="sign-cell">توقيع أستاذ(ة) مادة الرياضيات<br><span style="font-weight:normal; font-size:8.5pt; color:#64748b;">${teacherName}</span></div>
+    <div class="sign-cell">توقيع أستاذ(ة) مادة الرياضيات<br><span style="font-weight:normal; font-size:8.5pt; color:#64748b;">${esc(teacherName)}</span></div>
     <div class="sign-cell">تأشيرة مستشار(ة) التوجيه التربوي<br><span style="font-weight:normal; font-size:8.5pt; color:#64748b;">ملاحظات التوجيه والمشروع الشخصي</span></div>
     <div class="sign-cell">خاتم وتوقيع السيد(ة) مدير(ة) المؤسسة<br><span style="font-weight:normal; font-size:8.5pt; color:#64748b;">رئيس مجلس القسم</span></div>
   </div>
@@ -1321,16 +1328,16 @@ export default function PedagogicalCouncilOrientationView({
     <div>
       <strong>المملكة المغربية</strong><br>
       وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
-      المؤسسة: ${schoolName}
+      المؤسسة: ${esc(schoolName)}
     </div>
     <div style="text-align:center;">
       <strong style="font-size:13pt; color:#1e3a8a;">مادة الرياضيات — التقويم التشخيصي</strong><br>
-      <span style="font-size:9pt; color:#475569;">مفتتح الموسم الدراسي ${academicYear}</span>
+      <span style="font-size:9pt; color:#475569;">مفتتح الموسم الدراسي ${esc(academicYear)}</span>
     </div>
     <div style="text-align:left;">
-      الأستاذ(ة): ${teacherName}<br>
-      المستوى: <strong>${currentDiagnostic.levelTitle}</strong><br>
-      المدة الزمنية: ${currentDiagnostic.duration}
+      الأستاذ(ة): ${esc(teacherName)}<br>
+      المستوى: <strong>${esc(currentDiagnostic.levelTitle)}</strong><br>
+      المدة الزمنية: ${esc(currentDiagnostic.duration)}
     </div>
   </div>
 
@@ -1408,7 +1415,7 @@ export default function PedagogicalCouncilOrientationView({
 <html dir="rtl" lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>بطاقة التوجيه التربوي والمدرسي — ${classTitle}</title>
+  <title>بطاقة التوجيه التربوي والمدرسي — ${esc(classTitle)}</title>
   <style>
     @page { size: A4 portrait; margin: 10mm; }
     * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -1426,16 +1433,16 @@ export default function PedagogicalCouncilOrientationView({
     <div>
       <strong>المملكة المغربية</strong><br>
       وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
-      المؤسسة: ${schoolName}
+      المؤسسة: ${esc(schoolName)}
     </div>
     <div style="text-align:center;">
       <strong style="font-size:13pt; color:#0369a1;">بطاقة التوجيه المدرسي والمهني (مادة الرياضيات)</strong><br>
       <span>مواكبة المشروع الشخصي للتلميذ — السلك الثانوي التأهيلي</span>
     </div>
     <div style="text-align:left;">
-      القسم: <strong>${classTitle}</strong><br>
-      الأستاذ(ة): ${teacherName}<br>
-      الموسم الدراسي: ${academicYear}
+      القسم: <strong>${esc(classTitle)}</strong><br>
+      الأستاذ(ة): ${esc(teacherName)}<br>
+      الموسم الدراسي: ${esc(academicYear)}
     </div>
   </div>
 
@@ -1457,12 +1464,12 @@ export default function PedagogicalCouncilOrientationView({
     <tbody>
       ${studentOrientations.map(({ student, orientation }) => `
         <tr>
-          <td><strong>${student.name}</strong></td>
+          <td><strong>${esc(student.name)}</strong></td>
           <td style="text-align:center; font-weight:bold;">${student.avg ?? '-'}/20</td>
           <td style="text-align:center;">${student.bestMark ?? '-'}/20</td>
-          <td><strong>${orientation.primaryPath}</strong></td>
-          <td>${orientation.secondaryPath}</td>
-          <td>${orientation.counselorNote}</td>
+          <td><strong>${esc(orientation.primaryPath)}</strong></td>
+          <td>${esc(orientation.secondaryPath)}</td>
+          <td>${esc(orientation.counselorNote)}</td>
         </tr>
       `).join('')}
     </tbody>

@@ -834,7 +834,7 @@
         try {
             if ('caches' in window) {
                 const keys = await caches.keys();
-                const currentCache = 'prof-digital-v3.4';
+                const currentCache = 'prof-digital-v4.6.0';
                 await Promise.all(
                     keys.map(k => {
                         if (k !== currentCache) return caches.delete(k);

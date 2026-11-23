@@ -90,6 +90,17 @@ function applySecurityHeaders(req: express.Request, res: express.Response, next:
   if (req.secure || req.get('x-forwarded-proto') === 'https') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
+  const reqPath = req.path || '';
+  if (
+    reqPath === '/' ||
+    reqPath.endsWith('.html') ||
+    reqPath.endsWith('.js') ||
+    reqPath.endsWith('.mjs')
+  ) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
   next();
 }
 
@@ -226,44 +237,132 @@ async function startServer() {
     message: 'تم تجاوز الحد المسموح من طلبات الذكاء الاصطناعي. يرجى الانتظار دقيقة.',
   });
 
+  const FIREBASE_PROJECT_ID = (() => {
+    try {
+      const cfgPath = path.join(process.cwd(), 'firebase-applet-config.json');
+      if (fs.existsSync(cfgPath)) {
+        const parsed = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+        if (parsed && typeof parsed.projectId === 'string' && parsed.projectId.trim()) {
+          return parsed.projectId.trim();
+        }
+      }
+    } catch {
+      /* fallback to env */
+    }
+    return String(process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0761614487').trim();
+  })();
+
+  const GOOGLE_SECURETOKEN_CERTS_URL =
+    'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
+  let _googleCertsCache: { certs: Record<string, string>; expiresAt: number; fetchedAt: number } = {
+    certs: {},
+    expiresAt: 0,
+    fetchedAt: 0,
+  };
+
+  async function fetchGoogleFirebaseCerts(forceRefresh = false): Promise<Record<string, string>> {
+    const now = Date.now();
+    if (!forceRefresh && _googleCertsCache.expiresAt > now && Object.keys(_googleCertsCache.certs).length > 0) {
+      return _googleCertsCache.certs;
+    }
+    if (forceRefresh && now - _googleCertsCache.fetchedAt < 60_000 && Object.keys(_googleCertsCache.certs).length > 0) {
+      return _googleCertsCache.certs;
+    }
+    try {
+      const resp = await fetch(GOOGLE_SECURETOKEN_CERTS_URL, {
+        headers: { 'Accept': 'application/json' },
+      });
+      if (!resp.ok) return _googleCertsCache.certs;
+      const cacheControl = resp.headers.get('cache-control') || '';
+      const maxAgeMatch = cacheControl.match(/max-age=(\d+)/i);
+      const maxAgeSec = maxAgeMatch ? Math.max(60, Math.min(86400, Number(maxAgeMatch[1]))) : 3600;
+      const certs = (await resp.json()) as Record<string, string>;
+      if (certs && typeof certs === 'object') {
+        _googleCertsCache = {
+          certs,
+          fetchedAt: now,
+          expiresAt: now + maxAgeSec * 1000,
+        };
+      }
+    } catch {
+      /* keep previous cache on transient network errors */
+    }
+    return _googleCertsCache.certs;
+  }
+
+  async function verifyFirebaseIdToken(token: string): Promise<{ uid: string; email: string | null } | null> {
+    if (!token || typeof token !== 'string') return null;
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    try {
+      const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+      if (!header || header.alg !== 'RS256' || typeof header.kid !== 'string' || !header.kid) {
+        return null;
+      }
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (!payload || typeof payload !== 'object') return null;
+      if (payload.aud !== FIREBASE_PROJECT_ID) return null;
+      if (payload.iss !== `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`) return null;
+      if (typeof payload.sub !== 'string' || !payload.sub.trim() || payload.sub.length > 128) return null;
+      if (!payload.exp || Number(payload.exp) <= nowSec - 60) return null;
+      if (payload.iat && Number(payload.iat) > nowSec + 300) return null;
+
+      let certs = await fetchGoogleFirebaseCerts(false);
+      let cert = certs[header.kid];
+      if (!cert) {
+        certs = await fetchGoogleFirebaseCerts(true);
+        cert = certs[header.kid];
+      }
+      if (!cert) return null;
+
+      const verifier = crypto.createVerify('RSA-SHA256');
+      verifier.update(`${parts[0]}.${parts[1]}`);
+      verifier.end();
+      const signatureBuf = Buffer.from(parts[2], 'base64url');
+      if (!verifier.verify(cert, signatureBuf)) return null;
+
+      return {
+        uid: String(payload.user_id || payload.sub),
+        email: typeof payload.email === 'string' ? payload.email : null,
+      };
+    } catch {
+      return null;
+    }
+  }
+
   /**
-   * التحقق من هوية العميل (Firebase ID Token / App Check / Client Session)
-   * في وضع الإنتاج الصارم (REQUIRE_API_AUTH=true) يشترط وجود رمز مصادقة صالح،
-   * وفي الوضع المحلي/المعاينة يتحقق من الترويسات ويوثق الجلسة دون حجب عمل الأستاذ.
+   * التحقق التشفيري من هوية العميل (Firebase ID Token عبر توقيع RS256 ومفاتيح Google الرسمية)
+   * في وضع الإنتاج الصارم (REQUIRE_API_AUTH=true) يشترط وجود رمز مصادقة موقّع وصالح،
+   * وفي الوضع المحلي/المعاينة يتحقق من التوقيع ويوثق الجلسة دون حجب عمل الأستاذ.
    */
-  const verifyClientAuthHeader: express.RequestHandler = (req, res, next) => {
+  const verifyClientAuthHeader: express.RequestHandler = async (req, res, next) => {
     const authHeader = String(req.get('authorization') || '').trim();
     const appCheckToken = String(req.get('x-firebase-appcheck') || '').trim();
     const clientSession = String(req.get('x-client-session') || '').trim();
     let verifiedUid: string | null = null;
+    let verifiedEmail: string | null = null;
 
     if (authHeader.toLowerCase().startsWith('bearer ')) {
       const token = authHeader.slice(7).trim();
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        try {
-          const payloadJson = Buffer.from(parts[1], 'base64url').toString('utf8');
-          const payload = JSON.parse(payloadJson);
-          const nowSec = Math.floor(Date.now() / 1000);
-          if (payload && (!payload.exp || Number(payload.exp) > nowSec - 60)) {
-            verifiedUid = String(payload.user_id || payload.sub || 'authenticated-user');
-          }
-        } catch {
-          /* invalid JWT payload */
-        }
+      const verified = await verifyFirebaseIdToken(token);
+      if (verified) {
+        verifiedUid = verified.uid;
+        verifiedEmail = verified.email;
       }
     }
 
     (req as any).clientAuthContext = {
       uid: verifiedUid,
+      email: verifiedEmail,
       hasAppCheck: Boolean(appCheckToken),
       clientSession: clientSession || null,
-      verified: Boolean(verifiedUid || appCheckToken),
+      verified: Boolean(verifiedUid),
     };
 
-    if (process.env.REQUIRE_API_AUTH === 'true' && !verifiedUid && !appCheckToken) {
+    if (process.env.REQUIRE_API_AUTH === 'true' && !verifiedUid) {
       return res.status(401).json({
-        error: 'غير مصرح: يتطلب هذا المسار مصادقة المستخدم (Firebase ID Token أو App Check).',
+        error: 'غير مصرح: يتطلب هذا المسار رمز Firebase ID Token موثقاً وموقّعاً.',
       });
     }
 
@@ -271,10 +370,12 @@ async function startServer() {
   };
 
   const aiLimiter: express.RequestHandler = (req, res, next) => {
-    verifyClientAuthHeader(req, res, (err?: any) => {
-      if (err) return next(err);
-      return rawAiLimiter(req, res, next);
-    });
+    Promise.resolve(
+      verifyClientAuthHeader(req, res, (err?: any) => {
+        if (err) return next(err);
+        return rawAiLimiter(req, res, next);
+      })
+    ).catch(next);
   };
 
   app.use(applySecurityHeaders);
@@ -678,7 +779,7 @@ ${JSON.stringify(topStudents.slice(0, 8), null, 2)}
 
       if (!apiKey) {
         return res.json({
-          result: `⚠️ لم يتم ضبط مفتاح Gemini API صالح على الخادم. تم تشغيل المحاكاة المحلية:\n\n[معاينة استجابة الأمر المخصص]:\nتم استلام الأمر بنجاح لمهمة (${taskCategory}). يمكنك نسخ الأمر واستعماله مباشرة في Google AI Studio أو واجهة الذكاء الاصطناعي المفضلة لديك.\n\nنص الأمر المعالج:\n"${prompt.substring(0, 300)}..."`,
+          result: `⚠️ لم يتم ضبط مفتاح Gemini API صالح على الخادم. تم تشغيل المحاكاة المحلية:\n\n[معاينة استجابة الأمر المخصص]:\nتم استلام الأمر بنجاح لمهمة (${taskCategory}). يمكنك نسخ الأمر واستعماله في أي نموذج لغوي أو منصة ذكاء اصطناعي بعد ضبط مفتاح التشغيل.\n\nنص الأمر المعالج:\n"${prompt.substring(0, 300)}..."`,
           source: 'simulation_no_key'
         });
       }
@@ -1277,7 +1378,7 @@ ${JSON.stringify(classesPayload, null, 2)}
   });
 
   // API route for exporting Ministerial Milestones and Exams to ICS calendar feed
-  app.post("/api/calendar/generate-ministerial-ics", sameOriginGuard, (req, res) => {
+  app.post("/api/calendar/generate-ministerial-ics", sameOriginGuard, createRateLimiter({ windowMs: 60_000, max: 30 }), (req, res) => {
     try {
       const {
         milestones = [],
@@ -2714,7 +2815,7 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//AI Studio//Student Digital Portfolio iCal Sync//AR',
+    'PRODID:-//ProfDigital//Student Digital Portfolio iCal Sync//AR',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${cleanText(calendarTitle)}`,
@@ -2891,6 +2992,8 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
   }
   const SHARE_STORE_FILE = path.join(process.cwd(), 'data', 'shared-records.json');
   const pinAttemptLimiter = createAttemptLimiter(5, 15 * 60 * 1000);
+  const SHARE_PBKDF2_ITERATIONS = 100000;
+  const SHARE_PBKDF2_LEGACY_ITERATIONS = 10000;
   type SharedRecordEntry = {
     id: string;
     type: 'student' | 'report' | 'whiteboard';
@@ -2902,6 +3005,7 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
     salt: string;
     iv: string;
     tag: string;
+    pbkdf2Iterations?: number;
     hasPin: boolean;
     pinHash?: string;
     createdAt: string;
@@ -2957,13 +3061,14 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
 
   loadSharedRecordsFromDisk();
 
-  function deriveKey(password: string, salt: Buffer): Buffer {
-    return crypto.pbkdf2Sync(password, salt, 10000, 32, 'sha256');
+  function deriveKey(password: string, salt: Buffer, iterations: number = SHARE_PBKDF2_ITERATIONS): Buffer {
+    return crypto.pbkdf2Sync(password, salt, iterations, 32, 'sha256');
   }
 
-  function encryptPayload(data: any, pin?: string): { encryptedData: string; salt: string; iv: string; tag: string } {
+  function encryptPayload(data: any, pin?: string): { encryptedData: string; salt: string; iv: string; tag: string; pbkdf2Iterations: number } {
     const salt = crypto.randomBytes(16);
-    const key = deriveKey(pin ? `${pin}:${SHARE_SECRET}` : SHARE_SECRET, salt);
+    const iterations = SHARE_PBKDF2_ITERATIONS;
+    const key = deriveKey(pin ? `${pin}:${SHARE_SECRET}` : SHARE_SECRET, salt, iterations);
     const iv = crypto.randomBytes(12);
     const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
     const jsonStr = JSON.stringify(data);
@@ -2975,15 +3080,23 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
       encryptedData: encrypted,
       salt: salt.toString('base64'),
       iv: iv.toString('base64'),
-      tag
+      tag,
+      pbkdf2Iterations: iterations,
     };
   }
 
-  function decryptPayload(encryptedData: string, saltBase64: string, ivBase64: string, tagBase64: string, pin?: string): any {
+  function decryptPayload(
+    encryptedData: string,
+    saltBase64: string,
+    ivBase64: string,
+    tagBase64: string,
+    pin?: string,
+    iterations: number = SHARE_PBKDF2_LEGACY_ITERATIONS
+  ): any {
     const salt = Buffer.from(saltBase64, 'base64');
     const iv = Buffer.from(ivBase64, 'base64');
     const tag = Buffer.from(tagBase64, 'base64');
-    const key = deriveKey(pin ? `${pin}:${SHARE_SECRET}` : SHARE_SECRET, salt);
+    const key = deriveKey(pin ? `${pin}:${SHARE_SECRET}` : SHARE_SECRET, salt, iterations);
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(tag);
     let decrypted = decipher.update(encryptedData, 'base64', 'utf8');
@@ -3016,7 +3129,7 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
       }
 
       const shareId = 'sh_' + crypto.randomBytes(6).toString('base64url');
-      const { encryptedData, salt, iv, tag } = encryptPayload(data, pin);
+      const { encryptedData, salt, iv, tag, pbkdf2Iterations } = encryptPayload(data, pin);
 
       const hasPin = Boolean(pin && typeof pin === 'string' && pin.trim().length > 0);
       const pinHash = hasPin
@@ -3037,6 +3150,7 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
         salt,
         iv,
         tag,
+        pbkdf2Iterations,
         hasPin,
         pinHash,
         createdAt: now.toISOString(),
@@ -3102,7 +3216,8 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
         return res.status(410).json({ error: "انتهت فترة صلاحية هذا الرابط المشفر." });
       }
 
-      const clientPin = (req.headers['x-share-pin'] as string || req.query.pin as string || '').trim();
+      // Strictly read PIN from HTTP header (never from URL query string to prevent log/referrer leakage)
+      const clientPin = String(req.headers['x-share-pin'] || '').trim();
 
       if (record.hasPin) {
         const guard = pinAttemptLimiter.isBlocked(shareId);
@@ -3151,7 +3266,8 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
           record.salt,
           record.iv,
           record.tag,
-          record.hasPin ? clientPin : undefined
+          record.hasPin ? clientPin : undefined,
+          record.pbkdf2Iterations || SHARE_PBKDF2_LEGACY_ITERATIONS
         );
 
         record.viewCount += 1;
@@ -3823,8 +3939,13 @@ export function createHotContext(ownerPath) {
     lastActive: number;
   }
 
+  const WB_MAX_ROOMS = 200;
   const wbRooms = new Map<string, WbRoomState>();
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws/whiteboard' });
+  const wss = new WebSocketServer({
+    server: httpServer,
+    path: '/ws/whiteboard',
+    maxPayload: 2 * 1024 * 1024,
+  });
 
   function sanitizeWbRoom(raw: string): string {
     const clean = String(raw || '').toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 32);
@@ -3860,6 +3981,22 @@ export function createHotContext(ownerPath) {
   }, 30 * 60 * 1000).unref?.();
 
   wss.on('connection', (ws, req) => {
+    // CSWSH protection: reject cross-origin browser WebSocket upgrades
+    const wsOrigin = req.headers.origin;
+    const wsHost = (req.headers['x-forwarded-host'] as string) || req.headers.host || '';
+    if (wsOrigin && wsHost) {
+      try {
+        const allowedHost = wsHost.split(',')[0].trim();
+        if (new URL(wsOrigin).host !== allowedHost) {
+          ws.close(1008, 'Cross-origin WebSocket rejected');
+          return;
+        }
+      } catch {
+        ws.close(1008, 'Invalid WebSocket origin');
+        return;
+      }
+    }
+
     let currentRoomCode = '';
     let currentPeer: WbPeer | null = null;
 
@@ -3886,6 +4023,19 @@ export function createHotContext(ownerPath) {
 
       let room = wbRooms.get(rCode);
       if (!room) {
+        if (wbRooms.size >= WB_MAX_ROOMS) {
+          // Evict oldest idle room to prevent unbounded memory growth
+          let oldestIdleKey: string | null = null;
+          let oldestTs = Infinity;
+          for (const [k, r] of wbRooms.entries()) {
+            if (r.peers.size === 0 && r.lastActive < oldestTs) {
+              oldestTs = r.lastActive;
+              oldestIdleKey = k;
+            }
+          }
+          if (oldestIdleKey) wbRooms.delete(oldestIdleKey);
+          else return;
+        }
         room = { locked: false, objects: [], snapshot: null, peers: new Set(), lastActive: Date.now() };
         wbRooms.set(rCode, room);
       }
@@ -3922,7 +4072,8 @@ export function createHotContext(ownerPath) {
         return;
       }
 
-      const senderRole = currentPeer ? currentPeer.role : (msg.senderRole === 'student' ? 'student' : 'teacher');
+      // Unjoined peers default to 'student' (least privilege) so they cannot bypass room lock or lock rooms
+      const senderRole = currentPeer ? currentPeer.role : 'student';
       const isMutation = ['stroke:add', 'object:update', 'object:delete', 'page:clear', 'page:restore'].includes(msg.type);
 
       if (isMutation && room.locked && senderRole === 'student') {

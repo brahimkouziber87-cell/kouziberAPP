@@ -59,63 +59,28 @@ interface ExamComparisonItem {
 
 const FALLBACK_CLASSES: ClassComparisonItem[] = [
   {
-    className: 'جذع مشترك علمي 1 (بيانات معاينة)',
-    shortName: 'ج.م.ع 1',
-    studentCount: 34,
-    s1Avg: 11.45,
-    s2Avg: 12.85,
-    annualAvg: 12.15,
-    delta: 1.4,
-    improvedCount: 24,
-    improvedRate: 70.6,
-    passRateS1: 64.7,
-    passRateS2: 79.4,
-  },
-  {
-    className: 'جذع مشترك علمي 2 (بيانات معاينة)',
-    shortName: 'ج.م.ع 2',
-    studentCount: 32,
-    s1Avg: 10.8,
-    s2Avg: 11.95,
-    annualAvg: 11.38,
-    delta: 1.15,
-    improvedCount: 21,
-    improvedRate: 65.6,
-    passRateS1: 56.3,
-    passRateS2: 71.9,
-  },
-  {
-    className: 'الأولى بكالوريا علوم 1 (بيانات معاينة)',
-    shortName: '1 باك ع 1',
-    studentCount: 30,
-    s1Avg: 12.1,
-    s2Avg: 13.4,
-    annualAvg: 12.75,
-    delta: 1.3,
-    improvedCount: 22,
-    improvedRate: 73.3,
-    passRateS1: 73.3,
-    passRateS2: 86.7,
+    className: 'لا توجد أقسام مسجلة',
+    shortName: '—',
+    studentCount: 0,
+    s1Avg: 0,
+    s2Avg: 0,
+    annualAvg: 0,
+    delta: 0,
+    improvedCount: 0,
+    improvedRate: 0,
+    passRateS1: 0,
+    passRateS2: 0,
   },
 ];
 
 const FALLBACK_EXAMS: ExamComparisonItem[] = [
-  { examLabel: 'الفرض 1', s1Avg: 10.9, s2Avg: 12.2, delta: 1.3 },
-  { examLabel: 'الفرض 2', s1Avg: 11.4, s2Avg: 12.75, delta: 1.35 },
-  { examLabel: 'الفرض 3', s1Avg: 11.8, s2Avg: 13.1, delta: 1.3 },
-  { examLabel: 'الأنشطة المندمجة', s1Avg: 12.3, s2Avg: 13.55, delta: 1.25 },
+  { examLabel: 'الفرض 1', s1Avg: 0, s2Avg: 0, delta: 0 },
+  { examLabel: 'الفرض 2', s1Avg: 0, s2Avg: 0, delta: 0 },
+  { examLabel: 'الفرض 3', s1Avg: 0, s2Avg: 0, delta: 0 },
+  { examLabel: 'الأنشطة المندمجة', s1Avg: 0, s2Avg: 0, delta: 0 },
 ];
 
-const FALLBACK_PROGRESSING_STUDENTS: StudentProgressionItem[] = [
-  { id: 'p1', name: 'سلمى المنصوري', className: 'ج.م.ع 1', s1Avg: 11.25, s2Avg: 15.5, annualAvg: 13.38, delta: 4.25 },
-  { id: 'p2', name: 'ياسين العمراني', className: 'ج.م.ع 1', s1Avg: 9.5, s2Avg: 13.25, annualAvg: 11.38, delta: 3.75 },
-  { id: 'p3', name: 'آية بنجلون', className: 'ج.م.ع 1', s1Avg: 13.0, s2Avg: 16.25, annualAvg: 14.63, delta: 3.25 },
-  { id: 'p4', name: 'حمزة الإدريسي', className: 'ج.م.ع 1', s1Avg: 8.75, s2Avg: 11.75, annualAvg: 10.25, delta: 3.0 },
-  { id: 'p5', name: 'مريم الفاسي', className: 'ج.م.ع 1', s1Avg: 12.5, s2Avg: 15.1, annualAvg: 13.8, delta: 2.6 },
-  { id: 'p6', name: 'أمين التازي', className: 'ج.م.ع 1', s1Avg: 10.2, s2Avg: 12.6, annualAvg: 11.4, delta: 2.4 },
-  { id: 'p7', name: 'هجر السعيدي', className: 'ج.م.ع 1', s1Avg: 14.0, s2Avg: 16.1, annualAvg: 15.05, delta: 2.1 },
-  { id: 'p8', name: 'عمر البقالي', className: 'ج.م.ع 1', s1Avg: 9.8, s2Avg: 11.65, annualAvg: 10.73, delta: 1.85 },
-];
+const FALLBACK_PROGRESSING_STUDENTS: StudentProgressionItem[] = [];
 
 function computeNumericAverage(gradesObj: Record<string, any> | undefined, examKeys: string[]): number | null {
   if (!gradesObj || typeof gradesObj !== 'object') return null;

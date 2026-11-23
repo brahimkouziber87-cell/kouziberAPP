@@ -91,12 +91,14 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
       overallAbsenceSuccessKPIs
     } = props;
 
+    const nowObj = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date();
+    const fallbackStartYear = (nowObj.getMonth() + 1) >= 9 ? nowObj.getFullYear() : nowObj.getFullYear() - 1;
     const teacherProfile = db?.teacherProfile || {};
     const school = teacherProfile.school || 'المؤسسة التعليمية';
-    const academy = teacherProfile.academy || 'الأكاديمية الجهوية للتربية والتكوين - جهة الرباط سلا القنيطرة';
+    const academy = teacherProfile.academy || 'الأكاديمية الجهوية للتربية والتكوين';
     const directorate = teacherProfile.directorate || 'المديرية الإقليمية';
-    const academicYear = teacherProfile.academicYear || '2026/2027';
-    const teacherName = teacherProfile.name || 'الأستاذ: إبراهيم كوزيبر (Prof. Brahim Kouziber)';
+    const academicYear = teacherProfile.academicYear || `${fallbackStartYear}/${fallbackStartYear + 1}`;
+    const teacherName = teacherProfile.name || 'أستاذ مادة الرياضيات';
     const institutionLogo = teacherProfile.schoolLogo || teacherProfile.institutionLogo || '/institution-logo.svg';
     const teacherLogo = teacherProfile.teacherLogo || teacherProfile.photo || '/logo.svg';
 
@@ -104,9 +106,25 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
     const [statusMessage, setStatusMessage] = useState('');
     const reportRef = useRef<HTMLDivElement>(null);
 
+    const hasF4 = (classAverages.f4 !== null && classAverages.f4 !== undefined) || studentMetrics.some(m => m.f4 !== null && m.f4 !== undefined);
+    const getExamMinMax = (key: 'f1' | 'f2' | 'f3' | 'f4') => {
+      const vals = studentMetrics.map(m => m[key]).filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
+      if (vals.length === 0) return { min: '--', max: '--', passPct: '--' };
+      const passCount = vals.filter(v => v >= 10).length;
+      return {
+        min: String(Math.min(...vals)),
+        max: String(Math.max(...vals)),
+        passPct: `${Math.round((passCount / vals.length) * 100)}%`
+      };
+    };
+    const f1Stat = getExamMinMax('f1');
+    const f2Stat = getExamMinMax('f2');
+    const f3Stat = getExamMinMax('f3');
+    const f4Stat = getExamMinMax('f4');
+
     const semesterLabel = semester === 's1' ? 'الدورة الأولى (S1)' : 'الدورة الثانية (S2)';
     const classLabel = selectedClass === 'all' ? 'كافة الأقسام المسجلة' : `القسم: ${selectedClass}`;
-    const currentDate = new Date().toLocaleDateString('ar-MA', {
+    const currentDate = nowObj.toLocaleDateString('ar-MA', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -379,7 +397,8 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
         }
 
         setStatusMessage('جاري تنزيل الملف المنظم...');
-        const fileName = `التقرير_التحليلي_الشامل_للأستاذ_كوزيبر_براهيم_رياضيات_${selectedClass}_${semester}.pdf`;
+        const safeCls = String(selectedClass || 'القسم').replace(/[\\/:*?"<>|]/g, '_');
+        const fileName = `التقرير_التحليلي_الشامل_رياضيات_${safeCls}_${semester}.pdf`;
         pdf.save(fileName);
       } catch (err) {
         console.error('Failed to export comprehensive PDF:', err);
@@ -594,7 +613,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
               <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a' }}>
-                    الرسم البياني 1: تطور المسار الإجمالي لمعدل القسم عبر محطات الفروض (F1 - F2 - F3)
+                    الرسم البياني 1: تطور المسار الإجمالي لمعدل القسم عبر محطات الفروض ({hasF4 ? 'F1 - F2 - F3 - F4' : 'F1 - F2 - F3'})
                   </span>
                   <span style={{ fontSize: '10px', color: macroTrend.delta >= 0 ? '#15803d' : '#b91c1c', fontWeight: 800 }}>
                     مؤشر التطور: {macroTrend.delta >= 0 ? `+${macroTrend.delta}` : `${macroTrend.delta}`} نقطة ({macroTrend.deltaPercent}%)
@@ -620,33 +639,37 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                     <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
                       <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 800, color: '#1e40af' }}>الفرض المحروس رقم 1 (F1)</td>
                       <td style={{ padding: '6px 10px', fontWeight: 800, fontFamily: 'monospace' }}>{classAverages.f1 !== null ? `${classAverages.f1}/20` : 'غير مسجل'}</td>
-                      <td style={{ padding: '6px 10px', fontWeight: 700, color: '#15803d' }}>
-                        {studentMetrics.length > 0 ? `${Math.round((studentMetrics.filter(m => m.f1 !== null && m.f1 >= 10).length / Math.max(1, studentMetrics.filter(m => m.f1 !== null).length)) * 100)}%` : '--'}
-                      </td>
-                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{studentMetrics.reduce((max, m) => m.f1 !== null && m.f1 > max ? m.f1 : max, 0) || '--'}</td>
-                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{studentMetrics.filter(m => m.f1 !== null).reduce((min, m) => m.f1! < min ? m.f1! : min, 20) || '--'}</td>
+                      <td style={{ padding: '6px 10px', fontWeight: 700, color: '#15803d' }}>{f1Stat.passPct}</td>
+                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{f1Stat.max}</td>
+                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{f1Stat.min}</td>
                       <td style={{ padding: '6px 10px', color: '#475569' }}>محطة التقويم الأولي وتشخيص المكتسبات</td>
                     </tr>
                     <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#fafafa' }}>
                       <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 800, color: '#4f46e5' }}>الفرض المحروس رقم 2 (F2)</td>
                       <td style={{ padding: '6px 10px', fontWeight: 800, fontFamily: 'monospace' }}>{classAverages.f2 !== null ? `${classAverages.f2}/20` : 'غير مسجل'}</td>
-                      <td style={{ padding: '6px 10px', fontWeight: 700, color: '#15803d' }}>
-                        {studentMetrics.length > 0 ? `${Math.round((studentMetrics.filter(m => m.f2 !== null && m.f2 >= 10).length / Math.max(1, studentMetrics.filter(m => m.f2 !== null).length)) * 100)}%` : '--'}
-                      </td>
-                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{studentMetrics.reduce((max, m) => m.f2 !== null && m.f2 > max ? m.f2 : max, 0) || '--'}</td>
-                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{studentMetrics.filter(m => m.f2 !== null).reduce((min, m) => m.f2! < min ? m.f2! : min, 20) || '--'}</td>
+                      <td style={{ padding: '6px 10px', fontWeight: 700, color: '#15803d' }}>{f2Stat.passPct}</td>
+                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{f2Stat.max}</td>
+                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{f2Stat.min}</td>
                       <td style={{ padding: '6px 10px', color: '#475569' }}>محطة قياس أثر المعالجة والتعلمات المركبة</td>
                     </tr>
-                    <tr>
+                    <tr style={{ borderBottom: hasF4 ? '1px solid #e2e8f0' : 'none' }}>
                       <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 800, color: '#0891b2' }}>الفرض المحروس رقم 3 (F3)</td>
                       <td style={{ padding: '6px 10px', fontWeight: 800, fontFamily: 'monospace' }}>{classAverages.f3 !== null ? `${classAverages.f3}/20` : 'غير مسجل'}</td>
-                      <td style={{ padding: '6px 10px', fontWeight: 700, color: '#15803d' }}>
-                        {studentMetrics.length > 0 ? `${Math.round((studentMetrics.filter(m => m.f3 !== null && m.f3 >= 10).length / Math.max(1, studentMetrics.filter(m => m.f3 !== null).length)) * 100)}%` : '--'}
-                      </td>
-                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{studentMetrics.reduce((max, m) => m.f3 !== null && m.f3 > max ? m.f3 : max, 0) || '--'}</td>
-                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{studentMetrics.filter(m => m.f3 !== null).reduce((min, m) => m.f3! < min ? m.f3! : min, 20) || '--'}</td>
-                      <td style={{ padding: '6px 10px', color: '#475569' }}>محطة التقويم الإجمالي وحصيلة المقرر</td>
+                      <td style={{ padding: '6px 10px', fontWeight: 700, color: '#15803d' }}>{f3Stat.passPct}</td>
+                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{f3Stat.max}</td>
+                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{f3Stat.min}</td>
+                      <td style={{ padding: '6px 10px', color: '#475569' }}>محطة قياس تثبيت المهارات البرهانية</td>
                     </tr>
+                    {hasF4 && (
+                      <tr style={{ background: '#fafafa' }}>
+                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 800, color: '#7c3aed' }}>الفرض المحروس رقم 4 (F4)</td>
+                        <td style={{ padding: '6px 10px', fontWeight: 800, fontFamily: 'monospace' }}>{classAverages.f4 !== null && classAverages.f4 !== undefined ? `${classAverages.f4}/20` : 'غير مسجل'}</td>
+                        <td style={{ padding: '6px 10px', fontWeight: 700, color: '#15803d' }}>{f4Stat.passPct}</td>
+                        <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{f4Stat.max}</td>
+                        <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{f4Stat.min}</td>
+                        <td style={{ padding: '6px 10px', color: '#475569' }}>محطة التقويم الإجمالي وحصيلة المقرر</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -654,7 +677,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
 
             {/* Footer of Page 1 */}
             <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#64748b' }}>
-              <span>منظومة تحليل وتتبع الفروض المحروسة · الأستاذ: براهيم كوزيبر</span>
+              <span>منظومة تحليل وتتبع الفروض المحروسة · {teacherName}</span>
               <span style={{ fontWeight: 800 }}>الصفحة 1 من {studentChunks.length + 3}</span>
               <span>وثيقة تربوية رسمية</span>
             </div>
@@ -767,7 +790,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
 
             {/* Footer of Page 2 */}
             <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#64748b' }}>
-              <span>منظومة تحليل وتتبع الفروض المحروسة · الأستاذ: براهيم كوزيبر</span>
+              <span>منظومة تحليل وتتبع الفروض المحروسة · {teacherName}</span>
               <span style={{ fontWeight: 800 }}>الصفحة 2 من {studentChunks.length + 3}</span>
               <span>وثيقة تربوية رسمية</span>
             </div>
@@ -905,7 +928,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
 
             {/* Footer of Page 3 */}
             <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#64748b' }}>
-              <span>منظومة تحليل وتتبع الفروض المحروسة · الأستاذ: براهيم كوزيبر</span>
+              <span>منظومة تحليل وتتبع الفروض المحروسة · {teacherName}</span>
               <span style={{ fontWeight: 800 }}>الصفحة 3 من {studentChunks.length + 3}</span>
               <span>وثيقة تربوية رسمية</span>
             </div>
@@ -948,7 +971,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                         {studentChunks.length > 1 && ` (الجزء ${chunkIdx + 1} من ${studentChunks.length})`}
                       </h2>
                       <p style={{ margin: '2px 0 0 0', fontSize: '10px', color: '#64748b' }}>
-                        البيان التفصيلي لنقط الفروض F1 وF2 وF3 والمعدل الدوري ومسار التطور والتقدير الوزاري وفق المذكرة 142-08
+                        البيان التفصيلي لنقط الفروض {hasF4 ? 'F1 وF2 وF3 وF4' : 'F1 وF2 وF3'} والمعدل الدوري ومسار التطور والتقدير الوزاري وفق المذكرة 142-08
                       </p>
                     </div>
                     <span style={{ background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 800, color: '#475569' }}>
@@ -964,9 +987,10 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                           <th style={{ padding: '6px 6px', width: '32px' }}>#</th>
                           <th style={{ padding: '6px 8px', textAlign: 'right' }}>رقم مسار</th>
                           <th style={{ padding: '6px 10px', textAlign: 'right' }}>الاسم والنسب الكامل</th>
-                          <th style={{ padding: '6px 6px', width: '50px' }}>F1</th>
-                          <th style={{ padding: '6px 6px', width: '50px' }}>F2</th>
-                          <th style={{ padding: '6px 6px', width: '50px' }}>F3</th>
+                          <th style={{ padding: '6px 6px', width: '46px' }}>F1</th>
+                          <th style={{ padding: '6px 6px', width: '46px' }}>F2</th>
+                          <th style={{ padding: '6px 6px', width: '46px' }}>F3</th>
+                          {hasF4 && <th style={{ padding: '6px 6px', width: '46px' }}>F4</th>}
                           <th style={{ padding: '6px 8px', width: '60px', background: '#1e293b' }}>المعدل</th>
                           <th style={{ padding: '6px 8px' }}>مسار التطور</th>
                           <th style={{ padding: '6px 10px', textAlign: 'right' }}>التقدير الوزاري</th>
@@ -975,7 +999,6 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                       <tbody>
                         {chunk.map((m, idx) => {
                           const globalIndex = chunkIdx * STUDENTS_PER_PAGE + idx + 1;
-                          const isPassing = m.avg !== null && m.avg >= 10;
                           const isTop = m.avg !== null && m.avg >= 14;
                           const isAtRisk = m.avg !== null && m.avg < 10;
 
@@ -999,6 +1022,11 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                               <td style={{ padding: '5px 6px', fontFamily: 'monospace', fontWeight: 700, color: m.f3 !== null && m.f3 >= 10 ? '#15803d' : (m.f3 !== null ? '#b91c1c' : '#94a3b8') }}>
                                 {m.f3 !== null ? m.f3 : '-'}
                               </td>
+                              {hasF4 && (
+                                <td style={{ padding: '5px 6px', fontFamily: 'monospace', fontWeight: 700, color: m.f4 !== null && m.f4 !== undefined && m.f4 >= 10 ? '#15803d' : (m.f4 !== null && m.f4 !== undefined ? '#b91c1c' : '#94a3b8') }}>
+                                  {m.f4 !== null && m.f4 !== undefined ? m.f4 : '-'}
+                                </td>
+                              )}
                               <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontWeight: 900, fontSize: '11px', background: isTop ? '#ecfdf5' : (isAtRisk ? '#fff1f2' : '#f1f5f9'), color: isAtRisk ? '#be123c' : (isTop ? '#047857' : '#0f172a') }}>
                                 {m.avg !== null ? `${m.avg}` : '--'}
                               </td>
@@ -1015,8 +1043,8 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                                   {m.trajectory === 'improving' ? `↗ متقدم (+${m.delta})` : (m.trajectory === 'declining' ? `↘ متراجع (${m.delta})` : '↔ مستقر')}
                                 </span>
                               </td>
-                              <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: 700, fontSize: '9.5px', color: isTop ? '#15803d' : (isAtRisk ? '#b91c1c' : '#0369a1') }}>
-                                {m.avg !== null && m.avg >= 16 ? 'ممتاز' : (m.avg !== null && m.avg >= 14 ? 'جيد جداً' : (m.avg !== null && m.avg >= 12 ? 'حسن' : (m.avg !== null && m.avg >= 10 ? 'مستوفٍ' : (m.avg !== null && m.avg >= 8 ? 'دون العتبة' : 'تعثر حاد'))))}
+                              <td style={{ padding: '5px 10px', textAlign: 'right', fontWeight: 700, fontSize: '9.5px', color: m.avg === null ? '#64748b' : (isTop ? '#15803d' : (isAtRisk ? '#b91c1c' : '#0369a1')) }}>
+                                {m.avg === null ? 'غير مسجل' : (m.avg >= 16 ? 'ممتاز' : (m.avg >= 14 ? 'جيد جداً' : (m.avg >= 12 ? 'حسن' : (m.avg >= 10 ? 'مستوفٍ' : (m.avg >= 8 ? 'دون العتبة' : 'تعثر حاد')))))}
                               </td>
                             </tr>
                           );
@@ -1046,7 +1074,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', textAlign: 'center', fontSize: '10px', color: '#334155' }}>
                           <div style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', background: '#ffffff', minHeight: '85px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                             <div style={{ fontWeight: 800, color: '#0f172a' }}>أستاذ مادة الرياضيات</div>
-                            <div style={{ fontSize: '9px', color: '#2563eb', fontWeight: 700 }}>الأستاذ: براهيم كوزيبر</div>
+                            <div style={{ fontSize: '9px', color: '#2563eb', fontWeight: 700 }}>{teacherName}</div>
                             <div style={{ fontSize: '9px', color: '#94a3b8' }}>التوقيع والتاريخ:</div>
                           </div>
 
@@ -1075,7 +1103,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
 
                 {/* Footer of Page 4+ */}
                 <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#64748b' }}>
-                  <span>منظومة تحليل وتتبع الفروض المحروسة · الأستاذ: براهيم كوزيبر</span>
+                  <span>منظومة تحليل وتتبع الفروض المحروسة · {teacherName}</span>
                   <span style={{ fontWeight: 800 }}>الصفحة {pageNum} من {studentChunks.length + 3}</span>
                   <span>وثيقة تربوية رسمية</span>
                 </div>

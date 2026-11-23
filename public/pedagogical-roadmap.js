@@ -284,13 +284,13 @@
     /**
      * حذف محطة تربوية مع تنظيف الروابط والفروض المتزامنة دون تعارض
      */
-    function deleteMilestoneFromRoadmap(id, event) {
+    async function deleteMilestoneFromRoadmap(id, event) {
         if (event) event.stopPropagation();
         if (typeof window.deleteAcademicMilestone === 'function') {
             window.deleteAcademicMilestone(id);
             return;
         }
-        if (!confirm('هل أنت متأكد من رغبتك في حذف هذه المحطة من المسار البيداغوجي؟')) return;
+        if (!(await window.showConfirmDialog('هل أنت متأكد من رغبتك في حذف هذه المحطة من المسار البيداغوجي؟'))) return;
 
         const milestones = getRoadmapMilestones();
         const idx = milestones.findIndex(m => m.id === id);
@@ -353,7 +353,7 @@
         // استخراج بيانات الأستاذ والمؤسسة ديناميكياً
         const tp = (window.db && window.db.teacherProfile) || {};
         const st = (window.db && window.db.settings) || {};
-        const teacherName = tp.name || st.teacherName || 'الأستاذ إبراهيم قزيبر';
+        const teacherName = tp.name || st.teacherName || 'أستاذ المادة';
         const schoolName = tp.school || st.schoolName || 'الثانوية التأهيلية';
         const academyName = tp.academy || st.academyName || 'الأكاديمية الجهوية للتربية والتكوين';
         const directorateName = tp.directorate || st.directorateName || 'المديرية الإقليمية';

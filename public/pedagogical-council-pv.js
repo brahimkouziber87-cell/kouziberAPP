@@ -21,6 +21,15 @@
         minPassMark: 10
     };
 
+    function escapeHtml(val) {
+        return String(val == null ? '' : val)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     /**
      * التحقق من سلامة وصيغة رقم مسار للتلميذ (Code Massar Validation)
      * الصيغة الرسمية: حرف لاتيني متبوع بـ 9 أرقام (مثال: G134058912 أو D145023981)
@@ -36,7 +45,8 @@
      */
     function auditClassMassarCodes(className) {
         const db = window.db || {};
-        const students = (db.classes && db.classes[className]) ? db.classes[className] : [];
+        const rawCls = (db.classes && db.classes[className]) ? db.classes[className] : null;
+        const students = Array.isArray(rawCls) ? rawCls : (rawCls && Array.isArray(rawCls.students) ? rawCls.students : []);
         const result = {
             total: students.length,
             valid: 0,
@@ -66,7 +76,8 @@
      */
     function getCouncilClassStatistics(className, semester) {
         const db = window.db || {};
-        const students = (db.classes && db.classes[className]) ? db.classes[className] : [];
+        const rawCls = (db.classes && db.classes[className]) ? db.classes[className] : null;
+        const students = Array.isArray(rawCls) ? rawCls : (rawCls && Array.isArray(rawCls.students) ? rawCls.students : []);
         const sem = semester || window.activeSemester || 's1';
         const examCount = (typeof window.getExamsCountForClass === 'function') ? window.getExamsCountForClass(className) : 3;
         const coef = (typeof window.getSubjectCoefForClass === 'function') ? window.getSubjectCoefForClass(className) : 7;
@@ -98,7 +109,9 @@
                 ? window.getStudentClassRecordsFast(std.id, className)
                 : (db.records || []).filter(r => r.className === className && String(r.studentId) === String(std.id));
             const absRecords = stdRecords.filter(r => {
-                if (r.status !== 'غائب' && r.status !== 'مبرر') return false;
+                if (!r || (r.status !== 'غائب' && r.status !== 'مبرر')) return false;
+                if (typeof window.isRecordProtectedHolidayOrLeave === 'function' && window.isRecordProtectedHolidayOrLeave(r)) return false;
+                if (typeof window.isAbsenceDisabledOnDate === 'function' && window.isAbsenceDisabledOnDate(r.date, r.session)) return false;
                 if (r.date && (sem === 's1' || sem === 's2')) {
                     const monthNum = parseInt(String(r.date).split('-')[1], 10);
                     if (!isNaN(monthNum)) {
@@ -160,6 +173,32 @@
                 } else if (avg !== null) {
                     orientationAdvice = 'استدراك مكثف في الرياضيات أو التوجيه لـ 2BAC SVT';
                 }
+            } else if (recCurric.branchCode === 'TCL') {
+                if (avg !== null && avg >= 10) {
+                    orientationAdvice = 'أداء جيد يؤهل لمتابعة مسار الآداب والعلوم الإنسانية بثقة';
+                } else if (avg !== null) {
+                    orientationAdvice = 'دعم الكفايات العددية والمنطقية الأساسية بالجذع المشترك للآداب';
+                }
+            } else if (recCurric.branchCode === '1BAC_ECO') {
+                if (avg !== null && avg >= 10) {
+                    orientationAdvice = 'استيفاء مناسب للتوجيه نحو مسلكي الاقتصاد أو التدبير المحاسباتي (GC)';
+                } else if (avg !== null) {
+                    orientationAdvice = 'تعزيز الدوال والاحتمالات والرياضيات المالية لتفادي التعثر بالثانية باك';
+                }
+            } else if (recCurric.branchCode === '1BAC_LSH') {
+                if (avg !== null && avg >= 10) {
+                    orientationAdvice = 'تحكم جيد يؤهل للامتحان الجهوي والانتقال للثانية باك آداب وعلوم إنسانية';
+                } else if (avg !== null) {
+                    orientationAdvice = 'حصة دعم موجهة استعداداً للامتحان الجهوي الموحد';
+                }
+            } else if (String(recCurric.branchCode || '').startsWith('2BAC')) {
+                if (avg !== null && avg >= 14) {
+                    orientationAdvice = 'تفوق ممتاز — مرشح بقوة للأقسام التحضيرية والمدارس العليا للمهندسين';
+                } else if (avg !== null && avg >= 10) {
+                    orientationAdvice = 'تحكم إيجابي — الإعداد المنهجي للامتحان الوطني الموحد';
+                } else if (avg !== null) {
+                    orientationAdvice = 'خطة استدراكية عاجلة للمحاور الأساسية قبل الامتحان الوطني';
+                }
             }
 
             evaluatedStudents.push({
@@ -216,7 +255,10 @@
         const pDirectorate = (db.teacherProfile && db.teacherProfile.directorate) || 'المديرية الإقليمية';
         const pSchool = (db.teacherProfile && db.teacherProfile.school) || 'الثانوية التأهيلية';
         const pTeacher = (db.teacherProfile && db.teacherProfile.name) || 'أستاذ(ة) مادة الرياضيات';
-        const pYear = (db.teacherProfile && db.teacherProfile.academicYear) || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+        const _nowPv = (typeof window.getAppNow === 'function' ? window.getAppNow() : new Date());
+        const _pvYr = _nowPv.getFullYear();
+        const _pvStartYr = (_nowPv.getMonth() + 1) >= 9 ? _pvYr : (_pvYr - 1);
+        const pYear = (db.teacherProfile && db.teacherProfile.academicYear) || `${_pvStartYr}-${_pvStartYr + 1}`;
         const sem = semester || window.activeSemester || 's1';
         const semLabel = sem === 's2' ? 'نهاية الدورة الثانية (نهاية السنة الدراسية)' : 'نهاية الدورة الأولى (الأسدوس الأول)';
 
@@ -231,17 +273,17 @@
             return `
             <tr style="border-bottom: 1px solid #cbd5e1; page-break-inside: avoid; background: ${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
                 <td style="padding: 6px 4px; text-align: center; font-weight: 800; border: 1px solid #cbd5e1; color: #1e3a8a;">${rank}</td>
-                <td style="padding: 6px 4px; text-align: center; font-family: monospace; font-size: 0.78rem; font-weight: 700; border: 1px solid #cbd5e1;">${std.massar || '—'}</td>
-                <td style="padding: 6px 8px; text-align: right; font-weight: 700; border: 1px solid #cbd5e1; color: #0f172a;">${std.name}</td>
+                <td style="padding: 6px 4px; text-align: center; font-family: monospace; font-size: 0.78rem; font-weight: 700; border: 1px solid #cbd5e1;">${escapeHtml(std.massar || '—')}</td>
+                <td style="padding: 6px 8px; text-align: right; font-weight: 700; border: 1px solid #cbd5e1; color: #0f172a;">${escapeHtml(std.name)}</td>
                 <td style="padding: 6px 4px; text-align: center; font-weight: 900; font-size: 0.88rem; border: 1px solid #cbd5e1; background: ${avgBgColor}; color: ${avgBadgeColor};">
                     ${std.avg !== null ? std.avg.toFixed(2) : '<span style="color:#94a3b8; font-size:0.75rem;">غائب</span>'}
                 </td>
-                <td style="padding: 6px 6px; text-align: center; font-size: 0.76rem; font-weight: 700; border: 1px solid #cbd5e1; color: #334155;">${std.appreciation}</td>
+                <td style="padding: 6px 6px; text-align: center; font-size: 0.76rem; font-weight: 700; border: 1px solid #cbd5e1; color: #334155;">${escapeHtml(std.appreciation)}</td>
                 <td style="padding: 6px 4px; text-align: center; font-size: 0.78rem; border: 1px solid #cbd5e1; font-weight: 700; color: ${std.unjustifiedAbsHours > 4 ? '#be123c' : '#475569'};">
                     ${std.totalAbsHours > 0 ? `${std.totalAbsHours} س <span style="font-size:0.7rem; color:#dc2626;">(${std.unjustifiedAbsHours}غ.م)</span>` : '0'}
                 </td>
                 <td style="padding: 6px 8px; text-align: right; font-size: 0.75rem; font-weight: 600; border: 1px solid #cbd5e1; color: #1e293b;">
-                    ${std.orientationAdvice}
+                    ${escapeHtml(std.orientationAdvice)}
                 </td>
             </tr>
             `;
@@ -254,22 +296,22 @@
                 <div style="text-align: right; font-size: 0.8rem; line-height: 1.5; font-weight: 700; color: #1e3a8a;">
                     <div>المملكة المغربية</div>
                     <div>وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
-                    <div>${pAcademy}</div>
-                    <div>${pDirectorate}</div>
-                    <div style="color: #0f172a; font-weight: 800;">${pSchool}</div>
+                    <div>${escapeHtml(pAcademy)}</div>
+                    <div>${escapeHtml(pDirectorate)}</div>
+                    <div style="color: #0f172a; font-weight: 800;">${escapeHtml(pSchool)}</div>
                 </div>
                 <div style="text-align: center;">
                     <div style="display: inline-block; padding: 6px 16px; border: 2px solid #1e3a8a; border-radius: 10px; background: #f0f7ff;">
                         <h2 style="margin: 0; font-size: 1.15rem; font-weight: 900; color: #1e3a8a;">محضر اجتماع مجلس القسم الرسمي</h2>
-                        <div style="font-size: 0.82rem; font-weight: 800; color: #0284c7; margin-top: 2px;">تقرير نتائج مادة الرياضيات • ${semLabel}</div>
+                        <div style="font-size: 0.82rem; font-weight: 800; color: #0284c7; margin-top: 2px;">تقرير نتائج مادة الرياضيات • ${escapeHtml(semLabel)}</div>
                     </div>
-                    <div style="font-size: 0.76rem; color: #64748b; font-weight: 700; margin-top: 4px;">الموسم الدراسي: ${pYear}</div>
+                    <div style="font-size: 0.76rem; color: #64748b; font-weight: 700; margin-top: 4px;">الموسم الدراسي: ${escapeHtml(pYear)}</div>
                 </div>
                 <div style="text-align: left; font-size: 0.8rem; line-height: 1.5; font-weight: 700; color: #334155;">
-                    <div><strong>القسم:</strong> <span style="color: #1e3a8a; font-size: 0.95rem; font-weight: 900;">${className}</span></div>
-                    <div><strong>المسلك:</strong> ${(stats.recCurric && stats.recCurric.branchLabel) || 'التعليم الثانوي التأهيلي'}</div>
+                    <div><strong>القسم:</strong> <span style="color: #1e3a8a; font-size: 0.95rem; font-weight: 900;">${escapeHtml(className)}</span></div>
+                    <div><strong>المسلك:</strong> ${escapeHtml((stats.recCurric && stats.recCurric.branchLabel) || 'التعليم الثانوي التأهيلي')}</div>
                     <div><strong>معامل المادة:</strong> <span style="color: #be123c; font-weight: 900;">${stats.coef}</span> (مسار)</div>
-                    <div><strong>الأستاذ(ة):</strong> ${pTeacher}</div>
+                    <div><strong>الأستاذ(ة):</strong> ${escapeHtml(pTeacher)}</div>
                 </div>
             </div>
 
@@ -360,7 +402,7 @@
                 <div style="border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 8px; background: #fafafa; min-height: 85px; display: flex; flex-direction: column; justify-content: space-between;">
                     <div>
                         <div style="font-weight: 800; font-size: 0.8rem; color: #1e293b;">توقيع أستاذ(ة) المادة</div>
-                        <div style="font-size: 0.72rem; color: #1e3a8a; font-weight: 700; margin-top: 2px;">${pTeacher}</div>
+                        <div style="font-size: 0.72rem; color: #1e3a8a; font-weight: 700; margin-top: 2px;">${escapeHtml(pTeacher)}</div>
                     </div>
                     <div style="font-size: 0.68rem; color: #94a3b8;">التاريخ والإمضاء: ......................</div>
                 </div>
@@ -382,7 +424,7 @@
 
             <!-- Official Footer Signature -->
             <div style="margin-top: 12px; padding-top: 8px; border-top: 1px dashed #cbd5e1; text-align: center; font-size: 0.76rem; font-weight: 800; color: #1e3a8a;">
-                منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر
+                منظومة التدبير التربوي - مادة الرياضيات - السلك الثانوي التأهيلي
             </div>
         </div>
         `;
@@ -399,7 +441,14 @@
         }
 
         const classSelect = document.getElementById('classSelect');
-        const activeCls = className || _councilState.selectedClass || (classSelect ? classSelect.value : '') || Object.keys(window.db?.classes || {})[0] || '';
+        const reportClassSelect = document.getElementById('reportClassSelect');
+        const availableClasses = Object.keys(window.db?.classes || {});
+        let rawCandidate = className || _councilState.selectedClass || (reportClassSelect ? reportClassSelect.value : '') || (classSelect ? classSelect.value : '') || availableClasses[0] || '';
+        if ((rawCandidate === '__ALL__' || rawCandidate === '__MULTI__' || String(rawCandidate).startsWith('__MULTI__')) && typeof window.resolveReportTargetClasses === 'function') {
+            const res = window.resolveReportTargetClasses(rawCandidate);
+            rawCandidate = (res && Array.isArray(res.classes) && res.classes.length > 0) ? res.classes[0] : (availableClasses[0] || '');
+        }
+        const activeCls = availableClasses.includes(rawCandidate) ? rawCandidate : (availableClasses[0] || '');
         const activeSem = semester || _councilState.semester || window.activeSemester || 's1';
         const activeTab = tab || _councilState.activeTab || 'pv';
 
@@ -411,7 +460,7 @@
         const clsDropdown = document.getElementById('councilPvClassSelect');
         if (clsDropdown) {
             const classes = Object.keys(window.db?.classes || {});
-            clsDropdown.innerHTML = classes.map(c => `<option value="${c}" ${c === activeCls ? 'selected' : ''}>${c}</option>`).join('');
+            clsDropdown.innerHTML = classes.map(c => `<option value="${escapeHtml(c)}" ${c === activeCls ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
         }
         const semDropdown = document.getElementById('councilPvSemesterSelect');
         if (semDropdown) {
@@ -521,6 +570,20 @@
             html = buildPedagogicalCouncilPvHTML(cls, sem);
         }
 
+        if (typeof window.openCustomPrintPreviewModal === 'function') {
+            window.openCustomPrintPreviewModal(html, {
+                title: docTitle,
+                orientation: 'portrait',
+                isReport: true,
+                subtitle: 'معاينة رسمية لمحضر مجلس القسم ومؤشرات القيمة المضافة والتجانس الصفي (A4 / PDF)'
+            });
+            return;
+        }
+        if (typeof window.printDocumentDirectly === 'function') {
+            window.printDocumentDirectly(html, docTitle, 'portrait');
+            return;
+        }
+
         let iframe = document.getElementById('councilPvPrintIframe');
         if (!iframe) {
             iframe = document.createElement('iframe');
@@ -536,7 +599,8 @@
             <html lang="ar" dir="rtl">
             <head>
                 <meta charset="UTF-8">
-                <title>${docTitle}</title>
+                <title>${escapeHtml(docTitle)}</title>
+                <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
                 <style>
                     @page { size: A4 portrait; margin: 10mm; }
                     body { font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -592,9 +656,11 @@
             ]);
         });
 
+        const safeSheetCls = String(cls || 'القسم').replace(/[\\\/\?\*\[\]:]/g, '_');
+        const safeFileCls = String(cls || 'القسم').replace(/[\\\/\?\*\[\]:"<>|]/g, '_');
         const ws = XLSX.utils.aoa_to_sheet(data);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, `مجلس_${cls.slice(0, 10)}`);
+        XLSX.utils.book_append_sheet(wb, ws, `مجلس_${safeSheetCls}`.slice(0, 31));
 
         // إضافة ورقة ثانية خاصة بمؤشر القيمة المضافة والتجانس الصفي تلقائياً
         if (typeof window.computeClassValueAddedStats === 'function') {
@@ -618,11 +684,11 @@
                     ]);
                 });
                 const wsVa = XLSX.utils.aoa_to_sheet(vaData);
-                XLSX.utils.book_append_sheet(wb, wsVa, `القيمة_المضافة_${cls.slice(0, 8)}`);
+                XLSX.utils.book_append_sheet(wb, wsVa, `القيمة_المضافة_${safeSheetCls}`.slice(0, 31));
             }
         }
 
-        XLSX.writeFile(wb, `مجلس_القسم_والقيمة_المضافة_${cls}_${sem}.xlsx`);
+        XLSX.writeFile(wb, `مجلس_القسم_والقيمة_المضافة_${safeFileCls}_${sem}.xlsx`);
     }
 
     /**

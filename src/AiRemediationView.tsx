@@ -292,7 +292,10 @@ export default function AiRemediationView({
   const [editingTierKey, setEditingTierKey] = useState<string | null>(null);
   const [showScannerBreakdownModal, setShowScannerBreakdownModal] = useState(false);
   const [isScanningSimulation, setIsScanningSimulation] = useState(false);
-  const [lastScanTimestamp, setLastScanTimestamp] = useState<string>(() => new Date().toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' }));
+  const [lastScanTimestamp, setLastScanTimestamp] = useState<string>(() => {
+    const nowObj = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date();
+    return nowObj.toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' });
+  });
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [aiGeminiReportHtml, setAiGeminiReportHtml] = useState<string | null>(null);
   const [showGeminiModal, setShowGeminiModal] = useState(false);
@@ -327,6 +330,7 @@ export default function AiRemediationView({
     const f1Arr: number[] = [];
     const f2Arr: number[] = [];
     const f3Arr: number[] = [];
+    const f4Arr: number[] = [];
     const below10Students: Array<{ student: StudentMetric; score: number; deficit: number }> = [];
     let passCount = 0;
 
@@ -334,6 +338,7 @@ export default function AiRemediationView({
       if (s.f1 !== null) f1Arr.push(s.f1);
       if (s.f2 !== null) f2Arr.push(s.f2);
       if (s.f3 !== null) f3Arr.push(s.f3);
+      if (s.f4 !== null && s.f4 !== undefined) f4Arr.push(s.f4);
       const sc = getStudentScannedScore(s);
       if (sc !== null && !isNaN(sc)) {
         scores.push(sc);
@@ -356,6 +361,7 @@ export default function AiRemediationView({
     const f1Avg = calcMean(f1Arr);
     const f2Avg = calcMean(f2Arr);
     const f3Avg = calcMean(f3Arr);
+    const f4Avg = calcMean(f4Arr);
     const evaluatedCount = scores.length;
     const passRatePct = evaluatedCount > 0 ? Math.round((passCount / evaluatedCount) * 100) : 0;
     const supportNeededPct = evaluatedCount > 0 ? Math.round((below10Students.length / evaluatedCount) * 100) : 0;
@@ -367,6 +373,7 @@ export default function AiRemediationView({
       f1Avg,
       f2Avg,
       f3Avg,
+      f4Avg,
       passCount,
       passRatePct,
       supportNeededCount: below10Students.length,
@@ -653,7 +660,8 @@ export default function AiRemediationView({
     setIsScanningSimulation(true);
     setTimeout(() => {
       setIsScanningSimulation(false);
-      setLastScanTimestamp(new Date().toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' }));
+      const nowObj = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date();
+      setLastScanTimestamp(nowObj.toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' }));
       notifyUser('تم تحليل نتائج الفروض الممسوحة وتحديث خطط المعالجة البيداغوجية المخصصة لكل فئة بنجاح!', 'success');
     }, 650);
   };
@@ -683,32 +691,42 @@ export default function AiRemediationView({
 
   // Handler: Print a single Struggling Category (Tier) Remediation Plan Sheet (A4)
   const handlePrintSingleTierPlan = (tier: StrugglingTierPlan) => {
-    const teacherName = (db?.teacherProfile?.name) || (db?.profile?.name) || 'إبراهيم قزيبر';
+    const esc = (s: any) =>
+      String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    const nowObj = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date();
+    const teacherName = (db?.teacherProfile?.name) || (db?.profile?.name) || 'أستاذ المادة';
     const schoolName = (db?.teacherProfile?.school) || (db?.profile?.school) || 'المؤسسة التعليمية';
-    const printDate = new Date().toLocaleDateString('ar-MA');
+    const printDate = nowObj.toLocaleDateString('ar-MA');
     const clsName = selectedClass === 'all' ? 'جميع الأقسام' : selectedClass;
+    const tierHasF4 = collectiveScannedSummary.f4Avg !== null || tier.students.some(st => st.student.f4 !== null && st.student.f4 !== undefined);
 
     const studentsRowsHtml = tier.students.length > 0
       ? tier.students.map((st, idx) => `
           <tr>
             <td style="padding:5px; text-align:center; border:1px solid #cbd5e1;">${idx + 1}</td>
-            <td style="padding:5px 8px; font-weight:800; border:1px solid #cbd5e1;">${st.student.name}</td>
-            <td style="padding:5px; text-align:center; border:1px solid #cbd5e1;">${st.student.className}</td>
+            <td style="padding:5px 8px; font-weight:800; border:1px solid #cbd5e1;">${esc(st.student.name)}</td>
+            <td style="padding:5px; text-align:center; border:1px solid #cbd5e1;">${esc(st.student.className)}</td>
             <td style="padding:5px; text-align:center; border:1px solid #cbd5e1;">${st.student.f1 ?? '-'}</td>
             <td style="padding:5px; text-align:center; border:1px solid #cbd5e1;">${st.student.f2 ?? '-'}</td>
             <td style="padding:5px; text-align:center; border:1px solid #cbd5e1;">${st.student.f3 ?? '-'}</td>
+            ${tierHasF4 ? `<td style="padding:5px; text-align:center; border:1px solid #cbd5e1;">${st.student.f4 ?? '-'}</td>` : ''}
             <td style="padding:5px; text-align:center; font-weight:900; color:#dc2626; border:1px solid #cbd5e1;">${st.evaluatedScore ?? st.student.avg ?? '-'} / 20</td>
-            <td style="padding:5px 8px; border:1px solid #cbd5e1;">${st.diagnosedErrorLabel}</td>
+            <td style="padding:5px 8px; border:1px solid #cbd5e1;">${esc(st.diagnosedErrorLabel)}</td>
           </tr>
         `).join('')
-      : `<tr><td colspan="8" style="padding:10px; text-align:center; border:1px solid #cbd5e1;">لا يوجد تلاميذ مصنفون في هذه الفئة حالياً</td></tr>`;
+      : `<tr><td colspan="${tierHasF4 ? 9 : 8}" style="padding:10px; text-align:center; border:1px solid #cbd5e1;">لا يوجد تلاميذ مصنفون في هذه الفئة حالياً</td></tr>`;
 
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>بطاقة خطة المعالجة البيداغوجية المخصصة - ${tier.badgeCode}</title>
+    <title>بطاقة خطة المعالجة البيداغوجية المخصصة - ${esc(tier.badgeCode)}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         @page { size: A4 portrait; margin: 12mm 10mm; }
@@ -724,41 +742,41 @@ export default function AiRemediationView({
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #1e3a8a; padding-bottom:8px; margin-bottom:10px;">
             <div>
                 <div style="font-weight:900; font-size:10.5pt;">المملكة المغربية</div>
-                <div style="font-size:8pt; color:#475569;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل • ${schoolName}</div>
+                <div style="font-size:8pt; color:#475569;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل • ${esc(schoolName)}</div>
             </div>
             <div style="text-align:center;">
                 <div style="background:#1e3a8a; color:#fff; padding:4px 14px; border-radius:6px; font-weight:900; font-size:11pt;">بطاقة خطة المعالجة البيداغوجية المولدة تلقائياً حسب الفئات</div>
-                <div style="font-size:8pt; color:#64748b; margin-top:2px;">بناءً على نتائج: ${scannedExamSourceLabel} • القسم: <b>${clsName}</b></div>
+                <div style="font-size:8pt; color:#64748b; margin-top:2px;">بناءً على نتائج: ${esc(scannedExamSourceLabel)} • القسم: <b>${esc(clsName)}</b></div>
             </div>
             <div style="text-align:left; font-size:8.5pt;">
-                <div>الأستاذ: <b>${teacherName}</b></div>
-                <div>التاريخ: <b>${printDate}</b></div>
+                <div>الأستاذ: <b>${esc(teacherName)}</b></div>
+                <div>التاريخ: <b>${esc(printDate)}</b></div>
             </div>
         </div>
 
         <div class="box" style="background:#eff6ff; border-color:#93c5fd;">
-            <div style="font-weight:900; font-size:10.5pt; color:#1e3a8a;">🎯 ${tier.badgeCode}: ${tier.title} (${tier.thresholdLabel})</div>
-            <div style="margin-top:4px;"><b>• التشخيص الديداكتيكي من الفروض الممسوحة:</b> ${tier.diagnosticSummary}</div>
-            <div><b>• استراتيجية التدخل ونمط التفييء:</b> ${tier.pedagogicalStrategy} — (${tier.groupingMode})</div>
-            <div><b>• الغلاف الزمني المقترح:</b> ${tier.weeklyAllocation}</div>
+            <div style="font-weight:900; font-size:10.5pt; color:#1e3a8a;">🎯 ${esc(tier.badgeCode)}: ${esc(tier.title)} (${esc(tier.thresholdLabel)})</div>
+            <div style="margin-top:4px;"><b>• التشخيص الديداكتيكي من الفروض الممسوحة:</b> ${esc(tier.diagnosticSummary)}</div>
+            <div><b>• استراتيجية التدخل ونمط التفييء:</b> ${esc(tier.pedagogicalStrategy)} — (${esc(tier.groupingMode)})</div>
+            <div><b>• الغلاف الزمني المقترح:</b> ${esc(tier.weeklyAllocation)}</div>
         </div>
 
         <div class="box">
             <div style="font-weight:900; color:#0f172a; margin-bottom:4px;">📚 أنشطة الدعم البيداغوجي المخصصة المقترحة لهذه الفئة:</div>
             ${tier.proposedActivities.map((act, i) => `
                 <div style="margin-bottom:4px;">
-                    <b>${i + 1}. ${act.title}:</b> ${act.description} <span style="color:#0369a1; font-weight:700;">[الكفاية: ${act.targetSkill}]</span>
+                    <b>${i + 1}. ${esc(act.title)}:</b> ${esc(act.description)} <span style="color:#0369a1; font-weight:700;">[الكفاية: ${esc(act.targetSkill)}]</span>
                 </div>
             `).join('')}
         </div>
 
         <div class="box" style="background:#fffbeb; border-color:#fde68a;">
             <div style="font-weight:900; color:#92400e; margin-bottom:3px;">📝 النشاط الرياضي التطبيقي المبرمج لحصة الدعم:</div>
-            <div style="white-space:pre-wrap; font-weight:700;">${tier.customExercise}</div>
-            <div style="margin-top:4px; font-size:8pt; color:#166534;"><b>✓ مؤشر التحقق والتقويم:</b> ${tier.successIndicator}</div>
+            <div style="white-space:pre-wrap; font-weight:700;">${esc(tier.customExercise)}</div>
+            <div style="margin-top:4px; font-size:8pt; color:#166534;"><b>✓ مؤشر التحقق والتقويم:</b> ${esc(tier.successIndicator)}</div>
         </div>
 
-        <div style="font-weight:900; color:#1e3a8a; margin-top:8px;">👥 لائحة التلاميذ المستهدفين في ${tier.badgeCode} (${tier.students.length} تلميذ):</div>
+        <div style="font-weight:900; color:#1e3a8a; margin-top:8px;">👥 لائحة التلاميذ المستهدفين في ${esc(tier.badgeCode)} (${tier.students.length} تلميذ):</div>
         <table>
             <thead>
                 <tr>
@@ -768,6 +786,7 @@ export default function AiRemediationView({
                     <th style="width:45px;">ف1</th>
                     <th style="width:45px;">ف2</th>
                     <th style="width:45px;">ف3</th>
+                    ${tierHasF4 ? '<th style="width:45px;">ف4</th>' : ''}
                     <th style="width:70px;">النقطة/المعدل</th>
                     <th style="text-align:right;">العائق الرياضي المشخص</th>
                 </tr>
@@ -778,7 +797,7 @@ export default function AiRemediationView({
         </table>
 
         <div style="display:flex; justify-content:space-between; margin-top:14px; padding-top:8px; border-top:1px dashed #cbd5e1; font-size:8.5pt;">
-            <div>توقيع أستاذ مادة الرياضيات: <b>${teacherName}</b></div>
+            <div>توقيع أستاذ مادة الرياضيات: <b>${esc(teacherName)}</b></div>
             <div>تأشيرة السيد(ة) المفتش(ة) التربوي(ة)</div>
             <div>تأشيرة إدارة المؤسسة</div>
         </div>
@@ -825,11 +844,19 @@ export default function AiRemediationView({
 
   // Handler: Print individual student remediation worksheet (Fiche de remédiation A4)
   const handlePrintStudentWorksheet = (item: typeof diagnosedStudents[0]) => {
+    const esc = (s: any) =>
+      String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    const nowObj = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date();
     const std = item.student;
     const act = item.activity;
     const teacherName = (db?.teacherProfile?.name) || (db?.profile?.name) || 'أستاذ مادة الرياضيات';
     const schoolName = (db?.teacherProfile?.school) || (db?.profile?.school) || 'المؤسسة التعليمية';
-    const printDate = new Date().toLocaleDateString('ar-MA');
+    const printDate = nowObj.toLocaleDateString('ar-MA');
     const marksText = [
       `F1: ${std.f1 ?? '-'}`,
       `F2: ${std.f2 ?? '-'}`,
@@ -842,7 +869,7 @@ export default function AiRemediationView({
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>بطاقة المعالجة البيداغوجية الفردية - ${std.name}</title>
+    <title>بطاقة المعالجة البيداغوجية الفردية - ${esc(std.name)}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         @page { size: A4 portrait; margin: 12mm 10mm; }
@@ -863,52 +890,52 @@ export default function AiRemediationView({
             <div>
                 <div style="font-weight: 900; font-size: 10.5pt;">المملكة المغربية</div>
                 <div style="font-size: 8pt; color: #475569;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
-                <div style="font-size: 8.5pt;">المؤسسة: <strong>${schoolName}</strong></div>
+                <div style="font-size: 8.5pt;">المؤسسة: <strong>${esc(schoolName)}</strong></div>
             </div>
             <div style="text-align: center;">
                 <div style="background: #1e3a8a; color: #fff; padding: 4px 16px; border-radius: 6px; font-weight: 900; font-size: 11.5pt;">بطاقة المعالجة البيداغوجية الفردية والدعم الرياضي</div>
                 <div style="font-size: 8pt; color: #64748b; margin-top: 2px;">المذكرة الوزارية رقم 142-08 • السلك الثانوي التأهيلي</div>
             </div>
             <div style="text-align: left; font-size: 8.5pt;">
-                <div>الأستاذ(ة): <strong>${teacherName}</strong></div>
+                <div>الأستاذ(ة): <strong>${esc(teacherName)}</strong></div>
                 <div>المادة: <strong>الرياضيات</strong></div>
-                <div>التاريخ: <strong>${printDate}</strong></div>
+                <div>التاريخ: <strong>${esc(printDate)}</strong></div>
             </div>
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px;">
             <div class="box">
                 <div style="font-size: 7.5pt; color: #64748b;">اسم التلميذ(ة)</div>
-                <div style="font-weight: 900; font-size: 10pt; color: #0f172a;">${std.name}</div>
+                <div style="font-weight: 900; font-size: 10pt; color: #0f172a;">${esc(std.name)}</div>
             </div>
             <div class="box">
                 <div style="font-size: 7.5pt; color: #64748b;">القسم ورقم مسار</div>
-                <div style="font-weight: 800; font-size: 8.5pt;">${std.className} • ${std.massar || '-'}</div>
+                <div style="font-weight: 800; font-size: 8.5pt;">${esc(std.className)} • ${esc(std.massar || '-')}</div>
             </div>
             <div class="box">
                 <div style="font-size: 7.5pt; color: #64748b;">نقط الفروض الممسوحة والمعدل</div>
-                <div style="font-weight: 900; font-size: 9pt; color: #dc2626;">${marksText} (${std.avg}/20)</div>
+                <div style="font-weight: 900; font-size: 9pt; color: #dc2626;">${esc(marksText)} (${std.avg ?? '-'}/20)</div>
             </div>
             <div class="box">
                 <div style="font-size: 7.5pt; color: #64748b;">فئة التعثر</div>
-                <div style="font-weight: 800; font-size: 8.5pt; color: #7e22ce;">${item.severityLabel}</div>
+                <div style="font-weight: 800; font-size: 8.5pt; color: #7e22ce;">${esc(item.severityLabel)}</div>
             </div>
         </div>
 
         <div class="section-title">🔍 1. تشخيص نوع الخطأ الرياضي والعائق الديداكتيكي المرصود:</div>
         <div class="box" style="background: #fdf2f8; border-color: #fbcfe8; color: #831843;">
-            <strong style="color: #9d174d;">${act.categoryLabel}:</strong> ${act.commonErrors}
+            <strong style="color: #9d174d;">${esc(act.categoryLabel)}:</strong> ${esc(act.commonErrors)}
         </div>
 
         <div class="section-title">🎯 2. الهدف البيداغوجي واستراتيجية المعالجة المبرمجة:</div>
         <div class="box">
-            <div>• <b>الهدف التعلمي الإجرائي:</b> ${act.objective}</div>
-            <div style="margin-top: 3px;">• <b>استراتيجية الإنجاز:</b> ${act.strategy}</div>
+            <div>• <b>الهدف التعلمي الإجرائي:</b> ${esc(act.objective)}</div>
+            <div style="margin-top: 3px;">• <b>استراتيجية الإنجاز:</b> ${esc(act.strategy)}</div>
             <div style="margin-top: 3px;">• <b>الغلاف الزمني التقديري:</b> ${act.durationMinutes} دقيقة بحصة الدعم الاستدراكية</div>
         </div>
 
         <div class="section-title">📝 3. النشاط الرياضي التطبيقي المباشر (تمرين المعالجة والاستدراك):</div>
-        <div class="exercise-box">${act.miniExercise}</div>
+        <div class="exercise-box">${esc(act.miniExercise)}</div>
 
         <div class="section-title">✍️ 4. حيز إنجاز التلميذ(ة) والتحليل الديداكتيكي للحل:</div>
         <div class="solution-zone">
@@ -917,14 +944,14 @@ export default function AiRemediationView({
 
         <div class="box" style="background: #f0fdf4; border-color: #bbf7d0;">
             <div style="font-weight: 800; color: #166534; font-size: 8.5pt;">📈 مؤشر التحقق وتقييم الأثر:</div>
-            <div style="font-size: 8pt; color: #14532d;">${act.verificationIndicator}</div>
+            <div style="font-size: 8pt; color: #14532d;">${esc(act.verificationIndicator)}</div>
         </div>
 
         <div class="footer-sig">
             <div style="text-align: center; width: 45%;">
                 <div>توقيع وملاحظة أستاذ مادة الرياضيات</div>
                 <div style="height: 32px;"></div>
-                <div>الأستاذ(ة): <b>${teacherName}</b></div>
+                <div>الأستاذ(ة): <b>${esc(teacherName)}</b></div>
             </div>
             <div style="text-align: center; width: 45%;">
                 <div>ملاحظة وتأشيرة ولي أمر التلميذ(ة)</div>
@@ -946,31 +973,39 @@ export default function AiRemediationView({
 
   // Handler: Print Class Full Remediation Schedule (جدول خطة المعالجة الجماعية حسب الفئات + التلاميذ)
   const handlePrintClassRemediationSchedule = () => {
-    const teacherName = (db?.teacherProfile?.name) || (db?.profile?.name) || 'إبراهيم قزيبر';
+    const esc = (s: any) =>
+      String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    const nowObj = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date();
+    const teacherName = (db?.teacherProfile?.name) || (db?.profile?.name) || 'أستاذ المادة';
     const schoolName = (db?.teacherProfile?.school) || (db?.profile?.school) || 'المؤسسة التعليمية';
-    const printDate = new Date().toLocaleDateString('ar-MA');
+    const printDate = nowObj.toLocaleDateString('ar-MA');
     const clsName = selectedClass === 'all' ? 'جميع الأقسام' : selectedClass;
 
     const tiersSummaryHtml = autoGeneratedTierPlans.map(tier => `
       <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; background: #f8fafc;">
         <div style="display:flex; justify-content:space-between; font-weight:900; color:#1e3a8a; font-size:9pt; margin-bottom:3px;">
-          <span>📌 ${tier.badgeCode}: ${tier.title} (${tier.thresholdLabel})</span>
-          <span>عدد التلاميذ: ${tier.students.length} | الحجم الزمني: ${tier.weeklyAllocation}</span>
+          <span>📌 ${esc(tier.badgeCode)}: ${esc(tier.title)} (${esc(tier.thresholdLabel)})</span>
+          <span>عدد التلاميذ: ${tier.students.length} | الحجم الزمني: ${esc(tier.weeklyAllocation)}</span>
         </div>
-        <div style="font-size:8pt; color:#334155;"><b>أنشطة الدعم المقترحة:</b> ${tier.proposedActivities.map(a => a.title).join(' + ')}</div>
-        <div style="font-size:8pt; color:#475569;"><b>الاستراتيجية:</b> ${tier.pedagogicalStrategy} | <b>التلاميذ:</b> ${tier.students.map(s => s.student.name).join('، ') || 'لا يوجد'}</div>
+        <div style="font-size:8pt; color:#334155;"><b>أنشطة الدعم المقترحة:</b> ${tier.proposedActivities.map(a => esc(a.title)).join(' + ')}</div>
+        <div style="font-size:8pt; color:#475569;"><b>الاستراتيجية:</b> ${esc(tier.pedagogicalStrategy)} | <b>التلاميذ:</b> ${tier.students.map(s => esc(s.student.name)).join('، ') || 'لا يوجد'}</div>
       </div>
     `).join('');
 
     const rowsHtml = diagnosedStudents.map((d, i) => `
       <tr style="border-bottom: 1px solid #cbd5e1; background: ${i % 2 === 0 ? '#fff' : '#f8fafc'}; font-size: 8.5pt;">
           <td style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;">${i + 1}</td>
-          <td style="padding: 6px 10px; font-weight: 800; border: 1px solid #cbd5e1;">${d.student.name}</td>
-          <td style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;">${d.student.className}</td>
+          <td style="padding: 6px 10px; font-weight: 800; border: 1px solid #cbd5e1;">${esc(d.student.name)}</td>
+          <td style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;">${esc(d.student.className)}</td>
           <td style="padding: 6px; text-align: center; font-weight: 800; color: #dc2626; border: 1px solid #cbd5e1;">${d.evaluatedScore ?? d.student.avg ?? '-'}</td>
-          <td style="padding: 6px 8px; font-weight: 800; color: #1e3a8a; border: 1px solid #cbd5e1;">${d.severityLabel}</td>
-          <td style="padding: 6px 10px; font-weight: 700; color: #7e22ce; border: 1px solid #cbd5e1;">${d.activity.categoryLabel}</td>
-          <td style="padding: 6px 10px; border: 1px solid #cbd5e1;">${d.activity.title}</td>
+          <td style="padding: 6px 8px; font-weight: 800; color: #1e3a8a; border: 1px solid #cbd5e1;">${esc(d.severityLabel)}</td>
+          <td style="padding: 6px 10px; font-weight: 700; color: #7e22ce; border: 1px solid #cbd5e1;">${esc(d.activity.categoryLabel)}</td>
+          <td style="padding: 6px 10px; border: 1px solid #cbd5e1;">${esc(d.activity.title)}</td>
           <td style="padding: 6px; text-align: center; border: 1px solid #cbd5e1;">${d.activity.durationMinutes} د</td>
       </tr>
     `).join('');
@@ -980,7 +1015,7 @@ export default function AiRemediationView({
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>خطة المعالجة البيداغوجية المولدة تلقائياً حسب الفروض الممسوحة - ${clsName}</title>
+    <title>خطة المعالجة البيداغوجية المولدة تلقائياً حسب الفروض الممسوحة - ${esc(clsName)}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         @page { size: A4 landscape; margin: 10mm; }
@@ -993,15 +1028,15 @@ export default function AiRemediationView({
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 8px;">
         <div>
             <div style="font-weight: 900; font-size: 11pt;">المملكة المغربية</div>
-            <div style="font-size: 8pt; color: #475569;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل • ${schoolName}</div>
+            <div style="font-size: 8pt; color: #475569;">وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل • ${esc(schoolName)}</div>
         </div>
         <div style="text-align: center;">
             <div style="font-weight: 900; font-size: 12.5pt; color: #1e3a8a;">خطة المعالجة البيداغوجية المولدة تلقائياً بناءً على نتائج الفروض الممسوحة (المذكرة 142-08)</div>
-            <div style="font-size: 8pt; color: #64748b;">القسم: <b>${clsName}</b> • المرجع: <b>${scannedExamSourceLabel}</b> • إجمالي المتعثرين: <b>${diagnosedStudents.length} تلميذ</b></div>
+            <div style="font-size: 8pt; color: #64748b;">القسم: <b>${esc(clsName)}</b> • المرجع: <b>${esc(scannedExamSourceLabel)}</b> • إجمالي المتعثرين: <b>${diagnosedStudents.length} تلميذ</b></div>
         </div>
         <div style="text-align: left; font-size: 8pt;">
-            <div>الأستاذ: <b>${teacherName}</b></div>
-            <div>التاريخ: <b>${printDate}</b></div>
+            <div>الأستاذ: <b>${esc(teacherName)}</b></div>
+            <div>التاريخ: <b>${esc(printDate)}</b></div>
         </div>
     </div>
 
@@ -1030,7 +1065,7 @@ export default function AiRemediationView({
     </table>
 
     <div style="display: flex; justify-content: space-between; margin-top: 14px; font-size: 8.5pt;">
-        <div>توقيع أستاذ(ة) المادة: <b>${teacherName}</b></div>
+        <div>توقيع أستاذ(ة) المادة: <b>${esc(teacherName)}</b></div>
         <div>تأشيرة الحراسة العامة للخارجية</div>
         <div>تأشيرة وخاتم إدارة المؤسسة</div>
     </div>
@@ -1231,6 +1266,7 @@ export default function AiRemediationView({
               </div>
               <div className="text-[10px] text-purple-200 mt-0.5 font-mono">
                 F1: {collectiveScannedSummary.f1Avg ?? '-'} | F2: {collectiveScannedSummary.f2Avg ?? '-'} | F3: {collectiveScannedSummary.f3Avg ?? '-'}
+                {collectiveScannedSummary.f4Avg !== null ? ` | F4: ${collectiveScannedSummary.f4Avg}` : ''}
               </div>
             </div>
             <span className={`text-xs font-black px-2.5 py-1 rounded-full ${collectiveScannedSummary.classAvg !== null && collectiveScannedSummary.classAvg >= 10 ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/30' : 'bg-rose-500/20 text-rose-200 border border-rose-400/30'}`}>
@@ -1603,6 +1639,7 @@ export default function AiRemediationView({
                         <span className="font-bold text-slate-700 font-mono">
                           F1: {student.f1 !== null ? `${student.f1}` : '-'} | F2: {student.f2 !== null ? `${student.f2}` : '-'}
                           {student.f3 !== null ? ` | F3: ${student.f3}` : ''}
+                          {student.f4 !== null && student.f4 !== undefined ? ` | F4: ${student.f4}` : ''}
                         </span>
                         <span className="text-slate-400">•</span>
                         <span className="font-black text-rose-600 font-mono">

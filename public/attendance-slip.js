@@ -11,6 +11,26 @@
     const ARABIC_MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'];
     const ARABIC_DAYS = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function escapeJsAttr(str) {
+        return escapeHtml(String(str ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+    }
+
+    function getClassStudentsSafe(clsVal) {
+        if (Array.isArray(clsVal)) return clsVal;
+        if (clsVal && Array.isArray(clsVal.students)) return clsVal.students;
+        return [];
+    }
+
     function getFormattedArabicDate(dateStr) {
         if (!dateStr) return '';
         try {
@@ -49,7 +69,7 @@
             return null;
         }
 
-        const students = window.db.classes[className];
+        const students = getClassStudentsSafe(window.db.classes[className]);
         const teacherProfile = (window.db && window.db.teacherProfile) ? window.db.teacherProfile : {};
         const teacherName = teacherProfile.name ? teacherProfile.name : 'أستاذ المادة';
         const institutionName = teacherProfile.school || teacherProfile.institution || (window.db && (window.db.schoolName || window.db.institution)) || 'الثانوية التأهيلية';
@@ -63,17 +83,24 @@
             ? window.getPreviousSessionAbsenceContext(className, date, session)
             : null;
 
-        students.forEach(std => {
+        students.forEach((std, stdIdx) => {
             let rec = null;
             if (typeof window.getRecord === 'function') {
                 rec = window.getRecord(std.id, date, session, className);
             } else if (window.db.records) {
-                rec = window.db.records.find(r => String(r.studentId) === String(std.id) && r.date === date && (r.session === session || (typeof window.areSessionsEquivalentOrOverlapping === 'function' && window.areSessionsEquivalentOrOverlapping(r.session, session))));
+                rec = window.db.records.find(r =>
+                    String(r.studentId) === String(std.id) &&
+                    (!r.className || r.className === className || r.class === className) &&
+                    r.date === date &&
+                    (r.session === session || (typeof window.areSessionsEquivalentOrOverlapping === 'function' && window.areSessionsEquivalentOrOverlapping(r.session, session)))
+                );
             }
 
-            const status = rec ? rec.status : 'حاضر';
+            const isProtected = rec && typeof window.isRecordProtectedHolidayOrLeave === 'function' && window.isRecordProtectedHolidayOrLeave(rec);
+            const status = (rec && !isProtected) ? rec.status : 'حاضر';
             const part = rec ? (rec.part || 'all') : 'all';
             const hw = rec ? rec.homework : 'منجز';
+            const orderNum = std.orderNum || (stdIdx + 1);
 
             // حساب المدة الدقيقة لغياب التلميذ مع مراعاة حصص الساعتين (س1 أو س2 = 1 ساعة)
             let recDuration = 0;
@@ -97,7 +124,7 @@
                 else if (recDuration === 2) durationText = 'ساعتان (2س)';
 
                 absentList.push({
-                    orderNum: std.orderNum,
+                    orderNum: orderNum,
                     id: std.id,
                     name: std.name,
                     massar: std.massar || '-',
@@ -117,7 +144,7 @@
                 else if (recDuration === 2) durationText = 'ساعتان (2س)';
 
                 absentList.push({
-                    orderNum: std.orderNum,
+                    orderNum: orderNum,
                     id: std.id,
                     name: std.name,
                     massar: std.massar || '-',
@@ -132,7 +159,7 @@
                 });
             } else if (status === 'متأخر') {
                 lateList.push({
-                    orderNum: std.orderNum,
+                    orderNum: orderNum,
                     id: std.id,
                     name: std.name,
                     massar: std.massar || '-'
@@ -144,7 +171,7 @@
 
             if (hw === 'لم ينجز') {
                 noHwList.push({
-                    orderNum: std.orderNum,
+                    orderNum: orderNum,
                     id: std.id,
                     name: std.name,
                     massar: std.massar || '-'
@@ -279,17 +306,17 @@
                 const tagBorder = st.isJustified ? '#fef08a' : '#fecaca';
 
                 const prevBadge = st.wasAbsentLastSession
-                    ? `<span style="display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 999px; font-size: 0.68rem; font-weight: 800; background: #fee2e2; color: #b91c1c; border: 1px solid #f87171;">🚨 غائب آخر حصة (${st.prevSessionDate})</span>`
+                    ? `<span style="display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 999px; font-size: 0.68rem; font-weight: 800; background: #fee2e2; color: #b91c1c; border: 1px solid #f87171;">🚨 غائب آخر حصة (${escapeHtml(st.prevSessionDate)})</span>`
                     : '';
 
                 absentRowsHtml += `
                     <tr style="border-bottom: 1px solid #e2e8f0; background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                        <td style="padding: 8px 10px; text-align: center; font-weight: 800; color: #475569; font-size: 0.85rem;">${st.orderNum}</td>
-                        <td style="padding: 8px 10px; font-weight: 800; color: #1e293b; font-size: 0.9rem;">${st.name} ${prevBadge}</td>
-                        <td style="padding: 8px 10px; text-align: center; color: #64748b; font-size: 0.8rem; font-family: monospace;">${st.massar}</td>
+                        <td style="padding: 8px 10px; text-align: center; font-weight: 800; color: #475569; font-size: 0.85rem;">${escapeHtml(st.orderNum)}</td>
+                        <td style="padding: 8px 10px; font-weight: 800; color: #1e293b; font-size: 0.9rem;">${escapeHtml(st.name)} ${prevBadge}</td>
+                        <td style="padding: 8px 10px; text-align: center; color: #64748b; font-size: 0.8rem; font-family: monospace;">${escapeHtml(st.massar)}</td>
                         <td style="padding: 8px 10px; text-align: center;">
                             <span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 800; background: ${tagBg}; color: ${tagColor}; border: 1px solid ${tagBorder};">
-                                ${st.durationText}
+                                ${escapeHtml(st.durationText)}
                             </span>
                         </td>
                         <td style="padding: 8px 10px; text-align: center; font-size: 0.8rem; color: #64748b;">
@@ -305,7 +332,7 @@
             data.lateList.forEach(st => {
                 lateRowsHtml += `
                     <span style="display: inline-flex; align-items: center; gap: 4px; background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; padding: 3px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 700;">
-                        <span>(${st.orderNum})</span> ${st.name}
+                        <span>(${escapeHtml(st.orderNum)})</span> ${escapeHtml(st.name)}
                     </span>
                 `;
             });
@@ -316,7 +343,7 @@
             data.noHwList.forEach(st => {
                 noHwHtml += `
                     <span style="display: inline-flex; align-items: center; gap: 4px; background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; padding: 3px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 700;">
-                        <span>(${st.orderNum})</span> ${st.name}
+                        <span>(${escapeHtml(st.orderNum)})</span> ${escapeHtml(st.name)}
                     </span>
                 `;
             });
@@ -337,12 +364,12 @@
 
                 <!-- شبكة بيانات الحصة -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 14px; font-size: 0.83rem;">
-                    <div><strong style="color: #475569;">المؤسسة:</strong> <span style="font-weight: 800; color: #0f172a;">${data.institutionName}</span></div>
-                    <div><strong style="color: #475569;">القسم:</strong> <span style="font-weight: 800; color: #0284c7;">${data.className}</span></div>
+                    <div><strong style="color: #475569;">المؤسسة:</strong> <span style="font-weight: 800; color: #0f172a;">${escapeHtml(data.institutionName)}</span></div>
+                    <div><strong style="color: #475569;">القسم:</strong> <span style="font-weight: 800; color: #0284c7;">${escapeHtml(data.className)}</span></div>
                     <div><strong style="color: #475569;">المادة:</strong> <span style="font-weight: 800; color: #0f172a;">الرياضيات</span></div>
-                    <div><strong style="color: #475569;">الأستاذ:</strong> <span style="font-weight: 800; color: #0f172a;">${data.teacherName}</span></div>
-                    <div><strong style="color: #475569;">التاريخ:</strong> <span style="font-weight: 800; color: #0f172a;">${data.dateFormatted}</span></div>
-                    <div><strong style="color: #475569;">الحصة:</strong> <span style="font-weight: 800; color: #0f172a;">${data.session} (${data.duration}س)</span></div>
+                    <div><strong style="color: #475569;">الأستاذ:</strong> <span style="font-weight: 800; color: #0f172a;">${escapeHtml(data.teacherName)}</span></div>
+                    <div><strong style="color: #475569;">التاريخ:</strong> <span style="font-weight: 800; color: #0f172a;">${escapeHtml(data.dateFormatted)}</span></div>
+                    <div><strong style="color: #475569;">الحصة:</strong> <span style="font-weight: 800; color: #0f172a;">${escapeHtml(data.session)} (${data.duration}س)</span></div>
                 </div>
 
                 <!-- شريط المؤشرات الرقمية -->
@@ -420,11 +447,11 @@
                 <div style="display: flex; justify-content: space-between; margin-top: 15px; padding-top: 10px; border-top: 1px dashed #cbd5e1; font-size: 0.82rem;">
                     <div style="text-align: center; width: 45%;">
                         <div style="color: #475569; font-weight: bold; margin-bottom: 30px;">توقيع أستاذ المادة:</div>
-                        <div style="border-top: 1px solid #94a3b8; width: 80%; margin: 0 auto; color: #64748b; font-size: 0.72rem; padding-top: 3px;">ذ. ${data.teacherName}</div>
+                        <div style="border-top: 1px solid #94a3b8; width: 80%; margin: 0 auto; color: #64748b; font-size: 0.72rem; padding-top: 3px;">ذ. ${escapeHtml(data.teacherName)}</div>
                     </div>
                     <div style="text-align: center; width: 45%;">
                         <div style="color: #475569; font-weight: bold; margin-bottom: 30px;">تأشيرة الحراسة العامة / الإدارة:</div>
-                        <div style="border-top: 1px solid #94a3b8; width: 80%; margin: 0 auto; color: #64748b; font-size: 0.72rem; padding-top: 3px;">حرر بتاريخ: ${data.date}</div>
+                        <div style="border-top: 1px solid #94a3b8; width: 80%; margin: 0 auto; color: #64748b; font-size: 0.72rem; padding-top: 3px;">حرر بتاريخ: ${escapeHtml(data.date)}</div>
                     </div>
                 </div>
             </div>
@@ -632,11 +659,11 @@ ${sessionInfo.topic ? `• موضوع الحصة المنجز: ${sessionInfo.top
                 <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                     <div>
                         <div style="font-weight: 800; color: #1e293b; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
-                            ${std.name}
+                            ${escapeHtml(std.name)}
                             ${statusBadge}
                         </div>
                         <div style="font-size: 0.8rem; color: #64748b; margin-top: 3px;">
-                            الهاتف: <strong style="color: ${hasPhone ? '#0f172a' : '#ef4444'};">${hasPhone ? phone : 'غير مسجل ⚠️'}</strong>
+                            الهاتف: <strong style="color: ${hasPhone ? '#0f172a' : '#ef4444'};">${hasPhone ? escapeHtml(phone) : 'غير مسجل ⚠️'}</strong>
                         </div>
                     </div>
                     <div style="display: flex; gap: 6px;">
@@ -644,7 +671,7 @@ ${sessionInfo.topic ? `• موضوع الحصة المنجز: ${sessionInfo.top
                             <span>إشعار ولي الأمر بالغياب 📲</span>
                         </a>
                         ${!hasPhone ? `
-                            <button type="button" onclick="window.promptSetStudentPhone('${std.id}')" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 6px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">
+                            <button type="button" onclick="window.promptSetStudentPhone('${escapeJsAttr(std.id)}')" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 6px 10px; border-radius: 6px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">
                                 + رقم
                             </button>
                         ` : ''}
@@ -656,12 +683,12 @@ ${sessionInfo.topic ? `• موضوع الحصة المنجز: ${sessionInfo.top
         contentContainer.innerHTML = `
             <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 0.85rem;">
                 <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                    <div><strong style="color: #475569;">المجموعة:</strong> <span style="font-weight: 800; color: #0284c7;">${sessionInfo.group}</span></div>
-                    <div><strong style="color: #475569;">التاريخ والتوقيت:</strong> <span style="font-weight: 800; color: #0f172a;">${dateFormatted} (${sessionInfo.time || '18:00'})</span></div>
-                    <div><strong style="color: #475569;">المدة:</strong> <span style="font-weight: 800; color: #0f172a;">${sessionInfo.hours} ساعات</span></div>
+                    <div><strong style="color: #475569;">المجموعة:</strong> <span style="font-weight: 800; color: #0284c7;">${escapeHtml(sessionInfo.group)}</span></div>
+                    <div><strong style="color: #475569;">التاريخ والتوقيت:</strong> <span style="font-weight: 800; color: #0f172a;">${escapeHtml(dateFormatted)} (${escapeHtml(sessionInfo.time || '18:00')})</span></div>
+                    <div><strong style="color: #475569;">المدة:</strong> <span style="font-weight: 800; color: #0f172a;">${escapeHtml(sessionInfo.hours)} ساعات</span></div>
                 </div>
-                ${sessionInfo.topic ? `<div style="margin-top: 6px; color: #334155;"><strong>موضوع الدرس:</strong> ${sessionInfo.topic}</div>` : ''}
-                ${sessionInfo.homework ? `<div style="margin-top: 4px; color: #b45309;"><strong>الواجب المنزلي:</strong> ${sessionInfo.homework}</div>` : ''}
+                ${sessionInfo.topic ? `<div style="margin-top: 6px; color: #334155;"><strong>موضوع الدرس:</strong> ${escapeHtml(sessionInfo.topic)}</div>` : ''}
+                ${sessionInfo.homework ? `<div style="margin-top: 4px; color: #b45309;"><strong>الواجب المنزلي:</strong> ${escapeHtml(sessionInfo.homework)}</div>` : ''}
             </div>
 
             <div style="margin-bottom: 10px;">
@@ -764,7 +791,7 @@ ${sessionInfo.topic ? `• موضوع الحصة المنجز: ${sessionInfo.top
     function showToastMessage(msg) {
         const toast = document.createElement('div');
         toast.style.cssText = 'position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #ffffff; padding: 12px 24px; border-radius: 30px; z-index: 999999; font-family: "Cairo", sans-serif; font-weight: bold; font-size: 0.88rem; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid #334155; display: flex; align-items: center; gap: 8px;';
-        toast.innerHTML = msg;
+        toast.textContent = msg;
         document.body.appendChild(toast);
         setTimeout(() => {
             toast.style.transition = 'opacity 0.4s';

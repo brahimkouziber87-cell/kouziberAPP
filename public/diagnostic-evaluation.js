@@ -68,6 +68,24 @@
             .replace(/'/g, '&#39;');
     }
 
+    function escapeJsAttr(str) {
+        return escapeHtml(String(str ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+    }
+
+    function parseNumericScore(val) {
+        if (val === undefined || val === null || typeof val === 'boolean') return null;
+        const s = String(val).trim().replace(',', '.');
+        if (!s) return null;
+        const n = parseFloat(s);
+        return (!isNaN(n) && isFinite(n)) ? n : null;
+    }
+
+    function getClassStudentsSafe(clsVal) {
+        if (Array.isArray(clsVal)) return clsVal;
+        if (clsVal && Array.isArray(clsVal.students)) return clsVal.students;
+        return [];
+    }
+
     /**
      * ضمان تهيئة بنية بيانات التقويم التشخيصي
      */
@@ -151,10 +169,8 @@
             const collectFromObj = (obj) => {
                 if (!obj || typeof obj !== 'object') return;
                 ['f1', 'f2', 'f3', 'f4'].forEach(k => {
-                    if (obj[k] !== undefined && obj[k] !== null && obj[k] !== '') {
-                        const n = parseFloat(obj[k]);
-                        if (!isNaN(n) && n >= 0 && n <= 20) rawCandidates.push(n);
-                    }
+                    const n = parseNumericScore(obj[k]);
+                    if (n !== null && n >= 0 && n <= 20) rawCandidates.push(n);
                 });
             };
             collectFromObj(gradesObj);
@@ -168,7 +184,7 @@
             const ratio = (totalStudents > 1) ? (index / (totalStudents - 1)) : 0.5;
             estimatedTotal = 17 - (ratio * 12.5); // من 17 إلى 4.5
             // إضافة تنوع طفيف
-            const hash = (std.name.length * 7 + index * 13) % 5;
+            const hash = ((std.name || '').length * 7 + index * 13) % 5;
             estimatedTotal += (hash - 2) * 0.5;
         }
 
@@ -200,9 +216,22 @@
     /**
      * رسم وعرض قسم التقويم التشخيصي في تبويب التقارير
      */
-    function renderDiagnosticSection(className) {
+    function resolveDiagnosticClassName(rawVal) {
+        const val = rawVal || document.getElementById('reportClassSelect')?.value || '';
+        if (!val) return '';
+        if (val === '__ALL__' || val === '__MULTI__' || String(val).startsWith('__MULTI__')) {
+            const res = typeof window.resolveReportTargetClasses === 'function' ? window.resolveReportTargetClasses(val) : null;
+            return (res && res.classes && res.classes[0]) ? res.classes[0] : '';
+        }
+        return val;
+    }
+
+    function renderDiagnosticSection(rawClassName) {
         const card = document.getElementById('diagnosticReportCard');
         if (!card) return;
+        const requestedVal = rawClassName || document.getElementById('reportClassSelect')?.value || '';
+        const isMultiResolved = (requestedVal === '__ALL__' || requestedVal === '__MULTI__' || String(requestedVal).startsWith('__MULTI__'));
+        const className = resolveDiagnosticClassName(rawClassName);
 
         if (!className || !window.db || !window.db.classes || !window.db.classes[className]) {
             const countBadge = document.getElementById('diagnosticStudentsCountBadge');
@@ -218,9 +247,13 @@
 
         card.style.display = 'block';
 
-        const students = window.db.classes[className] || [];
+        const students = getClassStudentsSafe(window.db.classes[className]);
         const countBadge = document.getElementById('diagnosticStudentsCountBadge');
-        if (countBadge) countBadge.textContent = `${students.length} تلميذ`;
+        if (countBadge) {
+            countBadge.textContent = isMultiResolved
+                ? `${className} · ${students.length} تلميذ`
+                : `${students.length} تلميذ`;
+        }
 
         if (students.length === 0) {
             const tbody = document.getElementById('diagnosticTableBody');
@@ -379,25 +412,25 @@
                         </td>
                         <td style="padding: 4px; white-space: nowrap;">
                             <input type="number" min="0" max="5" step="0.25" value="${d1}"
-                                onchange="window.updateStudentDiagnosticMark('${escapeHtml(className)}', '${escapeHtml(std.id)}', 'd1', this.value)"
+                                onchange="window.updateStudentDiagnosticMark('${escapeJsAttr(className)}', '${escapeJsAttr(std.id)}', 'd1', this.value)"
                                 style="width: 60px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; text-align: center; font-weight: 700; font-size: 0.8rem; background: #fff;"
                                 title="الحسابيات والأنشطة العددية (من 5)">
                         </td>
                         <td style="padding: 4px; white-space: nowrap;">
                             <input type="number" min="0" max="5" step="0.25" value="${d2}"
-                                onchange="window.updateStudentDiagnosticMark('${escapeHtml(className)}', '${escapeHtml(std.id)}', 'd2', this.value)"
+                                onchange="window.updateStudentDiagnosticMark('${escapeJsAttr(className)}', '${escapeJsAttr(std.id)}', 'd2', this.value)"
                                 style="width: 60px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; text-align: center; font-weight: 700; font-size: 0.8rem; background: #fff;"
                                 title="الهندسة والحساب المثلثي (من 5)">
                         </td>
                         <td style="padding: 4px; white-space: nowrap;">
                             <input type="number" min="0" max="5" step="0.25" value="${d3}"
-                                onchange="window.updateStudentDiagnosticMark('${escapeHtml(className)}', '${escapeHtml(std.id)}', 'd3', this.value)"
+                                onchange="window.updateStudentDiagnosticMark('${escapeJsAttr(className)}', '${escapeJsAttr(std.id)}', 'd3', this.value)"
                                 style="width: 60px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; text-align: center; font-weight: 700; font-size: 0.8rem; background: #fff;"
                                 title="الجبر والتحليل (من 5)">
                         </td>
                         <td style="padding: 4px; white-space: nowrap;">
                             <input type="number" min="0" max="5" step="0.25" value="${d4}"
-                                onchange="window.updateStudentDiagnosticMark('${escapeHtml(className)}', '${escapeHtml(std.id)}', 'd4', this.value)"
+                                onchange="window.updateStudentDiagnosticMark('${escapeJsAttr(className)}', '${escapeJsAttr(std.id)}', 'd4', this.value)"
                                 style="width: 60px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; text-align: center; font-weight: 700; font-size: 0.8rem; background: #fff;"
                                 title="تنظيم المعطيات وحل المسائل (من 5)">
                         </td>
@@ -424,8 +457,8 @@
      * تحديث نقطة تلميذ في مجال معين وحفظها
      */
     function updateStudentDiagnosticMark(className, studentId, domainKey, rawVal) {
-        let val = parseFloat(rawVal);
-        if (isNaN(val)) val = 0;
+        let val = parseNumericScore(rawVal);
+        if (val === null) val = 0;
         val = Math.max(0, Math.min(5, parseFloat(val.toFixed(2))));
 
         const classDiag = ensureDiagnosticDb(className);
@@ -459,7 +492,7 @@
      * تعبئة تقديرية سريعة لروائز تلاميذ القسم
      */
     function autoGenerateDiagnosticMarks() {
-        const className = document.getElementById('reportClassSelect')?.value;
+        const className = resolveDiagnosticClassName();
         if (!className || !window.db || !window.db.classes || !window.db.classes[className]) {
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('يرجى اختيار القسم أولاً لتعبئة نتائج التقويم التشخيصي.', 'warning');
@@ -469,7 +502,7 @@
             return;
         }
 
-        const students = window.db.classes[className];
+        const students = getClassStudentsSafe(window.db.classes[className]);
         if (students.length === 0) {
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('لا يوجد تلاميذ في هذا القسم لتعبئة روائزهم.', 'warning');
@@ -483,7 +516,7 @@
             // توليد قيم جديدة متنوعة
             const ratio = (students.length > 1) ? (idx / (students.length - 1)) : 0.5;
             let total = 17.5 - (ratio * 13);
-            const noise = ((idx * 17 + std.name.length * 3) % 7) - 3;
+            const noise = ((idx * 17 + (std.name || '').length * 3) % 7) - 3;
             total = Math.max(3.5, Math.min(19.25, parseFloat((total + noise * 0.4).toFixed(2))));
 
             const factor = total / 20;
@@ -534,7 +567,7 @@
      * تصدير شبكة تفريغ التقويم التشخيصي إلى Excel بصيغة رسمية متناسقة
      */
     async function exportDiagnosticExcelGrid() {
-        const className = document.getElementById('reportClassSelect')?.value;
+        const className = resolveDiagnosticClassName();
         if (!className || !window.db || !window.db.classes || !window.db.classes[className]) {
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('يرجى اختيار القسم لتصدير شبكة التقويم التشخيصي.', 'warning');
@@ -552,16 +585,17 @@
             return;
         }
 
-        const students = window.db.classes[className];
+        const students = getClassStudentsSafe(window.db.classes[className]);
         const teacherProfile = (window.db && window.db.teacherProfile) ? window.db.teacherProfile : {};
         const teacherName = teacherProfile.name || 'أستاذ مادة الرياضيات';
         const schoolName = teacherProfile.school || 'المؤسسة التعليمية';
         const classDiag = ensureDiagnosticDb(className);
+        const nowObj = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
 
         const rows = [
             ['المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل'],
             ['تقرير وشبكة تفريغ نتائج التقويم التشخيصي في مادة الرياضيات'],
-            [`المؤسسة: ${schoolName}`, '', `الأستاذ(ة): ${teacherName}`, '', `القسم: ${className}`, '', `تاريخ الإنجاز: ${new Date().toLocaleDateString('ar-MA')}`],
+            [`المؤسسة: ${schoolName}`, '', `الأستاذ(ة): ${teacherName}`, '', `القسم: ${className}`, '', `تاريخ الإنجاز: ${nowObj.toLocaleDateString('ar-MA')}`],
             [],
             [
                 'ر.ت',
@@ -637,7 +671,8 @@
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'التقويم_التشخيصي');
 
-        const fileName = `شبكة_تفريغ_التقويم_التشخيصي_${className.replace(/\s+/g, '_')}.xlsx`;
+        const safeClassSlug = String(className).replace(/[\\\/\?\*\[\]:"<>|\s]+/g, '_');
+        const fileName = `شبكة_تفريغ_التقويم_التشخيصي_${safeClassSlug}.xlsx`;
         XLSX.writeFile(wb, fileName);
 
         if (typeof window.showAppToast === 'function') {

@@ -796,7 +796,10 @@
         }
 
         if (!_currentVariableValues.academicYear) {
-            _currentVariableValues.academicYear = (window.db?.teacherProfile?.academicYear) || '2025-2026';
+            const dNow = new Date();
+            const dy = dNow.getFullYear();
+            const defAy = (dNow.getMonth() + 1) >= 9 ? `${dy}-${dy + 1}` : `${dy - 1}-${dy}`;
+            _currentVariableValues.academicYear = (window.db?.teacherProfile?.academicYear) || defAy;
         }
 
         // استنتاج أسماء التلاميذ المعنيين بالغياب المتكرر واسم التلميذ تلقائياً من القسم النشط
@@ -1031,8 +1034,8 @@
     }
     window.saveNewCustomCategoryFromUI = saveNewCustomCategoryFromUI;
 
-    function deleteCustomPromptCategory(catId) {
-        if (!confirm('هل أنت متأكد من حذف هذه الفئة المخصصة؟ سيتم نقل قوالبها إلى القوالب المخصصة.')) return;
+    async function deleteCustomPromptCategory(catId) {
+        if (!(await window.showConfirmDialog('هل أنت متأكد من حذف هذه الفئة المخصصة؟ سيتم نقل قوالبها إلى القوالب المخصصة.'))) return;
 
         let customCats = getCustomPromptCategories();
         customCats = customCats.filter(c => c.id !== catId);
@@ -2482,7 +2485,7 @@
             }
 
             if (typeof window.showAppToast === 'function') {
-                window.showAppToast('تم بنجاح نسخ الأمر النهائي وهو جاهز للصق في ChatGPT أو AI Studio 📋✨', 'success');
+                window.showAppToast('تم بنجاح نسخ الأمر النهائي وهو جاهز للصق في منصات الذكاء الاصطناعي 📋✨', 'success');
             } else {
                 window.notifySafeToast('تم نسخ الأمر النهائي بنجاح!');
             }
@@ -2831,12 +2834,12 @@
         studentGrade: '14.50 / 20',
         absenceHours: '4 ساعات',
         absenceThreshold: '4',
-        academicYear: '2025-2026',
+        academicYear: (() => { const n = new Date(); const y = n.getFullYear(); return (n.getMonth() + 1) >= 9 ? `${y}-${y + 1}` : `${y - 1}-${y}`; })(),
         weaknesses: 'حساب النهايات عند المحدات، التأويل الهندسي للمشتقة، وتطبيق مبرهنة القيم الوسيطية',
-        teacherName: 'الأستاذ إبراهيم قزيبر',
-        schoolName: 'الثانوية التأهيلية التألق',
+        teacherName: 'أستاذ مادة الرياضيات',
+        schoolName: 'الثانوية التأهيلية',
         exercisesCount: '3 تمارين متدرجة',
-        difficultyLevel: 'متوازن وفق الإطار المرجعي (30% تطبيق مباشر، 50% استحضار وتوظيف، 20% توليف)',
+        difficultyLevel: 'متوازن وفق المذكرة 142-08 (ص 9) والإطار المرجعي (40% تطبيق مباشر، 45% استحضار وتوظيف في وضعيات مألوفة، 15% توليف وحل وضعيات غير مألوفة)',
         excelData: 'ر.ت\tالاسم الكامل\tالفرض 1\tالفرض 2\n1\tياسين العلمي\t15.5\t16.0\n2\tسلمى بنعلي\t12.0\t13.5'
     };
 
@@ -3297,7 +3300,7 @@
     /**
      * حذف قالب مخصص
      */
-    function deletePromptTemplate(id) {
+    async function deletePromptTemplate(id) {
         const templates = getStoredPromptTemplates();
         const tpl = templates.find(t => t.id === id);
         if (!tpl) return;
@@ -3307,7 +3310,7 @@
             return;
         }
 
-        if (!confirm(`هل أنت متأكد من رغبتك في حذف قالب "${tpl.title}"؟`)) {
+        if (!(await window.showConfirmDialog(`هل أنت متأكد من رغبتك في حذف قالب "${tpl.title}"؟`))) {
             return;
         }
 
@@ -3414,8 +3417,8 @@
     /**
      * استعادة القوالب المرجعية القياسية
      */
-    function resetDefaultPromptTemplates() {
-        if (!confirm('هل ترغب في استعادة القوالب المرجعية القياسية المعتمدة للمنهاج المغربي؟ سيتم الحفاظ على قوالبك المخصصة التي أنشأتها.')) {
+    async function resetDefaultPromptTemplates() {
+        if (!(await window.showConfirmDialog('هل ترغب في استعادة القوالب المرجعية القياسية المعتمدة للمنهاج المغربي؟ سيتم الحفاظ على قوالبك المخصصة التي أنشأتها.'))) {
             return;
         }
 

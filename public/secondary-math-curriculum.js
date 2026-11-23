@@ -6,6 +6,18 @@
 (function() {
     'use strict';
 
+    const escapeHtml = (typeof window !== 'undefined' && typeof window.escapeHtml === 'function')
+        ? window.escapeHtml
+        : function (str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+
     // ============================================================
     // 1. قاعدة بيانات التوزيع السنوي لمقرر الرياضيات بالثانوي التأهيلي
     // ============================================================
@@ -35,20 +47,20 @@
                     { domain: 'الإحصاء الوصفي', weight: 7, details: 'تنظيم المعطيات، وسائط الموضع (المعدل، القيمة الوسطية، المنوال) ووسائط التشتت' }
                 ],
                 taxonomyLevels: [
-                    { level: 'تطبيق مباشر للمعارف والمهارات الأساسية', percentage: 45 },
-                    { level: 'استحضار وتوظيف مكتسبات في وضعيات مألوفة', percentage: 35 },
-                    { level: 'توليف وترييض وضعيات مركبة غير مألوفة', percentage: 20 }
+                    { level: 'المستوى المهاري 1: تطبيق مباشر للمعارف والمهارات الأساسية', weight: 40, percentage: 40 },
+                    { level: 'المستوى المهاري 2: استحضار وتوظيف مكتسبات في وضعيات مألوفة (متوازن مع م1)', weight: 45, percentage: 45 },
+                    { level: 'المستوى المهاري 3: توليف وترييض وضعيات مركبة غير مألوفة (10% إلى 20% ص 9)', weight: 15, percentage: 15 }
                 ]
             },
             semesters: {
                 's1': {
                     id: 's1',
-                    name: 'الأسدوس الأول (الدورة الأولى)',
+                    name: 'الأسدوس الأول (الدورة الأولى - 17 أسبوعاً)',
                     officialExamsCount: 3,
                     examSchedule: [
-                        { num: 1, week: 'الأسبوع 5 (أكتوبر)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 1', lessonsCovered: 'مجموعات الأعداد والحسابيات في IN + الحساب المتجهي في المستوى + الإسقاط في المستوى' },
-                        { num: 2, week: 'الأسبوع 10 (نونبر)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 2', lessonsCovered: 'المجموعات والحساب العددي والترتيب في IR + الحدوديات' },
-                        { num: 3, week: 'الأسبوع 15 (يناير)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 3', lessonsCovered: 'المعادلات والمتراجحات والنظمات + المستقيم في المستوى' }
+                        { num: 1, examNumber: 1, afterLessons: [1, 2, 3], title: 'الفرض المحروس رقم 1 (الدورة 1)', week: 'الأسبوع 5 من الدورة 1', correctionWeek: 'الأسبوع 6', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 2', homeworkCorrectionWeek: 'الأسبوع 4', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'المجموعة IN والحسابيات (60%) + الحساب المتجهي (25%) + الإسقاط (15%)', topics: 'المجموعة IN والحسابيات (60%) + الحساب المتجهي في المستوى (25%) + الإسقاط في المستوى (15%)', lessonsCovered: 'الحسابيات في IN + الحساب المتجهي + الإسقاط في المستوى' },
+                        { num: 2, examNumber: 2, afterLessons: [4, 5], title: 'الفرض المحروس رقم 2 (الدورة 1)', week: 'الأسبوع 10 من الدورة 1', correctionWeek: 'الأسبوع 11', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 7', homeworkCorrectionWeek: 'الأسبوع 9', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'مجموعات الأعداد (30%) + الترتيب في IR (40%) + المستقيم في المستوى (30%)', topics: 'مجموعات الأعداد (30%) + الترتيب في IR (40%) + المستقيم في المستوى / الحدوديات (30%)', lessonsCovered: 'مجموعات الأعداد والترتيب في IR + المستقيم في المستوى / الحدوديات' },
+                        { num: 3, examNumber: 3, afterLessons: [6, 7, 8], title: 'الفرض المحروس رقم 3 (الدورة 1)', week: 'الأسبوع 15 من الدورة 1', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 3', homeworkWeek: 'الأسبوع 12', homeworkCorrectionWeek: 'الأسبوع 14', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'الحدوديات (15%) + المعادلات والمتراجحات والنظمات (30%) + الحساب المثلثي 1 (30%) + الإحصاء (15%)', topics: 'الحدوديات (15%) + المعادلات والمتراجحات والنظمات (30%) + الحساب المثلثي 1 (30%) + الإحصاء (15%)', lessonsCovered: 'الحدوديات + المعادلات والمتراجحات والنظمات + الحساب المثلثي 1 + الإحصاء الوصفي' }
                     ],
                     lessons: [
                         {
@@ -150,7 +162,7 @@
                             frenchTitle: 'La droite dans le plan',
                             hours: 10,
                             plannedHours: 10,
-                            examTarget: 'الفرض المحروس 3 (الدورة 1)',
+                            examTarget: 'الفرض المحروس 2 / 3 (الدورة 1)',
                             competency: 'توظيف المعلم وإحداثيات النقط والمتجهات ومحددة متجهتين لتحديد معادلات المستقيمات والتمثيل البارامتري والأوضاع النسبية.',
                             axes: [
                                 { title: 'المعلم في المستوى، إحداثيات نقطة ومتجهة ومحددة متجهتين', desc: 'شرط استقامية متجهتين det(u,v) = 0 وإحداثيات منتصف قطعة' },
@@ -177,12 +189,12 @@
                 },
                 's2': {
                     id: 's2',
-                    name: 'الأسدوس الثاني (الدورة الثانية)',
+                    name: 'الأسدوس الثاني (الدورة الثانية - 17 أسبوعاً)',
                     officialExamsCount: 3,
                     examSchedule: [
-                        { num: 1, week: 'الأسبوع 22 (فبراير/مارس)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 1', lessonsCovered: 'الحساب المثلثي (الجزء الثاني: المعادلات والمتراجحات) + الإحصاء + صدر عموميات حول الدوال' },
-                        { num: 2, week: 'الأسبوع 27 (أبريل)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 2', lessonsCovered: 'عموميات حول الدوال العددية والدوال المرجعية + التحويلات الاعتيادية في المستوى' },
-                        { num: 3, week: 'الأسبوع 32 (ماي)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 3', lessonsCovered: 'الجداء السلمي في المستوى + الهندسة الفضائية' }
+                        { num: 1, examNumber: 1, afterLessons: [9, 10], title: 'الفرض المحروس رقم 1 (الدورة 2)', week: 'الأسبوع 5 من الدورة 2', correctionWeek: 'الأسبوع 6', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 2', homeworkCorrectionWeek: 'الأسبوع 4', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'الحساب المثلثي 2 (100%)', topics: 'الحساب المثلثي 2: المعادلات والمتراجحات المثلثية والحساب المثلثي في المثلث (100%)', lessonsCovered: 'الحساب المثلثي (الجزء الثاني: المعادلات والمتراجحات والحساب في المثلث)' },
+                        { num: 2, examNumber: 2, afterLessons: [11, 12], title: 'الفرض المحروس رقم 2 (الدورة 2)', week: 'الأسبوع 10 من الدورة 2', correctionWeek: 'الأسبوع 11', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 7', homeworkCorrectionWeek: 'الأسبوع 9', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'الدوال العددية (100%)', topics: 'عموميات حول الدوال العددية والدوال المرجعية وتمثيلها المبياني (100%)', lessonsCovered: 'عموميات حول الدوال العددية والدوال المرجعية' },
+                        { num: 3, examNumber: 3, afterLessons: [13, 14], title: 'الفرض المحروس رقم 3 (الدورة 2)', week: 'الأسبوع 15 من الدورة 2', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 3', homeworkWeek: 'الأسبوع 12', homeworkCorrectionWeek: 'الأسبوع 14', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'التحويلات الاعتيادية (30%) + الجداء السلمي (20%) + الهندسة الفضائية (50%)', topics: 'التحويلات الاعتيادية في المستوى (30%) + الجداء السلمي في المستوى (20%) + الهندسة الفضائية (50%)', lessonsCovered: 'التحويلات الاعتيادية + الجداء السلمي في المستوى + الهندسة الفضائية' }
                     ],
                     lessons: [
                         {
@@ -207,7 +219,7 @@
                             frenchTitle: 'Statistique descriptive',
                             hours: 6,
                             plannedHours: 6,
-                            examTarget: 'الفرض المحروس 1 (الدورة 2)',
+                            examTarget: 'الفرض المحروس 3 (الدورة 1) / الفرض 1 (الدورة 2)',
                             competency: 'تنظيم المعطيات الإحصائية المتقطعة والمتصلة (بالأصناف) وحساب وتأويل وسائط الموضع ووسائط التشتت.',
                             axes: [
                                 { title: 'الجداول الإحصائية، الحصيصات والترددات المتجمعة والمخططات البيانية', desc: 'متسلسلة بميزة كمية متقطعة أو متصلة (أصناف) والمدرج والمضلع الإحصائي' },
@@ -222,7 +234,7 @@
                             frenchTitle: 'Généralités sur les fonctions numériques',
                             hours: 20,
                             plannedHours: 20,
-                            examTarget: 'الفرض المحروس 1 و 2 (الدورة 2)',
+                            examTarget: 'الفرض المحروس 2 (الدورة 2)',
                             competency: 'التمكن من مفاهيم الدالة العددية (مجموعة التعريف، الزوجية، الرتابة، المطاريف) ودراسة وتمثيل الدوال المرجعية الاعتيادية.',
                             axes: [
                                 { title: 'مجموعة تعريف دالة عددية، تساوي دالتين والتمثيل المبياني (Cf)', desc: 'تحديد مجموعة التعريف جبرياً ومبيانياً وتأويل المعادلات والمتراجحات مبيانياً' },
@@ -238,7 +250,7 @@
                             frenchTitle: 'Les transformations usuelles dans le plan',
                             hours: 8,
                             plannedHours: 8,
-                            examTarget: 'الفرض المحروس 2 (الدورة 2)',
+                            examTarget: 'الفرض المحروس 3 (الدورة 2)',
                             competency: 'التعرف على التماثل المحوري والمركزي والإزاحة والتحاكي وتوظيف خاصياتها المتجهية والحفاظ في حل المسائل الهندسية.',
                             axes: [
                                 { title: 'التماثل المركزي والتماثل المحوري والإزاحة والخاصية المميزة', desc: 'الصيغ المتجهية وصور الأشكال الاعتيادية' },
@@ -293,11 +305,11 @@
             evalAndSupportHours: 30,
             weeklyHours: 5,
             coefficient: 7,
-            techCoefficient: 7,
+            techCoefficient: 6,
             examsPerSemester: 3,
             examDuration: 2,
             homeworkPerSemester: 3,
-            note142Summary: '3 فروض محروسة في كل دورة (مدة كل فرض ساعتان 2h) + 3 فروض منزلية • المعامل الرسمي: 7 (للعلوم التجريبية والعلوم والتكنولوجيات STE/STM) • الحصص الأسبوعية: 5 ساعات',
+            note142Summary: '3 فروض محروسة في كل دورة (مدة كل فرض ساعتان 2h) + 3 فروض منزلية • المعامل الرسمي: 7 للعلوم التجريبية (و6 لشعبتي العلوم والتكنولوجيات الكهربائية والميكانيكية STE/STM) • الحصص الأسبوعية: 5 ساعات',
             cadreReferentiel: {
                 examType: 'فروض المراقبة المستمرة المحروسة وفق المذكرة 142-08 والتوجيهات التربوية',
                 domains: [
@@ -306,20 +318,20 @@
                     { domain: 'الجبر والمنطق والحساب المثلثي', weight: 20, details: 'أنماط الاستدلال الرياضي (بما فيها الترجع والخلف) وصيغ التحويل المثلثية وحل المعادلات المثلثية' }
                 ],
                 taxonomyLevels: [
-                    { level: 'تطبيق مباشر للمعارف والقواعد والمبرهنات', percentage: 40 },
-                    { level: 'استحضار وتوظيف مكتسبات في وضعيات مألوفة', percentage: 40 },
-                    { level: 'معالجة وضعيات مركبة وتوليفية', percentage: 20 }
+                    { level: 'المستوى المهاري 1: تطبيق مباشر للمعارف والقواعد والمبرهنات', weight: 40, percentage: 40 },
+                    { level: 'المستوى المهاري 2: استحضار وتوظيف مكتسبات في وضعيات مألوفة', weight: 40, percentage: 40 },
+                    { level: 'المستوى المهاري 3: معالجة وضعيات غير مألوفة بتوليف النتائج (10% إلى 20% حسب المذكرة 142-08)', weight: 20, percentage: 20 }
                 ]
             },
             semesters: {
                 's1': {
                     id: 's1',
-                    name: 'الأسدوس الأول (الدورة الأولى)',
+                    name: 'الأسدوس الأول (الدورة الأولى - 17 أسبوعاً)',
                     officialExamsCount: 3,
                     examSchedule: [
-                        { num: 1, week: 'الأسبوع 5 (أكتوبر)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 1', lessonsCovered: 'مبادئ في المنطق الرياضي + عموميات حول الدوال العددية' },
-                        { num: 2, week: 'الأسبوع 10 (نونبر)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 2', lessonsCovered: 'المرجح في المستوى + التحليلية للجداء السلمي وتطبيقاته في المستوى' },
-                        { num: 3, week: 'الأسبوع 15 (يناير)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 3', lessonsCovered: 'المتتاليات العددية + الحساب المثلثي' }
+                        { num: 1, examNumber: 1, afterLessons: [1, 2], title: 'الفرض المحروس رقم 1 (الدورة 1)', week: 'الأسبوع 5 من الدورة 1', correctionWeek: 'الأسبوع 6', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 2', homeworkCorrectionWeek: 'الأسبوع 4', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'مبادئ في المنطق (35%) + عموميات حول الدوال (65%)', topics: 'مبادئ في المنطق الرياضي (35%) + عموميات حول الدوال العددية (65%)', lessonsCovered: 'مبادئ في المنطق الرياضي + عموميات حول الدوال العددية' },
+                        { num: 2, examNumber: 2, afterLessons: [3, 4], title: 'الفرض المحروس رقم 2 (الدورة 1)', week: 'الأسبوع 10 من الدورة 1', correctionWeek: 'الأسبوع 11', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 7', homeworkCorrectionWeek: 'الأسبوع 9', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'المرجح (40%) + تحليلية الجداء السلمي وتطبيقاته (60%)', topics: 'المرجح في المستوى (40%) + تحليلية الجداء السلمي وتطبيقاته في المستوى (60%)', lessonsCovered: 'المرجح في المستوى + التحليلية للجداء السلمي وتطبيقاته في المستوى' },
+                        { num: 3, examNumber: 3, afterLessons: [5, 6], title: 'الفرض المحروس رقم 3 (الدورة 1)', week: 'الأسبوع 15 من الدورة 1', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 3', homeworkWeek: 'الأسبوع 12', homeworkCorrectionWeek: 'الأسبوع 14', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'تحليلية الجداء السلمي (10%) + المتتاليات العددية (50%) + الحساب المثلثي (40%)', topics: 'تحليلية الجداء السلمي (10%) + المتتاليات العددية (50%) + الحساب المثلثي (40%)', lessonsCovered: 'المتتاليات العددية + الحساب المثلثي' }
                     ],
                     lessons: [
                         {
@@ -419,12 +431,12 @@
                 },
                 's2': {
                     id: 's2',
-                    name: 'الأسدوس الثاني (الدورة الثانية)',
+                    name: 'الأسدوس الثاني (الدورة الثانية - 17 أسبوعاً)',
                     officialExamsCount: 3,
                     examSchedule: [
-                        { num: 1, week: 'الأسبوع 22 (فبراير/مارس)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 1', lessonsCovered: 'الدوران في المستوى + نهايات الدوال العددية' },
-                        { num: 2, week: 'الأسبوع 27 (أبريل)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 2', lessonsCovered: 'الاشتقاق وتطبيقاته + دراسة الدوال وتمثيلها المبياني' },
-                        { num: 3, week: 'الأسبوع 32 (ماي)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 3', lessonsCovered: 'المتجهات في الفضاء وتحليلية الفضاء + الجداء السلمي والجداء المتجهي في الفضاء' }
+                        { num: 1, examNumber: 1, afterLessons: [7, 8], title: 'الفرض المحروس رقم 1 (الدورة 2)', week: 'الأسبوع 5 من الدورة 2', correctionWeek: 'الأسبوع 6', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 2', homeworkCorrectionWeek: 'الأسبوع 4', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'النهايات (50%) + الدوران (50%)', topics: 'نهايات الدوال العددية (50%) + الدوران في المستوى (50%)', lessonsCovered: 'الدوران في المستوى + نهايات الدوال العددية' },
+                        { num: 2, examNumber: 2, afterLessons: [9, 10], title: 'الفرض المحروس رقم 2 (الدورة 2)', week: 'الأسبوع 11 من الدورة 2', correctionWeek: 'الأسبوع 12', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 8', homeworkCorrectionWeek: 'الأسبوع 10', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'الاشتقاق (60%) + متجهات الفضاء (40%)', topics: 'الاشتقاق وتطبيقاته (60%) + متجهات الفضاء (40%)', lessonsCovered: 'الاشتقاق وتطبيقاته + المتجهات في الفضاء' },
+                        { num: 3, examNumber: 3, afterLessons: [11, 12], title: 'الفرض المحروس رقم 3 (الدورة 2)', week: 'الأسبوع 15 من الدورة 2', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 3', homeworkWeek: 'الأسبوع 12', homeworkCorrectionWeek: 'الأسبوع 14', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'دراسة الدوال وتمثيلها (60%) + تحليلية الفضاء (40%)', topics: 'دراسة الدوال وتمثيلها المبياني (60%) + تحليلية الفضاء (40%)', lessonsCovered: 'دراسة الدوال وتمثيلها المبياني + تحليلية الفضاء' }
                     ],
                     lessons: [
                         {
@@ -447,8 +459,8 @@
                             order: 8,
                             title: 'نهايات الدوال العددية',
                             frenchTitle: 'Limites d\'une fonction numérique',
-                            hours: 14,
-                            plannedHours: 14,
+                            hours: 12,
+                            plannedHours: 12,
                             examTarget: 'الفرض المحروس 1 (الدورة 2)',
                             competency: 'حساب نهايات الدوال الحدودية والجذرية واللاجدريه والمثلثية وإزالة الأشكال غير المحددة وتوظيف مبرهنات الترتيب.',
                             axes: [
@@ -549,20 +561,20 @@
                     { domain: 'المجال الرئيسي الثاني: الجبر والهندسة (الأعداد العقدية، الهندسة الفضائية، وحساب الاحتمالات)', weight: 45, details: 'الأعداد العقدية وتطبيقاتها الهندسية (15% أي 3 نقط) + الهندسة الفضائية: الجداء السلمي والمتجهي والفلكة (15% أي 3 نقط) + حساب الاحتمالات (15% أي 3 نقط)' }
                 ],
                 taxonomyLevels: [
-                    { level: 'المستوى المهاري 1: التطبيق المباشر للمعارف (تعريف، خاصية، خوارزمية، صيغة)', percentage: 45 },
-                    { level: 'المستوى المهاري 2: استحضار وتطبيق معارف غير معلنة في وضعيات مألوفة', percentage: 40 },
-                    { level: 'المستوى المهاري 3: معالجة وضعيات غير مألوفة بتوليف النتائج', percentage: 15 }
+                    { level: 'المستوى المهاري 1: التطبيق المباشر للمعارف (تعريف، خاصية، خوارزمية، صيغة)', weight: 45, percentage: 45 },
+                    { level: 'المستوى المهاري 2: استحضار وتطبيق معارف غير معلنة في وضعيات مألوفة', weight: 40, percentage: 40 },
+                    { level: 'المستوى المهاري 3: معالجة وضعيات غير مألوفة بتوليف النتائج', weight: 15, percentage: 15 }
                 ]
             },
             semesters: {
                 's1': {
                     id: 's1',
-                    name: 'الأسدوس الأول (الدورة الأولى)',
+                    name: 'الأسدوس الأول (الدورة الأولى - 17 أسبوعاً)',
                     officialExamsCount: 3,
                     examSchedule: [
-                        { num: 1, week: 'الأسبوع 5 (أكتوبر)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 1', lessonsCovered: 'الاتصال ونهايات الدوال + الاشتقاق ودراسة الدوال العددية' },
-                        { num: 2, week: 'الأسبوع 10 (نونبر)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 2', lessonsCovered: 'المتتاليات العددية + الدوال الأصلية + صدر الدوال اللوغاريتمية' },
-                        { num: 3, week: 'الأسبوع 15 (يناير)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 3', lessonsCovered: 'الدوال اللوغاريتمية + الأعداد العقدية (الجزء الأول)' }
+                        { num: 1, examNumber: 1, afterLessons: [1, 2], title: 'الفرض المحروس رقم 1 (الدورة 1)', week: 'الأسبوع 5 من الدورة 1', correctionWeek: 'الأسبوع 6', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 2', homeworkCorrectionWeek: 'الأسبوع 4', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'الاتصال (50%) + الاشتقاق (50%)', topics: 'الاتصال ونهايات الدوال (50%) + الاشتقاق ودراسة الدوال العددية (50%)', lessonsCovered: 'الاتصال ونهايات الدوال + الاشتقاق ودراسة الدوال العددية' },
+                        { num: 2, examNumber: 2, afterLessons: [3, 4], title: 'الفرض المحروس رقم 2 (الدورة 1)', week: 'الأسبوع 11 من الدورة 1', correctionWeek: 'الأسبوع 12', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 7', homeworkCorrectionWeek: 'الأسبوع 9', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'دراسة الدوال (40%) + المتتاليات العددية (45%) + الدوال الأصلية (15%)', topics: 'دراسة الدوال (40%) + المتتاليات العددية (45%) + الدوال الأصلية (15%)', lessonsCovered: 'المتتاليات العددية + الدوال الأصلية + دراسة الدوال' },
+                        { num: 3, examNumber: 3, afterLessons: [5, 6], title: 'الفرض المحروس رقم 3 (الدورة 1)', week: 'الأسبوع 15 من الدورة 1', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 3', homeworkWeek: 'الأسبوع 12', homeworkCorrectionWeek: 'الأسبوع 14', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'الدوال اللوغاريتمية (40%) + الأعداد العقدية - الجزء 1 (60%)', topics: 'الدوال اللوغاريتمية (40%) + الأعداد العقدية - الجزء الأول (60%)', lessonsCovered: 'الدوال اللوغاريتمية + الأعداد العقدية (الجزء الأول)' }
                     ],
                     lessons: [
                         {
@@ -570,8 +582,8 @@
                             order: 1,
                             title: 'الاتصال ونهايات الدوال العددية',
                             frenchTitle: 'Continuité et limites',
-                            hours: 14,
-                            plannedHours: 14,
+                            hours: 16,
+                            plannedHours: 16,
                             examTarget: 'الفرض المحروس 1 (الدورة 1) + الامتحان الوطني',
                             competency: 'التحكم في اتصال دالة في نقطة وعلى مجال، مبرهنة القيم الوسيطية، الدالة العكسية ودالة الجذر من الرتبة n.',
                             axes: [
@@ -661,12 +673,12 @@
                 },
                 's2': {
                     id: 's2',
-                    name: 'الأسدوس الثاني (الدورة الثانية)',
+                    name: 'الأسدوس الثاني (الدورة الثانية - 17 أسبوعاً)',
                     officialExamsCount: 3,
                     examSchedule: [
-                        { num: 1, week: 'الأسبوع 21 (فبراير/مارس)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 1', lessonsCovered: 'الدوال الأسية + الأعداد العقدية (الجزء الثاني)' },
-                        { num: 2, week: 'الأسبوع 26 (أبريل)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 2', lessonsCovered: 'الحساب التكاملي + المعادلات التفاضلية' },
-                        { num: 3, week: 'الأسبوع 30 (ماي)', duration: 'ساعتان (2h)', homework: 'الفرض المنزلي رقم 3', lessonsCovered: 'الهندسة الفضائية (الجداء السلمي والمتجهي) + حساب الاحتمالات' }
+                        { num: 1, examNumber: 1, afterLessons: [7, 8], title: 'الفرض المحروس رقم 1 (الدورة 2)', week: 'الأسبوع 5 من الدورة 2', correctionWeek: 'الأسبوع 6', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 2', homeworkCorrectionWeek: 'الأسبوع 4', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'الدوال اللوغاريتمية والدوال الأسية (70%) + المعادلات التفاضلية (20%) + الحساب التكاملي (10%)', topics: 'الدوال اللوغاريتمية والدوال الأسية (70%) + المعادلات التفاضلية (20%) + الحساب التكاملي (10%)', lessonsCovered: 'الدوال اللوغاريتمية والدوال الأسية + المعادلات التفاضلية + الحساب التكاملي' },
+                        { num: 2, examNumber: 2, afterLessons: [9, 10], title: 'الفرض المحروس رقم 2 (الدورة 2)', week: 'الأسبوع 11 من الدورة 2', correctionWeek: 'الأسبوع 12', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 8', homeworkCorrectionWeek: 'الأسبوع 10', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'الحساب التكاملي (30%) + الهندسة الفضائية (70%)', topics: 'الحساب التكاملي (30%) + الهندسة الفضائية: الجداء السلمي والمتجهي والفلكة (70%)', lessonsCovered: 'الحساب التكاملي + الهندسة الفضائية' },
+                        { num: 3, examNumber: 3, afterLessons: [11, 12], title: 'الفرض المحروس رقم 3 (الدورة 2)', week: 'الأسبوع 15 من الدورة 2', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 3', homeworkWeek: 'الأسبوع 12', homeworkCorrectionWeek: 'الأسبوع 14', duration: 'ساعتان (2h)', durationHours: 2, correctionHours: 2, officialWeights: 'الهندسة الفضائية: الجداء السلمي والمتجهي والفلكة (20%) + حساب الاحتمالات (80%)', topics: 'الهندسة الفضائية: الجداء السلمي والمتجهي والفلكة (20%) + حساب الاحتمالات (80%)', lessonsCovered: 'الهندسة الفضائية (الجداء السلمي والمتجهي) + حساب الاحتمالات' }
                     ],
                     lessons: [
                         {
@@ -705,8 +717,8 @@
                             order: 9,
                             title: 'الحساب التكاملي',
                             frenchTitle: 'Calcul intégral',
-                            hours: 10,
-                            plannedHours: 10,
+                            hours: 12,
+                            plannedHours: 12,
                             examTarget: 'الفرض المحروس 2 (الدورة 2) + الامتحان الوطني',
                             competency: 'حساب التكامل باستعمال الدوال الأصلية والمكاملة بالأجزاء وتوظيفه في حساب المساحات والحجوم.',
                             axes: [
@@ -734,8 +746,8 @@
                             order: 11,
                             title: 'الهندسة الفضائية (الجداء السلمي والجداء المتجهي في الفضاء)',
                             frenchTitle: 'Géométrie dans l\'espace (Produit scalaire et vectoriel)',
-                            hours: 12,
-                            plannedHours: 12,
+                            hours: 14,
+                            plannedHours: 14,
                             examTarget: 'الفرض المحروس 3 (الدورة 2) + الامتحان الوطني (3 نقط)',
                             competency: 'توظيف الجداء السلمي والجداء المتجهي في الفضاء لدراسة المستويات والمستقيمات والفلكات وحساب المسافات والمساحات.',
                             axes: [
@@ -773,6 +785,8 @@
             cycle: 'السلك الثانوي التأهيلي',
             stream: 'شعبة العلوم الرياضية (المسلك العام والمسلك الدولي خيار فرنسية)',
             totalOfficialHours: 238,
+            netLessonsHours: 196,
+            evalAndSupportHours: 42,
             weeklyHours: 7,
             coefficient: 9,
             examsPerSemester: 4,
@@ -797,10 +811,10 @@
                     id: 's1',
                     name: 'الأسدوس الأول (الدورة الأولى - 17 أسبوعاً)',
                     examSchedule: [
-                        { examNumber: 1, afterLessons: [1, 2], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 1)', topics: 'مبادئ في المنطق الرياضي + المجموعات والتطبيقات' },
-                        { examNumber: 2, afterLessons: [3, 4], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 1)', topics: 'عموميات حول الدوال العددية + المرجح في المستوى' },
-                        { examNumber: 3, afterLessons: [5, 6], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 1)', topics: 'الجداء السلمي في المستوى وتطبيقاته + الحساب المثلثي' },
-                        { examNumber: 4, afterLessons: [7, 8], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 4 (الدورة 1)', topics: 'المتتاليات العددية + النهايات' }
+                        { examNumber: 1, afterLessons: [1, 2], week: 'الأسبوع 4 من الدورة 1', correctionWeek: 'الأسبوع 5', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 2', homeworkCorrectionWeek: 'الأسبوع 3', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 1)', officialWeights: 'مبادئ في المنطق (30%) + المجموعات والتطبيقات (50%) + عموميات حول الدوال (20%)', topics: 'مبادئ في المنطق الرياضي (30%) + المجموعات والتطبيقات (50%) + عموميات حول الدوال (20%)' },
+                        { examNumber: 2, afterLessons: [3, 4], week: 'الأسبوع 8 من الدورة 1', correctionWeek: 'الأسبوع 9', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 6', homeworkCorrectionWeek: 'الأسبوع 7', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 1)', officialWeights: 'عموميات حول الدوال (40%) + المرجح (30%) + تحليلية الجداء السلمي (30%)', topics: 'عموميات حول الدوال العددية (40%) + المرجح في المستوى (30%) + تحليلية الجداء السلمي (30%)' },
+                        { examNumber: 3, afterLessons: [5, 6], week: 'الأسبوع 12 من الدورة 1', correctionWeek: 'الأسبوع 13', homework: 'الفرض المنزلي رقم 3', homeworkWeek: 'الأسبوع 10', homeworkCorrectionWeek: 'الأسبوع 11', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 1)', officialWeights: 'تحليلية الجداء السلمي (20%) + الحساب المثلثي (40%) + المتتاليات العددية (40%)', topics: 'الجداء السلمي في المستوى وتطبيقاته (20%) + الحساب المثلثي (40%) + المتتاليات العددية (40%)' },
+                        { examNumber: 4, afterLessons: [7, 8], week: 'الأسبوع 15 من الدورة 1', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 4', homeworkWeek: 'الأسبوع 13', homeworkCorrectionWeek: 'الأسبوع 14', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 4 (الدورة 1)', officialWeights: 'المتتاليات العددية (30%) + نهاية دالة عددية (40%) + الدوران (30%)', topics: 'المتتاليات العددية (30%) + نهاية دالة عددية (40%) + الدوران في المستوى (30%)' }
                     ],
                     lessons: [
                         {
@@ -905,10 +919,10 @@
                     id: 's2',
                     name: 'الأسدوس الثاني (الدورة الثانية - 17 أسبوعاً)',
                     examSchedule: [
-                        { examNumber: 1, afterLessons: [9, 10], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 2)', topics: 'الدوران في المستوى + الاشتقاق وتطبيقاته' },
-                        { examNumber: 2, afterLessons: [11, 12], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 2)', topics: 'دراسة الدوال العددية وتمثيلها المبياني + الحسابيات في Z' },
-                        { examNumber: 3, afterLessons: [13, 14], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 2)', topics: 'التعداد + المتجهات في الفضاء وتحليلية الفضاء' },
-                        { examNumber: 4, afterLessons: [15], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 4 (الدورة 2)', topics: 'الجداء السلمي والجداء المتجهي في الفضاء والفلكة' }
+                        { examNumber: 1, afterLessons: [9, 10], week: 'الأسبوع 4 من الدورة 2', correctionWeek: 'الأسبوع 5', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 2', homeworkCorrectionWeek: 'الأسبوع 3', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 2)', officialWeights: 'الاشتقاق (40%) + دراسة الدوال وتمثيلها (60%)', topics: 'الاشتقاق وتطبيقاته (40%) + دراسة الدوال وتمثيلها (60%)' },
+                        { examNumber: 2, afterLessons: [11, 12], week: 'الأسبوع 8 من الدورة 2', correctionWeek: 'الأسبوع 9', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 6', homeworkCorrectionWeek: 'الأسبوع 7', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 2)', officialWeights: 'متجهات الفضاء (30%) + تحليلية الفضاء (70%)', topics: 'متجهات الفضاء (30%) + تحليلية الفضاء (70%)' },
+                        { examNumber: 3, afterLessons: [13, 14], week: 'الأسبوع 12 من الدورة 2', correctionWeek: 'الأسبوع 13', homework: 'الفرض المنزلي رقم 3', homeworkWeek: 'الأسبوع 10', homeworkCorrectionWeek: 'الأسبوع 11', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 2)', officialWeights: 'التعداد (50%) + الجداء السلمي في الفضاء وتطبيقاته (50%)', topics: 'التعداد (50%) + المتجهات وتحليلية الفضاء والجداء السلمي في الفضاء (50%)' },
+                        { examNumber: 4, afterLessons: [15], week: 'الأسبوع 15 من الدورة 2', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 4', homeworkWeek: 'الأسبوع 14', homeworkCorrectionWeek: 'الأسبوع 15', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 4 (الدورة 2)', officialWeights: 'الحسابيات في Z (80%) + الجداء المتجهي في الفضاء (20%)', topics: 'الحسابيات في Z (80%) + الجداء السلمي والجداء المتجهي في الفضاء والفلكة (20%)' }
                     ],
                     lessons: [
                         {
@@ -1007,13 +1021,15 @@
             shortName: 'الثانية باك علوم رياضية (2BAC-SM)',
             cycle: 'السلك الثانوي التأهيلي (الإطار المرجعي للامتحان الوطني الموحد)',
             stream: 'شعبة العلوم الرياضية (أ) و (ب) - المسلك العام والمسلك الدولي',
-            totalOfficialHours: 306,
-            weeklyHours: 9,
+            totalOfficialHours: 238,
+            netLessonsHours: 206,
+            evalAndSupportHours: 32,
+            weeklyHours: 7,
             coefficient: 9,
             examsPerSemester: 4,
             examDuration: 2,
             homeworkPerSemester: 4,
-            note142Summary: '9 ساعات أسبوعياً | المعامل: 9 | 4 فروض محروسة في كل دورة (مدة كل فرض ساعتان 2h) + 4 فروض منزلية على الأقل في كل دورة (المذكرة 142-08).',
+            note142Summary: '7 ساعات أسبوعياً (238 ساعة سنوياً وفق التوجيهات التربوية 2007) | المعامل: 9 | 4 فروض محروسة في كل دورة (مدة كل فرض ساعتان 2h) + 4 فروض منزلية على الأقل في كل دورة (المذكرة 142-08) • مدة الامتحان الوطني: 4 ساعات.',
             cadreReferentiel: {
                 examType: 'الامتحان الوطني الموحد للبكالوريا (شعبة العلوم الرياضية أ و ب - المدة: 4 ساعات | المعامل: 9)',
                 domains: [
@@ -1034,10 +1050,10 @@
                     id: 's1',
                     name: 'الأسدوس الأول (الدورة الأولى - 17 أسبوعاً)',
                     examSchedule: [
-                        { examNumber: 1, afterLessons: [1, 2], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 1)', topics: 'النهايات والاتصال + الاشتقاق ومبرهنة رول ومبرهنة التزايدات المنتهية' },
-                        { examNumber: 2, afterLessons: [3, 4], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 1)', topics: 'المتتاليات العددية والمتتاليات المتجاورة + الدوال اللوغاريتمية' },
-                        { examNumber: 3, afterLessons: [5], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 1)', topics: 'الأعداد العقدية (الجزء الأول: البنية الجبرية والمثلثية والجذور النونية)' },
-                        { examNumber: 4, afterLessons: [6], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 4 (الدورة 1)', topics: 'الحسابيات في Z (مبرهنتا بوزو وغوص ومبرهنة فيرما)' }
+                        { examNumber: 1, afterLessons: [1, 2], week: 'الأسبوع 4 من الدورة 1', correctionWeek: 'الأسبوع 5', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 2', homeworkCorrectionWeek: 'الأسبوع 3', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 1)', officialWeights: 'النهايات والاتصال (60%) + المتتاليات العددية (40%)', topics: 'النهايات والاتصال (60%) + المتتاليات العددية (40%)' },
+                        { examNumber: 2, afterLessons: [3, 4], week: 'الأسبوع 8 من الدورة 1', correctionWeek: 'الأسبوع 9', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 6', homeworkCorrectionWeek: 'الأسبوع 7', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 1)', officialWeights: 'المتتاليات العددية (30%) + الاشتقاق ومبرهنة التزايدات المنتهية والدوال الأصلية (70%)', topics: 'المتتاليات العددية (30%) + الاشتقاق ومبرهنة التزايدات المنتهية والدوال الأصلية (70%)' },
+                        { examNumber: 3, afterLessons: [5], week: 'الأسبوع 12 من الدورة 1', correctionWeek: 'الأسبوع 13', homework: 'الفرض المنزلي رقم 3', homeworkWeek: 'الأسبوع 10', homeworkCorrectionWeek: 'الأسبوع 11', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 1)', officialWeights: 'الدوال اللوغاريتمية (50%) + الدوال الأسية (50%)', topics: 'الدوال اللوغاريتمية (50%) + الدوال الأسية (50%)' },
+                        { examNumber: 4, afterLessons: [6], week: 'الأسبوع 15 من الدورة 1', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 4', homeworkWeek: 'الأسبوع 13', homeworkCorrectionWeek: 'الأسبوع 14', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 4 (الدورة 1)', officialWeights: 'المعادلات التفاضلية (30%) + الأعداد العقدية (70%)', topics: 'المعادلات التفاضلية (30%) + الأعداد العقدية: البنية الجبرية والمثلثية والجذور النونية (70%)' }
                     ],
                     lessons: [
                         {
@@ -1118,10 +1134,10 @@
                     id: 's2',
                     name: 'الأسدوس الثاني (الدورة الثانية - 17 أسبوعاً)',
                     examSchedule: [
-                        { examNumber: 1, afterLessons: [7, 8], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 2)', topics: 'الدوال الأسية ودوال القوى + الدوال الأصلية والحساب التكاملي' },
-                        { examNumber: 2, afterLessons: [9, 10], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 2)', topics: 'المعادلات التفاضلية + الأعداد العقدية (الجزء الثاني: التحويلات والمعادلات)' },
-                        { examNumber: 3, afterLessons: [11], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 2)', topics: 'البنيات الجبرية (الزمر، الحلقات، الأجسام، والفضاءات المتجهية)' },
-                        { examNumber: 4, afterLessons: [12], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 4 (الدورة 2)', topics: 'حساب الاحتمالات + مسألة توليفية وفق الإطار المرجعي للامتحان الوطني' }
+                        { examNumber: 1, afterLessons: [7, 8], week: 'الأسبوع 4 من الدورة 2', correctionWeek: 'الأسبوع 5', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 2', homeworkCorrectionWeek: 'الأسبوع 3', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 2)', officialWeights: 'الأعداد العقدية (30%) + الحساب التكاملي (70%)', topics: 'الأعداد العقدية: التحويلات النقطية والمعادلات (30%) + الحساب التكاملي (70%)' },
+                        { examNumber: 2, afterLessons: [9, 10], week: 'الأسبوع 8 من الدورة 2', correctionWeek: 'الأسبوع 9', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 6', homeworkCorrectionWeek: 'الأسبوع 7', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 2)', officialWeights: 'الحساب التكاملي (30%) + الحسابيات في Z (70%)', topics: 'الحساب التكاملي (30%) + الحسابيات في Z: بوزو وغوص والموافقة بترديد n (70%)' },
+                        { examNumber: 3, afterLessons: [11], week: 'الأسبوع 12 من الدورة 2', correctionWeek: 'الأسبوع 13', homework: 'الفرض المنزلي رقم 3', homeworkWeek: 'الأسبوع 10', homeworkCorrectionWeek: 'الأسبوع 11', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 2)', officialWeights: 'البنيات الجبرية: الزمر والحلقات والأجسام (100%)', topics: 'البنيات الجبرية (الزمر، الحلقات، الأجسام، والفضاءات المتجهية) (100%)' },
+                        { examNumber: 4, afterLessons: [12], week: 'الأسبوع 15 من الدورة 2', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 4', homeworkWeek: 'الأسبوع 14', homeworkCorrectionWeek: 'الأسبوع 15', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 4 (الدورة 2)', officialWeights: 'البنيات الجبرية (50%) + حساب الاحتمالات (50%)', topics: 'البنيات الجبرية (50%) + حساب الاحتمالات (50%) + مسألة توليفية وفق الإطار المرجعي للامتحان الوطني' }
                     ],
                     lessons: [
                         {
@@ -1208,23 +1224,25 @@
             cycle: 'السلك الثانوي التأهيلي',
             stream: 'شعبة الآداب والعلوم الإنسانية وشعبة التعليم الأصيل',
             totalOfficialHours: 68,
+            netLessonsHours: 58,
+            evalAndSupportHours: 10,
             weeklyHours: 2,
             coefficient: 2,
             examsPerSemester: 2,
             examDuration: 1,
             homeworkPerSemester: 2,
-            note142Summary: 'ساعتان (2h) أسبوعياً | المعامل: 2 | فرضان محروسان (2) في كل دورة (مدة كل فرض ساعة واحدة 1h) + فرضان منزليان في كل دورة (المذكرة 142-08).',
+            note142Summary: 'ساعتان (2h) أسبوعياً | المعامل: 2 | فرضان محروسان (2) في كل دورة (مدة كل فرض ساعة واحدة 1h) + فرضان منزليان في كل دورة (المذكرة 142-08، الجدول 2 ص 3).',
             cadreReferentiel: {
-                examType: 'فروض المراقبة المستمرة (المذكرة 142-08) + التوجيهات التربوية للجذع المشترك الأدبي والأصيل',
+                examType: 'فروض المراقبة المستمرة (المذكرة 142-08 - الجدول 2) + التوجيهات التربوية للجذع المشترك الأدبي والأصيل (2007)',
                 domains: [
-                    { domain: 'المجال الأول: الحساب العددي والتناسبية والمعادلات والمتراجحات والنظمات (الأسدوس الأول)', weight: 50 },
-                    { domain: 'المجال الثاني: الإحصاء (تنظيم المعطيات، وسيطات الوضع والتشتت، والمبيانات)', weight: 20 },
-                    { domain: 'المجال الثالث: الدوال العددية والدوال المرجعية (التآلفية، الشلجم، الهذلول)', weight: 30 }
+                    { domain: 'المجال الأول: الحساب العددي والتناسبية والمعادلات والمتراجحات والنظمات (الأسدوس الأول)', weight: 30 },
+                    { domain: 'المجال الثاني: الإحصاء الوصفي (تنظيم المعطيات، وسيطات الوضع والتشتت، والمبيانات)', weight: 20 },
+                    { domain: 'المجال الثالث: الهندسة المستوية (المعلم في المستوى، استقامية النقط، ومعادلة مستقيم)', weight: 20 },
+                    { domain: 'المجال الرابع: الدوال العددية والدوال المرجعية (التآلفية، الشلجم، الهذلول)', weight: 30 }
                 ],
                 taxonomyLevels: [
-                    { level: 'تطبيق مباشر للقواعد الحسابية والجبرية', weight: 50 },
-                    { level: 'قراءة وتأويل الجداول والمبيانات وحل النظمات والمعادلات', weight: 35 },
-                    { level: 'ترييض وضعيات مسألة مستقاة من الحياة اليومية', weight: 15 }
+                    { level: 'المستوى المهاري 1 (الفروض المحروسة - ص 9 من المذكرة 142-08): تطبيق مباشر للقواعد الحسابية والجبرية والمبيانية', weight: 60, percentage: 60 },
+                    { level: 'المستوى المهاري 2 (الفروض المحروسة - ص 9 من المذكرة 142-08): استحضار وتطبيق معارف في وضعيات مألوفة', weight: 40, percentage: 40 }
                 ]
             },
             semesters: {
@@ -1232,15 +1250,15 @@
                     id: 's1',
                     name: 'الأسدوس الأول (الدورة الأولى - 17 أسبوعاً)',
                     examSchedule: [
-                        { examNumber: 1, afterLessons: [1], durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 1 (الدورة 1)', topics: 'الحساب العددي والنسب المئوية والتناسبية والترتيب' },
-                        { examNumber: 2, afterLessons: [2], durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 2 (الدورة 1)', topics: 'المعادلات والمتراجحات والنظمات وترييض المسائل' }
+                        { examNumber: 1, afterLessons: [1, 2], week: 'الأسبوع 8 من الدورة 1', correctionWeek: 'الأسبوع 9', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 4', homeworkCorrectionWeek: 'الأسبوع 7', durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 1 (الدورة 1)', officialWeights: 'الحساب العددي (60%) + الإحصاء (40%)', topics: 'الحساب العددي والنسب المئوية والترتيب والمعادلات (60%) + الإحصاء (40%)' },
+                        { examNumber: 2, afterLessons: [3], week: 'الأسبوع 15 من الدورة 1', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 11', homeworkCorrectionWeek: 'الأسبوع 14', durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 2 (الدورة 1)', officialWeights: 'الحساب العددي والمعادلات والنظمات (60%) + الإحصاء (40%)', topics: 'المعادلات والمتراجحات والنظمات (60%) + الإحصاء (وسيطات الوضع والتشتت والمبيانات) (40%)' }
                     ],
                     lessons: [
                         {
                             order: 1,
                             title: 'الحساب العددي: العمليات في R، الترتيب، والنسب المئوية والتناسبية',
                             frenchTitle: 'Calcul numérique, ordre et proportionnalité',
-                            hours: 14,
+                            hours: 10,
                             competency: 'التحكم في العمليات على الأعداد الحقيقية والقوى والجذور المربعة، المجالات والترتيب، وتوظيف التناسبية والنسب المئوية في وضعيات واقعية.',
                             axes: [
                                 { title: 'العمليات في R، القوى، الجذور المربعة، والمتطابقات الهامة', desc: 'قواعد الحساب الجبري وتبسيط التعابير العددية والكتابة العلمية' },
@@ -1252,12 +1270,24 @@
                             order: 2,
                             title: 'المعادلات والمتراجحات والنظمات',
                             frenchTitle: 'Équations, inéquations et systèmes',
-                            hours: 14,
+                            hours: 10,
                             competency: 'حل المعادلات والمتراجحات من الدرجة الأولى والثانية بمجهول واحد ونظمة معادلتين من الدرجة الأولى بمجهولين وتوظيفها في ترييض المسائل.',
                             axes: [
                                 { title: 'معادلات ومتراجحات من الدرجة الأولى بمجهول واحد', desc: 'جدول إشارة الحدانية ax+b وحل المتراجحات وتحديد مجموعة الحلول' },
                                 { title: 'المعادلات والمتراجحات من الدرجة الثانية بمجهول واحد', desc: 'المميز Δ، حل المعادلة ax²+bx+c=0، وتعميل وإشارة ثلاثية الحدود' },
                                 { title: 'نظمة معادلتين من الدرجة الأولى بمجهولين وترييض المسائل', desc: 'طريقة التعويض وطريقة التأليفة الخطية والمحددة وحل المسائل' }
+                            ]
+                        },
+                        {
+                            order: 3,
+                            title: 'الإحصاء',
+                            frenchTitle: 'Statistiques',
+                            hours: 10,
+                            competency: 'تنظيم المعطيات الإحصائية في جداول، حساب وسيطات الوضع (المنوال، المعدل الحسابي، القيمة الوسطية) ووسيطات التشتت، وتمثيلها مبيانياً.',
+                            axes: [
+                                { title: 'تنظيم المعطيات: الحصيصات والترددات والنسب المئوية', desc: 'المتسلسلات الإحصائية بالقيم وبالأصناف والحصيصات والترددات المتجمعة' },
+                                { title: 'وسيطات الوضع ووسيطات التشتت', desc: 'المنوال، المعدل الحسابي، القيمة الوسطية، والانحراف المتوسط والمغايرة' },
+                                { title: 'التمثيلات المبيانية وتأويل المعطيات الإحصائية', desc: 'المخطط بالأعمدة، المخطط العصوي، المضلع الإحصائي، والمخطط القطاعي' }
                             ]
                         }
                     ]
@@ -1266,24 +1296,24 @@
                     id: 's2',
                     name: 'الأسدوس الثاني (الدورة الثانية - 17 أسبوعاً)',
                     examSchedule: [
-                        { examNumber: 1, afterLessons: [3], durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 1 (الدورة 2)', topics: 'الإحصاء (الجداول الإحصائية، وسيطات الوضع والتشتت، والمبيانات)' },
-                        { examNumber: 2, afterLessons: [4], durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 2 (الدورة 2)', topics: 'الدوال العددية والدوال المرجعية والتمثيل المبياني' }
+                        { examNumber: 1, afterLessons: [4], week: 'الأسبوع 8 من الدورة 2', correctionWeek: 'الأسبوع 9', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 4', homeworkCorrectionWeek: 'الأسبوع 7', durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 1 (الدورة 2)', officialWeights: 'الهندسة المستوية (40%) + الدوال العددية (60%)', topics: 'الهندسة المستوية: المعلم في المستوى ومعادلة مستقيم (40%) + عموميات حول الدوال العددية (60%)' },
+                        { examNumber: 2, afterLessons: [5], week: 'الأسبوع 15 من الدورة 2', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 11', homeworkCorrectionWeek: 'الأسبوع 14', durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 2 (الدورة 2)', officialWeights: 'الهندسة المستوية (40%) + الدوال العددية (60%)', topics: 'الهندسة المستوية (40%) + الدوال العددية والدوال المرجعية والتمثيل المبياني (60%)' }
                     ],
                     lessons: [
                         {
-                            order: 3,
-                            title: 'الإحصاء',
-                            frenchTitle: 'Statistiques',
+                            order: 4,
+                            title: 'الهندسة المستوية (المعلم في المستوى ومعادلة مستقيم)',
+                            frenchTitle: 'Géométrie plane : Repère dans le plan et équation d\'une droite',
                             hours: 12,
-                            competency: 'تنظيم المعطيات الإحصائية في جداول، حساب وسيطات الوضع (المنوال، المعدل الحسابي، القيمة الوسطية) ووسيطات التشتت، وتمثيلها مبيانياً.',
+                            competency: 'توظيف المعلم في المستوى وإحداثيات نقطة ومتجهة وشرط استقامية متجهتين لتحديد المعادلة الديكارتية والمختصرة لمستقيم ودراسة الأوضاع النسبية لمستقيمين (التوجيهات التربوية 2007 ص 52).',
                             axes: [
-                                { title: 'تنظيم المعطيات: الحصيصات والترددات والنسب المئوية', desc: 'المتسلسلات الإحصائية بالقيم وبالأصناف والحصيصات والترددات المتجمعة' },
-                                { title: 'وسيطات الوضع ووسيطات التشتت', desc: 'المنوال، المعدل الحسابي، القيمة الوسطية، والانحراف المتوسط والمغايرة' },
-                                { title: 'التمثيلات المبيانية وتأويل المعطيات الإحصائية', desc: 'المخطط بالأعمدة، المخطط العصوي، المضلع الإحصائي، والمخطط القطاعي' }
+                                { title: 'المعلم في المستوى، إحداثيات نقطة ومتجهة، والمسافة ومنتصف قطعة', desc: 'حساب إحداثيات متجهة ومنتصف قطعة والمسافة بين نقطتين في معلم متعامد ممنظم' },
+                                { title: 'شرط استقامية متجهتين ومحددة متجهتين det(u,v)', desc: 'استقامية ثلاث نقط وتوازي مستقيمين باستعمال المحددة' },
+                                { title: 'المعادلة الديكارتية والمعادلة المختصرة لمستقيم والأوضاع النسبية', desc: 'تحديد الميل والأرتوب عند الأصل، تقاطع وتوازي وتعامد مستقيمين، وحل النظمات مبيانياً' }
                             ]
                         },
                         {
-                            order: 4,
+                            order: 5,
                             title: 'الدوال العددية',
                             frenchTitle: 'Fonctions numériques',
                             hours: 16,
@@ -1307,12 +1337,14 @@
             cycle: 'السلك الثانوي التأهيلي (الإطار المرجعي للامتحان الوطني الموحد)',
             stream: 'شعبة العلوم الاقتصادية والتدبير (مسلك العلوم الاقتصادية SE ومسلك علوم التدبير المحاسباتي SGC)',
             totalOfficialHours: 136,
+            netLessonsHours: 108,
+            evalAndSupportHours: 28,
             weeklyHours: 4,
             coefficient: 4,
             examsPerSemester: 3,
             examDuration: 2,
             homeworkPerSemester: 3,
-            note142Summary: '4 ساعات أسبوعياً | المعامل: 4 | 3 فروض محروسة في كل دورة (مدة كل فرض ساعتان 2h) + 3 فروض منزلية في كل دورة (المذكرة 142-08).',
+            note142Summary: '4 ساعات أسبوعياً | المعامل: 4 | 3 فروض محروسة في كل دورة (مدة كل فرض ساعتان 2h) + 3 فروض منزلية في كل دورة (المذكرة 142-08، الجدول 10 ص 7).',
             cadreReferentiel: {
                 examType: 'الامتحان الوطني الموحد للبكالوريا (شعبة العلوم الاقتصادية والتدبير - المدة: ساعتان ونصف 2h30 | المعامل: 4)',
                 domains: [
@@ -1321,9 +1353,9 @@
                     { domain: 'المجال الرئيسي الثاني: حساب الاحتمالات والمتغيرات العشوائية والقانون الحدي', weight: 35 }
                 ],
                 taxonomyLevels: [
-                    { level: 'تطبيق مباشر للمعارف (تعريف، خاصية، مبرهنة، صيغة، قاعدة حساب)', weight: 40 },
-                    { level: 'استحضار وتطبيق معارف غير معلنة في وضعيات مألوفة (تحليلية أو اقتصادية)', weight: 45 },
-                    { level: 'معالجة وضعيات غير مألوفة بتوليف النتائج وتأويلها الاقتصادي', weight: 15 }
+                    { level: 'المستوى المهاري 1: تطبيق مباشر للمعارف (تعريف، خاصية، مبرهنة، صيغة، قاعدة حساب)', weight: 40 },
+                    { level: 'المستوى المهاري 2: استحضار وتطبيق معارف غير معلنة في وضعيات مألوفة (تحليلية أو اقتصادية)', weight: 45 },
+                    { level: 'المستوى المهاري 3: معالجة وضعيات غير مألوفة بتوليف النتائج (10% إلى 20% حسب المذكرة 142-08)', weight: 15 }
                 ]
             },
             semesters: {
@@ -1331,9 +1363,9 @@
                     id: 's1',
                     name: 'الأسدوس الأول (الدورة الأولى - 17 أسبوعاً)',
                     examSchedule: [
-                        { examNumber: 1, afterLessons: [1, 2], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 1)', topics: 'الاتصال والنهايات + الاشتقاق ودراسة الدوال' },
-                        { examNumber: 2, afterLessons: [3], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 1)', topics: 'المتتاليات العددية وتطبيقاتها الاقتصادية' },
-                        { examNumber: 3, afterLessons: [4, 5], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 1)', topics: 'الدوال الأصلية + الدوال اللوغاريتمية' }
+                        { examNumber: 1, afterLessons: [1, 2], week: 'الأسبوع 6 من الدورة 1', correctionWeek: 'الأسبوع 7', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 3', homeworkCorrectionWeek: 'الأسبوع 5', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 1)', officialWeights: 'الاتصال والاشتقاق ودراسة الدوال (100%)', topics: 'الاتصال والنهايات + الاشتقاق ودراسة الدوال (100%)' },
+                        { examNumber: 2, afterLessons: [3], week: 'الأسبوع 11 من الدورة 1', correctionWeek: 'الأسبوع 12', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 8', homeworkCorrectionWeek: 'الأسبوع 10', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 1)', officialWeights: 'الاتصال والاشتقاق ودراسة الدوال (20%) + المتتاليات العددية (80%)', topics: 'الاتصال والاشتقاق ودراسة الدوال (20%) + المتتاليات العددية وتطبيقاتها الاقتصادية (80%)' },
+                        { examNumber: 3, afterLessons: [4, 5], week: 'الأسبوع 15 من الدورة 1', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 3', homeworkWeek: 'الأسبوع 12', homeworkCorrectionWeek: 'الأسبوع 14', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 1)', officialWeights: 'المتتاليات العددية (70%) + الدوال الأصلية واللوغاريتمية (30%)', topics: 'المتتاليات العددية (70%) + الدوال الأصلية والدوال اللوغاريتمية (30%)' }
                     ],
                     lessons: [
                         {
@@ -1400,9 +1432,9 @@
                     id: 's2',
                     name: 'الأسدوس الثاني (الدورة الثانية - 17 أسبوعاً)',
                     examSchedule: [
-                        { examNumber: 1, afterLessons: [6], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 2)', topics: 'الدوال الأسية النبيرية وتطبيقاتها الاقتصادية' },
-                        { examNumber: 2, afterLessons: [7], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 2)', topics: 'الحساب التكاملي وحساب المساحات' },
-                        { examNumber: 3, afterLessons: [8], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 2)', topics: 'حساب الاحتمالات + مسألة شاملة وفق الإطار المرجعي للامتحان الوطني' }
+                        { examNumber: 1, afterLessons: [6], week: 'الأسبوع 6 من الدورة 2', correctionWeek: 'الأسبوع 7', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 3', homeworkCorrectionWeek: 'الأسبوع 5', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 2)', officialWeights: 'الدوال اللوغاريتمية (70%) + الدوال الأسية (30%)', topics: 'الدوال اللوغاريتمية (70%) + الدوال الأسية النبيرية وتطبيقاتها الاقتصادية (30%)' },
+                        { examNumber: 2, afterLessons: [7], week: 'الأسبوع 12 من الدورة 2', correctionWeek: 'الأسبوع 13', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 9', homeworkCorrectionWeek: 'الأسبوع 11', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 2)', officialWeights: 'الدوال الأسية (40%) + الحساب التكاملي (60%)', topics: 'الدوال الأسية (40%) + الحساب التكاملي وحساب المساحات (60%)' },
+                        { examNumber: 3, afterLessons: [8], week: 'الأسبوع 15 من الدورة 2', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 3', homeworkWeek: 'الأسبوع 13', homeworkCorrectionWeek: 'الأسبوع 15', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 2)', officialWeights: 'الحساب التكاملي (30%) + حساب الاحتمالات (70%)', topics: 'الحساب التكاملي (30%) + حساب الاحتمالات (70%) + مسألة شاملة وفق الإطار المرجعي للامتحان الوطني' }
                     ],
                     lessons: [
                         {
@@ -1451,22 +1483,24 @@
             cycle: 'السلك الثانوي التأهيلي',
             stream: 'شعبة العلوم الاقتصادية والتدبير',
             totalOfficialHours: 136,
+            netLessonsHours: 114,
+            evalAndSupportHours: 22,
             weeklyHours: 4,
             coefficient: 4,
             examsPerSemester: 3,
             examDuration: 2,
             homeworkPerSemester: 3,
-            note142Summary: '4 ساعات أسبوعياً | المعامل: 4 | 3 فروض محروسة في كل دورة (مدة كل فرض ساعتان 2h) + 3 فروض منزلية في كل دورة (المذكرة 142-08).',
+            note142Summary: '4 ساعات أسبوعياً | المعامل: 4 | 3 فروض محروسة في كل دورة (مدة كل فرض ساعتان 2h) + 3 فروض منزلية في كل دورة (المذكرة 142-08، الجدول 6 ص 5).',
             cadreReferentiel: {
-                examType: 'فروض المراقبة المستمرة (المذكرة 142-08) + التوجيهات التربوية لشعبة العلوم الاقتصادية والتدبير',
+                examType: 'فروض المراقبة المستمرة (المذكرة 142-08 - الجدول 6) + التوجيهات التربوية لشعبة العلوم الاقتصادية والتدبير (ص 65-69)',
                 domains: [
-                    { domain: 'المجال الأول: الجبر والمنطق والمصفوفات والتعداد (المنطق، المعادلات والنظمات، المصفوفات، التعداد)', weight: 45 },
-                    { domain: 'المجال الثاني: التحليل والرياضيات المالية (عموميات الدوال، المتتاليات، النهايات، الاشتقاق ودراسة الدوال)', weight: 55 }
+                    { domain: 'المجال الأول: الجبر والمنطق والتعداد والمصفوفات (المنطق، المعادلات والنظمات، التعداد، المصفوفات)', weight: 45 },
+                    { domain: 'المجال الثاني: التحليل والرياضيات المالية (عموميات الدوال، المتتاليات، اللوغاريتم العشري، النهايات، الاشتقاق ودراسة الدوال)', weight: 55 }
                 ],
                 taxonomyLevels: [
-                    { level: 'تطبيق مباشر للقواعد والصيغ الجبرية والتحليلية', weight: 45 },
-                    { level: 'توظيف الأدوات الرياضية في وضعيات اقتصادية ومالية مألوفة', weight: 40 },
-                    { level: 'حل مسائل توليفية واستمثال اقتصادي', weight: 15 }
+                    { level: 'المستوى المهاري 1: تطبيق مباشر للقواعد والصيغ الجبرية والتحليلية', weight: 45 },
+                    { level: 'المستوى المهاري 2: توظيف الأدوات الرياضية في وضعيات اقتصادية ومالية مألوفة', weight: 40 },
+                    { level: 'المستوى المهاري 3: حل مسائل توليفية واستمثال اقتصادي (10% إلى 20% حسب المذكرة 142-08)', weight: 15 }
                 ]
             },
             semesters: {
@@ -1474,9 +1508,9 @@
                     id: 's1',
                     name: 'الدورة الأولى (الأسدوس الأول - 17 أسبوعاً)',
                     examSchedule: [
-                        { examNumber: 1, afterLessons: [1, 2], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 1)', topics: 'مبادئ في المنطق + الحساب العددي والتناسبية والمعادلات والنظمات' },
-                        { examNumber: 2, afterLessons: [3, 4], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 1)', topics: 'عموميات حول الدوال العددية + المتتاليات العددية' },
-                        { examNumber: 3, afterLessons: [5], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 1)', topics: 'المصفوفات والعمليات عليها وحل النظمات' }
+                        { examNumber: 1, afterLessons: [1, 2], week: 'الأسبوع 6 من الدورة 1', correctionWeek: 'الأسبوع 7', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 3', homeworkCorrectionWeek: 'الأسبوع 5', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 1)', officialWeights: 'مبادئ في المنطق (40%) + المعادلات والمتراجحات والنظمات (60%)', topics: 'مبادئ في المنطق (40%) + الحساب العددي والتناسبية والمعادلات والمتراجحات والنظمات (60%)' },
+                        { examNumber: 2, afterLessons: [3, 4], week: 'الأسبوع 11 من الدورة 1', correctionWeek: 'الأسبوع 12', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 8', homeworkCorrectionWeek: 'الأسبوع 10', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 1)', officialWeights: 'عموميات حول الدوال (65%) + المتتاليات العددية (35%)', topics: 'عموميات حول الدوال العددية (65%) + المتتاليات العددية (35%)' },
+                        { examNumber: 3, afterLessons: [5], week: 'الأسبوع 15 من الدورة 1', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 3', homeworkWeek: 'الأسبوع 12', homeworkCorrectionWeek: 'الأسبوع 14', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 1)', officialWeights: 'المتتاليات العددية (40%) + التعداد (60%)', topics: 'المتتاليات العددية وتطبيقاتها المالية (40%) + التعداد (الحساب التوافقي) (60%)' }
                     ],
                     lessons: [
                         {
@@ -1496,7 +1530,7 @@
                             order: 2,
                             title: 'الحساب العددي: التناسبية، المعادلات والمتراجحات والنظمات',
                             frenchTitle: 'Calcul numérique : Proportionnalité, Équations et Systèmes',
-                            hours: 14,
+                            hours: 12,
                             competency: 'توظيف النسب المئوية والتناسبية وحل المعادلات من الدرجة الثانية والنظمات في مسائل اقتصادية ومالية.',
                             axes: [
                                 { title: 'التناسبية والنسب المئوية والتغيرات النسبية', desc: 'النسبة المئوية للزيادة والتخفيض، المعامل الضربي، والأسعار في المعاملات الاقتصادية' },
@@ -1521,7 +1555,7 @@
                             order: 4,
                             title: 'المتتاليات العددية وتطبيقاتها المالية',
                             frenchTitle: 'Suites numériques et mathématiques financières',
-                            hours: 14,
+                            hours: 12,
                             competency: 'دراسة المتتاليات الحسابية والهندسية وتوظيفها في حساب الفوائد البسيطة والمركبة.',
                             axes: [
                                 { title: 'عموميات حول المتتاليات: الرتابة والكف', desc: 'المتتاليات المكبورة والمصغورة ورتابة متتالية عددية' },
@@ -1531,13 +1565,13 @@
                         {
                             id: '1baceco_s1_05',
                             order: 5,
-                            title: 'المصفوفات والعمليات عليها',
-                            frenchTitle: 'Matrices et calcul matriciel',
-                            hours: 10,
-                            competency: 'إنجاز العمليات الجبرية على المصفوفات المربعة من الرتبة 2 و 3 وحساب مقلوب مصفوفة وتوظيفها في حل النظمات الخطية.',
+                            title: 'التعداد (الحساب التوافقي)',
+                            frenchTitle: 'Dénombrement (Analyse combinatoire)',
+                            hours: 12,
+                            competency: 'استعمال المبدأ الأساسي للتعداد والترتيبات والتبديلات والتأليفات في حل مسائل التعداد (الفرض المحروس 3 للدورة 1 وفق المذكرة 142-08).',
                             axes: [
-                                { title: 'عموميات حول المصفوفات والعمليات الجبرية', desc: 'جمع مصفوفتين، ضرب مصفوفة في عدد حقيقي، وجداء مصفوفتين' },
-                                { title: 'المصفوفة المربعة ومقلوب مصفوفة وحل النظمات الخطية', desc: 'مصفوفة الوحدة I_n، مقلوب مصفوفة من الرتبة 2 أو 3، وحل النظمة AX = B' }
+                                { title: 'رئيسي مجموعة منتهية والمبدأ الأساسي للتعداد', desc: 'العمليات على المجموعات المنتهية، مبدأ الجداء، وشجرة الاختيارات' },
+                                { title: 'الترتيبات A_n^p والتبديلات n! والتأليفات C_n^p', desc: 'السحب بالتتابع (بإحلال وبدون إحلال) والسحب في آن واحد وخصائص C_n^p' }
                             ]
                         }
                     ]
@@ -1546,29 +1580,41 @@
                     id: 's2',
                     name: 'الدورة الثانية (الأسدوس الثاني - 17 أسبوعاً)',
                     examSchedule: [
-                        { examNumber: 1, afterLessons: [6], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 2)', topics: 'التعداد (الحساب التوافقي)' },
-                        { examNumber: 2, afterLessons: [7, 8], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 2)', topics: 'نهايات الدوال العددية + الاشتقاق', },
-                        { examNumber: 3, afterLessons: [9], durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 2)', topics: 'دراسة الدوال العددية وتمثيلها المبياني وتطبيقاتها الاقتصادية' }
+                        { examNumber: 1, afterLessons: [6, 7], week: 'الأسبوع 6 من الدورة 2', correctionWeek: 'الأسبوع 7', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 3', homeworkCorrectionWeek: 'الأسبوع 5', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 1 (الدورة 2)', officialWeights: 'المصفوفات والنظمات (60%) + اللوغاريتم العشري (40%)', topics: 'المصفوفات والعمليات عليها وحل النظمات (60%) + اللوغاريتم العشري (40%)' },
+                        { examNumber: 2, afterLessons: [8, 9], week: 'الأسبوع 12 من الدورة 2', correctionWeek: 'الأسبوع 13', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 9', homeworkCorrectionWeek: 'الأسبوع 11', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 2 (الدورة 2)', officialWeights: 'النهايات (50%) + الاشتقاق (50%)', topics: 'نهايات الدوال العددية (50%) + الاشتقاق وتطبيقاته (50%)' },
+                        { examNumber: 3, afterLessons: [10], week: 'الأسبوع 15 من الدورة 2', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 3', homeworkWeek: 'الأسبوع 13', homeworkCorrectionWeek: 'الأسبوع 15', durationHours: 2, correctionHours: 2, title: 'الفرض المحروس رقم 3 (الدورة 2)', officialWeights: 'دراسة الدوال (100%)', topics: 'دراسة الدوال العددية وتمثيلها المبياني وتطبيقاتها الاقتصادية (100%)' }
                     ],
                     lessons: [
                         {
                             id: '1baceco_s2_01',
                             order: 6,
-                            title: 'التعداد (الحساب التوافقي)',
-                            frenchTitle: 'Dénombrement (Analyse combinatoire)',
-                            hours: 14,
-                            competency: 'استعمال المبدأ الأساسي للتعداد والترتيبات والتبديلات والتأليفات في حل مسائل التعداد.',
+                            title: 'المصفوفات والنظمات (الحساب المصفوفي)',
+                            frenchTitle: 'Matrices et systèmes linéaires',
+                            hours: 10,
+                            competency: 'إنجاز العمليات الجبرية على المصفوفات المربعة من الرتبة 2 و 3 وحساب مقلوب مصفوفة وتوظيفها في حل النظمات الخطية (التوجيهات التربوية 2007 ص 68 والمذكرة 142-08 الجدول 6).',
                             axes: [
-                                { title: 'رئيسي مجموعة منتهية والمبدأ الأساسي للتعداد', desc: 'العمليات على المجموعات المنتهية، مبدأ الجداء، وشجرة الاختيارات' },
-                                { title: 'الترتيبات A_n^p والتبديلات n! والتأليفات C_n^p', desc: 'السحب بالتتابع (بإحلال وبدون إحلال) والسحب في آن واحد وخصائص C_n^p' }
+                                { title: 'عموميات حول المصفوفات والعمليات الجبرية (الجمع والضرب)', desc: 'جمع مصفوفتين، ضرب مصفوفة في عدد حقيقي، وجداء مصفوفتين من الرتبة 2 و 3' },
+                                { title: 'المصفوفة المربعة ومقلوب مصفوفة وحل النظمات الخطية AX = B', desc: 'مصفوفة الوحدة I_n، مقلوب مصفوفة، وتطبيقات الحساب المصفوفي في الاقتصاد والتدبير' }
                             ]
                         },
                         {
                             id: '1baceco_s2_02',
                             order: 7,
+                            title: 'اللوغاريتم العشري (Logarithme décimal)',
+                            frenchTitle: 'Logarithme décimal (log)',
+                            hours: 6,
+                            competency: 'التعرف على دالة اللوغاريتم العشري log وخاصياتها الجبرية وتوظيفها في حل المعادلات والمتراجحات من الشكل a^x = b وفي حساب مدد التوظيفات المالية والفوائد المركبة (التوجيهات التربوية 2007 ص 68 والمذكرة 142-08 الجدول 6).',
+                            axes: [
+                                { title: 'تعريف اللوغاريتم العشري log(x) والخاصيات الجبرية الأساسية', desc: 'العلاقة log(10^r) = r، خاصيات log(a·b) = log(a)+log(b) و log(a^n) = n·log(a)' },
+                                { title: 'المعادلات والمتراجحات الأسية واللوغاريتمية العشرية وتطبيقات الرياضيات المالية', desc: 'حل معادلات ومتراجحات من الشكل a^x = b أو (1+t)^n ≥ k وتحديد مدة التوظيف المالي n' }
+                            ]
+                        },
+                        {
+                            id: '1baceco_s2_03',
+                            order: 8,
                             title: 'نهاية دالة عددية',
                             frenchTitle: 'Limite d\'une fonction numérique',
-                            hours: 14,
+                            hours: 12,
                             competency: 'حساب نهايات الدوال الحدودية والجذرية واللا جذرية عند نقطة وعند اللانهاية وتحديد المقاربات.',
                             axes: [
                                 { title: 'النهاية المنتهية واللانهائية عند نقطة وعند ±∞', desc: 'نهايات الدوال المرجعية، النهاية على اليمين وعلى اليسار' },
@@ -1576,11 +1622,11 @@
                             ]
                         },
                         {
-                            id: '1baceco_s2_03',
-                            order: 8,
+                            id: '1baceco_s2_04',
+                            order: 9,
                             title: 'الاشتقاق وتطبيقاته',
                             frenchTitle: 'Dérivation et applications',
-                            hours: 14,
+                            hours: 12,
                             competency: 'حساب الدوال المشتقة، تحديد معادلة المماس، ودراسة رتابة الدوال ومطاريفها.',
                             axes: [
                                 { title: 'الاشتقاق في نقطة، معادلة المماس، والعمليات على الدوال المشتقة', desc: 'العدد المشتق، التأويل الهندسي، ومشتقات الدوال الاعتيادية والمركبة' },
@@ -1588,11 +1634,11 @@
                             ]
                         },
                         {
-                            id: '1baceco_s2_04',
-                            order: 9,
+                            id: '1baceco_s2_05',
+                            order: 10,
                             title: 'دراسة الدوال العددية وتمثيلها المبياني',
                             frenchTitle: 'Étude et représentation des fonctions numériques',
-                            hours: 18,
+                            hours: 16,
                             competency: 'دراسة وتمثيل الدوال الحدودية من الدرجة الثانية والثالثة والدوال الجذرية واللا جذرية البسيطة وتأويلها الاقتصادي.',
                             axes: [
                                 { title: 'الفروع اللانهائية والمقاربات وعناصر التماثل', desc: 'المقارب الأفقي والعمودي والمائل ومركز ومحور التماثل' },
@@ -1611,12 +1657,14 @@
             cycle: 'السلك الثانوي التأهيلي (الإطار المرجعي للامتحان الجهوي الموحد)',
             stream: 'شعبة الآداب والعلوم الإنسانية وشعبة التعليم الأصيل',
             totalOfficialHours: 68,
+            netLessonsHours: 62,
+            evalAndSupportHours: 6,
             weeklyHours: 2,
             coefficient: 1,
             examsPerSemester: 2,
             examDuration: 1,
             homeworkPerSemester: 2,
-            note142Summary: 'ساعتان (2h) أسبوعياً | المعامل: 1 (والمعامل 2 لشعبة الفنون التطبيقية) | فرضان محروسان (2) في كل دورة (مدة كل فرض ساعة واحدة 1h) + فرضان منزليان في كل دورة (المذكرة 142-08).',
+            note142Summary: 'ساعتان (2h) أسبوعياً | المعامل: 1 (والمعامل 2 لشعبة الفنون التطبيقية) | فرضان محروسان (2) في كل دورة (مدة كل فرض ساعة واحدة 1h) + فرضان منزليان في كل دورة (المذكرة 142-08، الجدول 3 ص 3).',
             cadreReferentiel: {
                 examType: 'الامتحان الجهوي الموحد للسنة الأولى من سلك البكالوريا (الأدبي والأصيل - المدة: ساعة ونصف 1h30 | المعامل: 1)',
                 domains: [
@@ -1626,9 +1674,8 @@
                     { domain: 'المجال الرئيسي الثالث: التحليل - الدوال العددية (النهايات، الاشتقاق، ودراسة وتمثيل الدوال الحدودية والمتخاطة)', weight: 40 }
                 ],
                 taxonomyLevels: [
-                    { level: 'تطبيق مباشر للمعارف (تعريف، خاصية، خوارزمية، صيغة)', weight: 50 },
-                    { level: 'استحضار وتطبيق معارف غير معلنة في وضعيات مألوفة', weight: 40 },
-                    { level: 'معالجة وضعيات غير مألوفة (ترييض وحل المسائل)', weight: 10 }
+                    { level: 'المستوى المهاري 1 (المذكرة 142-08 ص 9): تطبيق مباشر للمعارف (تعريف، خاصية، خوارزمية، صيغة) - 60% في الفروض المحروسة (50% في الامتحان الجهوي)', weight: 60 },
+                    { level: 'المستوى المهاري 2 (المذكرة 142-08 ص 9): استحضار وتطبيق معارف غير معلنة في وضعيات مألوفة - 40% في الفروض المحروسة', weight: 40 }
                 ]
             },
             semesters: {
@@ -1636,8 +1683,8 @@
                     id: 's1',
                     name: 'الدورة الأولى (الأسدوس الأول - 17 أسبوعاً)',
                     examSchedule: [
-                        { examNumber: 1, afterLessons: [1, 2], durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 1 (الدورة 1)', topics: 'مبادئ في المنطق + الحساب العددي والتناسبية والمعادلات والمتراجحات والنظمات' },
-                        { examNumber: 2, afterLessons: [3, 4], durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 2 (الدورة 1)', topics: 'عموميات حول الدوال العددية + المتتاليات الحسابية والهندسية' }
+                        { examNumber: 1, afterLessons: [1, 2], week: 'الأسبوع 8 من الدورة 1', correctionWeek: 'الأسبوع 9', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 4', homeworkCorrectionWeek: 'الأسبوع 7', durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 1 (الدورة 1)', officialWeights: 'مبادئ في المنطق (30%) + الحساب العددي (70%)', topics: 'مبادئ في المنطق (30%) + الحساب العددي والتناسبية والمعادلات والمتراجحات والنظمات (70%)' },
+                        { examNumber: 2, afterLessons: [3, 4], week: 'الأسبوع 15 من الدورة 1', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 11', homeworkCorrectionWeek: 'الأسبوع 14', durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 2 (الدورة 1)', officialWeights: 'عموميات حول الدوال (50%) + المتتاليات العددية (50%)', topics: 'عموميات حول الدوال العددية (50%) + المتتاليات الحسابية والهندسية (50%)' }
                     ],
                     lessons: [
                         {
@@ -1695,8 +1742,8 @@
                     id: 's2',
                     name: 'الدورة الثانية (الأسدوس الثاني - 17 أسبوعاً)',
                     examSchedule: [
-                        { examNumber: 1, afterLessons: [5], durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 1 (الدورة 2)', topics: 'التعداد (المبدأ الأساسي للتعداد، الترتيبات، التبديلات، التأليفات)' },
-                        { examNumber: 2, afterLessons: [6, 7], durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 2 (الدورة 2)', topics: 'النهايات والاشتقاق ودراسة وتمثيل الدوال الحدودية والمتخاطة (تحضير الامتحان الجهوي)' }
+                        { examNumber: 1, afterLessons: [5], week: 'الأسبوع 8 من الدورة 2', correctionWeek: 'الأسبوع 9', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 4', homeworkCorrectionWeek: 'الأسبوع 7', durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 1 (الدورة 2)', officialWeights: 'التعداد (50%) + النهايات (50%)', topics: 'التعداد (المبدأ الأساسي للتعداد، الترتيبات، التبديلات، التأليفات) (50%) + النهايات (50%)' },
+                        { examNumber: 2, afterLessons: [6, 7], week: 'الأسبوع 15 من الدورة 2', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 11', homeworkCorrectionWeek: 'الأسبوع 14', durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 2 (الدورة 2)', officialWeights: 'الاشتقاق (40%) + دراسة وتمثيل الدوال (60%)', topics: 'الاشتقاق (40%) + دراسة وتمثيل الدوال الحدودية والمتخاطة (60%)' }
                     ],
                     lessons: [
                         {
@@ -1747,12 +1794,14 @@
             cycle: 'السلك الثانوي التأهيلي (الإطار المرجعي للامتحان الوطني الموحد)',
             stream: 'مسلك الآداب ومسلك العلوم الإنسانية ومسلك اللغة العربية (التعليم الأصيل)',
             totalOfficialHours: 68,
+            netLessonsHours: 60,
+            evalAndSupportHours: 8,
             weeklyHours: 2,
             coefficient: 1,
             examsPerSemester: 2,
             examDuration: 1,
             homeworkPerSemester: 2,
-            note142Summary: 'ساعتان (2h) أسبوعياً | المعامل: 1 (والمعامل 2 لشعبة الفنون التطبيقية) | فرضان محروسان (2) في كل دورة (مدة كل فرض ساعة واحدة 1h) + فرضان منزليان في كل دورة (المذكرة 142-08).',
+            note142Summary: 'ساعتان (2h) أسبوعياً | المعامل: 1 (والمعامل 2 لشعبة الفنون التطبيقية) | فرضان محروسان (2) في كل دورة (مدة كل فرض ساعة واحدة 1h) + فرضان منزليان في كل دورة (المذكرة 142-08، الجدول 11 ص 8).',
             cadreReferentiel: {
                 examType: 'الامتحان الوطني الموحد للبكالوريا (مسالك الآداب والعلوم الإنسانية والتعليم الأصيل - المدة: ساعتان 2h | المعامل: 1)',
                 domains: [
@@ -1761,9 +1810,8 @@
                     { domain: 'المجال الرئيسي الثاني: حساب الاحتمالات (تساوي الاحتمالات، الاحتمال الشرطي، الاستقلالية، والمتغير العشوائي)', weight: 25 }
                 ],
                 taxonomyLevels: [
-                    { level: 'تطبيق مباشر للمعارف (تعريف، خاصية، خوارزمية، صيغة)', weight: 50 },
-                    { level: 'استحضار وتطبيق معارف غير معلنة في وضعيات مألوفة', weight: 40 },
-                    { level: 'معالجة وضعيات غير مألوفة بتوليف النتائج', weight: 10 }
+                    { level: 'المستوى المهاري 1 (المذكرة 142-08 ص 9): تطبيق مباشر للمعارف (تعريف، خاصية، خوارزمية، صيغة) - 60% في الفروض المحروسة', weight: 60 },
+                    { level: 'المستوى المهاري 2 (المذكرة 142-08 ص 9): استحضار وتطبيق معارف غير معلنة في وضعيات مألوفة - 40% في الفروض المحروسة', weight: 40 }
                 ]
             },
             semesters: {
@@ -1771,8 +1819,8 @@
                     id: 's1',
                     name: 'الدورة الأولى (الأسدوس الأول - 17 أسبوعاً)',
                     examSchedule: [
-                        { examNumber: 1, afterLessons: [1], durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 1 (الدورة 1)', topics: 'المتتاليات العددية ونهاية متتالية' },
-                        { examNumber: 2, afterLessons: [2], durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 2 (الدورة 1)', topics: 'النهايات والاشتقاق ودراسة الدوال ودالة اللوغاريتم النبيري ln' }
+                        { examNumber: 1, afterLessons: [1], week: 'الأسبوع 8 من الدورة 1', correctionWeek: 'الأسبوع 9', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 4', homeworkCorrectionWeek: 'الأسبوع 7', durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 1 (الدورة 1)', officialWeights: 'المتتاليات الترجعية (70%) + نهاية المتتاليات العددية (30%)', topics: 'المتتاليات الترجعية والحسابية والهندسية (70%) + نهاية المتتاليات العددية (30%)' },
+                        { examNumber: 2, afterLessons: [2], week: 'الأسبوع 15 من الدورة 1', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 11', homeworkCorrectionWeek: 'الأسبوع 14', durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 2 (الدورة 1)', officialWeights: 'نهاية المتتاليات العددية (30%) + حساب الاحتمالات (70%)', topics: 'نهاية المتتاليات العددية (30%) + حساب الاحتمالات (70%)' }
                     ],
                     lessons: [
                         {
@@ -1806,8 +1854,8 @@
                     id: 's2',
                     name: 'الدورة الثانية (الأسدوس الثاني - 17 أسبوعاً)',
                     examSchedule: [
-                        { examNumber: 1, afterLessons: [3], durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 1 (الدورة 2)', topics: 'الدالة الأسية النبيرية (exp) ودراسة الدوال الأسية' },
-                        { examNumber: 2, afterLessons: [4], durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 2 (الدورة 2)', topics: 'حساب الاحتمالات + تمرين شامل وفق الإطار المرجعي للامتحان الوطني' }
+                        { examNumber: 1, afterLessons: [3], week: 'الأسبوع 8 من الدورة 2', correctionWeek: 'الأسبوع 9', homework: 'الفرض المنزلي رقم 1', homeworkWeek: 'الأسبوع 4', homeworkCorrectionWeek: 'الأسبوع 7', durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 1 (الدورة 2)', officialWeights: 'الاشتقاق ودراسة الدوال (60%) + الدالة اللوغاريتمية (40%)', topics: 'الاشتقاق ودراسة الدوال (60%) + الدالة اللوغاريتمية النبيرية (40%)' },
+                        { examNumber: 2, afterLessons: [4], week: 'الأسبوع 15 من الدورة 2', correctionWeek: 'الأسبوع 16', homework: 'الفرض المنزلي رقم 2', homeworkWeek: 'الأسبوع 11', homeworkCorrectionWeek: 'الأسبوع 14', durationHours: 1, correctionHours: 1, title: 'الفرض المحروس رقم 2 (الدورة 2)', officialWeights: 'الدالة اللوغاريتمية (30%) + الدالة الأسية النبيرية (70%)', topics: 'الدالة اللوغاريتمية النبيرية (30%) + الدالة الأسية النبيرية (70%)' }
                     ],
                     lessons: [
                         {
@@ -1989,13 +2037,21 @@
                     </div>
                     <!-- Action Buttons -->
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" onclick="window.openCurriculumMinisterialImportModal()" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(124,58,237,0.3);" title="استيراد مذكرة التقويم والتوجيهات التربوية والتوزيع الدوري وتحليلهم آلياً لتجويد المقرر">
-                            <span data-lucide="sparkles" data-size="15"></span>
-                            <span>استيراد وتحليل المذكرة والتوجيهات لتجويد التوزيع 🤖</span>
+                        <button type="button" onclick="window.openOfficialPdfViewerModal && window.openOfficialPdfViewerModal('/assets/aistudio/_____________________________________________________3a655c1c.pdf', 'التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات بالثانوي التأهيلي (نونبر 2007)', 'التوجيهات_التربوية_الرياضيات_الثانوي_التأهيلي_2007.pdf')" style="background: linear-gradient(135deg, #1e40af, #2563eb); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(37,99,235,0.28);" title="معاينة وتحميل النسخة الرسمية الكاملة من التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات (نونبر 2007)">
+                            <span data-lucide="book-open" data-size="15"></span>
+                            <span>التوجيهات التربوية الرسمية PDF</span>
                         </button>
-                        <button type="button" onclick="exportAnnualCurriculumPDF()" style="background: linear-gradient(135deg, #059669, #047857); color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(5,150,105,0.25);">
+                        <button type="button" onclick="window.openOfficialPdfViewerModal && window.openOfficialPdfViewerModal('/assets/aistudio/n14208_evalped_08_a6af9323.pdf', 'المذكرة الوزارية رقم 142-08 الخاصة بالتقويم التربوي لمادة الرياضيات بالثانوي التأهيلي', 'المذكرة_الوزارية_142_08_التقويم_التربوي_الرياضيات.pdf')" style="background: linear-gradient(135deg, #b45309, #d97706); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(217,119,6,0.28);" title="معاينة وتحميل المذكرة الوزارية رقم 142-08 الكاملة مع الجداول التفصيلية (1 إلى 12)">
+                            <span data-lucide="file-check-2" data-size="15"></span>
+                            <span>المذكرة الوزارية 142-08 PDF</span>
+                        </button>
+                        <button type="button" onclick="window.openCurriculumMinisterialImportModal()" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(124,58,237,0.3);" title="استيراد مذكرة التقويم والتوجيهات التربوية والتوزيع الدوري وتحليلهم آلياً لتجويد المقرر">
+                            <span data-lucide="sparkles" data-size="15"></span>
+                            <span>تحليل وتجويد التوزيع 🤖</span>
+                        </button>
+                        <button type="button" onclick="exportAnnualCurriculumPDF()" style="background: linear-gradient(135deg, #059669, #047857); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 800; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(5,150,105,0.25);">
                             <span data-lucide="printer" data-size="15"></span>
-                            <span>طبع واستخراج وثيقة التوزيع السنوي PDF</span>
+                            <span>طبع التوزيع السنوي PDF</span>
                         </button>
                     </div>
                 </div>
@@ -2008,29 +2064,32 @@
                             <span data-lucide="graduation-cap" data-size="15" style="color: #2563eb;"></span>
                             <span>اختر المستوى الدراسي والمقرر الوزاري المستهدف:</span>
                         </div>
-                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 8px; align-items: stretch; width: 100%;">
         `;
 
         // Render level toggle buttons
         const levels = [
-            { id: 'TCS', label: 'الجذع المشترك العلمي والتكنولوجي (TCS)', icon: '📐' },
-            { id: 'TCL', label: 'الجذع المشترك للآداب والعلوم الإنسانية (TCL)', icon: '📚' },
-            { id: '1BAC_EXP', label: 'الأولى باك علوم تجريبية وتكنولوجية (1BAC-SE)', icon: '🔬' },
-            { id: '1BAC_SM', label: 'الأولى باك علوم رياضية (1BAC-SM)', icon: '📐' },
-            { id: '1BAC_ECO', label: 'الأولى باك علوم اقتصادية والتدبير (1BAC-ECO)', icon: '📈' },
-            { id: '1BAC_LSH', label: 'الأولى باك آداب وعلوم إنسانية (1BAC SH / 1BAC LSH)', icon: '📖' },
-            { id: '2BAC_EXP', label: 'الثانية باك علوم تجريبية PC / SVT (2BAC-SE)', icon: '🎓' },
-            { id: '2BAC_SM', label: 'الثانية باك علوم رياضية أ و ب (2BAC-SM)', icon: '🏆' },
-            { id: '2BAC_ECO', label: 'الثانية باك علوم اقتصادية وتدبير (2BAC-ECO)', icon: '📊' },
-            { id: '2BAC_LSH', label: 'الثانية باك آداب وعلوم إنسانية (2BAC-LSH)', icon: '✒️' }
+            { id: 'TCS', label: 'الجذع المشترك العلمي والتكنولوجي', code: 'TCS', icon: '📐' },
+            { id: 'TCL', label: 'الجذع المشترك آداب وعلوم إنسانية', code: 'TCL', icon: '📚' },
+            { id: '1BAC_SM', label: 'الأولى باك علوم رياضية', code: '1BAC-SM', icon: '🧮' },
+            { id: '1BAC_EXP', label: 'الأولى باك علوم تجريبية وتكنولوجية', code: '1BAC-SE', icon: '🔬' },
+            { id: '1BAC_ECO', label: 'الأولى باك علوم اقتصادية والتدبير', code: '1BAC-ECO', icon: '📈' },
+            { id: '1BAC_LSH', label: 'الأولى باك آداب وعلوم إنسانية', code: '1BAC-LSH', icon: '📖' },
+            { id: '2BAC_SM', label: 'الثانية باك علوم رياضية (أ و ب)', code: '2BAC-SM', icon: '🏆' },
+            { id: '2BAC_EXP', label: 'الثانية باك علوم تجريبية (PC / SVT)', code: '2BAC-SE', icon: '🎓' },
+            { id: '2BAC_ECO', label: 'الثانية باك علوم اقتصادية والتدبير', code: '2BAC-ECO', icon: '📊' },
+            { id: '2BAC_LSH', label: 'الثانية باك آداب وعلوم إنسانية', code: '2BAC-LSH', icon: '✒️' }
         ];
 
         levels.forEach(lvl => {
             const isActive = lvl.id === _currentCurriculumLevel;
             html += `
-                <button type="button" onclick="setCurriculumLevel('${lvl.id}')" style="padding: 8px 16px; border-radius: 9px; font-size: 0.84rem; font-weight: 800; cursor: pointer; transition: all 0.2s; border: 1.5px solid ${isActive ? '#2563eb' : '#cbd5e1'}; background: ${isActive ? 'linear-gradient(135deg, #1e3a8a, #2563eb)' : '#ffffff'}; color: ${isActive ? '#ffffff' : '#334155'}; box-shadow: ${isActive ? '0 3px 8px rgba(37,99,235,0.25)' : 'none'}; display: inline-flex; align-items: center; gap: 6px;">
-                    <span>${lvl.icon}</span>
-                    <span>${lvl.label}</span>
+                <button type="button" onclick="setCurriculumLevel('${lvl.id}')" style="width: 100%; min-height: 52px; padding: 8px 10px; border-radius: 9px; font-size: 0.8rem; font-weight: 800; cursor: pointer; transition: all 0.18s ease; border: 1.5px solid ${isActive ? '#2563eb' : '#cbd5e1'}; background: ${isActive ? 'linear-gradient(135deg, #1e3a8a, #2563eb)' : '#ffffff'}; color: ${isActive ? '#ffffff' : '#1e293b'}; box-shadow: ${isActive ? '0 3px 10px rgba(37,99,235,0.24)' : '0 1px 2px rgba(15,23,42,0.04)'}; display: flex; align-items: center; justify-content: flex-start; gap: 8px; text-align: right; box-sizing: border-box;">
+                    <span style="width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 0.95rem; background: ${isActive ? 'rgba(255,255,255,0.16)' : '#f1f5f9'}; border: 1px solid ${isActive ? 'rgba(255,255,255,0.24)' : '#e2e8f0'};">${lvl.icon}</span>
+                    <span style="display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; min-width: 0; flex: 1; line-height: 1.25;">
+                        <span style="font-size: 0.78rem; font-weight: 800; color: ${isActive ? '#ffffff' : '#0f172a'};">${lvl.label}</span>
+                        <span style="font-size: 0.68rem; font-weight: 700; font-family: monospace; letter-spacing: 0.3px; color: ${isActive ? '#dbeafe' : '#64748b'};">${lvl.code}</span>
+                    </span>
                 </button>
             `;
         });
@@ -2061,7 +2120,8 @@
         const selectedClassContext = document.getElementById('curriculumClassSelect')?.value || currentClass;
         classList.forEach(c => {
             const isSel = c === selectedClassContext;
-            html += `<option value="${c}" ${isSel ? 'selected' : ''}>قسم: ${c}</option>`;
+            const safeCls = escapeHtml(c);
+            html += `<option value="${safeCls}" ${isSel ? 'selected' : ''}>قسم: ${safeCls}</option>`;
         });
 
         html += `
@@ -2084,6 +2144,9 @@
                 <!-- بطاقة المذكرة الوزارية 142-08 والإطار المرجعي للامتحانات -->
                 ${buildOfficialNote142AndCadreCardHTML(levelData)}
 
+                <!-- المصفوفة المرجعية التفاعلية للشعب والمسالك الـ 10 (التوجيهات التربوية 2007 + المذكرة 142-08) -->
+                ${buildAllTracksOfficialMatrixHTML(_currentCurriculumLevel)}
+
                 <!-- بطاقة التجويد البيداغوجي المعتمدة -->
                 ${buildCurriculumEnhancementBannerHTML(_currentCurriculumLevel, levelData)}
 
@@ -2098,6 +2161,98 @@
         if (window.lucide) window.lucide.createIcons();
     }
     window.renderAnnualCurriculumView = renderAnnualCurriculumView;
+
+    let _showAllTracksMatrix = false;
+    window.toggleAllTracksOfficialMatrix = function() {
+        _showAllTracksMatrix = !_showAllTracksMatrix;
+        renderAnnualCurriculumView();
+    };
+
+    /**
+     * بناء المصفوفة المرجعية الشاملة لجميع الشعب والمسالك الـ 10 بالتعليم الثانوي التأهيلي
+     * وفق التوجيهات التربوية (نونبر 2007) والمذكرة الوزارية 142-08 (الجداول 1 إلى 12 والصفحة 9)
+     */
+    function buildAllTracksOfficialMatrixHTML(activeLevelId) {
+        const trackOrder = ['TCS', 'TCL', '1BAC_EXP', '1BAC_SM', '1BAC_ECO', '1BAC_LSH', '2BAC_EXP', '2BAC_SM', '2BAC_ECO', '2BAC_LSH'];
+        const tableMap = {
+            TCS: 'جدول 1 (ص 2)',
+            TCL: 'جدول 2 (ص 3)',
+            '1BAC_LSH': 'جدول 3 (ص 3)',
+            '1BAC_EXP': 'جدول 4 (ص 3) و7 (AA)',
+            '1BAC_SM': 'جدول 5 (ص 4)',
+            '1BAC_ECO': 'جدول 6 (ص 5)',
+            '2BAC_EXP': 'جدول 8 (ص 6) و12 (AA)',
+            '2BAC_SM': 'جدول 9 (ص 7)',
+            '2BAC_ECO': 'جدول 10 (ص 7)',
+            '2BAC_LSH': 'جدول 11 (ص 8)'
+        };
+
+        const rowsHtml = trackOrder.map((id, idx) => {
+            const t = MOROCCAN_SECONDARY_MATH_CURRICULUM[id];
+            if (!t) return '';
+            const isSel = id === activeLevelId;
+            const s1Count = (t.semesters?.s1?.lessons || []).length;
+            const s2Count = (t.semesters?.s2?.lessons || []).length;
+            const isLiterary = (id === 'TCL' || id === '1BAC_LSH' || id === '2BAC_LSH');
+            const note142SkillLevels = isLiterary
+                ? '60% م1 (12ن) · 40% م2 (8ن)'
+                : 'م1 وم2 متوازنان · م3 (10%–20%)';
+            return `
+                <tr onclick="setCurriculumLevel('${id}')" style="cursor: pointer; background: ${isSel ? '#eff6ff' : (idx % 2 === 0 ? '#ffffff' : '#f8fafc')}; transition: background 0.15s;" onmouseover="if(!${isSel}) this.style.background='#f1f5f9';" onmouseout="if(!${isSel}) this.style.background='${idx % 2 === 0 ? '#ffffff' : '#f8fafc'}';">
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-weight: ${isSel ? '900' : '700'}; color: ${isSel ? '#1d4ed8' : '#0f172a'};">
+                        ${isSel ? '▸ ' : ''}${escapeHtml(t.name)}
+                    </td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-variant-numeric: tabular-nums; font-weight: 800; color: #1e3a8a;">${t.weeklyHours} س</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; color: #334155;">${t.totalOfficialHours} س</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-variant-numeric: tabular-nums; font-weight: 900; color: #047857;">${t.coefficient}</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-variant-numeric: tabular-nums; font-weight: 800; color: #7c3aed;">${t.examsPerSemester} فروض (${t.examDuration}س)</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-variant-numeric: tabular-nums; font-weight: 800; color: #b45309;">${t.homeworkPerSemester} منزلية</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; color: #334155;">${s1Count + s2Count} درساً (${s1Count}+${s2Count})</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 0.72rem; font-weight: 800; color: #1e3a8a; font-variant-numeric: tabular-nums;">${note142SkillLevels}</td>
+                    <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 0.72rem; font-weight: 800; color: #0369a1;">
+                        <span>${tableMap[id] || '-'}</span>
+                        <button type="button" onclick="event.stopPropagation(); window.openSpecificationTableFromCurriculum('${id}', 's1', 1)" style="margin-right: 6px; background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; border-radius: 5px; padding: 2px 6px; font-size: 0.68rem; font-weight: 800; cursor: pointer;" title="معاينة جدول التخصيص الرسمي لهذا المسلك">📐 تخصيص</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        return `
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; margin-bottom: 18px; overflow: hidden;">
+                <div onclick="window.toggleAllTracksOfficialMatrix()" style="padding: 11px 16px; background: #f8fafc; border-bottom: ${_showAllTracksMatrix ? '1px solid #cbd5e1' : 'none'}; display: flex; justify-content: space-between; align-items: center; cursor: pointer; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span style="font-size: 0.86rem; font-weight: 900; color: #0f172a;">📊 المصفوفة المقارنة الشاملة لجميع الشعب والمسالك الـ 10 (التوجيهات التربوية 2007 والمذكرة 142-08)</span>
+                        <span style="font-size: 0.74rem; color: #64748b; font-weight: 600;">انقر لمقارنة الحصص الأسبوعية، المعاملات، عدد الفروض ومدتها، والمستويات المهارية المعتمدة (ص 9) عبر المسالك</span>
+                    </div>
+                    <button type="button" style="background: #ffffff; color: #1e3a8a; border: 1px solid #cbd5e1; border-radius: 7px; padding: 4px 10px; font-size: 0.75rem; font-weight: 800; cursor: pointer;">
+                        ${_showAllTracksMatrix ? 'إخفاء المصفوفة ▲' : 'عرض مصفوفة الـ 10 مسالك ▼'}
+                    </button>
+                </div>
+                ${_showAllTracksMatrix ? `
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem; text-align: right;">
+                            <thead>
+                                <tr style="background: #f1f5f9; color: #1e293b; border-bottom: 1px solid #cbd5e1;">
+                                    <th style="padding: 9px 10px; font-weight: 900;">المستوى والشعبة / المسلك</th>
+                                    <th style="padding: 9px 10px; text-align: center; font-weight: 900;">الحصة/أسبوع</th>
+                                    <th style="padding: 9px 10px; text-align: center; font-weight: 900;">الغلاف السنوي</th>
+                                    <th style="padding: 9px 10px; text-align: center; font-weight: 900;">المعامل</th>
+                                    <th style="padding: 9px 10px; text-align: center; font-weight: 900;">الفروض المحروسة/دورة</th>
+                                    <th style="padding: 9px 10px; text-align: center; font-weight: 900;">الفروض المنزلية/دورة</th>
+                                    <th style="padding: 9px 10px; text-align: center; font-weight: 900;">عدد الدروس (د1+د2)</th>
+                                    <th style="padding: 9px 10px; text-align: center; font-weight: 900;">مستويات الفروض (ص 9)</th>
+                                    <th style="padding: 9px 10px; text-align: center; font-weight: 900;">جدول المذكرة 142-08</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
 
     /**
      * بناء بطاقة التأطير الوزاري: المذكرة 142-08 + التوجيهات التربوية + الإطار المرجعي للامتحانات
@@ -2116,65 +2271,71 @@
         const cadre = levelData.cadreReferentiel || null;
 
         return `
-            <div style="background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%); border: 1.5px solid #bfdbfe; border-right: 6px solid #1d4ed8; border-radius: 12px; padding: 16px 18px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(29, 78, 216, 0.06);">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; border-bottom: 1px dashed #bfdbfe; padding-bottom: 12px;">
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <span style="background: #1d4ed8; color: #fff; font-size: 0.74rem; font-weight: 900; padding: 3px 10px; border-radius: 999px;">
-                                المذكرة الوزارية رقم 142-08 والتوجيهات التربوية
-                            </span>
-                            <span style="background: #e0f2fe; color: #0369a1; font-size: 0.74rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; border: 1px solid #bae6fd;">
-                                ${levelData.stream || levelData.cycle}
-                            </span>
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 16px 18px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
+                    <div style="flex: 1; min-width: 280px;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.75rem; color: #475569; font-weight: 700;">
+                            <span style="color: #1d4ed8; font-weight: 900;">المذكرة الوزارية رقم 142-08 والتوجيهات التربوية (نونبر 2007)</span>
+                            <span aria-hidden="true">·</span>
+                            <span>${levelData.stream || levelData.cycle}</span>
+                            <span aria-hidden="true">·</span>
+                            <span style="color: #92400e; font-weight: 800;">قاعدة المذكرة 142-08 (ص 9): تغطية ≥ 75% من المقرر · فروض منزلية: 30%-60% مستويان 2 و3</span>
                         </div>
-                        <h4 style="margin: 6px 0 2px 0; font-size: 1.05rem; font-weight: 900; color: #0f172a;">
+                        <h4 style="margin: 6px 0 3px 0; font-size: 1.08rem; font-weight: 900; color: #0f172a;">
                             ${levelData.name}
                         </h4>
-                        <div style="font-size: 0.8rem; color: #334155; font-weight: 700;">
+                        <div style="font-size: 0.8rem; color: #334155; font-weight: 700; line-height: 1.5;">
                             ${levelData.note142Summary || ''}
                         </div>
+                    </div>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        <button type="button" onclick="window.openOfficialPdfViewerModal && window.openOfficialPdfViewerModal('/assets/aistudio/_____________________________________________________3a655c1c.pdf', 'التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات بالثانوي التأهيلي (نونبر 2007)', 'التوجيهات_التربوية_الرياضيات_الثانوي_التأهيلي_2007.pdf')" style="background: #f8fafc; color: #1e40af; border: 1px solid #bfdbfe; padding: 6px 12px; border-radius: 7px; font-weight: 800; font-size: 0.75rem; cursor: pointer; white-space: nowrap;">
+                            📘 وثيقة التوجيهات 2007 PDF
+                        </button>
+                        <button type="button" onclick="window.openOfficialPdfViewerModal && window.openOfficialPdfViewerModal('/assets/aistudio/n14208_evalped_08_a6af9323.pdf', 'المذكرة الوزارية رقم 142-08 الخاصة بالتقويم التربوي لمادة الرياضيات بالثانوي التأهيلي', 'المذكرة_الوزارية_142_08_التقويم_التربوي_الرياضيات.pdf')" style="background: #fffbeb; color: #b45309; border: 1px solid #fde68a; padding: 6px 12px; border-radius: 7px; font-weight: 800; font-size: 0.75rem; cursor: pointer; white-space: nowrap;">
+                            📋 جداول المذكرة 142-08 PDF
+                        </button>
                     </div>
                 </div>
 
                 <!-- المؤشرات الرقمية الرسمية -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 10px; margin-bottom: ${cadre ? '14px' : '0'};">
-                    <div style="background: #ffffff; border: 1px solid #dbeafe; border-radius: 9px; padding: 9px 12px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 10px; font-variant-numeric: tabular-nums; margin-bottom: ${cadre ? '14px' : '0'};">
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 9px; padding: 10px 12px;">
                         <div style="font-size: 0.72rem; color: #64748b; font-weight: 800;">الحصة الأسبوعية الرسمية</div>
                         <div style="font-size: 1.05rem; font-weight: 900; color: #1e3a8a; margin-top: 2px;">${levelData.weeklyHours || '-'} ساعات / أسبوع</div>
-                        <div style="font-size: 0.68rem; color: #3b82f6;">إجمالي سنوي: ${levelData.totalOfficialHours} ساعة (34 أسبوعاً)</div>
+                        <div style="font-size: 0.69rem; color: #475569; margin-top: 2px;">إجمالي سنوي: ${levelData.totalOfficialHours} ساعة (34 أسبوعاً)</div>
                     </div>
-                    <div style="background: #ffffff; border: 1px solid #dbeafe; border-radius: 9px; padding: 9px 12px;">
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 9px; padding: 10px 12px;">
                         <div style="font-size: 0.72rem; color: #64748b; font-weight: 800;">المعامل الرسمي للمادة</div>
                         <div style="font-size: 1.05rem; font-weight: 900; color: #047857; margin-top: 2px;">المعامل: ${levelData.coefficient || '-'}</div>
-                        <div style="font-size: 0.68rem; color: #059669;">حساب المراقبة المستمرة 100% فروض محروسة</div>
+                        <div style="font-size: 0.69rem; color: #059669; margin-top: 2px;">حساب المراقبة المستمرة 100% فروض محروسة</div>
                     </div>
-                    <div style="background: #ffffff; border: 1px solid #dbeafe; border-radius: 9px; padding: 9px 12px;">
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 9px; padding: 10px 12px;">
                         <div style="font-size: 0.72rem; color: #64748b; font-weight: 800;">الفروض المحروسة (المذكرة 142-08)</div>
                         <div style="font-size: 1.05rem; font-weight: 900; color: #7c3aed; margin-top: 2px;">${examsPerSem} فروض في كل دورة</div>
-                        <div style="font-size: 0.68rem; color: #6d28d9;">مدة كل فرض: ${examDur === 1 ? 'ساعة واحدة (1h)' : 'ساعتان (2h)'} (${examsPerSem * 2} سنوياً)</div>
+                        <div style="font-size: 0.69rem; color: #6d28d9; margin-top: 2px;">مدة كل فرض: ${examDur === 1 ? 'ساعة واحدة (1h)' : 'ساعتان (2h)'} (${examsPerSem * 2} سنوياً)</div>
                     </div>
-                    <div style="background: #ffffff; border: 1px solid #dbeafe; border-radius: 9px; padding: 9px 12px;">
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 9px; padding: 10px 12px;">
                         <div style="font-size: 0.72rem; color: #64748b; font-weight: 800;">الفروض المنزلية والدعم</div>
                         <div style="font-size: 1.05rem; font-weight: 900; color: #b45309; margin-top: 2px;">${hwPerSem} فروض منزلية / دورة</div>
-                        <div style="font-size: 0.68rem; color: #d97706;">+ حصة تصحيح ودعم عقب كل فرض محروس</div>
+                        <div style="font-size: 0.69rem; color: #b45309; margin-top: 2px;">+ حصة تصحيح ودعم عقب كل فرض محروس</div>
                     </div>
-                    <div style="background: #ffffff; border: 1px solid #dbeafe; border-radius: 9px; padding: 9px 12px;">
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 9px; padding: 10px 12px;">
                         <div style="font-size: 0.72rem; color: #64748b; font-weight: 800;">توزيع الدروس والغلاف الفعلي</div>
                         <div style="font-size: 1.05rem; font-weight: 900; color: #0f172a; margin-top: 2px;">${totalLessonsCount} درساً (${totalLessonHours} س)</div>
-                        <div style="font-size: 0.68rem; color: #475569;">الأسدوس 1: ${s1Lessons.length} دروس (${s1Hours}س) | الأسدوس 2: ${s2Lessons.length} دروس (${s2Hours}س)</div>
+                        <div style="font-size: 0.69rem; color: #475569; margin-top: 2px;">الأسدوس 1: ${s1Lessons.length} دروس (${s1Hours}س) · الأسدوس 2: ${s2Lessons.length} دروس (${s2Hours}س)</div>
                     </div>
                 </div>
 
                 ${cadre ? `
                     <!-- الإطار المرجعي للامتحانات ونسب الأهمية -->
-                    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 14px;">
+                    <div style="border-top: 1px solid #e2e8f0; padding-top: 12px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
-                            <div style="font-size: 0.84rem; font-weight: 900; color: #1e3a8a; display: flex; align-items: center; gap: 6px;">
-                                <span>🎯</span>
-                                <span>الإطار المرجعي الرسمي للامتحانات والتقويم: ${cadre.examType}</span>
+                            <div style="font-size: 0.84rem; font-weight: 900; color: #1e3a8a;">
+                                الإطار المرجعي الرسمي للامتحانات والتقويم: ${cadre.examType}
                             </div>
                         </div>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; font-variant-numeric: tabular-nums;">
                             <!-- المجالات المضمونية ونسب الأهمية -->
                             <div>
                                 <div style="font-size: 0.76rem; font-weight: 800; color: #334155; margin-bottom: 6px;">جدول المجالات ونسب الأهمية المقررة (%):</div>
@@ -2183,7 +2344,7 @@
                                         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 7px; padding: 6px 10px;">
                                             <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 0.76rem; font-weight: 800; color: #0f172a; margin-bottom: 4px;">
                                                 <span>${d.domain}</span>
-                                                <span style="background: #dbeafe; color: #1d4ed8; padding: 1px 7px; border-radius: 999px; font-size: 0.74rem; white-space: nowrap;">${d.weight}%</span>
+                                                <span style="color: #1d4ed8; font-weight: 900; font-size: 0.75rem; white-space: nowrap;">${d.weight}%</span>
                                             </div>
                                             <div style="background: #e2e8f0; height: 5px; border-radius: 999px; overflow: hidden;">
                                                 <div style="background: linear-gradient(90deg, #2563eb, #0284c7); width: ${Math.min(100, d.weight)}%; height: 100%;"></div>
@@ -2199,7 +2360,7 @@
                                     ${(cadre.taxonomyLevels || []).map(t => `
                                         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 7px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                                             <span style="font-size: 0.76rem; font-weight: 700; color: #334155;">${t.level}</span>
-                                            <span style="background: #ede9fe; color: #6d28d9; font-weight: 900; padding: 2px 8px; border-radius: 999px; font-size: 0.74rem; white-space: nowrap;">${t.weight}%</span>
+                                            <span style="color: #6d28d9; font-weight: 900; font-size: 0.75rem; white-space: nowrap;">${t.weight ?? t.percentage}%</span>
                                         </div>
                                     `).join('')}
                                 </div>
@@ -2226,6 +2387,182 @@
     window.setCurriculumSemester = function(semId) {
         _currentCurriculumSemester = semId;
         renderAnnualCurriculumView();
+    };
+
+    function formatOfficialWeekLabel(w) {
+        if (!w) return '-';
+        const s = String(w).trim();
+        if (!s) return '-';
+        return (s.includes('أسبوع') || s.includes('الأسبوع')) ? s : `الأسبوع ${s}`;
+    }
+
+    /**
+     * تحليل الأوزان النسبية الرسمية (الجداول 1 إلى 12 من المذكرة 142-08) وتحويلها إلى سلم تنقيط مفصل من 20 نقطة
+     */
+    function parseOfficialWeightsTo20Scale(officialWeightsStr) {
+        if (!officialWeightsStr || typeof officialWeightsStr !== 'string') {
+            return { items: [], formattedScale: '', totalPct: 0, totalPoints: 20 };
+        }
+        const segments = officialWeightsStr.split(/\s*\+\s*/).map(s => s.trim()).filter(Boolean);
+        const items = [];
+        let sumPct = 0;
+
+        segments.forEach((seg, idx) => {
+            const match = seg.match(/^(.*?)\s*\((\d+(?:\.\d+)?)%\)\s*$/);
+            if (match) {
+                const topic = match[1].trim();
+                const weightPct = parseFloat(match[2]);
+                sumPct += weightPct;
+                items.push({ index: idx + 1, topic, weightPct, points20: 0 });
+            } else {
+                items.push({ index: idx + 1, topic: seg, weightPct: 0, points20: 0 });
+            }
+        });
+
+        if (items.length === 0) {
+            return { items: [], formattedScale: '', totalPct: 0, totalPoints: 20 };
+        }
+
+        // احتساب النقط من 20 بما يتناسب مع النسب المئوية الرسمية
+        const normBase = sumPct > 0 ? sumPct : 100;
+        let allocatedPoints = 0;
+        items.forEach((it, i) => {
+            if (i === items.length - 1 && sumPct > 0) {
+                it.points20 = Math.max(0.5, Math.round((20 - allocatedPoints) * 2) / 2);
+            } else {
+                const rawPts = (it.weightPct / normBase) * 20;
+                it.points20 = Math.max(0.5, Math.round(rawPts * 2) / 2);
+                allocatedPoints += it.points20;
+            }
+        });
+
+        const formattedScale = items
+            .map(it => `التمرين ${it.index} (${it.topic}${it.weightPct ? ` — ${it.weightPct}%` : ''}): ${it.points20} ن`)
+            .join(' | ');
+
+        return { items, formattedScale, totalPct: sumPct, totalPoints: 20 };
+    }
+    window.parseOfficialWeightsTo20Scale = parseOfficialWeightsTo20Scale;
+
+    /**
+     * فتح الفرض المحدد من التوزيع السنوي مباشرة في بطاقة تقرير الفرض المحروس (#examReportCard) مع تعبئة الدروس والباريم الرسمي
+     */
+    window.openExamFromCurriculumInReport = function(levelId, semKey, examNum, targetClass) {
+        const lvl = MOROCCAN_SECONDARY_MATH_CURRICULUM[levelId] || MOROCCAN_SECONDARY_MATH_CURRICULUM[_currentCurriculumLevel] || MOROCCAN_SECONDARY_MATH_CURRICULUM.TCS;
+        const semObj = lvl?.semesters?.[semKey];
+        const ex = (semObj?.examSchedule || []).find(e => Number(e.examNumber || e.num) === Number(examNum)) || (semObj?.examSchedule || [])[examNum - 1];
+
+        if (typeof window.switchTab === 'function') {
+            window.switchTab('reports');
+        }
+
+        setTimeout(() => {
+            const reportClassSelect = document.getElementById('reportClassSelect');
+            if (reportClassSelect && targetClass && Array.from(reportClassSelect.options).some(o => o.value === targetClass)) {
+                reportClassSelect.value = targetClass;
+                if (typeof window.renderReport === 'function') window.renderReport();
+            }
+
+            const semEl = document.getElementById('examReportSemester');
+            const numEl = document.getElementById('examReportNumber');
+            const durEl = document.getElementById('examReportDuration');
+            const coefEl = document.getElementById('examReportCoef');
+            const topicsEl = document.getElementById('examReportTopics');
+            const scaleEl = document.getElementById('examReportGradingScale');
+
+            if (semEl) semEl.value = semKey || 's1';
+            if (numEl) numEl.value = String(examNum || 1);
+            if (typeof window.loadOrBuildReportForForm === 'function') {
+                window.loadOrBuildReportForForm(targetClass || '');
+            }
+
+            if (durEl) durEl.value = (lvl.examDuration === 1 || ex?.durationHours === 1) ? '1h' : '2h';
+            if (coefEl && lvl.coefficient) coefEl.value = lvl.coefficient;
+            if (ex) {
+                if (topicsEl) topicsEl.value = ex.topics || ex.officialWeights || '';
+                if (scaleEl && ex.officialWeights) {
+                    const parsed = parseOfficialWeightsTo20Scale(ex.officialWeights);
+                    if (parsed.formattedScale) scaleEl.value = parsed.formattedScale;
+                }
+            }
+
+            const card = document.getElementById('examReportCard');
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            const toastFn = window.showToast || window.showNotification;
+            if (typeof toastFn === 'function') {
+                toastFn(`📝 تم تحميل معطيات وسُلّم تنقيط ${ex?.title || 'الفرض المحروس'} (${lvl.shortName || lvl.name}) في بطاقة تقرير الفرض`, 'success');
+            }
+        }, 120);
+    };
+
+    /**
+     * برمجة الفرض المحدد من التوزيع السنوي مباشرة في استمارة الخط الزمني للفروض القادمة
+     */
+    window.scheduleExamFromCurriculumToTimeline = function(levelId, semKey, examNum, targetClass) {
+        const lvl = MOROCCAN_SECONDARY_MATH_CURRICULUM[levelId] || MOROCCAN_SECONDARY_MATH_CURRICULUM[_currentCurriculumLevel] || MOROCCAN_SECONDARY_MATH_CURRICULUM.TCS;
+        const semObj = lvl?.semesters?.[semKey];
+        const ex = (semObj?.examSchedule || []).find(e => Number(e.examNumber || e.num) === Number(examNum)) || (semObj?.examSchedule || [])[examNum - 1];
+
+        if (typeof window.switchTab === 'function') {
+            window.switchTab('reports');
+        }
+
+        setTimeout(() => {
+            if (typeof window.toggleUpcomingExamForm === 'function') {
+                window.toggleUpcomingExamForm(true);
+            }
+            const classSelect = document.getElementById('upcomingExamClassSelect');
+            if (classSelect && targetClass && Array.from(classSelect.options).some(o => o.value === targetClass)) {
+                classSelect.value = targetClass;
+            }
+            const titleInput = document.getElementById('upcomingExamTitleInput');
+            const semSelect = document.getElementById('upcomingExamSemesterSelect');
+            const numSelect = document.getElementById('upcomingExamNumberSelect');
+            const typeSelect = document.getElementById('upcomingExamTypeSelect');
+            const durSelect = document.getElementById('upcomingExamDurationSelect');
+            const topicsInput = document.getElementById('upcomingExamTopicsInput');
+
+            if (titleInput) titleInput.value = ex?.title || `الفرض المحروس رقم ${examNum}`;
+            if (semSelect) semSelect.value = semKey || 's1';
+            if (numSelect) numSelect.value = String(examNum || 1);
+            if (typeSelect) typeSelect.value = 'فرض محروس';
+            if (durSelect) durSelect.value = (lvl.examDuration === 1 || ex?.durationHours === 1) ? '1h' : '2h';
+            if (topicsInput && ex) topicsInput.value = ex.topics || ex.officialWeights || '';
+
+            const formWrap = document.getElementById('upcomingExamFormContainer');
+            if (formWrap) formWrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            const toastFn = window.showToast || window.showNotification;
+            if (typeof toastFn === 'function') {
+                toastFn(`🗓️ تم نقل ${ex?.title || 'الفرض المحروس'} (${formatOfficialWeekLabel(ex?.week)}) إلى استمارة البرمجة الزمنية`, 'success');
+            }
+        }, 120);
+    };
+
+    /**
+     * فتح ومعاينة جدول التخصيص الرسمي (A4) لفرض محدد مباشرة من التوزيع السنوي
+     */
+    window.openSpecificationTableFromCurriculum = function(levelId, semKey, examNum, targetClass) {
+        const cls = targetClass || levelId || _currentCurriculumLevel || 'TCS';
+        if (typeof window.buildSpecificationPdfHTML === 'function') {
+            const htmlDoc = window.buildSpecificationPdfHTML(cls, {
+                trackKey: levelId || _currentCurriculumLevel,
+                semester: semKey || 's1',
+                examNumber: Number(examNum) || 1
+            });
+            if (typeof window.openCustomPrintPreviewModal === 'function') {
+                window.openCustomPrintPreviewModal(htmlDoc, {
+                    title: `جدول_التخصيص_المذكرة_142_08_${cls}_${semKey}_F${examNum}`,
+                    orientation: 'portrait',
+                    subtitle: 'بطاقة توصيف وجدول تخصيص فرض المراقبة المستمرة وفق المذكرة الوزارية 142-08'
+                });
+                return;
+            }
+        }
+        if (typeof window.openUniversalPdfModal === 'function') {
+            window.openUniversalPdfModal('spec', cls);
+        }
     };
 
     /**
@@ -2257,7 +2594,8 @@
             let totalSemHours = 0;
             sem.lessons.forEach(l => totalSemHours += (l.hours || 0));
             const examSched = Array.isArray(sem.examSchedule) ? sem.examSchedule : [];
-            const totalExamHours = examSched.reduce((acc, ex) => acc + (Number(ex.durationHours) || 0) + (Number(ex.correctionHours) || 0), 0);
+            const defDur = Number(levelData.examDuration) || 2;
+            const totalExamHours = examSched.reduce((acc, ex) => acc + (Number(ex.durationHours) || defDur) + (Number(ex.correctionHours) || defDur), 0);
 
             cardsHtml += `
                 <div style="margin-bottom: 28px;">
@@ -2267,7 +2605,7 @@
                             <span data-lucide="layers" data-size="18"></span>
                             <span>${sem.name}</span>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-variant-numeric: tabular-nums;">
                             <span style="font-size: 0.78rem; font-weight: 800; background: rgba(255,255,255,0.18); padding: 3px 10px; border-radius: 20px;">
                                 📚 الدروس المقررة: ${sem.lessons.length} (${totalSemHours} س)
                             </span>
@@ -2302,7 +2640,7 @@
                         <!-- Card Header -->
                         <div>
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px;">
-                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-variant-numeric: tabular-nums;">
                                     <span style="background: #eff6ff; color: #1d4ed8; font-weight: 900; font-size: 0.82rem; padding: 3px 8px; border-radius: 6px; border: 1px solid #bfdbfe;">
                                         درس #${lesson.order}
                                     </span>
@@ -2310,8 +2648,8 @@
                                         ⏱️ ${lesson.hours} س
                                     </span>
                                     ${examAfterThis ? `
-                                        <span style="background: #fef3c7; color: #92400e; font-weight: 800; font-size: 0.72rem; padding: 2px 7px; border-radius: 6px; border: 1px solid #fde68a;" title="${examAfterThis.topics}">
-                                            🔔 يعقبه ${examAfterThis.title} (${examAfterThis.durationHours}س)
+                                        <span style="background: #fef3c7; color: #92400e; font-weight: 800; font-size: 0.72rem; padding: 2px 7px; border-radius: 6px; border: 1px solid #fde68a;" title="${examAfterThis.officialWeights || examAfterThis.topics}">
+                                            🔔 يعقبه ${examAfterThis.title} (${examAfterThis.week ? `${formatOfficialWeekLabel(examAfterThis.week)} · ` : ''}${examAfterThis.durationHours || defDur}س)
                                         </span>
                                     ` : ''}
                                 </div>
@@ -2357,8 +2695,8 @@
                                             <div style="font-size: 0.8rem; color: #334155; display: flex; align-items: flex-start; gap: 6px; line-height: 1.4;">
                                                 <span style="color: ${isTaught ? '#16a34a' : '#64748b'}; font-weight: 800;">${isTaught ? '✓' : '•'}</span>
                                                 <div>
-                                                    <strong style="color: ${isTaught ? '#15803d' : '#1e293b'};">${ax.title}</strong>
-                                                    ${ax.desc ? `<div style="font-size: 0.72rem; color: #64748b;">${ax.desc}</div>` : ''}
+                                                    <strong style="color: ${isTaught ? '#15803d' : '#1e293b'};">${escapeHtml(ax.title)}</strong>
+                                                    ${ax.desc ? `<div style="font-size: 0.72rem; color: #64748b;">${escapeHtml(ax.desc)}</div>` : ''}
                                                 </div>
                                             </div>
                                         `;
@@ -2372,7 +2710,7 @@
                             <span style="font-size: 0.72rem; color: #64748b; font-weight: 600;">
                                 مطابق للتوجيهات التربوية والمذكرة 142-08
                             </span>
-                            <button type="button" onclick="linkCurriculumLessonToLessonLog('${targetClass || ''}', '${encodeURIComponent(lesson.title)}', '${encodeURIComponent(JSON.stringify(lesson.axes))}')" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; border: none; padding: 6px 12px; border-radius: 7px; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(2,132,199,0.25);">
+                            <button type="button" onclick="linkCurriculumLessonToLessonLog('${escapeHtml(String(targetClass || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"))}', '${encodeURIComponent(lesson.title).replace(/'/g, '%27')}', '${encodeURIComponent(JSON.stringify(lesson.axes)).replace(/'/g, '%27')}')" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; border: none; padding: 6px 12px; border-radius: 7px; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(2,132,199,0.25);">
                                 <span data-lucide="plus-circle" data-size="13"></span>
                                 <span>تدوين حصة بهذا الدرس في دفتر النصوص</span>
                             </button>
@@ -2389,26 +2727,56 @@
             if (examSched.length > 0) {
                 cardsHtml += `
                     <div style="margin-top: 14px; background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 10px; padding: 12px 16px;">
-                        <div style="font-size: 0.84rem; font-weight: 900; color: #92400e; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-                            <span>📋 جدولة فروض المراقبة المستمرة وحصص التصحيح والدعم (${sem.name}) - المذكرة الوزارية رقم 142-08:</span>
-                            <span style="font-size: 0.75rem; background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 999px; border: 1px solid #fde68a;">
+                        <div style="font-size: 0.84rem; font-weight: 900; color: #92400e; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                            <span>📋 جدولة الفروض المحروسة والفروض المنزلية ونسب الأهمية وأسابيع الإنجاز والتصحيح (${escapeHtml(sem.name)}) — المذكرة الوزارية رقم 142-08:</span>
+                            <span style="font-size: 0.75rem; background: #fef3c7; color: #b45309; padding: 2px 10px; border-radius: 6px; border: 1px solid #fde68a; font-variant-numeric: tabular-nums;">
                                 ${examSched.length} فروض محروسة + ${examSched.length} فروض منزلية
                             </span>
                         </div>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px;">
-                            ${examSched.map(ex => `
-                                <div style="background: #ffffff; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 12px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                                        <strong style="font-size: 0.8rem; color: #b45309;">${ex.title}</strong>
-                                        <span style="font-size: 0.72rem; font-weight: 800; background: #eff6ff; color: #1d4ed8; padding: 1px 6px; border-radius: 5px;">
-                                            الفرض: ${ex.durationHours}س | التصحيح والدعم: ${ex.correctionHours}س
-                                        </span>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px;">
+                            ${examSched.map((ex, idx) => {
+                                const exNum = ex.examNumber || ex.num || (idx + 1);
+                                const parsedScale = ex.officialWeights ? parseOfficialWeightsTo20Scale(ex.officialWeights) : null;
+                                const safeTargetCls = escapeHtml(String(targetClass || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+                                return `
+                                <div style="background: #ffffff; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; gap: 6px; font-variant-numeric: tabular-nums;">
+                                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                            <strong style="font-size: 0.84rem; color: #b45309;">${escapeHtml(ex.title || `الفرض المحروس رقم ${exNum}`)}</strong>
+                                            <span style="font-size: 0.72rem; font-weight: 800; background: #eff6ff; color: #1d4ed8; padding: 2px 7px; border-radius: 5px; border: 1px solid #bfdbfe;">
+                                                الفرض: ${ex.durationHours || defDur}س · التصحيح: ${ex.correctionHours || 1}س
+                                            </span>
+                                        </div>
+                                        ${(ex.week || ex.homeworkWeek) ? `
+                                            <div style="display: flex; flex-wrap: wrap; gap: 5px; font-size: 0.71rem; font-weight: 800;">
+                                                ${ex.homeworkWeek ? `<span style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 2px 7px; border-radius: 4px;">🏠 الفرض المنزلي: ${formatOfficialWeekLabel(ex.homeworkWeek)} (تصحيح: ${formatOfficialWeekLabel(ex.homeworkCorrectionWeek)})</span>` : ''}
+                                                ${ex.week ? `<span style="background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; padding: 2px 7px; border-radius: 4px;">📝 الفرض المحروس: ${formatOfficialWeekLabel(ex.week)} (تصحيح: ${formatOfficialWeekLabel(ex.correctionWeek)})</span>` : ''}
+                                            </div>
+                                        ` : ''}
+                                        ${ex.officialWeights ? `
+                                            <div style="font-size: 0.75rem; color: #1e3a8a; font-weight: 800; background: #f8fafc; border-right: 3px solid #2563eb; padding: 5px 8px; border-radius: 4px;">
+                                                <div>⚖️ المكونات ونسب الأهمية (المذكرة 142-08): ${escapeHtml(ex.officialWeights)}</div>
+                                                ${parsedScale && parsedScale.formattedScale ? `<div style="font-size: 0.71rem; color: #047857; margin-top: 3px; font-weight: 800;">🎯 سلم التنقيط الرسمي (20/20): ${escapeHtml(parsedScale.formattedScale)}</div>` : ''}
+                                            </div>
+                                        ` : ''}
+                                        <div style="font-size: 0.74rem; color: #334155; font-weight: 700;">
+                                            📚 المضامين المشمولة: ${escapeHtml(ex.topics || ex.lessonsCovered || '')}
+                                        </div>
                                     </div>
-                                    <div style="font-size: 0.75rem; color: #334155; font-weight: 700;">
-                                        المضامين المشمولة: ${ex.topics}
+                                    <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap; border-top: 1px dashed #fde68a; padding-top: 7px; margin-top: 2px;">
+                                        <button type="button" onclick="window.openExamFromCurriculumInReport('${levelData.id}', '${semKey}', ${exNum}, '${safeTargetCls}')" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 5px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
+                                            📝 فتح في تقرير الفرض
+                                        </button>
+                                        <button type="button" onclick="window.scheduleExamFromCurriculumToTimeline('${levelData.id}', '${semKey}', ${exNum}, '${safeTargetCls}')" style="background: #faf5ff; color: #6d28d9; border: 1px solid #ddd6fe; padding: 3px 8px; border-radius: 5px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
+                                            🗓️ برمجة في الخط الزمني
+                                        </button>
+                                        <button type="button" onclick="window.openSpecificationTableFromCurriculum('${levelData.id}', '${semKey}', ${exNum}, '${safeTargetCls}')" style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 3px 8px; border-radius: 5px; font-size: 0.7rem; font-weight: 800; cursor: pointer;">
+                                            📐 جدول التخصيص (A4)
+                                        </button>
                                     </div>
                                 </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
                         </div>
                     </div>
                 `;
@@ -2619,12 +2987,15 @@
                 `;
                 const exAfter = examSched.find(ex => Array.isArray(ex.afterLessons) && ex.afterLessons[ex.afterLessons.length - 1] === l.order);
                 if (exAfter) {
+                    const weekBadge = exAfter.week ? ` [الفرض المنزلي: ${formatOfficialWeekLabel(exAfter.homeworkWeek)} (تصحيح: ${formatOfficialWeekLabel(exAfter.homeworkCorrectionWeek)}) | الفرض المحروس: ${formatOfficialWeekLabel(exAfter.week)} (تصحيح: ${formatOfficialWeekLabel(exAfter.correctionWeek)})]` : '';
+                    const parsed20 = exAfter.officialWeights ? parseOfficialWeightsTo20Scale(exAfter.officialWeights) : null;
+                    const weightsBadge = exAfter.officialWeights ? `<br><span style="color:#1e3a8a;">⚖️ مكونات الفرض ونسب الأهمية (المذكرة 142-08): ${exAfter.officialWeights}${parsed20 && parsed20.formattedScale ? ` — (${parsed20.formattedScale})` : ''}</span>` : '';
                     printHtml += `
                         <tr class="exam-row">
                             <td style="text-align: center;">📝</td>
-                            <td>${exAfter.title}</td>
+                            <td>${exAfter.title}${weekBadge}</td>
                             <td style="text-align: center;">${exAfter.durationHours}س + ${exAfter.correctionHours}س</td>
-                            <td colspan="2">المضامين المشمولة بالفرض المحروس: ${exAfter.topics} (يُتبع بحصة التصحيح والدعم المندمج - المذكرة 142-08)</td>
+                            <td colspan="2">المضامين المشمولة بالفرض المحروس: ${exAfter.topics}${weightsBadge}</td>
                         </tr>
                     `;
                 }
@@ -2646,8 +3017,15 @@
             </html>
         `;
 
-        if (typeof window.printDocumentDirectly === 'function') {
-            window.printDocumentDirectly(printHtml, 'التوزيع السنوي لمقرر مادة الرياضيات - ' + levelData.name);
+        if (typeof window.openCustomPrintPreviewModal === 'function') {
+            window.openCustomPrintPreviewModal(printHtml, {
+                title: 'التوزيع السنوي لمقرر مادة الرياضيات - ' + levelData.name,
+                orientation: 'portrait',
+                isReport: true,
+                subtitle: 'التوزيع السنوي الرسمي لمقرر مادة الرياضيات وفق التوجيهات التربوية (2007) والمذكرة 142-08'
+            });
+        } else if (typeof window.printDocumentDirectly === 'function') {
+            window.printDocumentDirectly(printHtml, 'التوزيع السنوي لمقرر مادة الرياضيات - ' + levelData.name, 'portrait');
         } else if (typeof window.printHtmlViaIframe === 'function') {
             window.printHtmlViaIframe(printHtml);
         }
@@ -2661,35 +3039,41 @@
     const MINISTERIAL_PRESETS = {
         'circular142': {
             id: 'circular142',
-            title: 'المذكرة الوزارية رقم 142-08 (والمذكرة 142-04) - التقويم التربوي بالسلك الثانوي التأهيلي لمادة الرياضيات',
+            title: 'المذكرة الوزارية رقم 142-08 (16 نونبر 2007) - التقويم التربوي بالسلك الثانوي التأهيلي لمادة الرياضيات',
             type: 'assessment',
             date: '2007-11-16',
-            text: `المملكة المغربية - وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل
-الموضوع: المذكرة الوزارية رقم 142-08 (والمذكرة الخاصة بمادة الرياضيات 142-04) للتقويم التربوي بالسلك الثانوي التأهيلي
+            text: `المملكة المغربية - وزارة التربية الوطنية والتعليم العالي وتكوين الأطر والبحث العلمي
+الموضوع: المذكرة الوزارية رقم 142-08 بتاريخ 16 نونبر 2007 الخاصة بالتقويم التربوي بالسلك الثانوي التأهيلي لمادة الرياضيات (الجداول التفصيلية 1 إلى 12 والصفحة 9)
 
 1. مصفوفة الفروض المحروسة والحصص الأسبوعية والمعاملات الرسمية في كل دورة دراسية (الأسدوس 1 والأسدوس 2):
-- الجذع المشترك الأدبي والأصيل (TCL) والأولى باك والثانية باك آداب وعلوم إنسانية وتعليم أصيل (1BAC/2BAC LSH):
+- الجذع المشترك الأدبي والأصيل (TCL — الجدول 2 ص 3):
   * الحصة الأسبوعية: ساعتان (2h) | المعامل: 2 | الفروض المحروسة: فرضان (2) في كل دورة (مدة كل فرض ساعة واحدة 1h) + فرضان منزليان في كل دورة.
-- الجذع المشترك العلمي والتكنولوجي (TCS/TCT):
+- الأولى باك والثانية باك آداب وعلوم إنسانية وتعليم أصيل (1BAC/2BAC LSH — الجدولان 3 ص 3 و11 ص 8):
+  * الحصة الأسبوعية: ساعتان (2h) | المعامل: 1 (والمعامل 2 لشعبة الفنون التطبيقية بالجدولين 7 و12) | الفروض المحروسة: فرضان (2) في كل دورة (مدة كل فرض ساعة واحدة 1h) + فرضان منزليان في كل دورة.
+- الجذع المشترك العلمي والتكنولوجي (TCS/TCT — الجدول 1 ص 2):
   * الحصة الأسبوعية: 5 ساعات (5h) | المعامل: 4 | الفروض المحروسة: 3 فروض في كل دورة (مدة كل فرض ساعتان 2h) + 3 فروض منزلية في كل دورة.
-- الأولى باك والثانية باك علوم اقتصادية وتدبير (1BAC/2BAC ECO & SGC):
+- الأولى باك علوم اقتصادية وتدبير (1BAC ECO & SGC — الجدول 6 ص 5):
   * الحصة الأسبوعية: 4 ساعات (4h) | المعامل: 4 | الفروض المحروسة: 3 فروض في كل دورة (مدة كل فرض ساعتان 2h) + 3 فروض منزلية في كل دورة.
-- الأولى باك والثانية باك علوم تجريبية (PC / SVT / Agro) وعلوم وتكنولوجيات (STE / STM):
-  * الحصة الأسبوعية: 5 ساعات (5h) | المعامل: 7 للعلوم التجريبية (أولى وثانية باك)، وفي التكنولوجيات المعامل 6 في الأولى باك و 7 في الثانية باك | الفروض المحروسة: 3 فروض في كل دورة (مدة كل فرض ساعتان 2h) + 3 فروض منزلية في كل دورة.
-- الأولى باك والثانية باك علوم رياضية أ و ب (1BAC/2BAC SM):
+- الثانية باك علوم اقتصادية وتدبير (2BAC ECO & SGC — الجدول 10 ص 7):
+  * الحصة الأسبوعية: 4 ساعات (4h) | المعامل: 4 | الفروض المحروسة: 3 فروض في كل دورة (مدة كل فرض ساعتان 2h) + 3 فروض منزلية في كل دورة.
+- الأولى باك والثانية باك علوم تجريبية (PC / SVT / Agro) وعلوم وتكنولوجيات (STE / STM — الجدولان 4 ص 3 و8 ص 6):
+  * الحصة الأسبوعية: 5 ساعات (5h) | المعامل: 7 (علوم تجريبية) و6 (STE/STM) | الفروض المحروسة: 3 فروض في كل دورة (مدة كل فرض ساعتان 2h) + 3 فروض منزلية في كل دورة.
+- الأولى باك والثانية باك علوم رياضية أ و ب (1BAC/2BAC SM — الجدولان 5 ص 4 و9 ص 7):
   * الحصة الأسبوعية: 7 ساعات (7h) | المعامل: 9 | الفروض المحروسة: 4 فروض في كل دورة (مدة كل فرض ساعتان 2h) + 4 فروض منزلية في كل دورة.
 
-2. حساب معدل المراقبة المستمرة للدورة في منظومة "مسار" (Massar):
-- يُحتسب معدل المراقبة المستمرة للدورة في مادة الرياضيات بنسبة 100% من المعدل الحسابي للفروض الكتابية المحروسة المنجزة حضورياً خلال الدورة.
-- تُستثمر الفروض المنزلية في التقويم التكويني وتشخيص التعثرات، مع تخصيص حصة تصحيح ودعم عقب كل فرض محروس.`
+2. مواصفات الفروض المحروسة والفروض المنزلية (الصفحة 9 من المذكرة 142-08):
+- تغطية ما لا يقل عن 75% من فقرات البرنامج الدراسي المقررة في الفترة البينية.
+- المستويات المهارية في الفروض المحروسة: لشعب التعليم الأصيل والآداب والعلوم الإنسانية والفنون التطبيقية (60% مستوى مهاري أول + 40% مستوى مهاري ثانٍ)، ولباقي الجذوع والشعب العلمية والتقنية والاقتصادية (10% إلى 20% للمستوى المهاري الثالث مع التوازن بين المستويين الأول والثاني).
+- المستويات المهارية في الفروض المنزلية: تغطية المستويين الثاني والثالث بنسبة ما بين 30% و 60%.
+- يُحتسب معدل المراقبة المستمرة للدورة بنسبة 100% من المعدل الحسابي للفروض المحروسة، مع تخصيص حصة تصحيح ودعم عقب كل فرض محروس.`
         },
         'guidelinesMath': {
             id: 'guidelinesMath',
-            title: 'التوجيهات التربوية الرسمية والأطر المرجعية للامتحانات الإشهادية لمادة الرياضيات بالثانوي التأهيلي',
+            title: 'التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات بالثانوي التأهيلي (نونبر 2007) والأطر المرجعية',
             type: 'pedagogical',
-            date: '2023-10-05',
+            date: '2007-11-01',
             text: `المملكة المغربية - وزارة التربية الوطنية / مديرية المناهج والمركز الوطني للتقويم والامتحانات
-التوجيهات التربوية الرسمية والأطر المرجعية المحينة لمادة الرياضيات - الثانوي التأهيلي
+التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات بسلك التعليم الثانوي التأهيلي (نونبر 2007) والأطر المرجعية
 
 1. المقاربة بالكفايات والاستدلال الرياضي:
 - التركيز على بناء المفاهيم انطلاقاً من وضعيات-مسائل دالة وتنمية أنماط الاستدلال الرياضي (الخلف، الترجع، الاستلزام المضاد للعكس، فصل الحالات، والمثال المضاد).
@@ -2704,20 +3088,20 @@
         },
         'annualDistribution': {
             id: 'annualDistribution',
-            title: 'التوزيع الدوري والسنوي الرسمي لمقرر الرياضيات المحين (الأغلفة الزمنية وتسلسل المحاور)',
+            title: 'التوزيع الدوري والسنوي الرسمي لمقرر الرياضيات (التوجيهات التربوية نونبر 2007 والمذكرة 142-08)',
             type: 'distribution',
-            date: '2024-09-01',
+            date: '2007-11-16',
             text: `التوزيع الدوري والسنوي الرسمي لمقرر مادة الرياضيات بالثانوي التأهيلي (34 أسبوعاً دراسياً):
-- الجذع المشترك العلمي والتكنولوجي (TCS): 170 ساعة سنوياً (5 ساعات أسبوعياً | المعامل 4 | 3 فروض محروسة × 2س لكل دورة).
-- الجذع المشترك الأدبي والأصيل (TCL): 68 ساعة سنوياً (ساعتان أسبوعياً | المعامل 2 | فرضان محروسان × 1س لكل دورة).
-- الأولى باكالوريا علوم تجريبية وتكنولوجيات (1BAC-EXP): 170 ساعة سنوياً (5 ساعات أسبوعياً | المعامل 7 للعلوم و6 للتكنولوجيات | 3 فروض × 2س لكل دورة).
-- الأولى باكالوريا علوم رياضية (1BAC-SM): 238 ساعة سنوياً (7 ساعات أسبوعياً | المعامل 9 | 4 فروض × 2س لكل دورة).
-- الأولى باكالوريا علوم اقتصادية وتدبير (1BAC-ECO): 136 ساعة سنوياً (4 ساعات أسبوعياً | المعامل 4 | 3 فروض × 2س لكل دورة).
-- الأولى باكالوريا آداب وعلوم إنسانية (1BAC-LSH): 68 ساعة سنوياً (ساعتان أسبوعياً | المعامل 2 | فرضان × 1س لكل دورة).
-- الثانية باكالوريا علوم تجريبية وتكنولوجيات (2BAC-EXP): 170 ساعة سنوياً (5 ساعات أسبوعياً | المعامل 7 | 3 فروض × 2س لكل دورة).
-- الثانية باكالوريا علوم رياضية أ وب (2BAC-SM): 238 ساعة سنوياً (7 ساعات أسبوعياً | المعامل 9 | 4 فروض × 2س لكل دورة).
-- الثانية باكالوريا علوم اقتصادية وتدبير (2BAC-ECO): 136 ساعة سنوياً (4 ساعات أسبوعياً | المعامل 4 | 3 فروض × 2س لكل دورة).
-- الثانية باكالوريا آداب وعلوم إنسانية (2BAC-LSH): 68 ساعة سنوياً (ساعتان أسبوعياً | المعامل 2 | فرضان × 1س لكل دورة).`
+- الجذع المشترك العلمي والتكنولوجي (TCS — الجدول 1 ص 2): 170 ساعة سنوياً (5 ساعات أسبوعياً | المعامل 4 | 3 فروض محروسة × 2س لكل دورة).
+- الجذع المشترك الأدبي والأصيل (TCL — الجدول 2 ص 3): 68 ساعة سنوياً (ساعتان أسبوعياً | المعامل 2 | فرضان محروسان × 1س لكل دورة).
+- الأولى باكالوريا علوم تجريبية وتكنولوجيات (1BAC-EXP — الجدول 4 ص 3): 170 ساعة سنوياً (5 ساعات أسبوعياً | المعامل 7 | 3 فروض × 2س لكل دورة).
+- الأولى باكالوريا علوم رياضية (1BAC-SM — الجدول 5 ص 4): 238 ساعة سنوياً (7 ساعات أسبوعياً | المعامل 9 | 4 فروض × 2س لكل دورة).
+- الأولى باكالوريا علوم اقتصادية وتدبير (1BAC-ECO — الجدول 6 ص 5): 136 ساعة سنوياً (4 ساعات أسبوعياً | المعامل 4 | 3 فروض محروسة × 2س لكل دورة).
+- الأولى باكالوريا آداب وعلوم إنسانية (1BAC-LSH — الجدول 3 ص 3): 68 ساعة سنوياً (ساعتان أسبوعياً | المعامل 1 | فرضان × 1س لكل دورة).
+- الثانية باكالوريا علوم تجريبية وتكنولوجيات (2BAC-EXP — الجدول 8 ص 6): 170 ساعة سنوياً (5 ساعات أسبوعياً | المعامل 7 لـ SE و6 لـ STE/STM | 3 فروض × 2س لكل دورة).
+- الثانية باكالوريا علوم رياضية أ وب (2BAC-SM — الجدول 9 ص 7): 238 ساعة سنوياً (7 ساعات أسبوعياً | المعامل 9 | 4 فروض × 2س لكل دورة).
+- الثانية باكالوريا علوم اقتصادية وتدبير (2BAC-ECO — الجدول 10 ص 7): 136 ساعة سنوياً (4 ساعات أسبوعياً | المعامل 4 | 3 فروض × 2س لكل دورة).
+- الثانية باكالوريا آداب وعلوم إنسانية (2BAC-LSH — الجدول 11 ص 8): 68 ساعة سنوياً (ساعتان أسبوعياً | المعامل 1 | فرضان × 1س لكل دورة).`
         }
     };
 
@@ -3069,28 +3453,38 @@
 
         const s1Sched = levelData.semesters?.s1?.examSchedule || [];
         const s2Sched = levelData.semesters?.s2?.examSchedule || [];
+        const mapExamMilestone = (ex, idx, semKey, semLabel) => {
+            const parsed20 = ex.officialWeights ? parseOfficialWeightsTo20Scale(ex.officialWeights) : null;
+            const weekInfo = ex.week ? `${formatOfficialWeekLabel(ex.week)}` : `محطة ${idx + 1}`;
+            const corrInfo = ex.correctionWeek ? `التصحيح: ${formatOfficialWeekLabel(ex.correctionWeek)}` : `حصة التصحيح (${ex.correctionHours || 1}س)`;
+            const hwInfo = ex.homeworkWeek ? `الفرض المنزلي: ${formatOfficialWeekLabel(ex.homeworkWeek)}` : '';
+            return {
+                semester: semKey,
+                examNumber: ex.examNumber || ex.num || (idx + 1),
+                title: ex.title || `الفرض المحروس رقم ${ex.examNumber || ex.num || (idx + 1)} (${semLabel})`,
+                period: `${semLabel} · ${weekInfo} (${ex.durationHours || examDur}س)`,
+                weight: weightStr,
+                topics: ex.officialWeights
+                    ? `${ex.officialWeights}${parsed20 && parsed20.formattedScale ? ` — [${parsed20.formattedScale}]` : ''}`
+                    : (ex.topics || ex.lessonsCovered || ''),
+                rawTopics: ex.topics || ex.officialWeights || '',
+                remediation: `${corrInfo}${hwInfo ? ` · ${hwInfo}` : ''}`
+            };
+        };
         const examMilestones = [
-            ...s1Sched.map((ex, idx) => ({
-                title: ex.title,
-                period: `الأسدوس 1 - محطة ${idx + 1} (المدة: ${ex.durationHours}س)`,
-                weight: weightStr,
-                topics: ex.topics,
-                remediation: `حصة التصحيح والدعم المندمج (${ex.correctionHours}س) لمعالجة التعثرات`
-            })),
-            ...s2Sched.map((ex, idx) => ({
-                title: ex.title,
-                period: `الأسدوس 2 - محطة ${idx + 1} (المدة: ${ex.durationHours}س)`,
-                weight: weightStr,
-                topics: ex.topics,
-                remediation: `حصة التصحيح والدعم المندمج (${ex.correctionHours}س) وتثبيت الكفايات`
-            }))
+            ...s1Sched.map((ex, idx) => mapExamMilestone(ex, idx, 's1', 'الدورة 1')),
+            ...s2Sched.map((ex, idx) => mapExamMilestone(ex, idx, 's2', 'الدورة 2'))
         ];
 
+        const isLitTrack = (_currentCurriculumLevel === 'TCL' || _currentCurriculumLevel === '1BAC_LSH' || _currentCurriculumLevel === '2BAC_LSH');
+        const skillDistributionNote = isLitTrack
+            ? '60% للمستوى المهاري الأول (12 نقط) و40% للمستوى المهاري الثاني (8 نقط) وفق البند 3 من الصفحة 9.'
+            : 'تخصيص 10% إلى 20% للمستوى المهاري الثالث مع الحرص على التوازن بين المستويين الأول والثاني وفق البند 3 من الصفحة 9.';
         const recommendations = [
-            `الالتزام بمقتضيات المذكرة الوزارية رقم 142-08: إنجاز ${examsPerSem} فروض محروسة في كل دورة (مدة كل فرض ${examDur === 1 ? 'ساعة واحدة 1h' : 'ساعتان 2h'}) + ${levelData.homeworkPerSemester || examsPerSem} فروض منزلية، بمعامل رسمي (${levelData.coefficient}).`,
+            `الالتزام بمقتضيات المذكرة الوزارية رقم 142-08 (16 نونبر 2007): إنجاز ${examsPerSem} فروض محروسة في كل دورة (مدة كل فرض ${examDur === 1 ? 'ساعة واحدة 1h' : 'ساعتان 2h'}) + ${levelData.homeworkPerSemester || examsPerSem} فروض منزلية، بمعامل رسمي (${levelData.coefficient}).`,
+            `احترام مواصفات الصفحة 9 من المذكرة 142-08: تغطية ما لا يقل عن 75% من فقرات المقرر في الفرض المحروس، وتوزيع الأسئلة وفق المستويات المهارية المعتمدة (${skillDistributionNote}).`,
             'تخصيص حصة تصحيح ودعم بيداغوجي عقب كل فرض محروس لتصفية الصعوبات الفردية والجماعية وتدوينها في دفتر النصوص.',
-            `احترام نسب الأهمية والمستويات المهارية الواردة في الإطار المرجعي (${levelData.cadreReferentiel?.examType || 'التوجيهات التربوية'}) عند بناء الفروض المحروسة.`,
-            'إدماج البرمجيات التفاعلية (GeoGebra) والآلة الحاسبة العلمية في أنشطة البناء والتمثيل المبياني والهندسة.'
+            'إدماج البرمجيات التفاعلية (GeoGebra) والآلة الحاسبة العلمية في أنشطة البناء والتمثيل المبياني والهندسة وفق التوجيهات التربوية (نونبر 2007).'
         ];
 
         _curriculumImportState.analysisResult = {
@@ -3127,32 +3521,49 @@
         window.db.curriculumEnhancements[_currentCurriculumLevel] = res;
         localStorage.setItem(`curriculum_enhanced_${_currentCurriculumLevel}`, JSON.stringify(res));
 
-        // مزامنة مواعيد الفروض مع upcomingExams إن كانت موجودة
+        const selectedClass = document.getElementById('curriculumClassSelect')?.value
+            || Object.keys(window.db.classes || {}).find(c => getCurriculumLevelForClass(c) === _currentCurriculumLevel)
+            || Object.keys(window.db.classes || {})[0]
+            || _currentCurriculumLevel;
+
+        // مزامنة مواعيد الفروض مع upcomingExams والخط الزمني
         if (window.db) {
             if (!Array.isArray(window.db.upcomingExams)) window.db.upcomingExams = [];
-            const sampleDates = ['2026-11-12', '2026-12-18', '2027-01-15', '2027-03-12', '2027-04-22', '2027-05-20'];
+            const sampleDates = ['2026-10-22', '2026-11-26', '2026-12-24', '2027-01-14', '2027-03-11', '2027-04-15', '2027-05-13', '2027-05-27'];
             res.examMilestones.forEach((m, idx) => {
-                const existing = window.db.upcomingExams.find(ex => ex.title === m.title && ex.level === _currentCurriculumLevel);
+                const existing = window.db.upcomingExams.find(ex => ex.title === m.title && (ex.level === _currentCurriculumLevel || ex.className === selectedClass));
                 if (!existing) {
+                    const passDate = sampleDates[idx] || '2026-11-20';
                     window.db.upcomingExams.push({
                         id: 'ex_min_' + Date.now() + '_' + idx,
                         title: m.title,
-                        subject: 'الرياضيات',
-                        className: Object.keys(window.db.classes || {})[0] || 'TCS-1',
+                        subject: 'الرياضيات (آلة حاسبة علمية مسموحة)',
+                        className: selectedClass,
                         level: _currentCurriculumLevel,
-                        date: sampleDates[idx] || '2026-11-20',
+                        semester: m.semester || (idx < (res.examsPerSemester || 3) ? 's1' : 's2'),
+                        examNumber: String(m.examNumber || ((idx % (res.examsPerSemester || 3)) + 1)),
+                        date: passDate,
                         time: res.examDuration === 1 ? '08:00 - 09:00' : '08:00 - 10:00',
-                        type: 'فرض محروس رسمي',
+                        timeSlot: res.examDuration === 1 ? '08:00 - 09:00' : '08:00 - 10:00',
+                        duration: res.examDuration === 1 ? '1h' : '2h',
+                        type: 'فرض محروس',
                         coefficient: res.coefficient || 1,
-                        topics: m.topics,
+                        topics: m.rawTopics || m.topics,
                         notes: `مستخرج ومجود آلياً وفق المذكرة الوزارية 142-08 | ${m.remediation}`,
+                        prep: { drafted: false, scaleReady: false, printed: false, conducted: false, graded: false },
                         status: 'upcoming'
                     });
                 }
             });
+            try {
+                localStorage.setItem('math_upcoming_exams_timeline_v2', JSON.stringify(window.db.upcomingExams));
+            } catch (e) {}
         }
 
         if (typeof window.saveDB === 'function') window.saveDB();
+        if (typeof window.renderUpcomingExamsTimeline === 'function') {
+            try { window.renderUpcomingExamsTimeline(); } catch (e) {}
+        }
 
         closeCurriculumMinisterialImportModal();
         renderAnnualCurriculumView();
@@ -3299,6 +3710,15 @@
             </html>
         `;
 
+        if (typeof window.openCustomPrintPreviewModal === 'function') {
+            window.openCustomPrintPreviewModal(printHtml, {
+                title: 'تقرير التدقيق البيداغوجي وتجويد التوزيع السنوي',
+                orientation: 'portrait',
+                isReport: true,
+                subtitle: 'تقرير مواءمة التوزيع السنوي مع التوجيهات التربوية والمذكرة الوزارية 142-08'
+            });
+            return;
+        }
         if (typeof window.printDocumentDirectly === 'function') {
             window.printDocumentDirectly(printHtml, 'تقرير التدقيق البيداغوجي وتجويد التوزيع السنوي', 'portrait');
             return;
@@ -3344,16 +3764,17 @@
             const resolvedLevelId = level.id || level.code || currentLvlKey;
             const sem = level.semesters[activeSemester] || level.semesters['s1'];
             const lessons = (sem && sem.lessons) ? sem.lessons : [];
+            const examSched = (sem && Array.isArray(sem.examSchedule)) ? sem.examSchedule : [];
 
             modal.innerHTML = `
-            <div style="background:#ffffff; border-radius:14px; width:100%; max-width:840px; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3); font-family:'Cairo', system-ui, sans-serif;">
+            <div style="background:#ffffff; border-radius:14px; width:100%; max-width:880px; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 25px -5px rgba(0,0,0,0.3); font-family:'Cairo', system-ui, sans-serif;">
                 <div style="padding:16px 20px; background:linear-gradient(135deg, #1e3a8a, #2563eb); color:#fff; display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; align-items:center; gap:10px;">
                         <span style="font-size:1.4rem;">📚</span>
                         <div>
-                            <h3 style="margin:0; font-size:1.1rem; font-weight:800;">المقرر الوزاري الرسمي لمادة الرياضيات - التعبئة التلقائية لدفتر النصوص</h3>
-                            <div style="font-size:0.78rem; opacity:0.9;">
-                                المستوى: <strong>${level.name}</strong> ${cls ? `(القسم: ${cls})` : ''} • ${level.weeklyHours || '-'}س/أسبوع • المعامل: ${level.coefficient || '-'}
+                            <h3 style="margin:0; font-size:1.08rem; font-weight:800;">المقرر الوزاري الرسمي لمادة الرياضيات — التعبئة الذكية لدفتر النصوص</h3>
+                            <div style="font-size:0.78rem; opacity:0.92; font-variant-numeric:tabular-nums;">
+                                المستوى: <strong>${level.name}</strong> ${cls ? `(القسم: ${cls})` : ''} · ${level.weeklyHours || '-'}س/أسبوع · المعامل: ${level.coefficient || '-'} · ${level.examsPerSemester || 3} فروض/دورة (${level.examDuration || 2}س)
                             </div>
                         </div>
                     </div>
@@ -3362,7 +3783,7 @@
 
                 <div style="padding:10px 20px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <div style="display:flex; align-items:center; gap:6px;">
-                        <span style="font-size:0.8rem; font-weight:700; color:#475569;">تبديل المستوى:</span>
+                        <span style="font-size:0.8rem; font-weight:700; color:#475569;">تبديل المسلك:</span>
                         <select id="quickFillLevelSelect" style="padding:4px 8px; border-radius:6px; border:1px solid #cbd5e1; font-size:0.8rem; font-weight:700; background:#fff;">
                             ${Object.keys(MOROCCAN_SECONDARY_MATH_CURRICULUM).map(k => `
                                 <option value="${k}" ${k === currentLvlKey ? 'selected' : ''}>${MOROCCAN_SECONDARY_MATH_CURRICULUM[k].name}</option>
@@ -3376,7 +3797,28 @@
                 </div>
 
                 <div style="padding:16px 20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:12px;">
-                    <p style="margin:0; font-size:0.82rem; color:#64748b;">اختر الدرس المراد تدوينه في دفتر النصوص لتعبئة عنوان الدرس ومحاوره الرسمية وفق التوجيهات التربوية المغربية بنقرة واحدة:</p>
+                    ${examSched.length > 0 ? `
+                        <div style="background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; padding:10px 14px;">
+                            <div style="font-size:0.78rem; font-weight:900; color:#92400e; margin-bottom:8px;">
+                                📋 تدوين سريع لمحطات المراقبة المستمرة والتصحيح والفرض المنزلي (${sem.name} — المذكرة 142-08):
+                            </div>
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(245px, 1fr)); gap:8px;">
+                                ${examSched.map((ex, exIdx) => `
+                                    <div style="background:#ffffff; border:1px solid #fcd34d; border-radius:8px; padding:8px 10px; font-size:0.74rem;">
+                                        <div style="font-weight:900; color:#b45309; margin-bottom:3px;">${ex.title} (${formatOfficialWeekLabel(ex.week)})</div>
+                                        <div style="font-size:0.7rem; color:#475569; margin-bottom:6px;">${ex.officialWeights || ex.topics || ''}</div>
+                                        <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                                            <button type="button" onclick="window.applyCurriculumExamStationToForm('${resolvedLevelId}', '${activeSemester}', ${exIdx}, 'controle')" style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; padding:3px 7px; border-radius:5px; font-size:0.69rem; font-weight:800; cursor:pointer;">📝 حصة الفرض</button>
+                                            <button type="button" onclick="window.applyCurriculumExamStationToForm('${resolvedLevelId}', '${activeSemester}', ${exIdx}, 'correction')" style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; padding:3px 7px; border-radius:5px; font-size:0.69rem; font-weight:800; cursor:pointer;">🛠️ حصة التصحيح والدعم</button>
+                                            <button type="button" onclick="window.applyCurriculumExamStationToForm('${resolvedLevelId}', '${activeSemester}', ${exIdx}, 'homework')" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:3px 7px; border-radius:5px; font-size:0.69rem; font-weight:800; cursor:pointer;">🏠 تصحيح الفرض المنزلي</button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <p style="margin:0; font-size:0.8rem; color:#475569; font-weight:700;">اختر الدرس كاملاً أو انقر على أي فقرة/محور فرعي لتدوين حصة مفصلة في دفتر النصوص وفق التوجيهات التربوية (2007):</p>
                     ${lessons.map((ls, idx) => `
                         <div style="border:1.5px solid #e2e8f0; border-radius:10px; padding:12px 14px; background:#ffffff; transition:all 0.15s ease;" onmouseover="this.style.borderColor='#93c5fd'; this.style.boxShadow='0 2px 8px rgba(37,99,235,0.08)';" onmouseout="this.style.borderColor='#e2e8f0'; this.style.boxShadow='none';">
                             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:6px;">
@@ -3387,17 +3829,19 @@
                                 </div>
                                 <div style="display:flex; align-items:center; gap:6px;">
                                     <span style="font-size:0.72rem; color:#0369a1; background:#e0f2fe; padding:2px 8px; border-radius:6px; font-weight:700;">⏱️ ${ls.hours || ls.plannedHours || 10} ساعات</span>
-                                    <button type="button" onclick="window.applyCurriculumLessonToForm('${resolvedLevelId}', '${activeSemester}', ${idx})" style="background:linear-gradient(135deg, #16a34a, #15803d); color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:0.78rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px; box-shadow:0 2px 4px rgba(22,163,74,0.25);">
-                                        <span>تطبيق على الحصة ⚡</span>
+                                    <button type="button" onclick="window.applyCurriculumLessonToForm('${resolvedLevelId}', '${activeSemester}', ${idx})" style="background:linear-gradient(135deg, #16a34a, #15803d); color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:0.76rem; font-weight:800; cursor:pointer; display:inline-flex; align-items:center; gap:4px; box-shadow:0 2px 4px rgba(22,163,74,0.25);">
+                                        <span>تطبيق الدرس كاملاً ⚡</span>
                                     </button>
                                 </div>
                             </div>
                             ${ls.competency ? `<div style="font-size:0.74rem; color:#166534; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:4px 8px; margin-bottom:6px;">🎯 <strong>القدرات المنتظرة:</strong> ${ls.competency}</div>` : ''}
-                            <div style="background:#f8fafc; border-radius:6px; padding:8px 10px; font-size:0.76rem; color:#475569; display:flex; flex-direction:column; gap:4px;">
-                                <span style="font-weight:700; color:#1e3a8a;">المحاور والفقرات الوزارية (${(ls.axes || []).length} محاور):</span>
-                                <div style="display:flex; flex-wrap:wrap; gap:4px;">
-                                    ${(ls.axes || []).map(ax => `
-                                        <span style="background:#fff; border:1px solid #cbd5e1; padding:2px 7px; border-radius:4px; font-size:0.73rem; color:#334155;">${ax.title}</span>
+                            <div style="background:#f8fafc; border-radius:6px; padding:8px 10px; font-size:0.76rem; color:#475569; display:flex; flex-direction:column; gap:5px;">
+                                <span style="font-weight:700; color:#1e3a8a;">فقرات ومحاور الدرس (انقر على أي محور لتدوين حصة خاصة به فقط):</span>
+                                <div style="display:flex; flex-wrap:wrap; gap:5px;">
+                                    ${(ls.axes || []).map((ax, axIdx) => `
+                                        <button type="button" onclick="window.applyCurriculumSingleAxisToForm('${resolvedLevelId}', '${activeSemester}', ${idx}, ${axIdx})" style="background:#fff; border:1px solid #93c5fd; padding:3px 9px; border-radius:5px; font-size:0.73rem; font-weight:700; color:#1e3a8a; cursor:pointer; transition:all 0.15s;" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'" title="${escapeHtml(ax.desc || ax.title)}">
+                                            + ${ax.title}
+                                        </button>
                                     `).join('')}
                                 </div>
                             </div>
@@ -3406,7 +3850,7 @@
                 </div>
 
                 <div style="padding:12px 20px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:0.76rem; color:#64748b;">مطابق للأطر المرجعية والتوجيهات التربوية المغربية لمادة الرياضيات</span>
+                    <span style="font-size:0.76rem; color:#64748b;">مطابق للتوجيهات التربوية (نونبر 2007) والمذكرة الوزارية رقم 142-08</span>
                     <button type="button" onclick="document.getElementById('curriculumQuickFillModal').style.display='none'" style="padding:6px 16px; border:1px solid #cbd5e1; background:#fff; border-radius:6px; font-weight:700; font-size:0.8rem; cursor:pointer;">إغلاق</button>
                 </div>
             </div>`;
@@ -3426,6 +3870,118 @@
 
         renderModalBody();
         modal.style.display = 'flex';
+    }
+
+    function applyCurriculumSingleAxisToForm(levelId, semesterId, lessonIndex, axisIndex) {
+        const level = MOROCCAN_SECONDARY_MATH_CURRICULUM[levelId];
+        if (!level) return;
+        const sem = level.semesters[semesterId];
+        if (!sem || !sem.lessons || !sem.lessons[lessonIndex]) return;
+        const lesson = sem.lessons[lessonIndex];
+        const ax = (lesson.axes || [])[axisIndex];
+        if (!ax) return;
+
+        const numInput = document.getElementById('lessonLogNumber');
+        if (numInput) {
+            numInput.value = lesson.title;
+            if (typeof window.onLessonLogNumberChanged === 'function') {
+                window.onLessonLogNumberChanged(lesson.title);
+            }
+        }
+        const titleHidden = document.getElementById('lessonLogTitle');
+        if (titleHidden) titleHidden.value = lesson.title;
+
+        const preparedAxes = [{
+            title: ax.title,
+            color: '#ffffff',
+            paragraphs: [
+                {
+                    title: 'بناء المفهوم والتطبيقات',
+                    content: ax.desc || (ax.elements ? ax.elements.join('، ') : 'أنشطة بنائية وتمارين تطبيقية'),
+                    type: 'construct'
+                }
+            ]
+        }];
+
+        if (typeof window.setLessonLogAxesFields === 'function') {
+            window.setLessonLogAxesFields(preparedAxes);
+        }
+        if (typeof window.updateLessonLogSmartLegalCard === 'function') {
+            window.updateLessonLogSmartLegalCard();
+        }
+
+        const modal = document.getElementById('curriculumQuickFillModal');
+        if (modal) modal.style.display = 'none';
+
+        const formCard = document.getElementById('lessonLogFormCard');
+        if (formCard) formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        const toastFn = window.showFeedbackToast || window.showToast || window.showNotification;
+        if (typeof toastFn === 'function') {
+            toastFn(`✅ تم إدراج محور (${ax.title}) من درس (${lesson.title}) في دفتر النصوص!`, 'success');
+        }
+    }
+
+    function applyCurriculumExamStationToForm(levelId, semesterId, examIndex, stationMode) {
+        const level = MOROCCAN_SECONDARY_MATH_CURRICULUM[levelId];
+        if (!level) return;
+        const sem = level.semesters[semesterId];
+        const ex = (sem && Array.isArray(sem.examSchedule)) ? sem.examSchedule[examIndex] : null;
+        if (!ex) return;
+
+        const parsed20 = ex.officialWeights ? parseOfficialWeightsTo20Scale(ex.officialWeights) : null;
+        let sessionTitle = ex.title || `الفرض المحروس رقم ${examIndex + 1}`;
+        let axisTitle = 'إنجاز وتمرير الفرض المحروس في القسم';
+        let axisContent = `المضامين المقومة: ${ex.topics || ''}${ex.officialWeights ? ` | الأوزان النسبية (المذكرة 142-08): ${ex.officialWeights}` : ''}${parsed20 && parsed20.formattedScale ? ` | سلم التنقيط: ${parsed20.formattedScale}` : ''}.`;
+
+        if (stationMode === 'correction') {
+            sessionTitle = `تصحيح ${ex.title} والدعم التربوي المندمج`;
+            axisTitle = 'تصحيح جماعي وفردي للفرض المحروس ومعالجة التعثرات';
+            axisContent = `تحليل الأخطاء الشائعة للمتعلمين في (${ex.topics || ''}) وتقديم أنشطة داعمة وفق المذكرة 142-08 (${formatOfficialWeekLabel(ex.correctionWeek)}).`;
+        } else if (stationMode === 'homework') {
+            sessionTitle = `تصحيح ومناقشة الفرض المنزلي رقم ${ex.examNumber || (examIndex + 1)}`;
+            axisTitle = 'مناقشة وتصحيح الفرض المنزلي وتثبيت المستويين المهاريين الثاني والثالث (30%-60%)';
+            axisContent = `المحاور المشمولة بالفرض المنزلي (${formatOfficialWeekLabel(ex.homeworkWeek)} — التصحيح: ${formatOfficialWeekLabel(ex.homeworkCorrectionWeek)}): ${ex.topics || ''}.`;
+        }
+
+        const typeSelect = document.getElementById('lessonLogSessionType');
+        if (typeSelect) {
+            if (Array.from(typeSelect.options).some(o => o.value === stationMode)) {
+                typeSelect.value = stationMode;
+            }
+        }
+
+        const numInput = document.getElementById('lessonLogNumber');
+        if (numInput) {
+            numInput.value = sessionTitle;
+            if (typeof window.onLessonLogNumberChanged === 'function') {
+                window.onLessonLogNumberChanged(sessionTitle);
+            }
+        }
+        const titleHidden = document.getElementById('lessonLogTitle');
+        if (titleHidden) titleHidden.value = sessionTitle;
+
+        if (typeof window.setLessonLogAxesFields === 'function') {
+            window.setLessonLogAxesFields([{
+                title: axisTitle,
+                color: '#ffffff',
+                paragraphs: [{ title: 'التفاصيل التربوية (المذكرة 142-08)', content: axisContent, type: 'construct' }]
+            }]);
+        }
+        if (typeof window.updateLessonLogSmartLegalCard === 'function') {
+            window.updateLessonLogSmartLegalCard();
+        }
+
+        const modal = document.getElementById('curriculumQuickFillModal');
+        if (modal) modal.style.display = 'none';
+
+        const formCard = document.getElementById('lessonLogFormCard');
+        if (formCard) formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        const toastFn = window.showFeedbackToast || window.showToast || window.showNotification;
+        if (typeof toastFn === 'function') {
+            toastFn(`📋 تم إدراج (${sessionTitle}) بمرجعيته الرسمية (المذكرة 142-08) في دفتر النصوص!`, 'success');
+        }
     }
 
     function applyCurriculumLessonToForm(levelId, semesterId, lessonIndex) {
@@ -3483,13 +4039,36 @@
         }
     }
 
+    function getSecondaryMathLessonsForClass(className) {
+        const levelId = getCurriculumLevelForClass(className);
+        const level = MOROCCAN_SECONDARY_MATH_CURRICULUM[levelId] || MOROCCAN_SECONDARY_MATH_CURRICULUM['TCS'];
+        const s1Lessons = (level && level.semesters && level.semesters.s1 && Array.isArray(level.semesters.s1.lessons))
+            ? level.semesters.s1.lessons
+            : [];
+        const s2Lessons = (level && level.semesters && level.semesters.s2 && Array.isArray(level.semesters.s2.lessons))
+            ? level.semesters.s2.lessons
+            : [];
+        return {
+            levelId: level ? level.id : levelId,
+            levelName: level ? (level.shortName || level.name || levelId) : levelId,
+            fullName: level ? (level.name || levelId) : levelId,
+            s1Lessons,
+            s2Lessons,
+            allLessons: [...s1Lessons, ...s2Lessons]
+        };
+    }
+
     // تصدير الدوال للكائن العام
+    window.MOROCCAN_SECONDARY_MATH_CURRICULUM = MOROCCAN_SECONDARY_MATH_CURRICULUM;
+    window.getSecondaryMathLessonsForClass = getSecondaryMathLessonsForClass;
     window.openCurriculumMinisterialImportModal = openCurriculumMinisterialImportModal;
     window.closeCurriculumMinisterialImportModal = closeCurriculumMinisterialImportModal;
     window.buildCurriculumEnhancementBannerHTML = buildCurriculumEnhancementBannerHTML;
     window.openCurriculumQuickFillModal = openCurriculumQuickFillModal;
     window.openCurriculumCuratedPickerModal = openCurriculumQuickFillModal;
     window.applyCurriculumLessonToForm = applyCurriculumLessonToForm;
+    window.applyCurriculumSingleAxisToForm = applyCurriculumSingleAxisToForm;
+    window.applyCurriculumExamStationToForm = applyCurriculumExamStationToForm;
 
 })();
 

@@ -141,10 +141,21 @@ export const AiComparativePerformanceModal: React.FC<StudentAiComparativeModalPr
       ? parseFloat((validProctored.reduce((a, b) => a + b, 0) / validProctored.length).toFixed(2))
       : null;
 
-    // 2. Attendance & Incidents
-    const records = (db.records || []).filter(
-      (r: any) => String(r.studentId) === stdId && r.className === selectedClass
-    );
+    // 2. Attendance & Incidents (excluding protected holiday/leave dates)
+    const winAny = typeof window !== 'undefined' ? (window as any) : {};
+    const isProtectedRec = typeof winAny.isRecordProtectedHolidayOrLeave === 'function' ? winAny.isRecordProtectedHolidayOrLeave : null;
+    const isDisabledDate = typeof winAny.isAbsenceDisabledOnDate === 'function' ? winAny.isAbsenceDisabledOnDate : null;
+    const records = (db.records || []).filter((r: any) => {
+      if (!r || String(r.studentId) !== stdId) return false;
+      const recCls = r.className || r.class || '';
+      if (recCls !== selectedClass) return false;
+      if (isProtectedRec && isProtectedRec(r)) return false;
+      if (r.date && isDisabledDate) {
+        const chk = isDisabledDate(r.date, r.session);
+        if (typeof chk === 'boolean' ? chk : !!(chk && chk.disabled)) return false;
+      }
+      return true;
+    });
     let absentHours = 0;
     let justifiedHours = 0;
     let unexcusedHours = 0;
@@ -271,7 +282,7 @@ export const AiComparativePerformanceModal: React.FC<StudentAiComparativeModalPr
     if (isOpen && currentStudent) {
       runAiComparison();
     }
-  }, [isOpen, selectedStudentId, selectedClass]);
+  }, [isOpen, selectedStudentId, selectedClass, semester]);
 
   // Copy WhatsApp report for parents
   const copyWhatsAppReport = () => {
@@ -437,7 +448,7 @@ ${analysisResult.recommendationsForStudent.slice(0, 2).map((r, i) => `• ${r}`)
                     <span>معدل الفروض المحروسة الكتابية</span>
                   </span>
                   <span className="text-[10px] font-mono font-bold bg-blue-200/60 text-blue-800 px-2 py-0.5 rounded-md">
-                    F1, F2, F3
+                    {studentMetrics.f4 !== null ? 'F1, F2, F3, F4' : 'F1, F2, F3'}
                   </span>
                 </div>
                 <div className="my-2 flex items-baseline gap-2">
@@ -446,10 +457,13 @@ ${analysisResult.recommendationsForStudent.slice(0, 2).map((r, i) => `• ${r}`)
                   </span>
                   <span className="text-xs font-bold text-slate-500">/ 20</span>
                 </div>
-                <div className="text-[11px] text-blue-800 flex items-center gap-2 border-t border-blue-200/60 pt-1.5">
+                <div className="text-[11px] text-blue-800 flex items-center flex-wrap gap-2 border-t border-blue-200/60 pt-1.5">
                   <span>ف1: <strong>{studentMetrics.f1 !== null ? studentMetrics.f1 : '-'}</strong></span>
                   <span>ف2: <strong>{studentMetrics.f2 !== null ? studentMetrics.f2 : '-'}</strong></span>
                   <span>ف3: <strong>{studentMetrics.f3 !== null ? studentMetrics.f3 : '-'}</strong></span>
+                  {studentMetrics.f4 !== null && (
+                    <span>ف4: <strong>{studentMetrics.f4}</strong></span>
+                  )}
                 </div>
               </div>
 

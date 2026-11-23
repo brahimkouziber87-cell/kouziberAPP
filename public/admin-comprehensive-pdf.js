@@ -16,13 +16,22 @@
             .replace(/'/g, '&#39;');
     }
 
+    function parseNumericMark(v) {
+        if (v === undefined || v === null || typeof v === 'boolean') return null;
+        const s = String(v).trim().replace(',', '.');
+        if (s === '') return null;
+        const n = parseFloat(s);
+        return (!isNaN(n) && isFinite(n) && n >= 0 && n <= 20) ? n : null;
+    }
+
     function hasValidMark(v) {
-        return v !== undefined && v !== null && v !== '' && !isNaN(parseFloat(v));
+        return parseNumericMark(v) !== null;
     }
 
     function fmtMark(v) {
-        if (v === null || v === undefined || v === '' || isNaN(parseFloat(v))) return '--';
-        return Number(parseFloat(v)).toFixed(2);
+        const n = parseNumericMark(v);
+        if (n === null) return '--';
+        return Number(n).toFixed(2);
     }
 
     function computeSemesterGradesObj(db, className, studentId, sem, examCount) {
@@ -44,17 +53,18 @@
         let sum = 0;
         let count = 0;
         keys.forEach((k) => {
-            if (hasValidMark(raw[k])) {
-                sum += parseFloat(raw[k]);
+            const val = parseNumericMark(raw[k]);
+            if (val !== null) {
+                sum += val;
                 count++;
             }
         });
 
         return {
-            f1: hasValidMark(raw.f1) ? parseFloat(raw.f1) : null,
-            f2: hasValidMark(raw.f2) ? parseFloat(raw.f2) : null,
-            f3: hasValidMark(raw.f3) ? parseFloat(raw.f3) : null,
-            f4: hasValidMark(raw.f4) ? parseFloat(raw.f4) : null,
+            f1: parseNumericMark(raw.f1),
+            f2: parseNumericMark(raw.f2),
+            f3: parseNumericMark(raw.f3),
+            f4: parseNumericMark(raw.f4),
             avg: count > 0 ? Number((sum / count).toFixed(2)) : null
         };
     }
@@ -81,7 +91,7 @@
             if (typeof window.isRecordProtectedHolidayOrLeave === 'function' && window.isRecordProtectedHolidayOrLeave(r)) {
                 continue;
             }
-            const key = `${r.studentId || ''}__${r.className || ''}`;
+            const key = `${r.studentId || ''}__${r.className || r.class || ''}`;
             if (!recordsByStudentClass.has(key)) recordsByStudentClass.set(key, []);
             recordsByStudentClass.get(key).push(r);
         }
@@ -102,7 +112,8 @@
         let globalAcademicAlertCount = 0;
 
         classesList.forEach((clsName) => {
-            const students = Array.isArray(db.classes && db.classes[clsName]) ? db.classes[clsName] : [];
+            const rawClsVal = db.classes && db.classes[clsName];
+            const students = Array.isArray(rawClsVal) ? rawClsVal : (rawClsVal && Array.isArray(rawClsVal.students) ? rawClsVal.students : []);
             const examCount = (typeof window.getExamsCountForClass === 'function') ? window.getExamsCountForClass(clsName) : 3;
             const cfg = (db.classConfig && db.classConfig[clsName]) || {};
             const levelLabel = cfg.level || cfg.levelName || (typeof window.detectLevelFromClassName === 'function' ? window.detectLevelFromClassName(clsName) : '') || 'ثانوي تأهيلي';
@@ -296,17 +307,20 @@
 
         const tp = db.teacherProfile || db.profile || {};
         const settings = db.settings || {};
+        const nowObj = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+        const acadStart = (nowObj.getMonth() + 1) >= 9 ? nowObj.getFullYear() : nowObj.getFullYear() - 1;
+        const dynamicAcadYear = `${acadStart} / ${acadStart + 1}`;
 
         return {
             meta: {
                 academy: tp.academy || settings.academy || 'الأكاديمية الجهوية للتربية والتكوين',
                 directorate: tp.directorate || settings.directorate || 'المديرية الإقليمية',
                 school: tp.school || settings.schoolName || 'الثانوية التأهيلية',
-                teacherName: tp.name || settings.teacherName || 'الأستاذ إبراهيم قزيبر',
-                academicYear: db.academicYear || tp.academicYear || settings.schoolYear || '2026 / 2027',
+                teacherName: tp.name || settings.teacherName || 'أستاذ المادة',
+                academicYear: db.academicYear || tp.academicYear || settings.schoolYear || dynamicAcadYear,
                 subject: 'الرياضيات - السلك الثانوي التأهيلي',
-                dateStr: new Date().toLocaleDateString('ar-MA', { year: 'numeric', month: 'long', day: 'numeric' }),
-                timeStr: new Date().toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' }),
+                dateStr: nowObj.toLocaleDateString('ar-MA', { year: 'numeric', month: 'long', day: 'numeric' }),
+                timeStr: nowObj.toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' }),
                 absenceThreshold,
                 scopeSemester,
                 scopeLabel: scopeSemester === 's1' ? 'الدورة الأولى (S1)' : (scopeSemester === 's2' ? 'الدورة الثانية (S2)' : 'الحصيلة السنوية الموحدة (S1 + S2)')
@@ -843,8 +857,9 @@
 
         try {
             const html = buildAdminComprehensiveHtml(dataset, opts);
-            const today = new Date().toISOString().slice(0, 10);
-            const clsSlug = opts.classFilter === '__ALL__' ? 'جميع_الأقسام' : opts.classFilter.replace(/\s+/g, '_');
+            const nowRef = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+            const today = `${nowRef.getFullYear()}-${String(nowRef.getMonth() + 1).padStart(2, '0')}-${String(nowRef.getDate()).padStart(2, '0')}`;
+            const clsSlug = opts.classFilter === '__ALL__' ? 'جميع_الأقسام' : String(opts.classFilter).replace(/[\\\/\?\*\[\]:"<>|\s]+/g, '_');
             const fileName = `التقرير_الإداري_الشامل_المواظبة_والنقط_${clsSlug}_${today}.pdf`;
 
             await exportHtmlDirectlyToPdf(html, fileName, opts.orientation);

@@ -190,7 +190,7 @@ export const WeekdayAbsenceDistributionCard: React.FC<{
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [selectedPeriod, setSelectedPeriod] = useState<'all' | '30days' | 'month' | 's1' | 's2'>('all');
   const [activeDayIdx, setActiveDayIdx] = useState<number | null>(null);
-  const [showDemoWhenEmpty, setShowDemoWhenEmpty] = useState<boolean>(true);
+  const [showDemoWhenEmpty, setShowDemoWhenEmpty] = useState<boolean>(false);
   const [refreshTick, setRefreshTick] = useState<number>(0);
 
   useEffect(() => {
@@ -230,7 +230,8 @@ export const WeekdayAbsenceDistributionCard: React.FC<{
     const nowObj = typeof win.getAppNow === 'function' ? win.getAppNow() : new Date();
     const curYear = nowObj.getFullYear();
     const curMonthPrefix = `${curYear}-${String(nowObj.getMonth() + 1).padStart(2, '0')}`;
-    const thirtyDaysAgo = new Date(nowObj.getTime() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    const d30 = new Date(nowObj.getFullYear(), nowObj.getMonth(), nowObj.getDate() - 30);
+    const thirtyDaysAgo = `${d30.getFullYear()}-${String(d30.getMonth() + 1).padStart(2, '0')}-${String(d30.getDate()).padStart(2, '0')}`;
 
     const isProtectedRecord =
       typeof win.isRecordProtectedHolidayOrLeave === 'function' ? win.isRecordProtectedHolidayOrLeave : null;
@@ -276,7 +277,8 @@ export const WeekdayAbsenceDistributionCard: React.FC<{
       const rec = allRecords[i];
       if (!rec || !rec.date || typeof rec.date !== 'string') continue;
 
-      if (selectedClass !== 'all' && rec.className !== selectedClass) continue;
+      const recClass = rec.className || rec.class || '';
+      if (selectedClass !== 'all' && recClass !== selectedClass) continue;
 
       // Time period filter
       const dStr = rec.date.slice(0, 10);
@@ -325,7 +327,7 @@ export const WeekdayAbsenceDistributionCard: React.FC<{
         totalJustified = Number((totalJustified + dur).toFixed(1));
       }
 
-      const cls = rec.className || 'القسم';
+      const cls = rec.className || rec.class || 'القسم';
       const stdId = String(rec.studentId || '');
       const stdKey = `${cls}__${stdId}`;
       if (!b.studentsMap[stdKey]) {

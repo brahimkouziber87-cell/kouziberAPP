@@ -16,6 +16,30 @@
         semester: 's1'
     };
 
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function parseNumericScore(v) {
+        if (v === undefined || v === null || typeof v === 'boolean') return null;
+        const s = String(v).trim().replace(',', '.');
+        if (!s) return null;
+        const n = parseFloat(s);
+        return (!isNaN(n) && isFinite(n)) ? n : null;
+    }
+
+    function getClassStudentsSafe(clsVal) {
+        if (Array.isArray(clsVal)) return clsVal;
+        if (clsVal && Array.isArray(clsVal.students)) return clsVal.students;
+        return [];
+    }
+
     /**
      * استخراج نقطة التقويم التشخيصي للتلميذ إن وجدت (على 20)
      */
@@ -26,11 +50,14 @@
             const dEntry = db.diagnostic[className][studentId];
             if (typeof dEntry === 'number' && !isNaN(dEntry)) return dEntry;
             if (dEntry && typeof dEntry === 'object') {
-                if (dEntry.total !== undefined && !isNaN(parseFloat(dEntry.total))) return parseFloat(dEntry.total);
-                if (dEntry.totalScore !== undefined && !isNaN(parseFloat(dEntry.totalScore))) return parseFloat(dEntry.totalScore);
-                if (dEntry.score !== undefined && !isNaN(parseFloat(dEntry.score))) return parseFloat(dEntry.score);
-                const sumD = ['d1', 'd2', 'd3', 'd4'].reduce((acc, k) => acc + (parseFloat(dEntry[k]) || 0), 0);
-                if (sumD > 0) return parseFloat(sumD.toFixed(2));
+                const t1 = parseNumericScore(dEntry.total);
+                if (t1 !== null) return t1;
+                const t2 = parseNumericScore(dEntry.totalScore);
+                if (t2 !== null) return t2;
+                const t3 = parseNumericScore(dEntry.score);
+                if (t3 !== null) return t3;
+                const dVals = ['d1', 'd2', 'd3', 'd4'].map(k => parseNumericScore(dEntry[k])).filter(n => n !== null);
+                if (dVals.length > 0) return parseFloat(dVals.reduce((acc, n) => acc + n, 0).toFixed(2));
             }
         }
         // 2. التحقق من البنية البديلة (db.diagnosticEvaluation)
@@ -38,17 +65,20 @@
             const diag = db.diagnosticEvaluation[className][studentId];
             if (typeof diag === 'number' && !isNaN(diag)) return diag;
             if (diag && typeof diag === 'object') {
-                if (diag.total !== undefined && !isNaN(parseFloat(diag.total))) return parseFloat(diag.total);
-                if (diag.totalScore !== undefined && !isNaN(parseFloat(diag.totalScore))) return parseFloat(diag.totalScore);
-                if (diag.score !== undefined && !isNaN(parseFloat(diag.score))) return parseFloat(diag.score);
+                const t1 = parseNumericScore(diag.total);
+                if (t1 !== null) return t1;
+                const t2 = parseNumericScore(diag.totalScore);
+                if (t2 !== null) return t2;
+                const t3 = parseNumericScore(diag.score);
+                if (t3 !== null) return t3;
             }
         }
         // 3. التحقق من سجل التلميذ المباشر
-        const students = (db.classes && db.classes[className]) || [];
-        const std = students.find(s => s.id === studentId);
+        const students = getClassStudentsSafe(db.classes && db.classes[className]);
+        const std = students.find(s => s && String(s.id) === String(studentId));
         if (std && (std.diagnosticScore !== undefined || std.diagScore !== undefined)) {
-            const val = parseFloat(std.diagnosticScore ?? std.diagScore);
-            if (!isNaN(val)) return val;
+            const val = parseNumericScore(std.diagnosticScore ?? std.diagScore);
+            if (val !== null) return val;
         }
         return null;
     }
@@ -58,7 +88,7 @@
      */
     function computeClassValueAddedStats(className, semester) {
         const db = window.db || {};
-        const students = (db.classes && db.classes[className]) ? db.classes[className] : [];
+        const students = getClassStudentsSafe(db.classes && db.classes[className]);
         const sem = semester || window.activeSemester || 's1';
         const examCount = (typeof window.getExamsCountForClass === 'function') ? window.getExamsCountForClass(className) : 3;
 
@@ -231,7 +261,7 @@
             return `
             <tr style="border-bottom: 1px solid #cbd5e1; background: ${i % 2 === 0 ? '#fff' : '#f8fafc'};">
                 <td style="padding: 7px 5px; text-align: center; font-weight: 800; border: 1px solid #cbd5e1; color: #1e3a8a;">#${std.orderNum}</td>
-                <td style="padding: 7px 10px; text-align: right; font-weight: 700; border: 1px solid #cbd5e1; color: #0f172a;">${std.name}</td>
+                <td style="padding: 7px 10px; text-align: right; font-weight: 700; border: 1px solid #cbd5e1; color: #0f172a;">${escapeHtml(std.name)}</td>
                 <td style="padding: 7px 6px; text-align: center; font-weight: 700; border: 1px solid #cbd5e1; color: #475569;">
                     ${std.scoreDiag !== null ? `${std.scoreDiag} <span style="font-size:0.7rem;">/20</span>` : '<span style="color:#94a3b8; font-size:0.72rem;">غير مرصود</span>'}
                 </td>
@@ -240,7 +270,7 @@
                 </td>
                 <td style="padding: 7px 6px; text-align: center; border: 1px solid #cbd5e1;">${deltaBadge}</td>
                 <td style="padding: 7px 10px; text-align: right; font-weight: 700; font-size: 0.76rem; border: 1px solid #cbd5e1; color: ${std.statusColor};">
-                    ${std.status}
+                    ${escapeHtml(std.status)}
                 </td>
             </tr>
             `;
@@ -255,7 +285,7 @@
                         <span>📈 مؤشر القيمة المضافة التربوية ومصفوفة التجانس الصفي</span>
                     </h3>
                     <div style="font-size: 0.8rem; opacity: 0.9; margin-top: 4px;">
-                        تحليل الفارق بين نقط التقويم التشخيصي ونقط المراقبة المستمرة • القسم: <strong>${className}</strong> (${semLabel})
+                        تحليل الفارق بين نقط التقويم التشخيصي ونقط المراقبة المستمرة • القسم: <strong>${escapeHtml(className)}</strong> (${semLabel})
                     </div>
                 </div>
                 <div style="background: rgba(255,255,255,0.15); backdrop-filter: blur(4px); padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); text-align: center;">
@@ -286,8 +316,8 @@
 
                 <div style="background: ${stats.homogeneityBadgeBg}; border: 1.5px solid ${stats.homogeneityColor}; border-radius: 10px; padding: 12px;">
                     <div style="font-size: 0.75rem; font-weight: 800; color: ${stats.homogeneityColor};">درجة التجانس الصفي</div>
-                    <div style="font-size: 0.95rem; font-weight: 900; color: ${stats.homogeneityColor}; margin: 4px 0;">${stats.homogeneityLabel}</div>
-                    <div style="font-size: 0.72rem; color: #334155; line-height: 1.4;">${stats.didacticAdvice}</div>
+                    <div style="font-size: 0.95rem; font-weight: 900; color: ${stats.homogeneityColor}; margin: 4px 0;">${escapeHtml(stats.homogeneityLabel)}</div>
+                    <div style="font-size: 0.72rem; color: #334155; line-height: 1.4;">${escapeHtml(stats.didacticAdvice)}</div>
                 </div>
             </div>
 
@@ -312,7 +342,7 @@
 
             <!-- Official Footer Signature -->
             <div style="margin-top: 12px; padding-top: 8px; border-top: 1px dashed #cbd5e1; text-align: center; font-size: 0.76rem; font-weight: 800; color: #1e3a8a;">
-                منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر
+                منظومة التدبير التربوي - مادة الرياضيات - السلك الثانوي التأهيلي
             </div>
         </div>
         `;
@@ -340,7 +370,7 @@
             <html lang="ar" dir="rtl">
             <head>
                 <meta charset="UTF-8">
-                <title>تقرير القيمة المضافة والتجانس الصفي - ${cls}</title>
+                <title>تقرير القيمة المضافة والتجانس الصفي - ${escapeHtml(cls)}</title>
                 <style>
                     @page { size: A4 portrait; margin: 10mm; }
                     body { font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 0; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -372,16 +402,22 @@
             document.body.appendChild(modal);
         }
 
+        const reportClassSelect = document.getElementById('reportClassSelect');
         const classSelect = document.getElementById('classSelect');
-        const activeCls = className || (classSelect ? classSelect.value : '') || Object.keys(window.db?.classes || {})[0] || '';
-        const activeSem = window.activeSemester || 's1';
+        let rawCls = className || (reportClassSelect ? reportClassSelect.value : '') || (classSelect ? classSelect.value : '') || Object.keys(window.db?.classes || {})[0] || '';
+        if (rawCls === '__ALL__' || rawCls === '__MULTI__' || String(rawCls).startsWith('__MULTI__')) {
+            const resolved = typeof window.resolveReportTargetClasses === 'function' ? window.resolveReportTargetClasses(rawCls) : null;
+            rawCls = (resolved && resolved.classes && resolved.classes[0]) ? resolved.classes[0] : (Object.keys(window.db?.classes || {})[0] || '');
+        }
+        const activeCls = rawCls;
+        const activeSem = semester || window.activeSemester || 's1';
         _vaState.selectedClass = activeCls;
         _vaState.semester = activeSem;
 
         const clsDropdown = document.getElementById('vaModalClassSelect');
         if (clsDropdown) {
             const classes = Object.keys(window.db?.classes || {});
-            clsDropdown.innerHTML = classes.map(c => `<option value="${c}" ${c === activeCls ? 'selected' : ''}>${c}</option>`).join('');
+            clsDropdown.innerHTML = classes.map(c => `<option value="${escapeHtml(c)}" ${c === activeCls ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
         }
         const semDropdown = document.getElementById('vaModalSemesterSelect');
         if (semDropdown) {

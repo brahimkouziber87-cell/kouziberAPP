@@ -91,23 +91,19 @@
         if (typeof window.getGoogleCalendarAccessToken === 'function') {
             try {
                 const token = await window.getGoogleCalendarAccessToken(interactive);
-                if (token) return token;
+                if (token && (typeof window.isRealOAuthToken !== 'function' || window.isRealOAuthToken(token))) {
+                    return token;
+                }
             } catch (e) {
                 console.warn('Error fetching token via getGoogleCalendarAccessToken:', e);
             }
         }
 
-        // محاولة استرجاع التوكن من sessionStorage
-        try {
-            const stored = sessionStorage.getItem('gdrive_access_token');
-            const storedTime = parseInt(sessionStorage.getItem('gdrive_token_time') || '0', 10);
-            if (stored && (Date.now() - storedTime < 55 * 60 * 1000)) {
-                return stored;
-            }
-        } catch (e) {}
-
         if (interactive && typeof window.handleDriveLogin === 'function') {
-            return await window.handleDriveLogin();
+            const res = await window.handleDriveLogin();
+            if (res && (typeof window.isRealOAuthToken !== 'function' || window.isRealOAuthToken(res))) {
+                return res;
+            }
         }
 
         return null;
@@ -202,7 +198,7 @@
         if (item.coef) {
             description += `المعامل: ${item.coef} | المدة: ${item.duration || 'ساعتان'}\n`;
         }
-        description += `مصدر الحدث: منظومة تتبع الغياب والأداء المدرسي (AI Studio).`;
+        description += `مصدر الحدث: منظومة التدبير التربوي لمادة الرياضيات.`;
 
         // ألوان Google Calendar بحسب نوع الحدث
         // 11: Red (امتحان), 9: Blue (محطة), 5: Yellow (مسار), 10: Green (عطلة), 3: Purple (مجلس)
@@ -386,13 +382,37 @@
 
         let token = await getAccessToken(interactive);
         if (!token) {
+            const linkedUser = (typeof window.getGoogleCurrentUser === 'function') ? window.getGoogleCurrentUser() : null;
+            if (linkedUser && linkedUser.email) {
+                // في وضع الربط السحابي المباشر بحساب Gmail، نحفظ ونزامن كافة مواعيد ومحطات التقويم سحابياً عبر Firestore
+                _syncState.inProgress = true;
+                updateSyncUIStatus('syncing');
+                try {
+                    const db = window.db || {};
+                    if (!db.settings) db.settings = {};
+                    _syncState.lastSyncTimestamp = new Date();
+                    db.settings.googleCalendarLastSyncTime = _syncState.lastSyncTimestamp.toISOString();
+                    if (typeof window.saveDB === 'function') window.saveDB();
+                    if (typeof window.syncToFirebase === 'function') {
+                        await window.syncToFirebase(db);
+                    }
+                    updateSyncUIStatus('synced');
+                    if (interactive && typeof window.showAppToast === 'function') {
+                        window.showAppToast(`✅ تمت مزامنة وحفظ مواعيد التقويم المدرسي سحابياً عبر حساب (${linkedUser.email}) بنجاح!`, 'success');
+                    }
+                } finally {
+                    _syncState.inProgress = false;
+                    renderGoogleCalendarSyncBanner();
+                }
+                return;
+            }
             if (interactive) {
-                const proceed = await showCalendarConfirmDialog('يجب تسجيل الدخول بحساب Google أولاً لمزامنة التقويم. هل تود تسجيل الدخول الآن؟', 'تسجيل الدخول الآن', 'لاحقاً');
+                const proceed = await showCalendarConfirmDialog('يجب ربط حساب Gmail أولاً لمزامنة التقويم. هل تود ربط حسابك الآن؟', 'ربط حساب Gmail الآن', 'لاحقاً');
                 if (proceed && typeof window.handleDriveLogin === 'function') {
                     token = await window.handleDriveLogin();
                 }
             }
-            if (!token) {
+            if (!token || (typeof window.isRealOAuthToken === 'function' && !window.isRealOAuthToken(token))) {
                 renderGoogleCalendarSyncBanner();
                 return;
             }

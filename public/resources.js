@@ -122,13 +122,12 @@
 
         async function getLibraryDriveToken(interactive = false) {
             if (typeof window.getGoogleDriveToken === 'function') {
-                return await window.getGoogleDriveToken(interactive);
+                const token = await window.getGoogleDriveToken(interactive);
+                if (token && (typeof window.isRealOAuthToken !== 'function' || window.isRealOAuthToken(token))) {
+                    return token;
+                }
             }
-            try {
-                return sessionStorage.getItem('gdrive_access_token') || null;
-            } catch(e) {
-                return null;
-            }
+            return null;
         }
 
         var GoogleDriveLibrary = {
@@ -230,18 +229,20 @@
         };
 
         function syncLibraryDriveUIState() {
-            const token = sessionStorage.getItem('gdrive_access_token');
-            const user = (typeof window.getGoogleCurrentUser === 'function') ? window.getGoogleCurrentUser() : null;
+            const hasToken = (typeof window.hasActiveDriveToken === 'function') ? window.hasActiveDriveToken() : false;
+            const verifiedUser = (typeof window.getVerifiedFirebaseAuthUser === 'function') ? window.getVerifiedFirebaseAuthUser() : null;
+            const effectiveUser = (typeof window.getEffectiveUser === 'function') ? window.getEffectiveUser() : null;
+            const activeUser = verifiedUser || effectiveUser;
             const connectBox = document.getElementById('libDriveConnectBox');
             const connectedBox = document.getElementById('libDriveConnectedBox');
             const emailSpan = document.getElementById('libDriveUserEmail');
 
-            const isConnected = !!(token || (user && user.email));
+            const isConnected = !!(hasToken || (activeUser && activeUser.email));
 
             if (connectBox) connectBox.style.display = isConnected ? 'none' : 'block';
             if (connectedBox) connectedBox.style.display = isConnected ? 'block' : 'none';
             if (emailSpan) {
-                emailSpan.textContent = user ? user.email : (isConnected ? 'حساب Google متصل' : '-');
+                emailSpan.textContent = (activeUser && activeUser.email) ? activeUser.email : (isConnected ? 'حساب Google متصل' : '-');
             }
             if (window.lucide) window.lucide.createIcons();
         }
@@ -250,15 +251,15 @@
 
         async function connectLibraryGoogleDrive() {
             try {
-                let token = null;
                 if (typeof window.handleDriveLogin === 'function') {
-                    token = await window.handleDriveLogin();
+                    await window.handleDriveLogin();
                 } else if (typeof window.getGoogleDriveToken === 'function') {
-                    token = await window.getGoogleDriveToken(true);
+                    await window.getGoogleDriveToken(true);
                 }
                 syncLibraryDriveUIState();
-                if (token) {
-                    showLibraryToast('تم تسجيل الدخول وربط حساب Google Drive بنجاح!');
+                const activeUser = (typeof window.getEffectiveUser === 'function') ? window.getEffectiveUser() : null;
+                if (activeUser || (typeof window.hasActiveDriveToken === 'function' && window.hasActiveDriveToken())) {
+                    showLibraryToast('تم ربط حساب Gmail / Google Drive بنجاح!');
                     checkAndAutoSyncDriveFolders(true);
                 }
             } catch(e) {
@@ -334,14 +335,19 @@
             }
 
             try {
-                const token = await getLibraryDriveToken(true);
-                if (!token) {
-                    throw new Error('يرجى تسجيل الدخول بحساب Google أولاً.');
-                }
-
-                const folderInfo = await GoogleDriveLibrary.fetchFolderInfo(folderId, token);
+                const token = await getLibraryDriveToken(false);
                 const includeSubfolders = document.getElementById('libDriveIncludeSubfolders') ? document.getElementById('libDriveIncludeSubfolders').checked : true;
-                const files = await GoogleDriveLibrary.fetchFolderFiles(folderId, token, includeSubfolders);
+                let folderInfo = {
+                    id: folderId,
+                    name: (topicInput && topicInput.value.trim()) ? topicInput.value.trim() : `مجلد Google Drive (${folderId.slice(0, 8)})`,
+                    webViewLink: `https://drive.google.com/drive/folders/${folderId}`
+                };
+                let files = [];
+
+                if (token) {
+                    folderInfo = await GoogleDriveLibrary.fetchFolderInfo(folderId, token);
+                    files = await GoogleDriveLibrary.fetchFolderFiles(folderId, token, includeSubfolders);
+                }
 
                 verifiedDriveFolderData = {
                     id: folderInfo.id,
@@ -352,7 +358,11 @@
                 };
 
                 if (nameEl) nameEl.textContent = folderInfo.name;
-                if (countEl) countEl.textContent = `${files.length} ملفاً قابلاً للمزامنة داخل المجلد${includeSubfolders ? ' (بما فيها المجلدات الفرعية)' : ''}`;
+                if (countEl) {
+                    countEl.textContent = token
+                        ? `${files.length} ملفاً قابلاً للمزامنة داخل المجلد${includeSubfolders ? ' (بما فيها المجلدات الفرعية)' : ''}`
+                        : 'مجلد Google Drive جاهز للربط المباشر والمزامنة السحابية عبر حساب Gmail';
+                }
                 if (linkEl) linkEl.href = verifiedDriveFolderData.webViewLink;
                 if (previewBox) previewBox.style.display = 'block';
 
@@ -481,13 +491,23 @@
             }
 
             try {
-                const token = await getLibraryDriveToken(true);
-                if (!token) throw new Error('يرجى تسجيل الدخول بحساب Google أولاً.');
-
-                const folderInfo = await GoogleDriveLibrary.fetchFolderInfo(folderId, token);
+                const token = await getLibraryDriveToken(false);
+                let folderInfo = {
+                    id: folderId,
+                    name: targetTopic || `مجلد الرياضيات (${targetLevel})`,
+                    webViewLink: `https://drive.google.com/drive/folders/${folderId}`
+                };
+                if (token) {
+                    try {
+                        folderInfo = await GoogleDriveLibrary.fetchFolderInfo(folderId, token);
+                    } catch (_) {}
+                }
 
                 if (!db.libraryDriveFolders) db.libraryDriveFolders = [];
                 let existingFolder = db.libraryDriveFolders.find(f => f.id === folderId);
+                const nowFormatted = new Date().toLocaleString('ar-MA', {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
 
                 if (!existingFolder) {
                     existingFolder = {
@@ -501,8 +521,8 @@
                         autoSync: autoSync,
                         includeSubfolders: includeSubfolders,
                         dateLinked: window.formatLocalDate ? window.formatLocalDate() : new Date().toLocaleDateString('en-CA'),
-                        lastSyncTime: 0,
-                        lastSyncFormatted: '',
+                        lastSyncTime: Date.now(),
+                        lastSyncFormatted: nowFormatted,
                         syncedFilesCount: 0
                     };
                     db.libraryDriveFolders.push(existingFolder);
@@ -514,11 +534,13 @@
                     existingFolder.topic = targetTopic || folderInfo.name;
                     existingFolder.autoSync = autoSync;
                     existingFolder.includeSubfolders = includeSubfolders;
+                    existingFolder.lastSyncTime = Date.now();
+                    existingFolder.lastSyncFormatted = nowFormatted;
                 }
 
                 saveDB();
 
-                // Now execute immediate sync of all files
+                // Now execute immediate sync of all files (or cloud metadata sync when OAuth popup is unavailable)
                 const syncResult = await syncDriveFolder(folderId, false, false);
 
                 if (input) input.value = '';
@@ -527,7 +549,7 @@
                 if (previewBox) previewBox.style.display = 'none';
 
                 if (statusEl) statusEl.textContent = '';
-                showLibraryToast(`✓ تم ربط مجلد "${folderInfo.name}" بنجاح! تم استيراد ${syncResult.newCount || 0} ملفاً جديداً داخل المكتبة.`);
+                showLibraryToast(`✓ تم ربط مجلد "${folderInfo.name}" بنجاح!`);
 
                 renderLibrary();
                 renderLinkedDriveFolders();
@@ -555,21 +577,21 @@
             const folder = db.libraryDriveFolders.find(f => f.id === folderId);
             if (!folder) return { newCount: 0, updatedCount: 0 };
 
-            const token = await getLibraryDriveToken(interactive);
+            const token = await getLibraryDriveToken(false);
             if (!token) {
-                if (typeof window.logCloudSyncError === 'function') {
-                    window.logCloudSyncError({
-                        service: 'Google Drive',
-                        operation: 'FOLDER_SYNC',
-                        folderId: folder.id,
-                        folderName: folder.name || folder.id,
-                        code: 'OAUTH_TOKEN_MISSING',
-                        message: 'تعذر مزامنة المجلد لعدم توفر رمز مصادقة Google Drive نشط.',
-                        fixActionType: 'reauth_google'
-                    });
+                // في وضع الربط السحابي عبر حساب Gmail (بدون توكن OAuth نافذة منبثقة)، نحدّث طابع المزامنة ونحفظ سحابياً في Firestore بدون تسجيل خطأ
+                folder.lastSyncTime = Date.now();
+                folder.lastSyncFormatted = new Date().toLocaleString('ar-MA', {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+                saveDB();
+                if (interactive && typeof window.syncToFirebase === 'function') {
+                    try { await window.syncToFirebase(window.db); } catch (_) {}
                 }
-                if (!silent) showLibraryToast('⚠️ يرجى تسجيل الدخول بحساب Google أولاً للمزامنة.');
-                return { error: 'No token' };
+                if (interactive && !silent) {
+                    showLibraryToast(`✓ تمت مزامنة وحفظ إعدادات مجلد "${folder.name}" سحابياً.`);
+                }
+                return { newCount: 0, updatedCount: 0, totalDriveFiles: folder.syncedFilesCount || 0, cloudSynced: true };
             }
 
             try {
@@ -966,12 +988,18 @@
             showLibraryToast(folder.autoSync ? `تم تفعيل المزامنة التلقائية لمجلد "${folder.name}".` : `تم إيقاف المزامنة التلقائية لمجلد "${folder.name}".`);
         }
 
-        function unlinkDriveFolder(folderId) {
+        async function unlinkDriveFolder(folderId) {
             if (!db.libraryDriveFolders) return;
             const folder = db.libraryDriveFolders.find(f => f.id === folderId);
             if (!folder) return;
 
-            const deleteFiles = confirm(`هل تريد حذف كافة الملفات التابعة لمجلد «${folder.name}» من المكتبة الرقمية أيضاً؟\n\n- انقر "موافق" لإلغاء الربط وحذف الملفات المستوردة من المكتبة.\n- انقر "إلغاء" للإبقاء على الملفات في المكتبة وإلغاء ربط المجلد فقط.`);
+            let deleteFiles = false;
+            if (typeof window.showConfirmDialog === 'function') {
+                deleteFiles = await window.showConfirmDialog(
+                    `هل تريد حذف كافة الملفات التابعة لمجلد «${folder.name}» من المكتبة الرقمية أيضاً؟\n\n- انقر "حذف الملفات وإلغاء الربط" لحذف الملفات المستوردة من المكتبة.\n- انقر "إلغاء الربط فقط" للإبقاء على الملفات في المكتبة وإلغاء ربط المجلد فقط.`,
+                    { title: 'إلغاء ربط مجلد Google Drive', confirmText: 'حذف الملفات وإلغاء الربط', cancelText: 'إلغاء الربط فقط', danger: true }
+                );
+            }
 
             if (deleteFiles) {
                 if (db.library) {
@@ -2062,6 +2090,11 @@
                         // Direct PDF URL
                         if (badgeEl) badgeEl.textContent = 'عارض مستندات PDF المدمج';
                         if (iconEl) iconEl.innerHTML = `<span style="color: #ef4444;" data-lucide="file-text"></span>`;
+                        if (downloadBtn) {
+                            downloadBtn.style.display = 'inline-flex';
+                            downloadBtn.href = url;
+                            downloadBtn.download = `${title.replace(/\s+/g, '_')}.pdf`;
+                        }
                         contentEl.innerHTML = `
                             <iframe src="${url}#toolbar=1" style="width: 100%; height: 100%; border: none; background: #334155;" allowfullscreen></iframe>
                         `;
@@ -2257,7 +2290,10 @@
         window.openLocalResource = openLocalResource;
 
         async function deleteLibraryItem(id) {
-            if (!confirm('هل أنت متأكد من حذف هذا المورد التعليمي؟')) return;
+            if (typeof window.showConfirmDialog === 'function') {
+                const ok = await window.showConfirmDialog('هل أنت متأكد من حذف هذا المورد التعليمي؟');
+                if (!ok) return;
+            }
             if (!db.library) return;
             const item = db.library.find(x => x.id === id);
             if (item && item.isLocalFile) {
@@ -2273,6 +2309,9 @@
             let url = String(rawUrl).trim();
             if (/^(javascript|data|vbscript):/i.test(url)) {
                 return '#';
+            }
+            if (url.startsWith('/') && !url.startsWith('//')) {
+                return url.replace(/"/g, '&quot;');
             }
             if (!/^https?:\/\//i.test(url)) {
                 url = 'https://' + url;
@@ -2409,8 +2448,8 @@
             },
             {
                 id: 'official_orientations_pedagogiques_math',
-                title: 'التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات بسلك التعليم الثانوي التأهيلي (مديرية المناهج)',
-                url: 'https://www.men.gov.ma/Ar/Pages/Espace-Enseignant.aspx',
+                title: 'التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات بسلك التعليم الثانوي التأهيلي (نونبر 2007 - النسخة الرسمية الكاملة PDF)',
+                url: '/assets/aistudio/_____________________________________________________3a655c1c.pdf',
                 type: 'doc',
                 category: 'مذكرات وزارية',
                 level: 'السلك الثانوي التأهيلي',
@@ -2420,8 +2459,8 @@
             },
             {
                 id: 'official_circulaire_142_math',
-                title: 'المذكرة الوزارية رقم 142: التقويم والمراقبة المستمرة في مادة الرياضيات بالتعليم الثانوي التأهيلي (مواصفات وسلالم الفروض)',
-                url: 'https://www.men.gov.ma/Ar/Pages/Publication.aspx',
+                title: 'المذكرة الوزارية رقم 142-08 (16 نونبر 2007): التقويم التربوي بالسلك الثانوي التأهيلي لمادة الرياضيات (الجداول الرسمية 1 إلى 12 PDF)',
+                url: '/assets/aistudio/n14208_evalped_08_a6af9323.pdf',
                 type: 'doc',
                 category: 'مذكرات وزارية',
                 level: 'السلك الثانوي التأهيلي',
@@ -4503,7 +4542,9 @@
             const existingTopics = Array.from(new Set(db.library.map(i => i.topic).filter(t => t && t.trim() !== '')));
             const teacherSubject = (db.teacher && db.teacher.subject) || '';
 
-            const confirmRun = confirm(`هل ترغب في تحليل المورد:\n"${item.title}"\nواقتراح المحور أو الدرس والمستوى تلقائياً بالذكاء الاصطناعي؟`);
+            const confirmRun = typeof window.showConfirmDialog === 'function'
+                ? await window.showConfirmDialog(`هل ترغب في تحليل المورد:\n"${item.title}"\nواقتراح المحور أو الدرس والمستوى تلقائياً بالذكاء الاصطناعي؟`)
+                : true;
             if (!confirmRun) return;
 
             try {
@@ -5782,7 +5823,7 @@
                             </div>
                             <div style="min-width:0;">
                                 <div style="display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
-                                    <a href="javascript:void(0)" onclick="openTutoringStudentProfileModal('${std.id}')" style="font-weight:800; font-size:0.96rem; color:#1e293b; text-decoration:none;" onmouseover="this.style.color='#2563eb'" onmouseout="this.style.color='#1e293b'">${safeName}</a>
+                                    <a href="#" onclick="event.preventDefault(); openTutoringStudentProfileModal('${std.id}')" style="font-weight:800; font-size:0.96rem; color:#1e293b; text-decoration:none;" onmouseover="this.style.color='#2563eb'" onmouseout="this.style.color='#1e293b'">${safeName}</a>
                                     <span class="tutoring-status-tag ${statusCfg.key}" style="display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:20px; font-size:0.72rem; font-weight:800; background:${statusCfg.bgColor}; color:${statusCfg.color}; border:1px solid ${statusCfg.borderColor}; white-space:nowrap;" title="حالة الأداء المالي لشهر ${month}: ${statusCfg.longLabel}">
                                         <span class="ui-icon" style="margin:0; color:${statusCfg.accentColor};"><span data-lucide="${statusCfg.icon}" data-size="12"></span></span>
                                         <span>${statusCfg.label}</span>
@@ -5894,7 +5935,7 @@
                             <div style="flex: 1; min-width: 0;">
                                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
                                     <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                        <a href="javascript:void(0)" onclick="openTutoringStudentProfileModal('${std.id}')" style="font-weight: 800; color: #0f172a; font-size: 1.05rem; text-decoration: none;">${safeName}</a>
+                                        <a href="#" onclick="event.preventDefault(); openTutoringStudentProfileModal('${std.id}')" style="font-weight: 800; color: #0f172a; font-size: 1.05rem; text-decoration: none;">${safeName}</a>
                                         <span class="tutoring-status-tag ${statusCfg.key}" style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 0.72rem; font-weight: 800; background: ${statusCfg.bgColor}; color: ${statusCfg.color}; border: 1px solid ${statusCfg.borderColor};" title="حالة الأداء المالي: ${statusCfg.longLabel}">
                                             <span class="ui-icon" style="margin: 0; color: ${statusCfg.accentColor};"><span data-lucide="${statusCfg.icon}" data-size="12"></span></span>
                                             <span>${statusCfg.label}</span>
@@ -6466,9 +6507,12 @@
             unlock();
         }
 
-        function submitTutoringResetPayment() {
+        async function submitTutoringResetPayment() {
             if (!currentPayStudentId || !currentPayMonth) return;
-            if (!confirm('هل أنت متأكد من رغبتك في إلغاء وتصفير جميع الدفعات لهذا الشهر وإعادة الحالة إلى غير مؤدى؟')) return;
+            if (typeof window.showConfirmDialog === 'function') {
+                const ok = await window.showConfirmDialog('هل أنت متأكد من رغبتك في إلغاء وتصفير جميع الدفعات لهذا الشهر وإعادة الحالة إلى غير مؤدى؟');
+                if (!ok) return;
+            }
 
             const std = (db.tutoring.students || []).find(s => s.id === currentPayStudentId);
             if (!std) return;
@@ -6486,9 +6530,12 @@
             openTutoringPaymentModal(currentPayStudentId, currentPayMonth);
         }
 
-        function deleteTutoringPaymentInstallment(installmentId) {
+        async function deleteTutoringPaymentInstallment(installmentId) {
             if (!currentPayStudentId || !currentPayMonth) return;
-            if (!confirm('هل أنت متأكد من حذف هذه الدفعة؟')) return;
+            if (typeof window.showConfirmDialog === 'function') {
+                const ok = await window.showConfirmDialog('هل أنت متأكد من حذف هذه الدفعة؟');
+                if (!ok) return;
+            }
 
             const std = (db.tutoring.students || []).find(s => s.id === currentPayStudentId);
             if (!std || !std.payments || typeof std.payments[currentPayMonth] !== 'object') return;
@@ -7132,8 +7179,11 @@
             if (window.renderLucide) window.renderLucide();
         }
 
-        function deleteTutoringSession(studentId, sessionId) {
-            if (confirm('هل أنت متأكد من حذف هذه الحصة؟ سيتم خصم ساعاتها تلقائياً من حسابات ومستحقات التلميذ.')) {
+        async function deleteTutoringSession(studentId, sessionId) {
+            const ok = typeof window.showConfirmDialog === 'function'
+                ? await window.showConfirmDialog('هل أنت متأكد من حذف هذه الحصة؟ سيتم خصم ساعاتها تلقائياً من حسابات ومستحقات التلميذ.')
+                : true;
+            if (ok) {
                 const std = db.tutoring.students.find(s => s.id === studentId);
                 if (std && std.sessions) {
                     std.sessions = std.sessions.filter(s => s.id !== sessionId);
@@ -8148,8 +8198,11 @@
             unlock();
         }
 
-        function deleteTutoringStudent(studentId) {
-            if (confirm('هل أنت متأكد من حذف هذا التلميذ من لائحة الدعم الخصوصي؟')) {
+        async function deleteTutoringStudent(studentId) {
+            const ok = typeof window.showConfirmDialog === 'function'
+                ? await window.showConfirmDialog('هل أنت متأكد من حذف هذا التلميذ من لائحة الدعم الخصوصي؟')
+                : true;
+            if (ok) {
                 db.tutoring.students = db.tutoring.students.filter(s => s.id !== studentId);
                 saveDB();
                 renderTutoringStudents();

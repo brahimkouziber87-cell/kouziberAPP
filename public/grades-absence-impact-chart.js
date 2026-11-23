@@ -59,14 +59,19 @@
      */
     function getStudentGradesAndAbsenceDataset() {
         const classes = getAvailableClasses();
-        const targetClasses = (_impactState.className === 'all')
-            ? classes
-            : classes.filter(c => c === _impactState.className);
+        let targetClasses = classes;
+        if ((_impactState.className === '__MULTI__' || String(_impactState.className || '').startsWith('__MULTI__')) && typeof window.resolveReportTargetClasses === 'function') {
+            const res = window.resolveReportTargetClasses(_impactState.className);
+            targetClasses = (res && Array.isArray(res.classes) && res.classes.length > 0) ? res.classes : classes;
+        } else if (_impactState.className && _impactState.className !== 'all' && _impactState.className !== '__ALL__') {
+            targetClasses = classes.filter(c => c === _impactState.className);
+        }
 
         const dataset = [];
 
         targetClasses.forEach(className => {
-            const students = (window.db.classes && window.db.classes[className]) ? window.db.classes[className] : [];
+            const rawCls = window.db && window.db.classes ? window.db.classes[className] : null;
+            const students = Array.isArray(rawCls) ? rawCls : (rawCls && Array.isArray(rawCls.students) ? rawCls.students : []);
 
             students.forEach(std => {
                 // 1. استخراج النقط (مع حساب المعدل الحقيقي للأسدوسين في وضع الموسم الكامل overall)
@@ -126,8 +131,10 @@
                     : (window.db.records || []).filter(r => r.studentId === std.id && r.className === className);
 
                 const allRecords = rawStdRecords.filter(r => {
-                    // استثناء العطل الرسمية المرحلة
-                    if (r.status === 'عطلة رسمية' || r.migratedHoliday) return false;
+                    // استثناء العطل الرسمية والرخص الإدارية المرحلة
+                    if (!r || r.status === 'عطلة رسمية' || r.migratedHoliday) return false;
+                    if (typeof window.isRecordProtectedHolidayOrLeave === 'function' && window.isRecordProtectedHolidayOrLeave(r)) return false;
+                    if (typeof window.isAbsenceDisabledOnDate === 'function' && window.isAbsenceDisabledOnDate(r.date, r.session)) return false;
                     // تصفية حسب الأسدوس اعتماداً على شهر الحصة بغض النظر عن السنة الدراسية
                     if (r.date && (_impactState.semester === 's1' || _impactState.semester === 's2')) {
                         const monthNum = parseInt(String(r.date).split('-')[1], 10);
@@ -217,7 +224,7 @@
             .map(d => ({ x: d.absentHours, y: d.periodAverage }));
 
         const n = pairs.length;
-        if (n < 2) return { r: 0, text: 'بيانات غير كافية', dropRate: 0, sampleSize: n };
+        if (n < 2) return { r: 0, text: 'بيانات غير كافية', dropRate: null, sampleSize: n, slope: 0, meanX: 0, meanY: 0 };
 
         const sumX = pairs.reduce((acc, p) => acc + p.x, 0);
         const sumY = pairs.reduce((acc, p) => acc + p.y, 0);
@@ -395,6 +402,7 @@
                                     if (s.f1 !== null) notes.push(`فرض 1: ${s.f1}`);
                                     if (s.f2 !== null) notes.push(`فرض 2: ${s.f2}`);
                                     if (s.f3 !== null) notes.push(`فرض 3: ${s.f3}`);
+                                    if (s.f4 !== null) notes.push(`فرض 4: ${s.f4}`);
                                     notes.push(`غير مبرر: ${s.unexcusedHours} س | مبرر: ${s.excusedHours} س`);
                                     return notes;
                                 }
@@ -634,21 +642,17 @@
 
             if (!targetStudent) return;
 
-            // بناء المحطات الزمنية: الفروض والغياب
-            const timePoints = [];
-            if (targetStudent.f1 !== null) timePoints.push({ label: 'الفرض 1', dateSeq: 1, type: 'exam', grade: targetStudent.f1 });
-            if (targetStudent.f2 !== null) timePoints.push({ label: 'الفرض 2', dateSeq: 2, type: 'exam', grade: targetStudent.f2 });
-            if (targetStudent.f3 !== null) timePoints.push({ label: 'الفرض 3', dateSeq: 3, type: 'exam', grade: targetStudent.f3 });
-
-            const labels = ['الفرض 1', 'الفرض 2', 'الفرض 3'];
-            const examData = [targetStudent.f1, targetStudent.f2, targetStudent.f3];
-            const absenceLeading = [0, 0, 0]; // ساعات الغياب قبل كل فرض
+            const hasF4 = targetStudent.f4 !== null || ((typeof window.getExamsCountForClass === 'function') && window.getExamsCountForClass(targetStudent.className) >= 4);
+            const labels = hasF4 ? ['الفرض 1', 'الفرض 2', 'الفرض 3', 'الفرض 4'] : ['الفرض 1', 'الفرض 2', 'الفرض 3'];
+            const examData = hasF4 ? [targetStudent.f1, targetStudent.f2, targetStudent.f3, targetStudent.f4] : [targetStudent.f1, targetStudent.f2, targetStudent.f3];
+            const absenceLeading = hasF4 ? [0, 0, 0, 0] : [0, 0, 0]; // ساعات الغياب قبل كل فرض
 
             // توزيع الغياب على الفروض بطريقة ديناميكية حسب أشهر الأسدوس
             targetStudent.dailyAbsences.forEach(ab => {
                 const m = parseInt(String(ab.date || '').split('-')[1], 10);
                 if (m === 9 || m === 10 || m === 2 || m === 3) absenceLeading[0] += ab.duration;
                 else if (m === 11 || m === 4) absenceLeading[1] += ab.duration;
+                else if (hasF4 && (m === 1 || m === 6)) absenceLeading[3] += ab.duration;
                 else absenceLeading[2] += ab.duration;
             });
 
@@ -711,11 +715,18 @@
     /**
      * بناء الواجهة التفاعلية الكاملة لبطاقة تقرير أثر الغياب
      */
-    function renderGradesAbsenceImpactCard() {
+    function renderGradesAbsenceImpactCard(syncClass) {
+        if (typeof syncClass === 'string' && syncClass.trim()) {
+            const norm = syncClass.trim();
+            _impactState.className = (norm === '__ALL__') ? 'all' : norm;
+        }
         const container = document.getElementById('gradesAbsenceImpactCard');
         if (!container) return;
 
         const classes = getAvailableClasses();
+        const multiRes = (typeof window.resolveReportTargetClasses === 'function')
+            ? window.resolveReportTargetClasses('__MULTI__')
+            : { classes: [], label: '' };
         const dataset = getStudentGradesAndAbsenceDataset();
         const stats = calculatePearsonCorrelation(dataset);
         const clusters = computeImpactClusters(dataset);
@@ -773,6 +784,7 @@
                         <label style="font-size: 0.78rem; font-weight: 800; color: #475569;">القسم:</label>
                         <select id="selImpactClass" onchange="window.setImpactClassFilter(this.value)" style="padding: 5px 10px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 0.82rem; font-weight: 700; background: #fff; color: #1e293b;">
                             <option value="all" ${_impactState.className === 'all' ? 'selected' : ''}>جميع الأقسام (${classes.length})</option>
+                            ${(multiRes.classes && multiRes.classes.length >= 2) ? `<option value="__MULTI__" ${_impactState.className === '__MULTI__' ? 'selected' : ''}>🗂️ أقسام متعددة (${escapeHtml(multiRes.label)})</option>` : ''}
                             ${classes.map(c => `<option value="${escapeHtml(c)}" ${_impactState.className === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
                         </select>
                     </div>
@@ -836,13 +848,13 @@
                 <div style="background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 1.5px solid #fecaca; border-radius: 12px; padding: 12px 14px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-size: 0.75rem; font-weight: 800; color: #991b1b;">معدل التراجع لكل حصة غياب</span>
-                        <span style="font-size: 0.95rem; font-weight: 900; color: #b91c1c; font-family: monospace;">-${stats.dropRate || '0.35'} ن / س</span>
+                        <span style="font-size: 0.95rem; font-weight: 900; color: #b91c1c; font-family: monospace;">${stats.dropRate !== null && stats.dropRate !== undefined ? `-${stats.dropRate} ن / س` : '--'}</span>
                     </div>
                     <div style="margin-top: 4px; font-size: 0.72rem; font-weight: 700; color: #7f1d1d;">
-                        فقدان تقريبي لـ ${(Math.round((stats.dropRate || 0.35) * 4 * 10) / 10)} نقاط لكل 4 ساعات غياب
+                        ${stats.dropRate !== null && stats.dropRate !== undefined ? `فقدان تقريبي لـ ${(Math.round(stats.dropRate * 4 * 10) / 10)} نقاط لكل 4 ساعات غياب` : 'في انتظار رصد نقط وغياب كافٍ للحساب'}
                     </div>
                     <div style="margin-top: 4px; font-size: 0.68rem; color: #64748b;">
-                        انحدار خطي دال إحصائياً
+                        ${stats.sampleSize >= 2 ? 'انحدار خطي محسوب من المعطيات الفعلية' : 'يتطلب تلميذين على الأقل'}
                     </div>
                 </div>
 
@@ -851,14 +863,14 @@
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-size: 0.75rem; font-weight: 800; color: #166534;">فارق المعدل (منضبطون vs غياب)</span>
                         <span style="font-size: 0.95rem; font-weight: 900; color: #15803d; font-family: monospace;">
-                            +${(clusters.diligent.avgGrade !== null && clusters.severe.avgGrade !== null) ? Math.round((clusters.diligent.avgGrade - clusters.severe.avgGrade) * 10) / 10 : '6.4'} ن
+                            ${(clusters.diligent.avgGrade !== null && clusters.severe.avgGrade !== null) ? `${(clusters.diligent.avgGrade - clusters.severe.avgGrade >= 0 ? '+' : '')}${Math.round((clusters.diligent.avgGrade - clusters.severe.avgGrade) * 10) / 10} ن` : '--'}
                         </span>
                     </div>
                     <div style="margin-top: 4px; font-size: 0.72rem; font-weight: 700; color: #14532d;">
-                        معدل المنضبطين: ${clusters.diligent.avgGrade !== null ? clusters.diligent.avgGrade : '15.2'}/20 مقابل ${clusters.severe.avgGrade !== null ? clusters.severe.avgGrade : '8.8'}/20
+                        معدل المنضبطين: ${clusters.diligent.avgGrade !== null ? `${clusters.diligent.avgGrade}/20` : '--'} مقابل ${clusters.severe.avgGrade !== null ? `${clusters.severe.avgGrade}/20` : '--'}
                     </div>
                     <div style="margin-top: 4px; font-size: 0.68rem; color: #64748b;">
-                        فجوة تحصيل واضحة ومرئية
+                        مقارنة فئتي الانضباط (0-2س) والغياب الحرج (&gt;12س)
                     </div>
                 </div>
 
@@ -921,6 +933,7 @@
                                 <th style="padding: 8px 12px; text-align: center;">الفرض 1</th>
                                 <th style="padding: 8px 12px; text-align: center;">الفرض 2</th>
                                 <th style="padding: 8px 12px; text-align: center;">الفرض 3</th>
+                                ${dataset.some(d => d.f4 !== null) ? '<th style="padding: 8px 12px; text-align: center;">الفرض 4</th>' : ''}
                                 <th style="padding: 8px 12px; text-align: center;">تطور النقطة (Δ)</th>
                                 <th style="padding: 8px 12px; text-align: center;">التشخيص البيداغوجي</th>
                                 <th style="padding: 8px 12px; text-align: center;">إجراء سريع</th>
@@ -929,10 +942,11 @@
                         <tbody>
         `;
 
+        const showF4Col = dataset.some(d => d.f4 !== null);
         if (mostAffected.length === 0) {
             html += `
                 <tr>
-                    <td colspan="9" style="text-align: center; padding: 20px; color: #64748b; font-weight: 700;">
+                    <td colspan="${showF4Col ? 10 : 9}" style="text-align: center; padding: 20px; color: #64748b; font-weight: 700;">
                         ✅ لم يتم رصد حالات حرجة لتراجع النقط بسبب الغياب في الفلاتر المختارة.
                     </td>
                 </tr>
@@ -943,8 +957,10 @@
                 const deltaIcon = (std.delta !== null && std.delta < 0) ? '🔻' : (std.delta !== null && std.delta > 0) ? '🔺' : '➖';
 
                 let diagnosis = 'غياب مؤثر يستلزم تعويض الحصص الضائعة';
-                if (std.absentHours >= 10 && std.periodAverage < 10) diagnosis = 'تعثر مركب: غياب حاد وتراجع حاد في الكفايات';
+                if (std.absentHours >= 10 && std.periodAverage !== null && std.periodAverage < 10) diagnosis = 'تعثر مركب: غياب حاد وتراجع حاد في الكفايات';
                 else if (std.delta !== null && std.delta <= -3) diagnosis = 'هبوط سريع في النقط بعد انقطاع عن الدروس';
+
+                const jsSafeId = String(std.id ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
                 html += `
                     <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
@@ -954,6 +970,7 @@
                         <td style="padding: 8px 12px; text-align: center; font-weight: 700;">${std.f1 !== null ? std.f1 : '-'}</td>
                         <td style="padding: 8px 12px; text-align: center; font-weight: 700;">${std.f2 !== null ? std.f2 : '-'}</td>
                         <td style="padding: 8px 12px; text-align: center; font-weight: 700;">${std.f3 !== null ? std.f3 : '-'}</td>
+                        ${showF4Col ? `<td style="padding: 8px 12px; text-align: center; font-weight: 700;">${std.f4 !== null ? std.f4 : '-'}</td>` : ''}
                         <td style="padding: 8px 12px; text-align: center; font-weight: 900; color: ${deltaColor}; direction: ltr;">
                             ${deltaIcon} ${std.delta !== null ? (std.delta > 0 ? '+' + std.delta : std.delta) : '-'}
                         </td>
@@ -963,7 +980,7 @@
                             </span>
                         </td>
                         <td style="padding: 8px 12px; text-align: center;">
-                            <button type="button" onclick="window.viewStudentAbsenceImpactTimeline('${std.id}')" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
+                            <button type="button" onclick="window.viewStudentAbsenceImpactTimeline('${escapeHtml(jsSafeId)}')" style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">
                                 عرض المسار الزمني
                             </button>
                         </td>
@@ -1077,20 +1094,20 @@
                     <p style="font-weight: bold; font-size: 14px; color: #0f172a; margin-top: 6px;">
                         التقرير البياني الإحصائي: أثر الغياب على تطور نقط الفروض ومعدلات التلاميذ
                     </p>
-                    <p>القسم: ${_impactState.className === 'all' ? 'جميع الأقسام' : _impactState.className} | الدورة: ${_impactState.semester === 's1' ? 'الدورة 1' : _impactState.semester === 's2' ? 'الدورة 2' : 'الموسم كاملاً'} | تاريخ الاستخراج: ${new Date().toLocaleDateString('ar-MA')}</p>
+                    <p>القسم: ${escapeHtml((_impactState.className === 'all' || _impactState.className === '__ALL__') ? 'جميع الأقسام' : _impactState.className)} | الدورة: ${_impactState.semester === 's1' ? 'الدورة 1' : _impactState.semester === 's2' ? 'الدورة 2' : 'الموسم كاملاً'} | تاريخ الاستخراج: ${((typeof window.getAppNow === 'function') ? window.getAppNow() : new Date()).toLocaleDateString('ar-MA')}</p>
                 </div>
 
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-val">r = ${stats.r}</div>
-                        <div class="stat-lbl">معامل الارتباط بيرسون (ارتباط عكسي)</div>
+                        <div class="stat-lbl">معامل الارتباط بيرسون (${escapeHtml(stats.text)})</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-val">-${stats.dropRate || 0.35} ن / س</div>
+                        <div class="stat-val">${stats.dropRate !== null && stats.dropRate !== undefined ? `-${stats.dropRate} ن / س` : '--'}</div>
                         <div class="stat-lbl">معدل تراجع النقطة لكل ساعة غياب</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-val">${clusters.diligent.avgGrade || '-'} مقابل ${clusters.severe.avgGrade || '-'}</div>
+                        <div class="stat-val">${clusters.diligent.avgGrade !== null ? clusters.diligent.avgGrade : '--'} مقابل ${clusters.severe.avgGrade !== null ? clusters.severe.avgGrade : '--'}</div>
                         <div class="stat-lbl">متوسط معدل المنضبطين مقابل كثيري الغياب</div>
                     </div>
                     <div class="stat-card">
@@ -1109,6 +1126,7 @@
                             <th>الفرض 1</th>
                             <th>الفرض 2</th>
                             <th>الفرض 3</th>
+                            ${dataset.some(d => d.f4 !== null) ? '<th>الفرض 4</th>' : ''}
                             <th>المعدل الدوري</th>
                             <th>تطور النقطة (Δ)</th>
                             <th>التشخيص والتوجيه التربوي</th>
@@ -1124,6 +1142,7 @@
                                 <td>${d.f1 !== null ? d.f1 : '-'}</td>
                                 <td>${d.f2 !== null ? d.f2 : '-'}</td>
                                 <td>${d.f3 !== null ? d.f3 : '-'}</td>
+                                ${dataset.some(x => x.f4 !== null) ? `<td>${d.f4 !== null ? d.f4 : '-'}</td>` : ''}
                                 <td style="font-weight: bold;">${d.periodAverage !== null ? d.periodAverage : '-'}</td>
                                 <td>${d.delta !== null ? (d.delta > 0 ? '+' + d.delta : d.delta) : '-'}</td>
                                 <td style="font-size: 10px;">${d.absentHours > 8 ? 'دعم استدراكي مستعجل لتعويض الحصص' : d.absentHours > 3 ? 'متابعة المواظبة المدرسية' : 'مواظبة جيدة وتحصيل مستقر'}</td>

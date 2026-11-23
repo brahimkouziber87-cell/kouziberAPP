@@ -1,20 +1,20 @@
 // Service Worker for "الأستاذ الرقمي | منظومة التدبير التربوي"
-const CACHE_NAME = 'prof-digital-v4.4.0';
+const CACHE_NAME = 'prof-digital-v4.7.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/modals-templates.js?v=4.4',
-  '/core/grades-calculator.js?v=4.4',
-  '/core/massar-io.js?v=4.4',
-  '/core/absence-manager.js?v=4.4',
-  '/core/lesson-log-engine.js?v=4.4',
-  '/core/print-preview-engine.js?v=4.4',
-  '/core/timetable-engine.js?v=4.4',
-  '/core/behavior-homework-engine.js?v=4.4',
-  '/core/archive-dedup-engine.js?v=4.4',
-  '/core/inspection-dossier-engine.js?v=4.4',
+  '/modals-templates.js?v=4.6',
+  '/core/grades-calculator.js?v=4.6',
+  '/core/massar-io.js?v=4.6',
+  '/core/absence-manager.js?v=4.6',
+  '/core/lesson-log-engine.js?v=4.6',
+  '/core/print-preview-engine.js?v=4.6',
+  '/core/timetable-engine.js?v=4.6',
+  '/core/behavior-homework-engine.js?v=4.6',
+  '/core/archive-dedup-engine.js?v=4.6',
+  '/core/inspection-dossier-engine.js?v=4.6',
   '/style.css?v=3.9',
-  '/app.js?v=4.4',
+  '/app.js?v=4.6',
   '/manifest.json',
   '/logo.svg',
   '/logo.png',
@@ -32,7 +32,7 @@ const STATIC_ASSETS = [
   '/secondary-math-curriculum.js?v=3.9',
   '/latex-math-engine.js?v=3.9',
   '/attendance-slip.js?v=3.9',
-  '/resources.js?v=3.9.10',
+  '/resources.js?v=4.6',
   '/tutoring-advanced.js?v=3.9',
   '/timetable-sync.js?v=3.9',
   '/annual-calendar.js?v=3.9',
@@ -70,7 +70,7 @@ const STATIC_ASSETS = [
   '/value-added-analytics.js?v=3.9',
   '/ministerial-decrees-library.js?v=3.9',
   '/admin-comprehensive-pdf.js?v=3.9',
-  '/firebase-setup.js'
+  '/firebase-setup.js?v=4.6'
 ];
 
 self.addEventListener('install', (event) => {
@@ -170,9 +170,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // True Network-First with Cache Fallback so updates are always live when online
+  // True Network-First with Cache Fallback and cache: 'no-cache' to prevent stale JS/HTML disk cache
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: 'no-cache' })
       .then((networkResponse) => {
         if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
           const responseToCache = networkResponse.clone();
@@ -183,7 +183,7 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       })
       .catch(() => {
-        return caches.match(event.request).then((cachedResponse) => {
+        return caches.match(event.request, { ignoreSearch: false }).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }

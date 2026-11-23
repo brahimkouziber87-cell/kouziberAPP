@@ -17,16 +17,17 @@
      * جدول المعاملات الرسمية لمادة الرياضيات بسلك التعليم الثانوي التأهيلي (المذكرات الوزارية - مسالك عام ودولي BIOF)
      */
     const MOROCCAN_MATH_STREAM_CONFIGS = [
-        { pattern: /علوم رياضية|س\.ر|sm|sc\.?\s*math/i, code: 'SM', label: 'شعبة العلوم الرياضية (أ / ب - عام ودولي)', coefficient: 9, examsPerSemester: 4, continuousWeight: 0.25 },
-        { pattern: /علوم فيزيائية|س\.ف|pc|phys/i, code: 'PC', label: 'مسلك العلوم الفيزيائية (عام ودولي)', coefficient: 7, examsPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /علوم الحياة والأرض|ح\.أ|svt/i, code: 'SVT', label: 'مسلك علوم الحياة والأرض (عام ودولي)', coefficient: 7, examsPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /علوم تجريبية|س\.ت|se|sc\.?\s*exp|1bac\s*sc/i, code: 'SE', label: 'شعبة العلوم التجريبية (الأولى بكالوريا)', coefficient: 7, examsPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /علوم زراعية|agro/i, code: 'AGRO', label: 'مسلك العلوم الزراعية', coefficient: 7, examsPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /تكنولوجي|كهرباء|ميكانيك|ste|stm/i, code: 'TECH', label: 'شعبة العلوم والتكنولوجيات (الكهربائية / الميكانيكية)', coefficient: 7, examsPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /اقتصاد|تدبير|eco|gest|sgec|sgc/i, code: 'ECO', label: 'شعبة العلوم الاقتصادية والتدبير', coefficient: 4, examsPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /جذع مشترك علمي|جذع مشترك تكنولوجي|ج\.م\.ع|tcs|tct|tc\s*sc/i, code: 'TCS', label: 'الجذع المشترك العلمي والتكنولوجي (عام ودولي)', coefficient: 4, examsPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /فنون تطبيقية|فنون|arts/i, code: 'ART', label: 'شعبة الفنون التطبيقية', coefficient: 2, examsPerSemester: 2, continuousWeight: 0.25 },
-        { pattern: /آداب|علوم إنسانية|أصيل|جذع مشترك أدبي|lsh|tcl|lettres|sh/i, code: 'LIT', label: 'شعبة الآداب والعلوم الإنسانية والتعليم الأصيل (ثانوي تأهيلي)', coefficient: 2, examsPerSemester: 2, continuousWeight: 0.25 }
+        { pattern: /علوم رياضية|س\.ر|sm|sc\.?\s*math/i, code: 'SM', label: 'شعبة العلوم الرياضية (أ / ب - عام ودولي)', coefficient: 9, examsPerSemester: 4, examDurationHours: 2, weeklyHours: 7, homeworkPerSemester: 4, continuousWeight: 0.25 },
+        { pattern: /علوم فيزيائية|س\.ف|pc|phys/i, code: 'PC', label: 'مسلك العلوم الفيزيائية (عام ودولي)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /علوم الحياة والأرض|ح\.أ|svt/i, code: 'SVT', label: 'مسلك علوم الحياة والأرض (عام ودولي)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /علوم تجريبية|س\.ت|se|sc\.?\s*exp|1bac\s*sc/i, code: 'SE', label: 'شعبة العلوم التجريبية (الأولى بكالوريا)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /علوم زراعية|agro/i, code: 'AGRO', label: 'مسلك العلوم الزراعية', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /تكنولوجي|كهرباء|ميكانيك|ste|stm/i, code: 'TECH', label: 'شعبة العلوم والتكنولوجيات (الكهربائية / الميكانيكية)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 4, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /اقتصاد|تدبير|eco|gest|sgec|sgc/i, code: 'ECO', label: 'شعبة العلوم الاقتصادية والتدبير', coefficient: 4, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 4, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /جذع مشترك علمي|جذع مشترك تكنولوجي|ج\.م\.ع|tcs|tct|tc\s*sc/i, code: 'TCS', label: 'الجذع المشترك العلمي والتكنولوجي (عام ودولي)', coefficient: 4, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /[12]\s*(?:ème|eme|ère|ere)?\s*bac.*(?:آداب|اداب|إنسانية|انسانية|أصيل|اصيل|lsh|lettres|sh)|(?:أولى|اولى|ثانية|الأولى|الثانية)\s*(?:باك|بكالوريا).*(?:آداب|اداب|إنسانية|انسانية|أصيل|اصيل)/i, code: 'BAC_LSH', label: 'الأولى والثانية بكالوريا آداب وعلوم إنسانية وتعليم أصيل', coefficient: 1, examsPerSemester: 2, examDurationHours: 1, weeklyHours: 2, homeworkPerSemester: 2, continuousWeight: 0.25 },
+        { pattern: /فنون تطبيقية|فنون|arts/i, code: 'ART', label: 'شعبة الفنون التطبيقية', coefficient: 2, examsPerSemester: 2, examDurationHours: 1, weeklyHours: 2, homeworkPerSemester: 2, continuousWeight: 0.25 },
+        { pattern: /آداب|اداب|علوم إنسانية|أصيل|اصيل|جذع مشترك أدبي|lsh|tcl|tco|lettres|sh/i, code: 'LIT', label: 'الجذع المشترك للآداب والعلوم الإنسانية والتعليم الأصيل', coefficient: 2, examsPerSemester: 2, examDurationHours: 1, weeklyHours: 2, homeworkPerSemester: 2, continuousWeight: 0.25 }
     ];
 
     /**
@@ -128,6 +129,9 @@
                     label: cfg.label,
                     coefficient: cfg.coefficient,
                     examsPerSemester: cfg.examsPerSemester,
+                    examDurationHours: cfg.examDurationHours || 2,
+                    weeklyHours: cfg.weeklyHours || 5,
+                    homeworkPerSemester: cfg.homeworkPerSemester || cfg.examsPerSemester,
                     continuousWeight: cfg.continuousWeight
                 };
             }
@@ -137,6 +141,9 @@
             label: 'الجذع المشترك العلمي (افتراضي)',
             coefficient: 4,
             examsPerSemester: 3,
+            examDurationHours: 2,
+            weeklyHours: 5,
+            homeworkPerSemester: 3,
             continuousWeight: 0.25
         };
     }
@@ -149,7 +156,7 @@
     function calculateStudentSemesterAverage(gradesObj, options) {
         if (!gradesObj || typeof gradesObj !== 'object') return null;
         const opts = options || {};
-        const examKeys = Array.isArray(opts.examKeys) ? opts.examKeys : ['f1', 'f2', 'f3', 'exam1', 'exam2', 'exam3'];
+        const examKeys = Array.isArray(opts.examKeys) ? opts.examKeys : ['f1', 'f2', 'f3', 'f4', 'exam1', 'exam2', 'exam3', 'exam4'];
         const examValues = [];
 
         for (let i = 0; i < examKeys.length; i++) {

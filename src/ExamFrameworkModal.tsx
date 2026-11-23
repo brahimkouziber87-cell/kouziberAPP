@@ -238,80 +238,153 @@ const PRESET_LEVELS: Record<string, {
     coef: 1,
     duration: 'ساعة واحدة (1h)',
     domains: [
-      { name: 'المجال الأول: الحساب العددي والتناسبية والنسب المئوية والمعادلات', defaultPoints: 6, weightPct: 30 },
-      { name: 'المجال الثاني: المتتاليات العددية (الحسابية والهندسية)', defaultPoints: 5, weightPct: 25 },
-      { name: 'المجال الثالث: التعداد ومبدأ الجداء الأساسي', defaultPoints: 4, weightPct: 20 },
-      { name: 'المجال الرابع: الدوال العددية ونهايات الدوال البسيطة وقراءة المبيانات', defaultPoints: 5, weightPct: 25 }
+      { name: 'المجال الأول: الحساب العددي والتناسبية والنسب المئوية والمعادلات والنظمات', defaultPoints: 5, weightPct: 25 },
+      { name: 'المجال الثاني: المتتاليات العددية (الحسابية والهندسية)', defaultPoints: 3, weightPct: 15 },
+      { name: 'المجال الثالث: التعداد (المبدأ الأساسي، الترتيبات، التبديلات، التأليفات)', defaultPoints: 4, weightPct: 20 },
+      { name: 'المجال الرابع: الدوال العددية (النهايات، الاشتقاق، ودراسة وتمثيل الدوال)', defaultPoints: 8, weightPct: 40 }
     ],
     defaultExercises: [
       {
         order: 1,
-        title: 'التمرين الأول: الحساب العددي والنسب المئوية وحل المعادلات',
-        domain: 'المجال الأول: الحساب العددي والتناسبية والنسب المئوية والمعادلات',
-        points: 5.5,
-        skills: { directApplication: 3.5, familiarSituation: 1.5, complexReasoning: 0.5 },
-        competencies: 'تطبيق النسب المئوية والتخفيض/الزيادة، حل معادلات ومتراجحات من الدرجة الأولى والثانية بمجهول واحد.'
+        title: 'التمرين الأول: الحساب العددي والنسب المئوية وحل المعادلات والنظمات',
+        domain: 'المجال الأول: الحساب العددي والتناسبية والنسب المئوية والمعادلات والنظمات',
+        points: 5,
+        skills: { directApplication: 3, familiarSituation: 1.5, complexReasoning: 0.5 },
+        competencies: 'تطبيق النسب المئوية والتخفيض/الزيادة، حل معادلات ومتراجحات من الدرجة الأولى والثانية ونظمات بمجهولين.'
       },
       {
         order: 2,
         title: 'التمرين الثاني: المتتاليات الحسابية والهندسية',
         domain: 'المجال الثاني: المتتاليات العددية (الحسابية والهندسية)',
-        points: 5,
-        skills: { directApplication: 3, familiarSituation: 1.5, complexReasoning: 0.5 },
+        points: 3,
+        skills: { directApplication: 2, familiarSituation: 1, complexReasoning: 0 },
         competencies: 'تحديد الأساس والحد الأول، كتابة الحد العام بدلالة n، وحساب مجموع حدود متتابعة.'
       },
       {
         order: 3,
         title: 'التمرين الثالث: مبادئ التعداد والتأليفات والترتيبات',
-        domain: 'المجال الثالث: التعداد ومبدأ الجداء الأساسي',
-        points: 4.5,
-        skills: { directApplication: 2.5, familiarSituation: 1.5, complexReasoning: 0.5 },
-        competencies: 'استعمال المبدأ الأساسي للتعداد، الترتيبات بتكرار وبدون تكرار والتأليفات في وضعيات سحب كرات عشوائياً.'
+        domain: 'المجال الثالث: التعداد (المبدأ الأساسي، الترتيبات، التبديلات، التأليفات)',
+        points: 4,
+        skills: { directApplication: 2, familiarSituation: 1.5, complexReasoning: 0.5 },
+        competencies: 'استعمال المبدأ الأساسي للتعداد، الترتيبات بتكرار وبدون تكرار والتأليفات في وضعيات السحب.'
       },
       {
         order: 4,
-        title: 'التمرين الرابع: دراسة دالة عددية وقراءة مبيانها',
-        domain: 'المجال الرابع: الدوال العددية ونهايات الدوال البسيطة وقراءة المبيانات',
-        points: 5,
-        skills: { directApplication: 2.5, familiarSituation: 2, complexReasoning: 0.5 },
-        competencies: 'حساب النهايات البسيطة عند المحدات، إشارة المشتقة وتحديد الرتابة، واستنتاج مطاريف الدالة من التمثيل المبياني.'
+        title: 'التمرين الرابع: دراسة دالة عددية (حدودية أو متخاطة) وتمثيلها المبياني',
+        domain: 'المجال الرابع: الدوال العددية (النهايات، الاشتقاق، ودراسة وتمثيل الدوال)',
+        points: 8,
+        skills: { directApplication: 3, familiarSituation: 4, complexReasoning: 1 },
+        competencies: 'حساب النهايات عند المحدات، إشارة المشتقة وجدول التغيرات، معادلة المماس، والإنشاء المبياني لـ (Cf).'
       }
     ]
   },
-  '2BAC_ECO': {
-    name: 'الثانية باكالوريا علوم اقتصادية وتدبير (SEG)',
-    stream: 'شعبة العلوم الاقتصادية والتدبير',
-    coef: 4,
-    duration: 'ساعتان (2h)',
+  '2BAC_LSH': {
+    name: 'الثانية باكالوريا آداب وعلوم إنسانية وتعليم أصيل (2BAC LSH)',
+    stream: 'مسلك الآداب والعلوم الإنسانية والتعليم الأصيل',
+    coef: 1,
+    duration: 'ساعة واحدة (1h)',
     domains: [
-      { name: 'التحليل: دراسة الدوال واللوغاريتم العشري والنيبيري', defaultPoints: 10, weightPct: 50 },
-      { name: 'المتتاليات العددية وتطبيقاتها المالية', defaultPoints: 5, weightPct: 25 },
-      { name: 'حساب الاحتمالات والإحصاء التوليفي', defaultPoints: 5, weightPct: 25 }
+      { name: 'المتتاليات العددية ونهاية متتالية (حسابية، هندسية، ترجعية)', defaultPoints: 4, weightPct: 20 },
+      { name: 'دراسة الدوال العددية والدوال اللوغاريتمية النبيرية والأسية', defaultPoints: 11, weightPct: 55 },
+      { name: 'حساب الاحتمالات والمتغيرات العشوائية', defaultPoints: 5, weightPct: 25 }
     ],
     defaultExercises: [
       {
         order: 1,
-        title: 'التمرين الأول: المتتاليات العددية وحساب المجاميع',
-        domain: 'المتتاليات العددية وتطبيقاتها المالية',
-        points: 5,
-        skills: { directApplication: 3, familiarSituation: 1.5, complexReasoning: 0.5 },
-        competencies: 'المتتاليات الحسابية والهندسية وحساب المجاميع.'
+        title: 'التمرين الأول: المتتاليات العددية ونهايتها',
+        domain: 'المتتاليات العددية ونهاية متتالية (حسابية، هندسية، ترجعية)',
+        points: 4,
+        skills: { directApplication: 2, familiarSituation: 1.5, complexReasoning: 0.5 },
+        competencies: 'حساب الحدود، المتتالية الهندسية المساعدة، الحد العام، ونهاية متتالية.'
       },
       {
         order: 2,
-        title: 'التمرين الثاني: دراسة دالة لوغاريتمية وتحديد المطاريف',
-        domain: 'التحليل: دراسة الدوال واللوغاريتم العشري والنيبيري',
-        points: 10,
-        skills: { directApplication: 4.5, familiarSituation: 4, complexReasoning: 1.5 },
-        competencies: 'النهايات، المشتقة، جدول التغيرات، وتحديد المطاريف.'
+        title: 'التمرين الثاني: حساب الاحتمالات',
+        domain: 'حساب الاحتمالات والمتغيرات العشوائية',
+        points: 5,
+        skills: { directApplication: 2.5, familiarSituation: 2, complexReasoning: 0.5 },
+        competencies: 'حساب احتمالات الأحداث في تساوي الاحتمالات، الاحتمال الشرطي، والأمل الرياضي لمتغير عشوائي.'
       },
       {
         order: 3,
-        title: 'التمرين الثالث: حساب الاحتمالات والتجارب العشوائية',
-        domain: 'حساب الاحتمالات والإحصاء التوليفي',
-        points: 5,
-        skills: { directApplication: 3, familiarSituation: 1.5, complexReasoning: 0.5 },
-        competencies: 'السحب في آن واحد وتتابع، الاحتمال الشرطي، والمتغير العشوائي.'
+        title: 'التمرين الثالث: دراسة دالة لوغاريتمية أو أسية وتمثيلها المبياني',
+        domain: 'دراسة الدوال العددية والدوال اللوغاريتمية النبيرية والأسية',
+        points: 11,
+        skills: { directApplication: 5.5, familiarSituation: 4.5, complexReasoning: 1 },
+        competencies: 'حل معادلات ومتراجحات لوغاريتمية/أسية، النهايات، المشتقة وجدول التغيرات، وإنشاء المنحنى (Cf).'
+      }
+    ]
+  },
+  '1BAC_ECO': {
+    name: 'الأولى باكالوريا علوم اقتصادية وتدبير (1BAC SEG)',
+    stream: 'شعبة العلوم الاقتصادية والتدبير',
+    coef: 4,
+    duration: 'ساعتان (2h)',
+    domains: [
+      { name: 'الجبر: المنطق، المعادلات والنظمات، المصفوفات، والتعداد', defaultPoints: 9, weightPct: 45 },
+      { name: 'التحليل: عموميات الدوال، المتتاليات المالية، النهايات، والاشتقاق ودراسة الدوال', defaultPoints: 11, weightPct: 55 }
+    ],
+    defaultExercises: [
+      {
+        order: 1,
+        title: 'التمرين الأول: المنطق الرياضي والمعادلات والنظمات أو المصفوفات',
+        domain: 'الجبر: المنطق، المعادلات والنظمات، المصفوفات، والتعداد',
+        points: 4.5,
+        skills: { directApplication: 2, familiarSituation: 2, complexReasoning: 0.5 },
+        competencies: 'الاستدلال بالترجع، العمليات على المصفوفات المربعة، وحل النظمات الخطية في وضعيات اقتصادية.'
+      },
+      {
+        order: 2,
+        title: 'التمرين الثاني: المتتاليات العددية والرياضيات المالية أو التعداد',
+        domain: 'التحليل: عموميات الدوال، المتتاليات المالية، النهايات، والاشتقاق ودراسة الدوال',
+        points: 4.5,
+        skills: { directApplication: 2, familiarSituation: 2, complexReasoning: 0.5 },
+        competencies: 'المتتاليات الحسابية والهندسية وحساب الفوائد البسيطة والمركبة والمجاميع.'
+      },
+      {
+        order: 3,
+        title: 'التمرين الثالث: النهايات والاشتقاق ودراسة دالة عددية وتأويلها الاقتصادي',
+        domain: 'التحليل: عموميات الدوال، المتتاليات المالية، النهايات، والاشتقاق ودراسة الدوال',
+        points: 11,
+        skills: { directApplication: 5, familiarSituation: 4, complexReasoning: 2 },
+        competencies: 'حساب النهايات والمشتقة، جدول التغيرات، الفروع اللانهائية، والتمثيل المبياني لدالة الكلفة/الربح.'
+      }
+    ]
+  },
+  '2BAC_ECO': {
+    name: 'الثانية باكالوريا علوم اقتصادية وتدبير (2BAC SEG)',
+    stream: 'شعبة العلوم الاقتصادية والتدبير',
+    coef: 4,
+    duration: 'ساعتان (2h)',
+    domains: [
+      { name: 'التحليل: الاتصال والاشتقاق ودراسة الدوال اللوغاريتمية والأسية والتكامل', defaultPoints: 10, weightPct: 50 },
+      { name: 'المتتاليات العددية وتطبيقاتها الاقتصادية والمالية', defaultPoints: 3, weightPct: 15 },
+      { name: 'حساب الاحتمالات والمتغيرات العشوائية والقانون الحدي', defaultPoints: 7, weightPct: 35 }
+    ],
+    defaultExercises: [
+      {
+        order: 1,
+        title: 'التمرين الأول: المتتاليات العددية وتطبيقاتها المالية',
+        domain: 'المتتاليات العددية وتطبيقاتها الاقتصادية والمالية',
+        points: 3,
+        skills: { directApplication: 1.5, familiarSituation: 1, complexReasoning: 0.5 },
+        competencies: 'البرهان بالترجع، الرتابة والتقارب، والمتتاليات المرتبطة بالتوظيفات المالية.'
+      },
+      {
+        order: 2,
+        title: 'التمرين الثاني: حساب الاحتمالات والمتغيرات العشوائية',
+        domain: 'حساب الاحتمالات والمتغيرات العشوائية والقانون الحدي',
+        points: 7,
+        skills: { directApplication: 3, familiarSituation: 3, complexReasoning: 1 },
+        competencies: 'الاحتمال الشرطي، شجرة الاحتمالات، صيغة الاحتمالات الكلية، والمتغير العشوائي والقانون الحدي.'
+      },
+      {
+        order: 3,
+        title: 'التمرين الثالث: مسألة دراسة دالة لوغاريتمية/أسية وحساب التكامل',
+        domain: 'التحليل: الاتصال والاشتقاق ودراسة الدوال اللوغاريتمية والأسية والتكامل',
+        points: 10,
+        skills: { directApplication: 3.5, familiarSituation: 5, complexReasoning: 1.5 },
+        competencies: 'النهايات، المشتقة، جدول التغيرات، التكامل بالأجزاء، وتطبيقات الكلفة الحدية والربح الأقصى.'
       }
     ]
   },
@@ -407,16 +480,18 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
 }) => {
   const [selectedLevel, setSelectedLevel] = useState<string>(() => {
     const raw = (initialClass || '').toUpperCase();
+    if (raw.includes('TCL') || raw.includes('TCO')) return 'TCL';
     if (raw.includes('TCS') || raw.includes('TCT')) return 'TCS';
-    if (raw.includes('TCL')) return 'TCL';
     if (raw.includes('1BAC') || raw.includes('1 BAC') || raw.includes('1B') || raw.includes('أولى') || raw.includes('اولى')) {
       if (raw.includes('SM')) return '1BAC_SM';
+      if (raw.includes('ECO') || raw.includes('SEG') || raw.includes('SGC') || raw.includes('اقتصاد')) return '1BAC_ECO';
       if (raw.includes('LSH') || raw.includes('SH') || raw.includes('LET') || raw.includes('LIT') || raw.includes('آداب') || raw.includes('إنسانية')) return '1BAC_LSH';
       return '1BAC_EXP';
     }
     if (raw.includes('2BAC') || raw.includes('2 BAC') || raw.includes('2B') || raw.includes('ثانية') || raw.includes('الثانية')) {
       if (raw.includes('SM')) return '2BAC_SM';
-      if (raw.includes('ECO')) return '2BAC_ECO';
+      if (raw.includes('ECO') || raw.includes('SEG') || raw.includes('SGC') || raw.includes('اقتصاد')) return '2BAC_ECO';
+      if (raw.includes('LSH') || raw.includes('SH') || raw.includes('LET') || raw.includes('LIT') || raw.includes('آداب') || raw.includes('إنسانية')) return '2BAC_LSH';
       return '2BAC_PC';
     }
     if (raw.includes('LSH') || raw.includes('SH') || raw.includes('آداب') || raw.includes('إنسانية')) return '1BAC_LSH';
@@ -424,7 +499,16 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
   });
   const [examNumber, setExamNumber] = useState<'1' | '2' | '3' | '4'>('1');
   const [semester, setSemester] = useState<'s1' | 's2'>('s1');
-  const [schoolYear, setSchoolYear] = useState<string>('2026 / 2027');
+  const [schoolYear, setSchoolYear] = useState<string>(() => {
+    const winAny = typeof window !== 'undefined' ? (window as any) : {};
+    const profileYear = winAny.db?.teacherProfile?.academicYear;
+    if (profileYear) return String(profileYear);
+    const now = typeof winAny.getAppNow === 'function' ? winAny.getAppNow() : new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const startYear = m >= 9 ? y : y - 1;
+    return `${startYear} / ${startYear + 1}`;
+  });
   const [establishment, setEstablishment] = useState<string>('الثانوية التأهيلية');
   const [teacherName, setTeacherName] = useState<string>('');
 
@@ -453,6 +537,7 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
       const db = (window as any).db;
       if (db.teacherProfile) {
         if (db.teacherProfile.name) setTeacherName(db.teacherProfile.name);
+        if (db.teacherProfile.academicYear) setSchoolYear(String(db.teacherProfile.academicYear));
         if (db.teacherProfile.schoolName || db.teacherProfile.school) {
           setEstablishment(db.teacherProfile.schoolName || db.teacherProfile.school);
         }
@@ -528,11 +613,20 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
 
   // Safe Print Execution via sandboxed iframe
   const handlePrintOfficialGrid = () => {
+    const esc = (s: any) =>
+      String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    const nowObj = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date();
+    const printDate = nowObj.toLocaleDateString('ar-MA');
     const printDoc = `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>شبكة توصيف وتنقيط الفرض المحروس رقم ${examNumber} — ${currentPreset.name}</title>
+  <title>شبكة توصيف وتنقيط الفرض المحروس رقم ${esc(examNumber)} — ${esc(currentPreset.name)}</title>
   <style>
     @page { size: A4 portrait; margin: 10mm; }
     * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -557,24 +651,24 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
       <td style="width: 35%;">
         <strong>المملكة المغربية</strong><br>
         وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
-        المؤسسة: ${establishment || 'الثانوية التأهيلية'}<br>
-        الأستاذ(ة): ${teacherName || 'أستاذ مادة الرياضيات'}
+        المؤسسة: ${esc(establishment || 'الثانوية التأهيلية')}<br>
+        الأستاذ(ة): ${esc(teacherName || 'أستاذ مادة الرياضيات')}
       </td>
       <td style="width: 30%; text-align: center;">
         <div style="font-size: 16pt; font-weight: 900; color: #1e3a8a;">📐 مادة الرياضيات</div>
         <div style="font-size: 9pt; color: #64748b; margin-top: 3px;">السلك الثانوي التأهيلي</div>
       </td>
       <td style="width: 35%; text-align: left;">
-        الموسم الدراسي: ${schoolYear}<br>
-        المستوى: <strong>${currentPreset.name}</strong><br>
+        الموسم الدراسي: ${esc(schoolYear)}<br>
+        المستوى: <strong>${esc(currentPreset.name)}</strong><br>
         الدورة: ${semester === 's1' ? 'الدورة الأولى (S1)' : 'الدورة الثانية (S2)'}<br>
-        المدة: ${currentPreset.duration} | المعامل: ${currentPreset.coef}
+        المدة: ${esc(currentPreset.duration)} | المعامل: ${esc(currentPreset.coef)}
       </td>
     </tr>
   </table>
 
   <div class="title-banner">
-    <h2>بطاقة الإطار المرجعي وشبكة تنقيط الفرض المحروس رقم (${examNumber})</h2>
+    <h2>بطاقة الإطار المرجعي وشبكة تنقيط الفرض المحروس رقم (${esc(examNumber)})</h2>
     <p>وفق التوجيهات التربوية الرسمية ومذكرات التقويم والمراقبة المستمرة لوزارة التربية الوطنية</p>
   </div>
 
@@ -595,10 +689,10 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
         <tr>
           <td style="text-align: center; font-weight: bold;">${ex.order}</td>
           <td>
-            <strong>${ex.title}</strong><br>
-            <span style="font-size: 8.5pt; color: #475569;">مجال: ${ex.domain}</span>
+            <strong>${esc(ex.title)}</strong><br>
+            <span style="font-size: 8.5pt; color: #475569;">مجال: ${esc(ex.domain)}</span>
           </td>
-          <td style="font-size: 9pt;">${ex.competencies}</td>
+          <td style="font-size: 9pt;">${esc(ex.competencies)}</td>
           <td style="text-align: center; font-family: monospace;">${ex.skills.directApplication} ن</td>
           <td style="text-align: center; font-family: monospace;">${ex.skills.familiarSituation} ن</td>
           <td style="text-align: center; font-family: monospace;">${ex.skills.complexReasoning} ن</td>
@@ -617,7 +711,7 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
 
   <div class="summary-box">
     <strong>📌 مؤشرات المطابقة البيداغوجية للإطار المرجعي:</strong><br>
-    • مجالات المعارف الرياضية: ${Object.entries(domainTotals).map(([k, v]) => `${k}: ${v} ن`).join(' | ')}<br>
+    • مجالات المعارف الرياضية: ${Object.entries(domainTotals).map(([k, v]) => `${esc(k)}: ${v} ن`).join(' | ')}<br>
     • التوازن المعرفي: نسبة الاسترداد والتطبيق المباشر (${skillTotals.directPct}%)، حل الوضعيات المألوفة (${skillTotals.familiarPct}%)، الاستدلال التوليفي والتركيب (${skillTotals.complexPct}%).
   </div>
 
@@ -625,7 +719,7 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
     <tr>
       <td>
         <strong>توقيع أستاذ(ة) مادة الرياضيات:</strong><br>
-        <div style="margin-top: 30px; font-size: 9pt; color: #64748b;">حرر بالمؤسسة في: ${new Date().toLocaleDateString('ar-MA')}</div>
+        <div style="margin-top: 30px; font-size: 9pt; color: #64748b;">حرر بالمؤسسة في: ${esc(printDate)}</div>
       </td>
       <td>
         <strong>تأشيرة ومصادقة السيد(ة) المفتش(ة) التربوي(ة):</strong><br>

@@ -1860,6 +1860,20 @@
             window.addEventListener('touchend', onPointerUp, { passive: false });
         }
 
+        // Double-click any lesson_header object on canvas to customize or update it in-place
+        canvas.addEventListener('dblclick', (e) => {
+            if (!window.WbVectorEngine) return;
+            const arr = getActiveVectorArray();
+            if (!Array.isArray(arr) || arr.length === 0) return;
+            const pos = getCoords(e);
+            const hitIdx = window.WbVectorEngine.hitTestObjects(pos.x, pos.y, arr, getVectorEnv());
+            if (hitIdx >= 0 && arr[hitIdx] && arr[hitIdx].t === 'lesson_header') {
+                e.preventDefault();
+                selectedVectorIndex = hitIdx;
+                openLessonHeaderModal(hitIdx);
+            }
+        });
+
         // Wheel zoom/scroll when PDF is active, spotlight radius, or rotate geometric tools when hovering over them
         canvas.addEventListener('wheel', (e) => {
             if (currentTool === 'spotlight') {
@@ -7236,49 +7250,671 @@
     /* ====================================================================
      * 8. التكامل مع القسم ودفتر النصوص ومؤقت التمارين (Classroom Integration)
      * ==================================================================== */
-    function insertCurrentLessonHeaderOnBoard() {
-        if (!ctx || !canvas) return;
-        saveStateForUndo();
+    const WB_LESSON_HEADER_PREFS_KEY = 'wb_lesson_header_prefs_v1';
 
-        const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
-        const todayStr = new Date().toLocaleDateString('ar-MA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        let className = window.currentClass || '2BAC-PC-1';
-        let lessonTitle = 'الاتصال والاشتقاق ودراسة الدوال العددية';
+    const WB_SESSION_TYPE_META = {
+        cours: { label: 'درس وبناء المفاهيم', defaultTheme: 'academic' },
+        exercices: { label: 'تمارين تطبيقية', defaultTheme: 'workshop' },
+        problemes: { label: 'مسائل وتوليف', defaultTheme: 'workshop' },
+        soutien: { label: 'دعم واستدراك', defaultTheme: 'workshop' },
+        homework: { label: 'تصحيح واجب منزلي', defaultTheme: 'workshop' },
+        controle: { label: 'فرض محروس', defaultTheme: 'workshop' },
+        correction: { label: 'تصحيح الفرض المحروس', defaultTheme: 'workshop' }
+    };
+
+    function escapeWbAttrHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function loadLessonHeaderPrefs() {
+        try {
+            const raw = localStorage.getItem(WB_LESSON_HEADER_PREFS_KEY);
+            return raw ? (JSON.parse(raw) || {}) : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function saveLessonHeaderPrefs(prefs) {
+        try {
+            const current = loadLessonHeaderPrefs();
+            localStorage.setItem(WB_LESSON_HEADER_PREFS_KEY, JSON.stringify(Object.assign({}, current, prefs)));
+        } catch (e) {}
+    }
+
+    function resolveActiveWhiteboardLessonContext(preferredClassName) {
+        const prefs = loadLessonHeaderPrefs();
+        const todayStr = new Date().toLocaleDateString('ar-MA', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        let className = (preferredClassName && String(preferredClassName).trim()) || '';
+        const classOptions = [];
 
         try {
-            const clsSel = document.getElementById('lessonLogClassSelect') || document.getElementById('classSelect') || document.getElementById('logClass');
-            if (clsSel && clsSel.value) className = clsSel.value;
-            else if (window.db && window.db.classes && Object.keys(window.db.classes).length > 0 && !window.db.classes[className]) {
-                className = Object.keys(window.db.classes)[0];
+            const dbClasses = (window.db && window.db.classes) ? Object.keys(window.db.classes) : [];
+            dbClasses.forEach((c) => {
+                if (c && !classOptions.includes(c)) classOptions.push(c);
+            });
+            const lessonLogViewEl = document.getElementById('lessonLogView');
+            const isLessonLogActive = !!(lessonLogViewEl && lessonLogViewEl.style.display !== 'none');
+            const llSel = document.getElementById('lessonLogClassSelect');
+            const mainSel = document.getElementById('classSelect');
+            if (!className && isLessonLogActive && llSel && llSel.value) className = llSel.value;
+            if (!className && mainSel && mainSel.value) className = mainSel.value;
+            if (!className && window.currentClass) className = window.currentClass;
+            if (!className && llSel && llSel.value) className = llSel.value;
+            if (!className && classOptions.length > 0) className = classOptions[0];
+            if (!className) className = '2BAC-PC-1';
+            if (className && !classOptions.includes(className)) classOptions.unshift(className);
+        } catch (e) {
+            if (!className) className = '2BAC-PC-1';
+        }
+
+        const tp = (window.db && window.db.teacherProfile) ? window.db.teacherProfile : {};
+        const teacherName = (tp.name || '').trim();
+        const schoolName = (tp.school || '').trim();
+
+        let levelLabel = '';
+        let curriculumLessons = [];
+        try {
+            if (typeof window.getSecondaryMathLessonsForClass === 'function') {
+                const info = window.getSecondaryMathLessonsForClass(className);
+                if (info) {
+                    levelLabel = info.levelName || info.levelId || '';
+                    curriculumLessons = Array.isArray(info.allLessons) ? info.allLessons : [];
+                }
+            } else if (typeof window.getCurriculumLevelForClass === 'function') {
+                levelLabel = window.getCurriculumLevelForClass(className) || '';
+            }
+        } catch (e) {}
+
+        let lessonTitle = '';
+        let axisTitle = '';
+        let objective = '';
+        let sessionNum = '';
+        let sessionType = 'cours';
+
+        try {
+            // 1. Live Lesson Log form inputs if active and populated for current/matching class
+            const formClsEl = document.getElementById('lessonLogClassSelect');
+            const isSameFormClass = !formClsEl || !formClsEl.value || formClsEl.value === className;
+            if (isSameFormClass) {
+                const numInput = document.getElementById('lessonLogNumber');
+                const titleInput = document.getElementById('lessonLogTitle');
+                const sessNumInput = document.getElementById('lessonLogSessionNum');
+                const sessTypeInput = document.getElementById('lessonLogSessionType');
+                const candFormTitle = ((numInput && numInput.value) || (titleInput && titleInput.value) || '').trim();
+                if (candFormTitle) lessonTitle = candFormTitle;
+                if (sessNumInput && sessNumInput.value) sessionNum = String(sessNumInput.value).trim();
+                if (sessTypeInput && sessTypeInput.value && WB_SESSION_TYPE_META[sessTypeInput.value]) {
+                    sessionType = sessTypeInput.value;
+                }
             }
 
-            const logTopicEl = document.getElementById('logTopic');
-            if (logTopicEl && logTopicEl.value && logTopicEl.value.trim()) {
-                lessonTitle = logTopicEl.value.trim();
-            } else if (window.db && window.db.lessonLogs && Array.isArray(window.db.lessonLogs[className]) && window.db.lessonLogs[className].length > 0) {
-                const latestLog = window.db.lessonLogs[className][window.db.lessonLogs[className].length - 1];
-                if (latestLog && (latestLog.topic || latestLog.unit)) {
-                    lessonTitle = latestLog.topic || latestLog.unit;
+            // 2. Latest canonical entry from db.lessonLogs[className]
+            const logs = (window.db && window.db.lessonLogs && Array.isArray(window.db.lessonLogs[className]))
+                ? window.db.lessonLogs[className]
+                : [];
+            if (logs.length > 0) {
+                const latest = logs[logs.length - 1] || {};
+                if (!lessonTitle) {
+                    lessonTitle = String(latest.number || latest.title || latest.topic || latest.unit || '').trim();
+                }
+                if (Array.isArray(latest.axes) && latest.axes.length > 0) {
+                    const lastAxis = latest.axes[latest.axes.length - 1];
+                    axisTitle = typeof lastAxis === 'string'
+                        ? lastAxis.trim()
+                        : String((lastAxis && (lastAxis.title || lastAxis.name)) || '').trim();
+                } else if (latest.axisTitle) {
+                    axisTitle = String(latest.axisTitle).trim();
+                }
+                if (!sessionNum && latest.sessionNum) sessionNum = String(latest.sessionNum).trim();
+                if (latest.sessionType && WB_SESSION_TYPE_META[latest.sessionType]) {
+                    sessionType = latest.sessionType;
+                }
+                if (latest.objective) objective = String(latest.objective).trim();
+            }
+
+            // 3. Official curriculum fallback if teacher hasn't logged any lesson yet for this class
+            if (!lessonTitle && curriculumLessons.length > 0) {
+                lessonTitle = curriculumLessons[0].title || '';
+                if (!axisTitle && Array.isArray(curriculumLessons[0].axes) && curriculumLessons[0].axes.length > 0) {
+                    const a0 = curriculumLessons[0].axes[0];
+                    axisTitle = typeof a0 === 'string' ? a0 : (a0 && a0.title) || '';
                 }
             }
         } catch (e) {}
 
-        const obj = {
-            t: 'lesson_header',
-            x: 24,
-            y: 14,
-            w: Math.max(240, w - 48),
-            h: 44,
+        if (!lessonTitle) lessonTitle = 'الاتصال والاشتقاق ودراسة الدوال العددية';
+
+        const sessionMeta = WB_SESSION_TYPE_META[sessionType] || WB_SESSION_TYPE_META.cours;
+        const styleTheme = (prefs.styleTheme && ['academic', 'chalkboard', 'compact', 'workshop'].includes(prefs.styleTheme))
+            ? prefs.styleTheme
+            : 'academic';
+
+        return {
             todayStr,
             className,
-            lessonTitle
+            classOptions,
+            levelLabel,
+            lessonTitle,
+            axisTitle,
+            objective,
+            sessionNum,
+            sessionType,
+            sessionTypeLabel: sessionMeta.label,
+            teacherName,
+            schoolName,
+            styleTheme,
+            showInstitutionalMeta: prefs.showInstitutionalMeta !== false,
+            curriculumLessons
         };
-        pushVectorObject(obj);
-        drawVectorObjectOnCtx(obj);
+    }
+
+    function insertCurrentLessonHeaderOnBoard(customConfig) {
+        if (!ctx || !canvas) return;
+        const cfg = (customConfig && typeof customConfig === 'object') ? customConfig : {};
+        const resolved = resolveActiveWhiteboardLessonContext(cfg.className);
+        const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
+
+        const styleTheme = cfg.styleTheme || resolved.styleTheme || 'academic';
+        const isCompact = styleTheme === 'compact';
+        const sessionType = cfg.sessionType || resolved.sessionType || 'cours';
+        const sessionMeta = WB_SESSION_TYPE_META[sessionType] || WB_SESSION_TYPE_META.cours;
+
+        const headerData = {
+            t: 'lesson_header',
+            x: typeof cfg.x === 'number' ? cfg.x : 24,
+            y: typeof cfg.y === 'number' ? cfg.y : 12,
+            w: typeof cfg.w === 'number' ? cfg.w : Math.max(320, w - 48),
+            h: typeof cfg.h === 'number' ? cfg.h : (isCompact ? 50 : 88),
+            todayStr: (cfg.todayStr !== undefined ? cfg.todayStr : resolved.todayStr).trim(),
+            className: (cfg.className !== undefined ? cfg.className : resolved.className).trim(),
+            levelLabel: (cfg.levelLabel !== undefined ? cfg.levelLabel : resolved.levelLabel).trim(),
+            lessonTitle: (cfg.lessonTitle !== undefined ? cfg.lessonTitle : resolved.lessonTitle).trim() || 'درس الرياضيات',
+            axisTitle: (cfg.axisTitle !== undefined ? cfg.axisTitle : resolved.axisTitle).trim(),
+            objective: (cfg.objective !== undefined ? cfg.objective : resolved.objective).trim(),
+            sessionNum: (cfg.sessionNum !== undefined ? String(cfg.sessionNum) : resolved.sessionNum).trim(),
+            sessionType,
+            sessionTypeLabel: (cfg.sessionTypeLabel !== undefined ? cfg.sessionTypeLabel : sessionMeta.label).trim(),
+            teacherName: (cfg.teacherName !== undefined ? cfg.teacherName : resolved.teacherName).trim(),
+            schoolName: (cfg.schoolName !== undefined ? cfg.schoolName : resolved.schoolName).trim(),
+            styleTheme,
+            showInstitutionalMeta: typeof cfg.showInstitutionalMeta === 'boolean' ? cfg.showInstitutionalMeta : resolved.showInstitutionalMeta
+        };
+
+        saveStateForUndo();
+
+        const arr = getActiveVectorArray();
+        const replaceIndex = typeof cfg.replaceIndex === 'number' ? cfg.replaceIndex : -1;
+
+        if (replaceIndex >= 0 && arr[replaceIndex] && arr[replaceIndex].t === 'lesson_header') {
+            const prev = arr[replaceIndex];
+            const updatedObj = Object.assign({}, prev, headerData, {
+                x: prev.x,
+                y: prev.y,
+                w: prev.w,
+                h: isCompact ? Math.min(prev.h || 50, 56) : Math.max(prev.h || 88, 84)
+            });
+            if (window.WbVectorEngine) {
+                window.WbVectorEngine.attachNormalizedPdfFields(updatedObj, getVectorEnv());
+            }
+            arr[replaceIndex] = updatedObj;
+            selectedVectorIndex = replaceIndex;
+            replayVectorStrokesToCanvas(arr);
+            renderGeometricToolsOverlay();
+            if (collabClient && collabClient.roomCode && updatedObj.id) {
+                collabClient.send('stroke:update', { object: updatedObj });
+            }
+        } else {
+            if (cfg.replaceExisting && Array.isArray(arr)) {
+                for (let i = arr.length - 1; i >= 0; i--) {
+                    if (arr[i] && arr[i].t === 'lesson_header') {
+                        arr.splice(i, 1);
+                    }
+                }
+                selectedVectorIndex = -1;
+            }
+            pushVectorObject(headerData);
+            if (cfg.replaceExisting) {
+                replayVectorStrokesToCanvas(arr);
+            } else {
+                drawVectorObjectOnCtx(headerData);
+            }
+            renderGeometricToolsOverlay();
+        }
+
         persistWhiteboardState();
         if (typeof window.showNotification === 'function') {
-            window.showNotification(`📌 تم إدراج ترويسة الحصة (${className} — ${lessonTitle}) أعلى السبورة!`, 'success');
+            const actionLabel = replaceIndex >= 0 ? 'تحديث' : 'إدراج';
+            window.showNotification(`📌 تم ${actionLabel} ترويسة الحصة (${headerData.className} — ${headerData.lessonTitle}) بنجاح!`, 'success');
         }
+    }
+
+    function openLessonHeaderModal(editVectorIndex = -1) {
+        const arr = getActiveVectorArray();
+        const isEditingExisting = (typeof editVectorIndex === 'number' && editVectorIndex >= 0 && arr[editVectorIndex] && arr[editVectorIndex].t === 'lesson_header');
+        const existingObj = isEditingExisting ? arr[editVectorIndex] : null;
+        const existingTopIdx = !isEditingExisting && Array.isArray(arr)
+            ? arr.findIndex(item => item && item.t === 'lesson_header')
+            : -1;
+
+        const baseCtx = resolveActiveWhiteboardLessonContext(existingObj ? existingObj.className : '');
+        const state = {
+            className: existingObj ? (existingObj.className || baseCtx.className) : baseCtx.className,
+            levelLabel: existingObj ? (existingObj.levelLabel || baseCtx.levelLabel) : baseCtx.levelLabel,
+            lessonTitle: existingObj ? (existingObj.lessonTitle || baseCtx.lessonTitle) : baseCtx.lessonTitle,
+            axisTitle: existingObj ? (existingObj.axisTitle || '') : baseCtx.axisTitle,
+            objective: existingObj ? (existingObj.objective || '') : baseCtx.objective,
+            sessionNum: existingObj ? (existingObj.sessionNum || '') : baseCtx.sessionNum,
+            sessionType: existingObj ? (existingObj.sessionType || 'cours') : baseCtx.sessionType,
+            todayStr: existingObj ? (existingObj.todayStr || baseCtx.todayStr) : baseCtx.todayStr,
+            teacherName: existingObj ? (existingObj.teacherName !== undefined ? existingObj.teacherName : baseCtx.teacherName) : baseCtx.teacherName,
+            schoolName: existingObj ? (existingObj.schoolName !== undefined ? existingObj.schoolName : baseCtx.schoolName) : baseCtx.schoolName,
+            styleTheme: existingObj ? (existingObj.styleTheme || baseCtx.styleTheme) : baseCtx.styleTheme,
+            showInstitutionalMeta: existingObj ? (existingObj.showInstitutionalMeta !== false) : baseCtx.showInstitutionalMeta
+        };
+
+        let modal = document.getElementById('wbLessonHeaderModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'wbLessonHeaderModal';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.74);backdrop-filter:blur(5px);z-index:10058;display:flex;align-items:center;justify-content:center;padding:14px;direction:rtl;font-family:"Cairo",sans-serif;overflow-y:auto;';
+            document.body.appendChild(modal);
+        }
+
+        const themeCards = [
+            { id: 'academic', label: 'أكاديمي رسمي', sub: 'إطار مهيكل بسطرين' },
+            { id: 'chalkboard', label: 'سبورة مغربية', sub: 'خلفية خضراء وخط طبشوري' },
+            { id: 'workshop', label: 'ورشة وتطبيقات', sub: 'ملائم للتمارين والدعم' },
+            { id: 'compact', label: 'مختصر أنيق', sub: 'يوفر مساحة للكتابة' }
+        ];
+
+        const sessionTypeOptions = Object.keys(WB_SESSION_TYPE_META).map((key) => ({
+            id: key,
+            label: WB_SESSION_TYPE_META[key].label
+        }));
+
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div style="background:#ffffff;border-radius:14px;max-width:740px;width:100%;box-shadow:0 24px 60px rgba(15,23,42,0.38);border:1px solid #cbd5e1;overflow:hidden;margin:auto;">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 18px;background:#0f172a;color:#f8fafc;border-bottom:1px solid #1e293b;">
+                    <div>
+                        <div style="font-weight:800;font-size:0.98rem;">📌 استوديو ترويسة الدرس على السبورة التفاعلية</div>
+                        <div style="font-size:0.74rem;color:#94a3b8;font-weight:600;margin-top:2px;">مزامنة تلقائية مع دفتر النصوص والمقرر الرسمي للرياضيات · انقر مرتين على الترويسة في السبورة لتعديلها لاحقاً</div>
+                    </div>
+                    <button type="button" id="wbLessonHeaderCloseX" aria-label="إغلاق" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.18);color:#f8fafc;width:32px;height:32px;border-radius:8px;cursor:pointer;font-weight:800;font-size:0.9rem;">✕</button>
+                </div>
+
+                <div style="padding:14px 18px;display:flex;flex-direction:column;gap:12px;max-height:84vh;overflow-y:auto;">
+                    <!-- Live Canvas Preview -->
+                    <div id="wbHeaderPreviewBackdrop" style="border:1px solid #cbd5e1;border-radius:10px;padding:10px;background:#f8fafc;display:flex;flex-direction:column;gap:6px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.74rem;font-weight:700;color:#475569;">
+                            <span>معاينة حية على خلفية السبورة الحالية</span>
+                            <span id="wbHeaderPreviewDims" style="font-variant-numeric:tabular-nums;color:#64748b;"></span>
+                        </div>
+                        <canvas id="wbLessonHeaderPreviewCanvas" style="width:100%;height:auto;display:block;border-radius:8px;"></canvas>
+                    </div>
+
+                    <!-- Style Theme Selector -->
+                    <div>
+                        <div style="font-size:0.76rem;font-weight:800;color:#1e293b;margin-bottom:5px;">نمط الترويسة البيداغوجية:</div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:6px;">
+                            ${themeCards.map((tc) => `
+                                <button type="button" class="wb-hdr-theme-btn" data-theme="${tc.id}" style="padding:7px 10px;border-radius:8px;border:1.5px solid #cbd5e1;background:#f8fafc;color:#0f172a;cursor:pointer;text-align:right;transition:all 0.15s ease;">
+                                    <div style="font-weight:800;font-size:0.78rem;">${tc.label}</div>
+                                    <div style="font-weight:600;font-size:0.69rem;color:#64748b;margin-top:1px;">${tc.sub}</div>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Class + Session Row -->
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">
+                        <div>
+                            <label for="wbHdrClassInput" style="display:block;font-size:0.75rem;font-weight:800;color:#1e293b;margin-bottom:3px;">القسم:</label>
+                            <select id="wbHdrClassInput" style="width:100%;padding:7px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:700;font-size:0.8rem;background:#ffffff;color:#0f172a;box-sizing:border-box;">
+                                ${baseCtx.classOptions.map((c) => `<option value="${escapeWbAttrHtml(c)}" ${c === state.className ? 'selected' : ''}>${escapeWbAttrHtml(c)}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="wbHdrSessionTypeInput" style="display:block;font-size:0.75rem;font-weight:800;color:#1e293b;margin-bottom:3px;">طبيعة الحصة:</label>
+                            <select id="wbHdrSessionTypeInput" style="width:100%;padding:7px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:700;font-size:0.8rem;background:#ffffff;color:#0f172a;box-sizing:border-box;">
+                                ${sessionTypeOptions.map((st) => `<option value="${st.id}" ${st.id === state.sessionType ? 'selected' : ''}>${escapeWbAttrHtml(st.label)}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="wbHdrSessionNumInput" style="display:block;font-size:0.75rem;font-weight:800;color:#1e293b;margin-bottom:3px;">رقم الحصة:</label>
+                            <input type="text" id="wbHdrSessionNumInput" value="${escapeWbAttrHtml(state.sessionNum)}" placeholder="مثال: 3" style="width:100%;padding:7px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:700;font-size:0.8rem;font-variant-numeric:tabular-nums;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label for="wbHdrDateInput" style="display:block;font-size:0.75rem;font-weight:800;color:#1e293b;margin-bottom:3px;">التاريخ:</label>
+                            <input type="text" id="wbHdrDateInput" value="${escapeWbAttrHtml(state.todayStr)}" style="width:100%;padding:7px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:700;font-size:0.78rem;box-sizing:border-box;">
+                        </div>
+                    </div>
+
+                    <!-- Lesson Picker (Lesson Log + Curriculum) & Editable Title -->
+                    <div style="display:grid;grid-template-columns:1fr;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;">
+                            <div>
+                                <label for="wbHdrCurriculumPicker" style="display:block;font-size:0.75rem;font-weight:800;color:#1e3a8a;margin-bottom:3px;">استيراد سريع من دفتر النصوص أو المقرر الوزاري:</label>
+                                <select id="wbHdrCurriculumPicker" style="width:100%;padding:7px 9px;border:1.5px solid #93c5fd;border-radius:8px;font-weight:700;font-size:0.79rem;background:#ffffff;color:#0f172a;box-sizing:border-box;"></select>
+                            </div>
+                            <div>
+                                <label for="wbHdrAxisPicker" style="display:block;font-size:0.75rem;font-weight:800;color:#047857;margin-bottom:3px;">اختيار محور / فقرة الدرس:</label>
+                                <select id="wbHdrAxisPicker" style="width:100%;padding:7px 9px;border:1.5px solid #86efac;border-radius:8px;font-weight:700;font-size:0.79rem;background:#ffffff;color:#0f172a;box-sizing:border-box;"></select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="wbHdrLessonInput" style="display:block;font-size:0.75rem;font-weight:800;color:#1e293b;margin-bottom:3px;">عنوان الدرس الرئيسي:</label>
+                            <input type="text" id="wbHdrLessonInput" value="${escapeWbAttrHtml(state.lessonTitle)}" placeholder="عنوان الدرس..." style="width:100%;padding:8px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:800;font-size:0.84rem;box-sizing:border-box;background:#ffffff;">
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;">
+                            <div>
+                                <label for="wbHdrAxisInput" style="display:block;font-size:0.75rem;font-weight:800;color:#1e293b;margin-bottom:3px;">المحور أو الفقرة الحالية (اختياري):</label>
+                                <input type="text" id="wbHdrAxisInput" value="${escapeWbAttrHtml(state.axisTitle)}" placeholder="مثال: مبرهنة القيم الوسيطية وتطبيقاتها" style="width:100%;padding:7px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:700;font-size:0.8rem;box-sizing:border-box;background:#ffffff;">
+                            </div>
+                            <div>
+                                <label for="wbHdrObjectiveInput" style="display:block;font-size:0.75rem;font-weight:800;color:#1e293b;margin-bottom:3px;">الهدف الديداكتيكي / الكفاية (اختياري):</label>
+                                <input type="text" id="wbHdrObjectiveInput" value="${escapeWbAttrHtml(state.objective)}" placeholder="مثال: توظيف جدول التغيرات لحصر حلول معادلة" style="width:100%;padding:7px 9px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:700;font-size:0.8rem;box-sizing:border-box;background:#ffffff;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Institutional Meta Toggle -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:6px 4px;">
+                        <label style="display:inline-flex;align-items:center;gap:7px;font-size:0.78rem;font-weight:700;color:#334155;cursor:pointer;">
+                            <input type="checkbox" id="wbHdrShowInstToggle" ${state.showInstitutionalMeta ? 'checked' : ''} style="width:16px;height:16px;accent-color:#1e3a8a;">
+                            <span>إظهار اسم المؤسسة والأستاذ (${escapeWbAttrHtml([state.schoolName, state.teacherName ? 'ذ. ' + state.teacherName : ''].filter(Boolean).join(' · ') || 'حسب الملف الشخصي')})</span>
+                        </label>
+                        ${!isEditingExisting && existingTopIdx >= 0 ? `
+                            <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.77rem;font-weight:700;color:#0369a1;cursor:pointer;">
+                                <input type="checkbox" id="wbHdrReplaceExistingToggle" checked style="width:16px;height:16px;accent-color:#0284c7;">
+                                <span>استبدال الترويسة الموجودة حالياً في هذه الصفحة</span>
+                            </label>
+                        ` : ''}
+                    </div>
+
+                    <!-- Actions -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding-top:6px;border-top:1px solid #e2e8f0;">
+                        <button type="button" id="wbHdrSavePresetBtn" style="background:#f8fafc;border:1px solid #cbd5e1;color:#334155;padding:7px 12px;border-radius:8px;font-weight:700;font-size:0.77rem;cursor:pointer;">💾 حفظ الإعدادات الافتراضية</button>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <button type="button" id="wbHdrCancelBtn" style="background:#f1f5f9;border:1px solid #cbd5e1;color:#475569;padding:8px 14px;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer;">إلغاء</button>
+                            <button type="button" id="wbHdrApplyBtn" style="background:#1e3a8a;border:none;color:#ffffff;padding:8px 18px;border-radius:8px;font-weight:800;font-size:0.83rem;cursor:pointer;">
+                                ${isEditingExisting ? '✅ تحديث الترويسة المحددة' : '📌 إدراج الترويسة أعلى السبورة'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const previewCanvas = document.getElementById('wbLessonHeaderPreviewCanvas');
+        const previewBackdrop = document.getElementById('wbHeaderPreviewBackdrop');
+        const previewDims = document.getElementById('wbHeaderPreviewDims');
+        const clsEl = document.getElementById('wbHdrClassInput');
+        const sessTypeEl = document.getElementById('wbHdrSessionTypeInput');
+        const sessNumEl = document.getElementById('wbHdrSessionNumInput');
+        const dateEl = document.getElementById('wbHdrDateInput');
+        const curPicker = document.getElementById('wbHdrCurriculumPicker');
+        const axisPicker = document.getElementById('wbHdrAxisPicker');
+        const lessonEl = document.getElementById('wbHdrLessonInput');
+        const axisEl = document.getElementById('wbHdrAxisInput');
+        const objEl = document.getElementById('wbHdrObjectiveInput');
+        const instEl = document.getElementById('wbHdrShowInstToggle');
+
+        let currentPreviewLessons = [];
+
+        const populateCurriculumPickers = (clsName) => {
+            const clsCtx = resolveActiveWhiteboardLessonContext(clsName);
+            state.levelLabel = clsCtx.levelLabel;
+            currentPreviewLessons = [];
+            const opts = ['<option value="">— اختر درساً أو اكتب يدوياً أدناه —</option>'];
+
+            const logs = (window.db && window.db.lessonLogs && Array.isArray(window.db.lessonLogs[clsName]))
+                ? window.db.lessonLogs[clsName]
+                : [];
+            if (logs.length > 0) {
+                const seenLogTitles = new Set();
+                const logOpts = [];
+                for (let i = logs.length - 1; i >= 0; i--) {
+                    const lg = logs[i];
+                    const t = String((lg && (lg.number || lg.title || lg.topic || lg.unit)) || '').trim();
+                    if (!t || seenLogTitles.has(t)) continue;
+                    seenLogTitles.add(t);
+                    const axesList = Array.isArray(lg.axes)
+                        ? lg.axes.map(ax => typeof ax === 'string' ? ax : (ax && (ax.title || ax.name)) || '').filter(Boolean)
+                        : [];
+                    const idx = currentPreviewLessons.length;
+                    currentPreviewLessons.push({ title: t, axes: axesList, competency: lg.objective || '' });
+                    logOpts.push(`<option value="${idx}">دفتر النصوص: ${escapeWbAttrHtml(t)}</option>`);
+                }
+                if (logOpts.length > 0) {
+                    opts.push(`<optgroup label="دروس مسجلة في دفتر النصوص">${logOpts.join('')}</optgroup>`);
+                }
+            }
+
+            if (clsCtx.curriculumLessons.length > 0) {
+                const currOpts = clsCtx.curriculumLessons.map((ls) => {
+                    const idx = currentPreviewLessons.length;
+                    const axesList = Array.isArray(ls.axes)
+                        ? ls.axes.map(ax => typeof ax === 'string' ? ax : (ax && (ax.title || ax.desc)) || '').filter(Boolean)
+                        : [];
+                    currentPreviewLessons.push({ title: ls.title, axes: axesList, competency: ls.competency || '' });
+                    return `<option value="${idx}">${escapeWbAttrHtml(ls.order ? ls.order + '. ' + ls.title : ls.title)}</option>`;
+                });
+                opts.push(`<optgroup label="المنهاج الرسمي (${escapeWbAttrHtml(clsCtx.levelLabel)})">${currOpts.join('')}</optgroup>`);
+            }
+
+            curPicker.innerHTML = opts.join('');
+            const matchIdx = currentPreviewLessons.findIndex(item => item.title === lessonEl.value.trim());
+            if (matchIdx >= 0) {
+                curPicker.value = String(matchIdx);
+                populateAxesPicker(currentPreviewLessons[matchIdx]);
+            } else {
+                populateAxesPicker(null);
+            }
+        };
+
+        const populateAxesPicker = (lessonEntry) => {
+            const axes = (lessonEntry && Array.isArray(lessonEntry.axes)) ? lessonEntry.axes : [];
+            if (axes.length === 0) {
+                axisPicker.innerHTML = '<option value="">— أدخل المحور يدوياً أو اختر درساً —</option>';
+                return;
+            }
+            axisPicker.innerHTML = [
+                '<option value="">— اختر محوراً من الدرس —</option>',
+                ...axes.map((ax, i) => `<option value="${escapeWbAttrHtml(ax)}">${i + 1}. ${escapeWbAttrHtml(ax)}</option>`)
+            ].join('');
+            const curAx = axisEl.value.trim();
+            if (curAx && axes.includes(curAx)) {
+                axisPicker.value = curAx;
+            }
+        };
+
+        const syncThemeButtonsUI = () => {
+            modal.querySelectorAll('.wb-hdr-theme-btn').forEach((btn) => {
+                const active = btn.getAttribute('data-theme') === state.styleTheme;
+                btn.style.borderColor = active ? '#1e3a8a' : '#cbd5e1';
+                btn.style.background = active ? '#eff6ff' : '#f8fafc';
+                btn.style.boxShadow = active ? '0 0 0 2px rgba(30,58,138,0.16)' : 'none';
+            });
+        };
+
+        const buildHeaderObjectFromInputs = () => {
+            const theme = state.styleTheme;
+            const sessKey = sessTypeEl.value || 'cours';
+            const sessMeta = WB_SESSION_TYPE_META[sessKey] || WB_SESSION_TYPE_META.cours;
+            return {
+                t: 'lesson_header',
+                x: 12,
+                y: 12,
+                w: 676,
+                h: theme === 'compact' ? 50 : 88,
+                todayStr: dateEl.value.trim(),
+                className: clsEl.value.trim(),
+                levelLabel: state.levelLabel,
+                lessonTitle: lessonEl.value.trim() || 'درس الرياضيات',
+                axisTitle: axisEl.value.trim(),
+                objective: objEl.value.trim(),
+                sessionNum: sessNumEl.value.trim(),
+                sessionType: sessKey,
+                sessionTypeLabel: sessMeta.label,
+                teacherName: state.teacherName,
+                schoolName: state.schoolName,
+                styleTheme: theme,
+                showInstitutionalMeta: !!instEl.checked
+            };
+        };
+
+        const renderPreview = () => {
+            if (!previewCanvas) return;
+            const hdrObj = buildHeaderObjectFromInputs();
+            const cw = 700;
+            const ch = hdrObj.h + 24;
+            const dpr = Math.min(2, window.devicePixelRatio || 1);
+            previewCanvas.width = cw * dpr;
+            previewCanvas.height = ch * dpr;
+            const pCtx = previewCanvas.getContext('2d');
+            pCtx.save();
+            pCtx.scale(dpr, dpr);
+
+            const isDarkBoard = (currentBg === 'green' || currentBg === 'dark');
+            previewBackdrop.style.background = isDarkBoard ? '#0f172a' : '#f8fafc';
+            previewBackdrop.style.borderColor = isDarkBoard ? '#334155' : '#cbd5e1';
+            if (previewDims) {
+                const boardW = lastValidWidth || parseFloat(canvas && canvas.style.width) || 800;
+                previewDims.textContent = `${Math.max(320, Math.round(boardW - 48))} × ${hdrObj.h} px`;
+            }
+
+            if (currentBg === 'green') {
+                pCtx.fillStyle = '#064e3b';
+            } else if (currentBg === 'dark') {
+                pCtx.fillStyle = '#0f172a';
+            } else {
+                pCtx.fillStyle = '#ffffff';
+            }
+            pCtx.fillRect(0, 0, cw, ch);
+
+            if (window.WbVectorEngine && typeof window.WbVectorEngine.drawVectorObject === 'function') {
+                window.WbVectorEngine.drawVectorObject(pCtx, hdrObj, { currentBg, isPdfActive: false });
+            }
+            pCtx.restore();
+        };
+
+        populateCurriculumPickers(state.className);
+        syncThemeButtonsUI();
+        renderPreview();
+
+        const close = () => { modal.style.display = 'none'; };
+        document.getElementById('wbLessonHeaderCloseX').onclick = close;
+        document.getElementById('wbHdrCancelBtn').onclick = close;
+
+        modal.querySelectorAll('.wb-hdr-theme-btn').forEach((btn) => {
+            btn.onclick = () => {
+                state.styleTheme = btn.getAttribute('data-theme') || 'academic';
+                syncThemeButtonsUI();
+                renderPreview();
+            };
+        });
+
+        clsEl.onchange = () => {
+            state.className = clsEl.value;
+            populateCurriculumPickers(state.className);
+            renderPreview();
+        };
+
+        curPicker.onchange = () => {
+            const idx = parseInt(curPicker.value, 10);
+            if (!isNaN(idx) && currentPreviewLessons[idx]) {
+                const chosen = currentPreviewLessons[idx];
+                lessonEl.value = chosen.title || '';
+                populateAxesPicker(chosen);
+                if (chosen.axes && chosen.axes.length > 0) {
+                    axisEl.value = chosen.axes[0];
+                    axisPicker.value = chosen.axes[0];
+                } else {
+                    axisEl.value = '';
+                }
+                if (!objEl.value.trim() && chosen.competency) {
+                    objEl.value = chosen.competency;
+                }
+                renderPreview();
+            }
+        };
+
+        axisPicker.onchange = () => {
+            if (axisPicker.value) {
+                axisEl.value = axisPicker.value;
+                renderPreview();
+            }
+        };
+
+        [sessTypeEl, sessNumEl, dateEl, lessonEl, axisEl, objEl, instEl].forEach((el) => {
+            if (!el) return;
+            el.addEventListener('input', renderPreview);
+            el.addEventListener('change', renderPreview);
+        });
+
+        document.getElementById('wbHdrSavePresetBtn').onclick = () => {
+            saveLessonHeaderPrefs({
+                styleTheme: state.styleTheme,
+                showInstitutionalMeta: !!instEl.checked
+            });
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('💾 تم حفظ نمط الترويسة كإعداد افتراضي لحصصك القادمة.', 'success');
+            }
+        };
+
+        const submitHeader = () => {
+            const payload = buildHeaderObjectFromInputs();
+            saveLessonHeaderPrefs({
+                styleTheme: payload.styleTheme,
+                showInstitutionalMeta: payload.showInstitutionalMeta
+            });
+            const replaceToggle = document.getElementById('wbHdrReplaceExistingToggle');
+            const replaceExisting = !!(replaceToggle && replaceToggle.checked);
+            close();
+            insertCurrentLessonHeaderOnBoard({
+                className: payload.className,
+                levelLabel: payload.levelLabel,
+                lessonTitle: payload.lessonTitle,
+                axisTitle: payload.axisTitle,
+                objective: payload.objective,
+                sessionNum: payload.sessionNum,
+                sessionType: payload.sessionType,
+                sessionTypeLabel: payload.sessionTypeLabel,
+                todayStr: payload.todayStr,
+                teacherName: payload.teacherName,
+                schoolName: payload.schoolName,
+                styleTheme: payload.styleTheme,
+                showInstitutionalMeta: payload.showInstitutionalMeta,
+                replaceIndex: isEditingExisting ? editVectorIndex : -1,
+                replaceExisting
+            });
+        };
+
+        document.getElementById('wbHdrApplyBtn').onclick = submitHeader;
+        [lessonEl, axisEl, objEl, sessNumEl, dateEl].forEach((el) => {
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submitHeader();
+                }
+            });
+        });
     }
 
     function updateBoardExerciseTimerUI() {
@@ -9364,6 +10000,7 @@
     window.drawSpaceOrProbTemplate = drawSpaceOrProbTemplate;
     window.drawBlankVariationTableOnBoard = drawBlankVariationTableOnBoard;
     window.insertCurrentLessonHeaderOnBoard = insertCurrentLessonHeaderOnBoard;
+    window.openLessonHeaderModal = openLessonHeaderModal;
     window.toggleBoardExerciseTimer = toggleBoardExerciseTimer;
     window.startPauseBoardExerciseTimer = startPauseBoardExerciseTimer;
     window.setBoardExerciseTimerMinutes = setBoardExerciseTimerMinutes;

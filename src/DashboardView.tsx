@@ -393,14 +393,21 @@ export default function DashboardView() {
   const [absenceCompSelectedStudentId, setAbsenceCompSelectedStudentId] = useState<string>('');
   const [absenceCompSort, setAbsenceCompSort] = useState<'highest_current' | 'highest_increase' | 'highest_decrease' | 'total_both'>('highest_current');
   const [absenceCompLimit, setAbsenceCompLimit] = useState<number>(10);
-  const [absenceCompCurrentMonth, setAbsenceCompCurrentMonth] = useState<string>('2026-11');
-  const [absenceCompPreviousMonth, setAbsenceCompPreviousMonth] = useState<string>('2026-10');
+  const [absenceCompCurrentMonth, setAbsenceCompCurrentMonth] = useState<string>(() => {
+    const nowObj = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date();
+    return `${nowObj.getFullYear()}-${String(nowObj.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [absenceCompPreviousMonth, setAbsenceCompPreviousMonth] = useState<string>(() => {
+    const nowObj = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date();
+    const prev = new Date(nowObj.getFullYear(), nowObj.getMonth() - 1, 1);
+    return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [useAbsenceDemoData, setUseAbsenceDemoData] = useState<boolean>(false);
 
   // State hooks for AI Class Performance Diagnostic Reports (Scanned Exams + Attendance)
   const [showAiDiagnosticsCenter, setShowAiDiagnosticsCenter] = useState<boolean>(false);
   const [aiDiagClassFilter, setAiDiagClassFilter] = useState<string>('all');
-  const [aiDiagScannedSource, setAiDiagScannedSource] = useState<'all' | 'f1' | 'f2' | 'f3'>('all');
+  const [aiDiagScannedSource, setAiDiagScannedSource] = useState<'all' | 'f1' | 'f2' | 'f3' | 'f4'>('all');
   const [isGeneratingAiDiag, setIsGeneratingAiDiag] = useState<boolean>(false);
   const [aiDiagResponse, setAiDiagResponse] = useState<AiDashboardDiagnosticsResponse | null>(null);
   const [aiDiagSource, setAiDiagSource] = useState<'gemini' | 'heuristic' | null>(null);
@@ -604,16 +611,17 @@ export default function DashboardView() {
         const chk = isProtectedDate(r.date, r.session);
         if (typeof chk === 'boolean' ? chk : !!(chk && chk.disabled)) continue;
       }
-      if (r.className) {
-        let cArr = byClass.get(r.className);
+      const recCls = r.className || r.class || '';
+      if (recCls) {
+        let cArr = byClass.get(recCls);
         if (!cArr) {
           cArr = [];
-          byClass.set(r.className, cArr);
+          byClass.set(recCls, cArr);
         }
         cArr.push(r);
       }
       if (r.studentId) {
-        const compositeKey = r.className ? `${r.className}:::${r.studentId}` : String(r.studentId);
+        const compositeKey = recCls ? `${recCls}:::${r.studentId}` : String(r.studentId);
         let sArr = byStudent.get(compositeKey);
         if (!sArr) {
           sArr = [];
@@ -1441,21 +1449,19 @@ export default function DashboardView() {
         set.add(r.date.slice(0, 7));
       }
     });
-    set.add('2026-11');
-    set.add('2026-10');
-    set.add('2026-09');
+    const nowObj = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date();
+    for (let offset = 0; offset < 3; offset++) {
+      const d = new Date(nowObj.getFullYear(), nowObj.getMonth() - offset, 1);
+      set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
     return Array.from(set).sort().reverse();
   }, [db?.records]);
 
   const allStudentsMonthlyAbsence = useMemo(() => {
     if (!db || !db.classes) return [];
-    const allRecords: any[] = Array.isArray(db.records) ? db.records : [];
     const targetClasses = absenceCompClass === 'all' ? classNames : [absenceCompClass];
 
-    const hasCurrRecords = allRecords.some((r: any) => r.date && r.date.startsWith(absenceCompCurrentMonth));
-    const hasPrevRecords = allRecords.some((r: any) => r.date && r.date.startsWith(absenceCompPreviousMonth));
-    const isVirtuallyEmpty = !hasCurrRecords && !hasPrevRecords;
-    const shouldSimulate = useAbsenceDemoData || isVirtuallyEmpty;
+    const shouldSimulate = useAbsenceDemoData;
 
     const list: Array<{
       studentId: string;
@@ -1479,7 +1485,8 @@ export default function DashboardView() {
     }> = [];
 
     targetClasses.forEach((clsName) => {
-      const students: Student[] = db.classes[clsName] || [];
+      const rawCls = db.classes[clsName];
+      const students: Student[] = Array.isArray(rawCls) ? rawCls : (rawCls?.students || []);
       students.forEach((std, sIdx) => {
         let prevTotalHours = 0;
         let prevJustifiedHours = 0;
@@ -1764,13 +1771,15 @@ export default function DashboardView() {
     if (aiDiagScannedSource === 'f1') return 'الفرض المحروس 1 الممسوح (F1)';
     if (aiDiagScannedSource === 'f2') return 'الفرض المحروس 2 الممسوح (F2)';
     if (aiDiagScannedSource === 'f3') return 'الفرض المحروس 3 الممسوح (F3)';
-    return 'الحصيلة المجمعة للفروض المحروسة الممسوحة (F1 + F2 + F3)';
+    if (aiDiagScannedSource === 'f4') return 'الفرض المحروس 4 الممسوح (F4)';
+    return 'الحصيلة المجمعة للفروض المحروسة الممسوحة';
   }, [aiDiagScannedSource]);
 
   const getActiveExamAvgForClass = (cls: ClassAggregatedStats): number | null => {
     if (aiDiagScannedSource === 'f1') return cls.f1Avg;
     if (aiDiagScannedSource === 'f2') return cls.f2Avg;
     if (aiDiagScannedSource === 'f3') return cls.f3Avg;
+    if (aiDiagScannedSource === 'f4') return cls.f4Avg;
     return cls.semesterAvg;
   };
 
@@ -1885,7 +1894,7 @@ export default function DashboardView() {
     };
   };
 
-  const runAiClassesDiagnostics = async (overrideClassFilter?: string, overrideSource?: 'all' | 'f1' | 'f2' | 'f3') => {
+  const runAiClassesDiagnostics = async (overrideClassFilter?: string, overrideSource?: 'all' | 'f1' | 'f2' | 'f3' | 'f4') => {
     const activeClsFilter = overrideClassFilter !== undefined ? overrideClassFilter : aiDiagClassFilter;
     const activeSrc = overrideSource !== undefined ? overrideSource : aiDiagScannedSource;
 
@@ -1912,7 +1921,9 @@ export default function DashboardView() {
           ? 'الفرض المحروس 2 الممسوح (F2)'
           : activeSrc === 'f3'
           ? 'الفرض المحروس 3 الممسوح (F3)'
-          : 'الحصيلة المجمعة للفروض المحروسة الممسوحة (F1 + F2 + F3)';
+          : activeSrc === 'f4'
+          ? 'الفرض المحروس 4 الممسوح (F4)'
+          : 'الحصيلة المجمعة للفروض المحروسة الممسوحة';
 
       const payload = {
         semester,
@@ -1938,6 +1949,8 @@ export default function DashboardView() {
               ? c.f2Avg
               : activeSrc === 'f3'
               ? c.f3Avg
+              : activeSrc === 'f4'
+              ? c.f4Avg
               : c.semesterAvg,
           passCount: c.passCount,
           passRate: c.passRate,
@@ -1979,6 +1992,7 @@ export default function DashboardView() {
 
   // Expose global helper so index.html Dashboard buttons can open & trigger AI Class Diagnostics directly
   useEffect(() => {
+    const prevOpenDiagnostics = (window as any).openDashboardAiClassDiagnostics;
     (window as any).openDashboardAiClassDiagnostics = (targetClassName?: string) => {
       const nextFilter = targetClassName && classNames.includes(targetClassName) ? targetClassName : 'all';
       setAiDiagClassFilter(nextFilter);
@@ -1989,7 +2003,7 @@ export default function DashboardView() {
       }, 120);
     };
     return () => {
-      delete (window as any).openDashboardAiClassDiagnostics;
+      (window as any).openDashboardAiClassDiagnostics = prevOpenDiagnostics;
     };
   }, [classNames, filteredClassesStats, allClassesStats, semester, aiDiagScannedSource]);
 
@@ -2104,11 +2118,19 @@ export default function DashboardView() {
   };
 
   const handlePrintClassDomainBreakdown = (clsStats: ClassAggregatedStats) => {
+    const esc = (s: any) =>
+      String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    const nowObj = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date();
     const domains = getMergedDomainsForClass(clsStats);
-    const teacherName = db?.teacherProfile?.name || 'إبراهيم قزيبر';
+    const teacherName = db?.teacherProfile?.name || 'أستاذ المادة';
     const schoolName = db?.teacherProfile?.school || 'الثانوية التأهيلية';
     const academyName = db?.teacherProfile?.academy || 'الأكاديمية الجهوية للتربية والتكوين';
-    const printDate = new Date().toLocaleDateString('ar-MA');
+    const printDate = nowObj.toLocaleDateString('ar-MA');
 
     const domainsHtml = domains
       .map(
@@ -2116,8 +2138,8 @@ export default function DashboardView() {
       <div style="border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; page-break-inside: avoid; background: #ffffff;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid ${dom.color}; padding-bottom: 6px; margin-bottom: 8px;">
           <div>
-            <strong style="font-size: 14px; color: #0f172a;">${dom.domainTitle}</strong>
-            <div style="font-size: 11px; color: #475569; margin-top: 2px;">المحاور: ${dom.curriculumTopics}</div>
+            <strong style="font-size: 14px; color: #0f172a;">${esc(dom.domainTitle)}</strong>
+            <div style="font-size: 11px; color: #475569; margin-top: 2px;">المحاور: ${esc(dom.curriculumTopics)}</div>
           </div>
           <div style="text-align: left; font-size: 12px; font-weight: 800; color: #0f172a;">
             <span>المعدل: ${dom.domainAvg}/20</span> ·
@@ -2127,7 +2149,7 @@ export default function DashboardView() {
           </div>
         </div>
         <p style="font-size: 11.5px; color: #1e293b; margin: 0 0 8px 0; line-height: 1.55;">
-          <strong>التشخيص البيداغوجي بالذكاء الاصطناعي:</strong> ${dom.aiDomainDiagnosis}
+          <strong>التشخيص البيداغوجي بالذكاء الاصطناعي:</strong> ${esc(dom.aiDomainDiagnosis)}
         </p>
         <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px;">
           <thead>
@@ -2142,9 +2164,9 @@ export default function DashboardView() {
               .map(
                 (sk) => `
               <tr>
-                <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 700;">${sk.skillName}</td>
+                <td style="border: 1px solid #cbd5e1; padding: 5px 8px; font-weight: 700;">${esc(sk.skillName)}</td>
                 <td style="border: 1px solid #cbd5e1; padding: 5px 8px; text-align: center; font-weight: 800; color: ${dom.color};">${sk.masteryPct}%</td>
-                <td style="border: 1px solid #cbd5e1; padding: 5px 8px; color: #475569;">${sk.errorPattern}</td>
+                <td style="border: 1px solid #cbd5e1; padding: 5px 8px; color: #475569;">${esc(sk.errorPattern)}</td>
               </tr>
             `
               )
@@ -2152,7 +2174,7 @@ export default function DashboardView() {
           </tbody>
         </table>
         <div style="font-size: 11px; color: #065f46; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 6px 10px;">
-          <strong>التمارين والأنشطة العلاجية المقترحة:</strong> ${dom.recommendedExercises.join(' — ')}
+          <strong>التمارين والأنشطة العلاجية المقترحة:</strong> ${dom.recommendedExercises.map(esc).join(' — ')}
         </div>
       </div>
     `
@@ -2163,7 +2185,7 @@ export default function DashboardView() {
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>التقرير التشخيصي للمجالات المعرفية - القسم ${clsStats.className}</title>
+  <title>التقرير التشخيصي للمجالات المعرفية - القسم ${esc(clsStats.className)}</title>
   <style>
     @page { size: A4 portrait; margin: 12mm; }
     body { font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; color: #0f172a; margin: 0; padding: 0; }
@@ -2173,17 +2195,17 @@ export default function DashboardView() {
   <div style="border-bottom: 3px double #1e3a8a; padding-bottom: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
     <div style="font-size: 12px; font-weight: 700; line-height: 1.5;">
       <div>المملكة المغربية — وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
-      <div>${academyName} — ${schoolName}</div>
-      <div>الأستاذ: ${teacherName} — مادة الرياضيات (المذكرة 142-08)</div>
+      <div>${esc(academyName)} — ${esc(schoolName)}</div>
+      <div>الأستاذ: ${esc(teacherName)} — مادة الرياضيات (المذكرة 142-08)</div>
     </div>
     <div style="text-align: left; font-size: 12px; font-weight: 700;">
-      <div>تاريخ التشخيص: ${printDate}</div>
-      <div>القسم: <strong>${clsStats.className}</strong> (${clsStats.streamLabel})</div>
+      <div>تاريخ التشخيص: ${esc(printDate)}</div>
+      <div>القسم: <strong>${esc(clsStats.className)}</strong> (${esc(clsStats.streamLabel)})</div>
       <div>معدل الفروض: <strong>${clsStats.semesterAvg ?? '--'}/20</strong> · المواظبة: <strong>${clsStats.attendanceRate}%</strong></div>
     </div>
   </div>
   <h2 style="text-align: center; font-size: 16px; margin: 0 0 12px 0; color: #1e3a8a;">
-    التقرير التشخيصي المفصل لأداء القسم (${clsStats.className}) حسب المجالات المعرفية للرياضيات
+    التقرير التشخيصي المفصل لأداء القسم (${esc(clsStats.className)}) حسب المجالات المعرفية للرياضيات
   </h2>
   ${domainsHtml}
 </body>
@@ -2245,10 +2267,18 @@ export default function DashboardView() {
 
   const handlePrintAiDiagnosticReports = () => {
     if (!aiDiagResponse) return;
-    const teacherName = db?.teacherProfile?.name || 'إبراهيم قزيبر';
+    const esc = (s: any) =>
+      String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    const nowObj = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date();
+    const teacherName = db?.teacherProfile?.name || 'أستاذ المادة';
     const schoolName = db?.teacherProfile?.school || 'الثانوية التأهيلية';
     const academyName = db?.teacherProfile?.academy || 'الأكاديمية الجهوية للتربية والتكوين';
-    const printDate = new Date().toLocaleDateString('ar-MA');
+    const printDate = nowObj.toLocaleDateString('ar-MA');
 
     const cardsHtml = aiDiagResponse.classReports
       .map((rep) => {
@@ -2258,11 +2288,11 @@ export default function DashboardView() {
         <div style="border:1.5px solid #1e3a8a; border-radius:10px; padding:12px 14px; margin-bottom:14px; page-break-inside:avoid; background:#ffffff;">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #e2e8f0; padding-bottom:8px; margin-bottom:8px;">
             <div>
-              <span style="font-size:12pt; font-weight:900; color:#1e3a8a;">القسم: ${rep.className}</span>
-              <span style="font-size:9pt; color:#475569; margin-right:8px;">(${rep.streamLabel} · المعامل ${st?.coef ?? '-'})</span>
+              <span style="font-size:12pt; font-weight:900; color:#1e3a8a;">القسم: ${esc(rep.className)}</span>
+              <span style="font-size:9pt; color:#475569; margin-right:8px;">(${esc(rep.streamLabel)} · المعامل ${st?.coef ?? '-'})</span>
             </div>
             <div style="font-size:9pt; font-weight:800; background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; padding:3px 10px; border-radius:999px;">
-              التصنيف: ${rep.levelBadge} • المؤشر: ${rep.healthScore}/100
+              التصنيف: ${esc(rep.levelBadge)} • المؤشر: ${rep.healthScore}/100
             </div>
           </div>
           ${
@@ -2288,27 +2318,27 @@ export default function DashboardView() {
               : ''
           }
           <div style="font-size:9pt; margin-bottom:6px; line-height:1.5;">
-            <strong style="color:#1e3a8a;">📊 تشخيص نتائج الفروض المحروسة الممسوحة:</strong> ${rep.scannedExamsDiagnosis}
+            <strong style="color:#1e3a8a;">📊 تشخيص نتائج الفروض المحروسة الممسوحة:</strong> ${esc(rep.scannedExamsDiagnosis)}
           </div>
           <div style="font-size:9pt; margin-bottom:6px; line-height:1.5;">
-            <strong style="color:#b45309;">⏱️ تشخيص المواظبة وأثر الغياب:</strong> ${rep.attendanceImpactDiagnosis}
+            <strong style="color:#b45309;">⏱️ تشخيص المواظبة وأثر الغياب:</strong> ${esc(rep.attendanceImpactDiagnosis)}
           </div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; font-size:8.5pt;">
             <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:7px 10px;">
               <strong style="color:#9a3412; display:block; margin-bottom:4px;">🔍 العوائق الرياضية المرصودة في الأوراق الممسوحة:</strong>
               <ul style="margin:0; padding-right:16px;">
-                ${rep.detectedMathGaps.map((g) => `<li style="margin-bottom:2px;">${g}</li>`).join('')}
+                ${rep.detectedMathGaps.map((g) => `<li style="margin-bottom:2px;">${esc(g)}</li>`).join('')}
               </ul>
             </div>
             <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:7px 10px;">
               <strong style="color:#166534; display:block; margin-bottom:4px;">🎯 خطة الدعم والمعالجة المبرمجة:</strong>
               <ol style="margin:0; padding-right:16px;">
-                ${rep.remediationActionPlan.map((a) => `<li style="margin-bottom:2px;">${a}</li>`).join('')}
+                ${rep.remediationActionPlan.map((a) => `<li style="margin-bottom:2px;">${esc(a)}</li>`).join('')}
               </ol>
             </div>
           </div>
           <div style="margin-top:7px; padding-top:6px; border-top:1px dashed #cbd5e1; font-size:8.5pt; font-weight:700; color:#1e40af;">
-            🏁 الهدف الكمي للفرض المحروس القادم: ${rep.targetMilestone}
+            🏁 الهدف الكمي للفرض المحروس القادم: ${esc(rep.targetMilestone)}
           </div>
         </div>`;
       })
@@ -2329,23 +2359,23 @@ export default function DashboardView() {
   <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2.5px solid #1e3a8a; padding-bottom:8px; margin-bottom:12px;">
     <div>
       <div style="font-weight:900; font-size:10.5pt;">المملكة المغربية • وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل</div>
-      <div style="font-size:8.5pt; color:#475569;">${academyName} • ${schoolName}</div>
+      <div style="font-size:8.5pt; color:#475569;">${esc(academyName)} • ${esc(schoolName)}</div>
     </div>
     <div style="text-align:center;">
       <div style="background:#1e3a8a; color:#fff; padding:4px 14px; border-radius:6px; font-weight:900; font-size:11pt;">
         التقارير التشخيصية لأداء الأقسام بالذكاء الاصطناعي
       </div>
       <div style="font-size:8pt; color:#475569; margin-top:2px;">
-        بناءً على نتائج ${scannedSourceLabel} والمواظبة (المذكرة 142-08)
+        بناءً على نتائج ${esc(scannedSourceLabel)} والمواظبة (المذكرة 142-08)
       </div>
     </div>
     <div style="text-align:left; font-size:8.5pt;">
-      <div>الأستاذ: <strong>${teacherName}</strong></div>
-      <div>التاريخ: <strong>${printDate}</strong></div>
+      <div>الأستاذ: <strong>${esc(teacherName)}</strong></div>
+      <div>التاريخ: <strong>${esc(printDate)}</strong></div>
     </div>
   </div>
   <div style="background:#f8fafc; border:1px solid #cbd5e1; border-right:4px solid #1e3a8a; border-radius:8px; padding:9px 12px; margin-bottom:14px; font-size:9pt; line-height:1.5;">
-    <strong>📌 الملخص التنفيذي العام:</strong> ${aiDiagResponse.executiveSummary}
+    <strong>📌 الملخص التنفيذي العام:</strong> ${esc(aiDiagResponse.executiveSummary)}
   </div>
   ${cardsHtml}
 </body>
@@ -2420,21 +2450,37 @@ export default function DashboardView() {
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
               <span>مقارنة شاملة لمعدلات الفروض المحروسة وساعات الغياب</span>
               <span aria-hidden="true">·</span>
-              <span>المذكرة الوزارية 142-08 (رياضيات الثانوي التأهيلي)</span>
+              <span>المذكرة الوزارية 142-08 والتوجيهات التربوية 2007</span>
               <span aria-hidden="true">·</span>
               <span className="font-bold text-blue-800">{semesterTitle}</span>
+              <span aria-hidden="true">·</span>
+              <button
+                type="button"
+                onClick={() => (window as any).openOfficialPdfViewerModal?.('/assets/aistudio/_____________________________________________________3a655c1c.pdf', 'التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات بالثانوي التأهيلي (نونبر 2007)', 'التوجيهات_التربوية_الرياضيات_الثانوي_التأهيلي_2007.pdf')}
+                className="font-bold text-blue-700 hover:text-blue-900 underline underline-offset-2 cursor-pointer"
+              >
+                وثيقة التوجيهات 2007 (PDF)
+              </button>
+              <span aria-hidden="true">·</span>
+              <button
+                type="button"
+                onClick={() => (window as any).openOfficialPdfViewerModal?.('/assets/aistudio/n14208_evalped_08_a6af9323.pdf', 'المذكرة الوزارية رقم 142-08 الخاصة بالتقويم التربوي لمادة الرياضيات بالثانوي التأهيلي', 'المذكرة_الوزارية_142_08_التقويم_التربوي_الرياضيات.pdf')}
+                className="font-bold text-amber-800 hover:text-amber-950 underline underline-offset-2 cursor-pointer"
+              >
+                المذكرة 142-08 (PDF)
+              </button>
             </p>
           </div>
         </div>
 
         {/* Interactive Filter Controls */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap tabular-nums">
           {/* Semester Segmented Control */}
           <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200/80">
             <button
               type="button"
               onClick={() => setSemester('s1')}
-              className={`px-3 py-1.5 text-xs font-extrabold rounded-md transition-all cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 semester === 's1'
                   ? 'bg-white text-blue-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2445,7 +2491,7 @@ export default function DashboardView() {
             <button
               type="button"
               onClick={() => setSemester('s2')}
-              className={`px-3 py-1.5 text-xs font-extrabold rounded-md transition-all cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 semester === 's2'
                   ? 'bg-white text-blue-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2456,7 +2502,7 @@ export default function DashboardView() {
             <button
               type="button"
               onClick={() => setSemester('annual')}
-              className={`px-3 py-1.5 text-xs font-extrabold rounded-md transition-all cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 semester === 'annual'
                   ? 'bg-white text-blue-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2471,7 +2517,7 @@ export default function DashboardView() {
             <button
               type="button"
               onClick={() => setLevelFilter('all')}
-              className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+              className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 levelFilter === 'all'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2482,7 +2528,7 @@ export default function DashboardView() {
             <button
               type="button"
               onClick={() => setLevelFilter('tc')}
-              className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+              className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 levelFilter === 'tc'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2493,7 +2539,7 @@ export default function DashboardView() {
             <button
               type="button"
               onClick={() => setLevelFilter('1bac')}
-              className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+              className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 levelFilter === '1bac'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2504,7 +2550,7 @@ export default function DashboardView() {
             <button
               type="button"
               onClick={() => setLevelFilter('2bac')}
-              className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+              className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 levelFilter === '2bac'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2518,7 +2564,7 @@ export default function DashboardView() {
           <button
             type="button"
             onClick={() => syncWithGlobalDb(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer whitespace-nowrap"
             title="تحديث الإحصائيات المجمعة"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -2534,14 +2580,11 @@ export default function DashboardView() {
                 setShowAiDiagnosticsCenter(false);
               }
             }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-extrabold rounded-lg bg-gradient-to-r from-indigo-700 via-blue-700 to-violet-700 hover:from-indigo-800 hover:to-violet-800 text-white shadow-sm transition-all cursor-pointer border border-indigo-400/30"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-extrabold rounded-lg bg-gradient-to-r from-indigo-700 via-blue-700 to-violet-700 hover:from-indigo-800 hover:to-violet-800 text-white shadow-sm transition-all cursor-pointer border border-indigo-400/30 whitespace-nowrap"
             title="تحليل أداء الأقسام باستخدام الذكاء الاصطناعي وتوليد تقارير تشخيصية لمستوى كل قسم بناءً على نتائج الفروض الممسوحة والمواظبة"
           >
             <Brain className="w-4 h-4 text-amber-300" />
-            <span>تحليل أداء الأقسام بالذكاء الاصطناعي</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-white/20 text-[10px] font-black">
-              {filteredClassesStats.length} أقسام
-            </span>
+            <span>تحليل أداء الأقسام بالذكاء الاصطناعي ({filteredClassesStats.length})</span>
             {showAiDiagnosticsCenter ? (
               <ChevronUp className="w-3.5 h-3.5" />
             ) : (
@@ -2553,7 +2596,7 @@ export default function DashboardView() {
             type="button"
             onClick={handleExportSnapshot}
             disabled={isExporting}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-900 hover:bg-blue-800 text-white shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-blue-900 hover:bg-blue-800 text-white shadow-xs transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap"
             title="حفظ لوحة الرسوم البيانية كصورة عالية الدقة"
           >
             <Download className="w-3.5 h-3.5" />
@@ -2681,10 +2724,11 @@ export default function DashboardView() {
                 <div className="inline-flex items-center bg-white p-0.5 rounded-lg border border-slate-300 shadow-2xs">
                   {(
                     [
-                      { id: 'all', label: 'الحصيلة المجمعة (F1-F3)' },
+                      { id: 'all', label: 'الحصيلة المجمعة (F1-F4)' },
                       { id: 'f1', label: 'الفرض الممسوح 1' },
                       { id: 'f2', label: 'الفرض الممسوح 2' },
-                      { id: 'f3', label: 'الفرض الممسوح 3' }
+                      { id: 'f3', label: 'الفرض الممسوح 3' },
+                      { id: 'f4', label: 'الفرض الممسوح 4' }
                     ] as const
                   ).map((item) => (
                     <button
@@ -2822,12 +2866,18 @@ export default function DashboardView() {
                           </span>
                           <span className="text-[11px] font-bold text-slate-500">/ 20</span>
                         </div>
-                        <div className="mt-1 text-[10px] font-bold text-slate-500 flex items-center gap-2">
+                        <div className="mt-1 text-[10px] font-bold text-slate-500 flex items-center flex-wrap gap-2">
                           <span>ف1: {clsStats.f1Avg ?? '-'}</span>
                           <span>•</span>
                           <span>ف2: {clsStats.f2Avg ?? '-'}</span>
                           <span>•</span>
-                          <span>ف3: {clsStats.f3Avg ?? '-'}</span>
+                          <span>ف3: {clsStats.examsCount >= 3 ? (clsStats.f3Avg ?? '-') : 'غير مقرر'}</span>
+                          {clsStats.examsCount >= 4 && (
+                            <>
+                              <span>•</span>
+                              <span>ف4: {clsStats.f4Avg ?? '-'}</span>
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -4900,6 +4950,7 @@ export default function DashboardView() {
                 <th className="py-2.5 px-3 border-l border-slate-700 text-center">متوسط F1</th>
                 <th className="py-2.5 px-3 border-l border-slate-700 text-center">متوسط F2</th>
                 <th className="py-2.5 px-3 border-l border-slate-700 text-center">متوسط F3</th>
+                <th className="py-2.5 px-3 border-l border-slate-700 text-center">متوسط F4</th>
                 <th className="py-2.5 px-3 border-l border-slate-700 text-center">المعدل العام</th>
                 <th className="py-2.5 px-3 border-l border-slate-700 text-center">نسبة الحاصلين على المعدل</th>
                 <th className="py-2.5 px-3 border-l border-slate-700 text-center">ساعات الغياب</th>
@@ -4929,6 +4980,9 @@ export default function DashboardView() {
                   </td>
                   <td className="py-2.5 px-3 text-center font-semibold text-slate-700">
                     {cls.examsCount >= 3 ? (cls.f3Avg !== null ? cls.f3Avg.toFixed(2) : '-') : 'غير مقرر'}
+                  </td>
+                  <td className="py-2.5 px-3 text-center font-semibold text-slate-700">
+                    {cls.examsCount >= 4 ? (cls.f4Avg !== null ? cls.f4Avg.toFixed(2) : '-') : 'غير مقرر'}
                   </td>
                   <td className="py-2.5 px-3 text-center font-black">
                     {cls.semesterAvg !== null ? (

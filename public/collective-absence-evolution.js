@@ -100,6 +100,7 @@
         // فحص ما إذا كان التاريخ قريباً من عطلة مدرسية مسجلة
         try {
             const curDate = new Date(dateStr + 'T00:00:00');
+            if (isNaN(curDate.getTime())) return { type: 'regular', label: 'حصة اعتيادية', badgeClass: 'bg-slate-100 text-slate-700' };
             const curTime = curDate.getTime();
 
             for (const h of holidays) {
@@ -172,9 +173,15 @@
             ? window.getSortedClasses()
             : Object.keys(classes);
 
-        const targetClasses = (opts.classFilter && opts.classFilter !== 'all')
-            ? [opts.classFilter]
-            : sortedClassNames;
+        let targetClasses = sortedClassNames;
+        if (opts.classFilter && opts.classFilter !== 'all' && opts.classFilter !== '__ALL__') {
+            if (typeof window.resolveReportTargetClasses === 'function') {
+                const res = window.resolveReportTargetClasses(opts.classFilter);
+                targetClasses = (res && Array.isArray(res.classes) && res.classes.length > 0) ? res.classes : [opts.classFilter];
+            } else {
+                targetClasses = [opts.classFilter];
+            }
+        }
 
         const allRecords = Array.isArray(db.records) ? db.records : [];
 
@@ -183,10 +190,12 @@
         const sessionsMap = new Map();
 
         allRecords.forEach(rec => {
-            if (!rec.date || !rec.className) return;
+            if (!rec || !rec.date || !rec.className) return;
+            if (typeof window.isRecordProtectedHolidayOrLeave === 'function' && window.isRecordProtectedHolidayOrLeave(rec)) return;
+            if (typeof window.isAbsenceDisabledOnDate === 'function' && window.isAbsenceDisabledOnDate(rec.date, rec.session)) return;
             if (targetClasses.length > 0 && !targetClasses.includes(rec.className)) return;
 
-            const timeSlot = rec.timeSlot || '08:00 - 10:00';
+            const timeSlot = rec.timeSlot || rec.session || '08:00 - 10:00';
             const sessionKey = `${rec.date}__${timeSlot}__${rec.className}`;
 
             if (!sessionsMap.has(sessionKey)) {
@@ -226,7 +235,8 @@
         const weekdayIncidentCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }; // Mon to Sat
 
         sessionsMap.forEach((session, key) => {
-            const classStudents = classes[session.className] || [];
+            const rawClsVal = classes[session.className];
+            const classStudents = Array.isArray(rawClsVal) ? rawClsVal : (rawClsVal && Array.isArray(rawClsVal.students) ? rawClsVal.students : []);
             const totalEnrolled = classStudents.length;
             if (totalEnrolled === 0) return;
 
@@ -237,6 +247,7 @@
             const isCollective = (absencePct >= opts.threshold) && (absentCount >= opts.minAbsentCount);
 
             const sessionDate = new Date(session.date + 'T08:00:00');
+            if (isNaN(sessionDate.getTime())) return;
             const dayIdx = sessionDate.getDay();
             const semester = getSemesterFromDate(session.date);
             const monthStr = session.date.split('-')[1] || '09';
@@ -604,12 +615,19 @@
             gravityBadgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
         }
 
+        const escHtml = (s) => String(s ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+
         // بناء خيارات تصفية الأقسام
         let classOptionsHtml = `<option value="all" ${_state.classFilter === 'all' ? 'selected' : ''}>جميع الأقسام معاً (${sortedClasses.length} قسماً)</option>`;
         sortedClasses.forEach(cls => {
             const isSel = (_state.classFilter === cls) ? 'selected' : '';
             const cCount = metrics.classIncidentCounts[cls] || 0;
-            classOptionsHtml += `<option value="${cls}" ${isSel}>${cls} (${cCount} وقائع)</option>`;
+            classOptionsHtml += `<option value="${escHtml(cls)}" ${isSel}>${escHtml(cls)} (${cCount} وقائع)</option>`;
         });
 
         // بناء شريط الفترات الزمنية
@@ -658,10 +676,10 @@
                     </div>
                     <div style="width: 100%; height: 110px; background: #f1f5f9; border-radius: 8px; display: flex; align-items: flex-end; padding: 3px; position: relative; border: 1px solid #e2e8f0;">
                         <div style="width: 100%; height: ${heightPct}%; background: linear-gradient(180deg, ${barColor} 0%, rgba(234, 88, 12, 0.75) 100%); border-radius: 6px; transition: height 0.4s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.08);"
-                             title="${p.label}: ${p.collectiveSessions} حصة حرجة من أصل ${p.totalSessions} حصة (المعدل: ${p.rate}%)"></div>
+                             title="${escHtml(p.label)}: ${p.collectiveSessions} حصة حرجة من أصل ${p.totalSessions} حصة (المعدل: ${p.rate}%)"></div>
                     </div>
                     <div style="text-align: center; line-height: 1.2;">
-                        <div style="font-size: 0.75rem; font-weight: 800; color: #1e293b;">${p.label}</div>
+                        <div style="font-size: 0.75rem; font-weight: 800; color: #1e293b;">${escHtml(p.label)}</div>
                         <div style="font-size: 0.65rem; color: #64748b; margin-top: 2px;">${p.collectiveSessions}/${p.totalSessions} حصة</div>
                         <div style="margin-top: 3px;">${deltaBadge}</div>
                     </div>
@@ -702,10 +720,10 @@
 
                 return `
                     <tr style="border-bottom: 1px solid #f1f5f9; font-size: 0.8rem; background: ${i % 2 === 0 ? '#ffffff' : '#fafafa'};">
-                        <td style="padding: 9px 12px; font-weight: 800; color: #0f172a;">${inc.date}</td>
-                        <td style="padding: 9px 12px; font-weight: 700; color: #475569;">${inc.weekdayName} (${inc.timeSlot})</td>
+                        <td style="padding: 9px 12px; font-weight: 800; color: #0f172a;">${escHtml(inc.date)}</td>
+                        <td style="padding: 9px 12px; font-weight: 700; color: #475569;">${escHtml(inc.weekdayName)} (${escHtml(inc.timeSlot)})</td>
                         <td style="padding: 9px 12px; font-weight: 800; color: #1e3a8a;">
-                            <span style="background: #e0f2fe; padding: 2px 7px; border-radius: 5px;">${inc.className}</span>
+                            <span style="background: #e0f2fe; padding: 2px 7px; border-radius: 5px;">${escHtml(inc.className)}</span>
                         </td>
                         <td style="padding: 9px 12px; text-align: center; font-weight: 900; color: #dc2626;">
                             ${inc.absentCount} من أصل ${inc.totalEnrolled} تلميذ
@@ -719,7 +737,7 @@
                             </span>
                         </td>
                         <td style="padding: 9px 12px; font-size: 0.72rem; color: #64748b;">
-                            ${inc.calendarContext.label}
+                            ${escHtml(inc.calendarContext && inc.calendarContext.label)}
                         </td>
                     </tr>
                 `;
@@ -814,8 +832,8 @@
                 <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 14px;">
                     <div style="font-size: 0.74rem; font-weight: 800; color: #1e40af;">بؤرة الغياب (القسم واليوم الأكثر تأثراً)</div>
                     <div style="display: flex; align-items: baseline; gap: 6px; margin-top: 4px;">
-                        <span style="font-size: 1.15rem; font-weight: 900; color: #1e3a8a;">${metrics.mostVulnerableClass}</span>
-                        <span style="font-size: 0.75rem; font-weight: 700; color: #2563eb;">(يوم ${metrics.mostVulnerableDayName})</span>
+                        <span style="font-size: 1.15rem; font-weight: 900; color: #1e3a8a;">${escHtml(metrics.mostVulnerableClass)}</span>
+                        <span style="font-size: 0.75rem; font-weight: 700; color: #2563eb;">(يوم ${escHtml(metrics.mostVulnerableDayName)})</span>
                     </div>
                     <div style="font-size: 0.70rem; color: #64748b; margin-top: 4px;">
                         سجل هذا القسم <strong>${metrics.maxClassIncidents}</strong> واقعة تغيب جماعي
@@ -983,7 +1001,10 @@
     function exportCollectiveAbsenceReportPDF() {
         const metrics = calculateCollectiveAbsenceMetrics();
         const db = window.db || {};
-        const pYear = (db.teacherProfile && db.teacherProfile.academicYear) || '2026/2027';
+        const nowRef = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+        const acadStart = (nowRef.getMonth() + 1) >= 9 ? nowRef.getFullYear() : nowRef.getFullYear() - 1;
+        const pYear = (db.teacherProfile && db.teacherProfile.academicYear) || `${acadStart}/${acadStart + 1}`;
+        const localDateStr = `${nowRef.getFullYear()}-${String(nowRef.getMonth() + 1).padStart(2, '0')}-${String(nowRef.getDate()).padStart(2, '0')}`;
         const pName = (db.teacherProfile && db.teacherProfile.name) || 'أستاذ مادة الرياضيات';
         const pSchool = (db.teacherProfile && db.teacherProfile.school) || 'الثانوية التأهيلية';
 
@@ -1039,7 +1060,7 @@
                     <div style="text-align: left; line-height: 1.4; font-size: 8pt;">
                         <div>المادة: <strong>الرياضيات</strong></div>
                         <div>الأستاذ: <strong>${esc(pName)}</strong></div>
-                        <div>تاريخ الإصدار: <strong>${new Date().toISOString().split('T')[0]}</strong></div>
+                        <div>تاريخ الإصدار: <strong>${esc(localDateStr)}</strong></div>
                     </div>
                 </div>
 

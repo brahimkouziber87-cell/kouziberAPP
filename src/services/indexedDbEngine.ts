@@ -183,10 +183,16 @@ export async function appendAuditLog(
   const epochMs = now.getTime();
   const timestamp = now.toISOString();
   const win = typeof window !== 'undefined' ? (window as any) : {};
+  let rememberedEmail = '';
+  try {
+    rememberedEmail = (typeof localStorage !== 'undefined' && localStorage.getItem('gdrive_last_email')) || '';
+  } catch (_e) {}
   const operatorEmail =
+    (typeof win?.getVerifiedFirebaseAuthUser === 'function' && win.getVerifiedFirebaseAuthUser()?.email) ||
     win?.currentUser?.email ||
     win?.db?.teacherProfile?.email ||
-    'brahim.kouziber87@gmail.com';
+    rememberedEmail ||
+    'local-teacher';
   const id = `AUD-${epochMs}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
   const rawString = `${id}|${timestamp}|${entry.category}|${entry.actionTitle}|${entry.className || ''}|${entry.studentId || ''}|${entry.previousValue || ''}|${entry.newValue || ''}|${operatorEmail}`;

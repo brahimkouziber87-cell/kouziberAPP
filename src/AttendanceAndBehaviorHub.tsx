@@ -162,7 +162,11 @@ export default function AttendanceAndBehaviorHub({
   const [formStudentId, setFormStudentId] = useState<string>('');
   const [formCategory, setFormCategory] = useState<BehaviorLogEntry['category']>('disruption');
   const [formSeverity, setFormSeverity] = useState<BehaviorLogEntry['severity']>('moderate');
-  const [formDate, setFormDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const getLocalYmd = (d?: Date) => {
+    const dt = d || (typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date());
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  };
+  const [formDate, setFormDate] = useState<string>(() => getLocalYmd());
   const [formNote, setFormNote] = useState<string>('');
   const [logFilterCategory, setLogFilterCategory] = useState<string>('all');
   const [logFilterClass, setLogFilterClass] = useState<string>('all');
@@ -231,7 +235,8 @@ export default function AttendanceAndBehaviorHub({
     for (let i = 0; i < allRecords.length; i++) {
       const r = allRecords[i];
       if (!r || !r.date || typeof r.date !== 'string') continue;
-      if (trendClassFilter !== 'all' && !targetClassSet.has(r.className)) continue;
+      const recCls = r.className || r.class || '';
+      if (trendClassFilter !== 'all' && !targetClassSet.has(recCls)) continue;
       if (isProtectedRecord && isProtectedRecord(r)) continue;
       if (isProtectedDate) {
         const chk = isProtectedDate(r.date, r.session);
@@ -263,16 +268,16 @@ export default function AttendanceAndBehaviorHub({
 
       if (r.status === 'غائب') {
         bucket.unjustifiedHours += dur;
-        if (r.studentId) bucket.absentStudentsSet.add(`${r.className}_${r.studentId}`);
+        if (r.studentId) bucket.absentStudentsSet.add(`${recCls}_${r.studentId}`);
       } else if (r.status === 'مبرر') {
         bucket.justifiedHours += dur;
-        if (r.studentId) bucket.absentStudentsSet.add(`${r.className}_${r.studentId}`);
+        if (r.studentId) bucket.absentStudentsSet.add(`${recCls}_${r.studentId}`);
       } else if (r.status === 'متأخر') {
         bucket.lateCount += 1;
       }
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = getLocalYmd();
     const anchorDateStr = maxRecordDateStr && maxRecordDateStr <= todayStr ? todayStr : (maxRecordDateStr || todayStr);
     // If all records are older than 30 days from todayStr, anchor on maxRecordDateStr so existing records are visible
     const latestRecTime = maxRecordDateStr ? new Date(maxRecordDateStr + 'T12:00:00').getTime() : 0;
@@ -296,8 +301,8 @@ export default function AttendanceAndBehaviorHub({
     }> = [];
 
     for (let offset = 29; offset >= 0; offset--) {
-      const d = new Date(baseEndDate.getTime() - offset * 24 * 3600 * 1000);
-      const isoDate = d.toISOString().slice(0, 10);
+      const d = new Date(baseEndDate.getFullYear(), baseEndDate.getMonth(), baseEndDate.getDate() - offset);
+      const isoDate = getLocalYmd(d);
       const shortDate = isoDate.slice(5); // MM-DD
       const dayLabel = d.toLocaleDateString('ar-MA', { weekday: 'short', month: 'numeric', day: 'numeric' });
 
@@ -437,7 +442,7 @@ export default function AttendanceAndBehaviorHub({
           statusLabel: status === 'مشوش' ? 'مشوش' : status === 'تنبيه' ? 'تنبيه' : 'منضبط',
           severity: sev,
           note: note || (status === 'مشوش' ? 'سلوك مشوش مسجل في الحصة' : 'تنبيه سلوكي مسجل'),
-          date: entry.date || new Date().toISOString().slice(0, 10),
+          date: entry.date || getLocalYmd(),
           timestamp: entry.timestamp || Date.now() - 3600000
         });
       });
@@ -529,7 +534,7 @@ export default function AttendanceAndBehaviorHub({
       statusLabel: catMeta.statusMap,
       severity: formSeverity,
       note: cleanNote,
-      date: formDate || new Date().toISOString().slice(0, 10),
+      date: formDate || getLocalYmd(),
       timestamp: Date.now()
     };
 

@@ -148,6 +148,8 @@ export interface StudentMetric {
 export default function Analysis() {
   const [db, setDb] = useState<any>(null);
   const [selectedClass, setSelectedClass] = useState<string>('all');
+  const [selectedMultiClasses, setSelectedMultiClasses] = useState<string[]>([]);
+  const [isMultiClassPickerOpen, setIsMultiClassPickerOpen] = useState<boolean>(false);
   const [semester, setSemester] = useState<'s1' | 's2'>('s1');
   const [activeTab, setActiveTab] = useState<'overview' | 'consolidated_annual' | 'comparison' | 'macro_trend' | 'distribution' | 'at_risk' | 'ai_remediation' | 'council_orientation' | 'official_docs' | 'absence_vs_success'>('consolidated_annual');
   const [councilOrientationSubTab, setCouncilOrientationSubTab] = useState<'council_digest' | 'diagnostic_toolkit' | 'orientation_hub'>('council_digest');
@@ -174,6 +176,8 @@ export default function Analysis() {
   const [boxPlotDimension, setBoxPlotDimension] = useState<'exams' | 'classes'>('exams');
 
   useEffect(() => {
+    const prevCompareModal = (window as any).openStudentAiComparativeModal;
+    const prevFrameworkModal = (window as any).openExamFrameworkModal;
     (window as any).openStudentAiComparativeModal = (className?: string, studentId?: string) => {
       if (className) setAiCompareClassName(className);
       if (studentId) setAiCompareStudentId(studentId);
@@ -183,8 +187,8 @@ export default function Analysis() {
       setIsExamFrameworkModalOpen(true);
     };
     return () => {
-      delete (window as any).openStudentAiComparativeModal;
-      delete (window as any).openExamFrameworkModal;
+      (window as any).openStudentAiComparativeModal = prevCompareModal;
+      (window as any).openExamFrameworkModal = prevFrameworkModal;
     };
   }, []);
 
@@ -249,7 +253,10 @@ export default function Analysis() {
           || (document.getElementById('classSelect') as HTMLSelectElement)?.value
           || (document.getElementById('reportClassSelect') as HTMLSelectElement)?.value
           || (window as any).currentClass;
-        if (activeCls && typeof activeCls === 'string' && activeCls.trim() !== '') {
+        if (activeCls === '__MULTI__' && Array.isArray((window as any)._selectedReportMultiClasses) && (window as any)._selectedReportMultiClasses.length >= 2) {
+          setSelectedMultiClasses((window as any)._selectedReportMultiClasses);
+          setSelectedClass('__MULTI__');
+        } else if (activeCls && typeof activeCls === 'string' && activeCls.trim() !== '' && activeCls !== '__ALL__') {
           setSelectedClass(prev => (prev === 'all' ? activeCls : prev));
         }
       }
@@ -332,7 +339,7 @@ export default function Analysis() {
         if (typeof chk === 'boolean' ? chk : !!(chk && chk.disabled)) continue;
       }
       allValid.push(r);
-      const cName = r.className || '';
+      const cName = r.className || r.class || '';
       if (!map[cName]) map[cName] = [];
       map[cName].push(r);
     }
@@ -355,7 +362,13 @@ export default function Analysis() {
       };
     }
 
-    const targetClasses = selectedClass === 'all' ? classNames : [selectedClass];
+    const validMultiClasses = selectedMultiClasses.filter(c => classNames.includes(c));
+    const targetClasses =
+      selectedClass === 'all'
+        ? classNames
+        : selectedClass === '__MULTI__'
+        ? (validMultiClasses.length > 0 ? validMultiClasses : classNames.slice(0, Math.min(2, classNames.length)))
+        : [selectedClass];
     const metrics: StudentMetric[] = [];
 
     const f1Marks: number[] = [];
@@ -578,7 +591,7 @@ export default function Analysis() {
       classQuartiles,
       macroTrend
     };
-  }, [db, selectedClass, semester, classNames]);
+  }, [db, selectedClass, semester, classNames, selectedMultiClasses]);
 
   // Cohort statistics summary
   const cohortStats = useMemo(() => {
@@ -819,25 +832,35 @@ export default function Analysis() {
   const handleExportCsv = () => {
     if (!studentMetrics || studentMetrics.length === 0) return;
     const bom = '\uFEFF';
-    const headers = ['الرقم والاسم', 'القسم', 'الفرض 1', 'الفرض 2', 'الفرض 3', 'معدل الدورة', 'أفضل فرض (الذروة)', 'مسمى الفرض', 'الفارق عن معدل القسم', 'فجوة الطاقات الكامنة', 'مسار التطور'];
+    const hasF4Col = classAverages.f4 !== null && classAverages.f4 !== undefined;
+    const csvSafeCell = (val: any) => {
+      const str = String(val ?? '');
+      const neutralized = /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
+      return `"${neutralized.replace(/"/g, '""')}"`;
+    };
+    const headers = hasF4Col
+      ? ['الرقم والاسم', 'القسم', 'الفرض 1', 'الفرض 2', 'الفرض 3', 'الفرض 4', 'معدل الدورة', 'أفضل فرض (الذروة)', 'مسمى الفرض', 'الفارق عن معدل القسم', 'فجوة الطاقات الكامنة', 'مسار التطور']
+      : ['الرقم والاسم', 'القسم', 'الفرض 1', 'الفرض 2', 'الفرض 3', 'معدل الدورة', 'أفضل فرض (الذروة)', 'مسمى الفرض', 'الفارق عن معدل القسم', 'فجوة الطاقات الكامنة', 'مسار التطور'];
     const rows = studentMetrics.map(s => [
-      `"${s.name}"`,
-      `"${s.className}"`,
+      csvSafeCell(s.name),
+      csvSafeCell(s.className),
       s.f1 !== null ? s.f1 : '',
       s.f2 !== null ? s.f2 : '',
       s.f3 !== null ? s.f3 : '',
+      ...(hasF4Col ? [s.f4 !== null && s.f4 !== undefined ? s.f4 : ''] : []),
       s.avg !== null ? s.avg : '',
       s.bestMark !== null ? s.bestMark : '',
-      `"${s.bestExamTitle}"`,
+      csvSafeCell(s.bestExamTitle),
       s.gapVsClass !== null ? s.gapVsClass : '',
       s.potentialGap,
-      `"${s.trajectory === 'improving' ? 'تصاعدي' : s.trajectory === 'declining' ? 'تراجعي' : 'مستقر'}"`
+      csvSafeCell(s.trajectory === 'improving' ? 'تصاعدي' : s.trajectory === 'declining' ? 'تراجعي' : 'مستقر')
     ]);
     const csvContent = bom + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `تحليل_الفروض_${selectedClass}_${semester}.csv`;
+    const safeClsName = selectedClass === '__MULTI__' ? 'أقسام_مختارة' : String(selectedClass || 'القسم').replace(/[\\/:*?"<>|]/g, '_');
+    link.download = `تحليل_الفروض_${safeClsName}_${semester}.csv`;
     link.click();
   };
 
@@ -846,7 +869,7 @@ export default function Analysis() {
     if (!studentMetrics || studentMetrics.length === 0) return;
     const XLSXLib = typeof window !== 'undefined' ? (window as any).XLSX : null;
     if (XLSXLib && XLSXLib.utils) {
-    const sheetData = studentMetrics.map((s, idx) => {
+      const sheetData = studentMetrics.map((s, idx) => {
         const row: Record<string, any> = {
           'الرقم الترتيبي': idx + 1,
           'رقم مسار (Code Massar)': s.massar || s.id,
@@ -865,8 +888,10 @@ export default function Analysis() {
       });
       const ws = XLSXLib.utils.json_to_sheet(sheetData);
       const wb = XLSXLib.utils.book_new();
-      XLSXLib.utils.book_append_sheet(wb, ws, selectedClass === 'all' ? 'Massar_All' : selectedClass.slice(0, 28));
-      XLSXLib.writeFile(wb, `Massar_Notes_${selectedClass}_${semester === 's1' ? 'S1' : 'S2'}.xlsx`);
+      const sheetTitle = selectedClass === 'all' ? 'Massar_All' : (selectedClass === '__MULTI__' ? 'Massar_Selected' : selectedClass.slice(0, 28));
+      const fileClsTitle = selectedClass === '__MULTI__' ? 'Multi_Classes' : String(selectedClass || 'All').replace(/[\\/:*?"<>|]/g, '_');
+      XLSXLib.utils.book_append_sheet(wb, ws, sheetTitle);
+      XLSXLib.writeFile(wb, `Massar_Notes_${fileClsTitle}_${semester === 's1' ? 'S1' : 'S2'}.xlsx`);
     } else {
       handleExportCsv();
     }
@@ -1095,10 +1120,16 @@ export default function Analysis() {
       };
     }
 
-    const targetClasses = selectedClass === 'all' ? classNames : [selectedClass];
+    const validMultiClasses = selectedMultiClasses.filter(c => classNames.includes(c));
+    const targetClasses =
+      selectedClass === 'all'
+        ? classNames
+        : selectedClass === '__MULTI__'
+        ? (validMultiClasses.length > 0 ? validMultiClasses : classNames.slice(0, Math.min(2, classNames.length)))
+        : [selectedClass];
     const stationBuckets: Record<string, number[]> = {
-      s1_f1: [], s1_f2: [], s1_f3: [], s1_avg: [],
-      s2_f1: [], s2_f2: [], s2_f3: [], s2_avg: [],
+      s1_f1: [], s1_f2: [], s1_f3: [], s1_f4: [], s1_avg: [],
+      s2_f1: [], s2_f2: [], s2_f3: [], s2_f4: [], s2_avg: [],
       annual_avg: []
     };
 
@@ -1112,15 +1143,17 @@ export default function Analysis() {
     const relevantRecords =
       selectedClass === 'all'
         ? recordsByClassMap.allValid
+        : selectedClass === '__MULTI__'
+        ? targetClasses.flatMap(c => recordsByClassMap.byClass[c] || [])
         : (recordsByClassMap.byClass[selectedClass] || []);
-    const sessionSet = new Set(relevantRecords.map((r: any) => `${r.className || ''}|${r.date || ''}|${r.session || ''}`));
+    const sessionSet = new Set(relevantRecords.map((r: any) => `${r.className || r.class || ''}|${r.date || ''}|${r.session || ''}`));
     const recordedSessionsCount = sessionSet.size;
 
     const studentAbsenceMap: Record<string, number> = {};
     relevantRecords.forEach((r: any) => {
       if (r.status === 'غائب' || r.status === 'مبرر') {
         const hrs = parseFloat(r.duration || r.hours) || 1;
-        const key = `${r.className}___${r.studentId || r.name}`;
+        const key = `${r.className || r.class || ''}___${r.studentId || r.name}`;
         studentAbsenceMap[key] = (studentAbsenceMap[key] || 0) + hrs;
       }
     });
@@ -1167,10 +1200,12 @@ export default function Analysis() {
         if (s1_f1 !== null) stationBuckets.s1_f1.push(s1_f1);
         if (s1_f2 !== null) stationBuckets.s1_f2.push(s1_f2);
         if (s1_f3 !== null) stationBuckets.s1_f3.push(s1_f3);
+        if (s1_f4 !== null) stationBuckets.s1_f4.push(s1_f4);
 
         if (s2_f1 !== null) stationBuckets.s2_f1.push(s2_f1);
         if (s2_f2 !== null) stationBuckets.s2_f2.push(s2_f2);
         if (s2_f3 !== null) stationBuckets.s2_f3.push(s2_f3);
+        if (s2_f4 !== null) stationBuckets.s2_f4.push(s2_f4);
 
         const s1Valid = [s1_f1, s1_f2, s1_f3, s1_f4].filter((v): v is number => v !== null);
         const s2Valid = [s2_f1, s2_f2, s2_f3, s2_f4].filter((v): v is number => v !== null);
@@ -1303,10 +1338,12 @@ export default function Analysis() {
       calcStationStats(stationBuckets.s1_f1, 'د1 - فرض 1', 's1_f1'),
       calcStationStats(stationBuckets.s1_f2, 'د1 - فرض 2', 's1_f2'),
       calcStationStats(stationBuckets.s1_f3, 'د1 - فرض 3', 's1_f3'),
+      calcStationStats(stationBuckets.s1_f4, 'د1 - فرض 4', 's1_f4'),
       calcStationStats(stationBuckets.s1_avg, 'معدل د1 (S1)', 's1_avg'),
       calcStationStats(stationBuckets.s2_f1, 'د2 - فرض 1', 's2_f1'),
       calcStationStats(stationBuckets.s2_f2, 'د2 - فرض 2', 's2_f2'),
       calcStationStats(stationBuckets.s2_f3, 'د2 - فرض 3', 's2_f3'),
+      calcStationStats(stationBuckets.s2_f4, 'د2 - فرض 4', 's2_f4'),
       calcStationStats(stationBuckets.s2_avg, 'معدل د2 (S2)', 's2_avg'),
       calcStationStats(stationBuckets.annual_avg, 'المعدل السنوي', 'annual_avg')
     ];
@@ -1497,8 +1534,8 @@ export default function Analysis() {
   const handleOpenAbsenceChart = () => {
     if (typeof window !== 'undefined' && (window as any).openGradesAbsenceImpactChartModal) {
       (window as any).openGradesAbsenceImpactChartModal();
-    } else if (typeof window !== 'undefined' && (window as any).switchTab) {
-      (window as any).switchTab('absence');
+    } else {
+      setActiveTab('absence_vs_success');
     }
   };
 
@@ -1817,7 +1854,7 @@ export default function Analysis() {
               </div>
             </div>
             <div>الأستاذ(ة): {db?.teacherProfile?.name || 'أستاذ مادة الرياضيات'}</div>
-            <div>الموسم الدراسي: {db?.teacherProfile?.academicYear || '2026/2027'}</div>
+            <div>الموسم الدراسي: {db?.teacherProfile?.academicYear || (() => { const d = typeof window !== 'undefined' && typeof (window as any).getAppNow === 'function' ? (window as any).getAppNow() : new Date(); const s = (d.getMonth() + 1) >= 9 ? d.getFullYear() : d.getFullYear() - 1; return `${s}/${s + 1}`; })()}</div>
             <div>القسم: {selectedClass === 'all' ? 'جميع الأقسام المسندة' : selectedClass} · الدورة: {semester === 's1' ? 'الأولى' : semester === 's2' ? 'الثانية' : 'السنوي'}</div>
           </div>
         </div>
@@ -1897,8 +1934,8 @@ export default function Analysis() {
               </button>
             </div>
 
-            {/* Class Selector Dropdown */}
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 shadow-2xs">
+            {/* Class Selector Dropdown + Multi-Class Toggle */}
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 shadow-2xs flex-wrap">
               <School className="w-4 h-4 text-slate-500" />
               <span className="text-xs font-bold text-slate-500">القسم:</span>
               <select
@@ -1907,7 +1944,14 @@ export default function Analysis() {
                 onChange={e => {
                   const val = e.target.value;
                   setSelectedClass(val);
-                  if (val && val !== 'all') {
+                  if (val === '__MULTI__') {
+                    setIsMultiClassPickerOpen(true);
+                    if (selectedMultiClasses.filter(c => classNames.includes(c)).length < 2) {
+                      const defaults = classNames.slice(0, Math.min(2, classNames.length));
+                      setSelectedMultiClasses(defaults);
+                      (window as any)._selectedReportMultiClasses = defaults;
+                    }
+                  } else if (val && val !== 'all') {
                     const annualSel = document.getElementById('annualClassSelect') as HTMLSelectElement | null;
                     if (annualSel && annualSel.value !== val) {
                       annualSel.value = val;
@@ -1919,12 +1963,40 @@ export default function Analysis() {
                 }}
               >
                 <option value="all">جميع الأقسام ({classNames.length})</option>
+                <option value="__MULTI__">
+                  🗂️ أقسام متعددة مدمجة ({selectedMultiClasses.filter(c => classNames.includes(c)).length >= 2 ? selectedMultiClasses.filter(c => classNames.includes(c)).join(' + ') : 'اختر مجموعتين أو أكثر'})
+                </option>
                 {classNames.map(c => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextOpen = !isMultiClassPickerOpen;
+                  setIsMultiClassPickerOpen(nextOpen);
+                  if (nextOpen && selectedMultiClasses.filter(c => classNames.includes(c)).length < 2) {
+                    const defaults =
+                      selectedClass && selectedClass !== 'all' && selectedClass !== '__MULTI__' && classNames.includes(selectedClass)
+                        ? [selectedClass, ...classNames.filter(c => c !== selectedClass).slice(0, 1)]
+                        : classNames.slice(0, Math.min(2, classNames.length));
+                    setSelectedMultiClasses(defaults);
+                    setSelectedClass('__MULTI__');
+                    (window as any)._selectedReportMultiClasses = defaults;
+                  }
+                }}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-black border transition-all cursor-pointer ${
+                  selectedClass === '__MULTI__' || isMultiClassPickerOpen
+                    ? 'bg-indigo-600 text-white border-indigo-700 shadow-2xs'
+                    : 'bg-indigo-50 text-indigo-800 border-indigo-200 hover:bg-indigo-100'
+                }`}
+                title="تحديد قسمين أو أكثر لاستعراض تقارير وتحليلات مدمجة لمجموعتين أو أكثر دفعة واحدة"
+              >
+                <span>🗂️</span>
+                <span>أقسام متعددة</span>
+              </button>
             </div>
 
             {/* Action Buttons: Refresh, Spec Sheet, Excel, Print, PNG */}
@@ -1942,7 +2014,11 @@ export default function Analysis() {
               <button
                 type="button"
                 onClick={() => {
-                  setAiCompareClassName(selectedClass !== 'all' ? selectedClass : (classNames[0] || ''));
+                  const firstTarget =
+                    selectedClass === '__MULTI__'
+                      ? (selectedMultiClasses.find(c => classNames.includes(c)) || classNames[0] || '')
+                      : (selectedClass !== 'all' ? selectedClass : (classNames[0] || ''));
+                  setAiCompareClassName(firstTarget);
                   if (studentMetrics.length > 0) setAiCompareStudentId(studentMetrics[0].id);
                   setIsAiCompareModalOpen(true);
                 }}
@@ -1956,7 +2032,11 @@ export default function Analysis() {
               <ComprehensiveAnalysisPdfExport
                 ref={pdfExportRef}
                 db={db}
-                selectedClass={selectedClass}
+                selectedClass={
+                  selectedClass === '__MULTI__'
+                    ? (selectedMultiClasses.filter(c => classNames.includes(c)).join(' + ') || 'all')
+                    : selectedClass
+                }
                 semester={semester}
                 studentMetrics={studentMetrics}
                 classAverages={classAverages}
@@ -2005,6 +2085,88 @@ export default function Analysis() {
               </button>
             </div>
           </div>
+
+          {/* لوحة اختيار أقسام متعددة لدمج مجموعتين أو أكثر في التقارير والتحليلات */}
+          {(isMultiClassPickerOpen || selectedClass === '__MULTI__') && (
+            <div className="mt-3 p-3 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50/80 via-slate-50 to-blue-50/80 shadow-2xs">
+              <div className="flex items-center justify-between gap-2 flex-wrap mb-2 pb-1.5 border-b border-indigo-100">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-black text-indigo-950">🗂️ تحديد أقسام متعددة (تقارير مدمجة لمجموعتين أو أكثر):</span>
+                  <span className="text-[11px] font-bold text-indigo-700 bg-white px-2 py-0.5 rounded-full border border-indigo-200">
+                    {selectedMultiClasses.filter(c => classNames.includes(c)).length} أقسام محددة ({studentMetrics.length} تلميذ)
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedMultiClasses(classNames.slice());
+                      setSelectedClass('__MULTI__');
+                      (window as any)._selectedReportMultiClasses = classNames.slice();
+                    }}
+                    className="px-2 py-0.5 text-[11px] font-bold bg-white text-indigo-700 border border-indigo-200 rounded-md hover:bg-indigo-50 cursor-pointer"
+                  >
+                    تحديد الكل
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const defaults = classNames.slice(0, Math.min(2, classNames.length));
+                      setSelectedMultiClasses(defaults);
+                      setSelectedClass('__MULTI__');
+                      (window as any)._selectedReportMultiClasses = defaults;
+                    }}
+                    className="px-2 py-0.5 text-[11px] font-bold bg-white text-slate-700 border border-slate-200 rounded-md hover:bg-slate-100 cursor-pointer"
+                  >
+                    أول قسمين
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsMultiClassPickerOpen(false)}
+                    className="px-2 py-0.5 text-[11px] font-bold bg-indigo-900 text-white rounded-md hover:bg-indigo-950 cursor-pointer"
+                  >
+                    إخفاء الشريط ▲
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {classNames.map(cName => {
+                  const isChecked = selectedMultiClasses.includes(cName);
+                  const count = Array.isArray(db?.classes?.[cName]) ? db.classes[cName].length : (db?.classes?.[cName]?.students?.length || 0);
+                  return (
+                    <button
+                      key={cName}
+                      type="button"
+                      onClick={() => {
+                        const current = selectedMultiClasses.filter(c => classNames.includes(c));
+                        const next = current.includes(cName)
+                          ? current.filter(c => c !== cName)
+                          : classNames.filter(c => current.includes(c) || c === cName);
+                        if (next.length === 0) return;
+                        setSelectedMultiClasses(next);
+                        setSelectedClass('__MULTI__');
+                        (window as any)._selectedReportMultiClasses = next;
+                        try {
+                          localStorage.setItem('report_multi_selected_classes_v1', JSON.stringify(next));
+                        } catch (e) {}
+                      }}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black border transition-all cursor-pointer ${
+                        isChecked
+                          ? 'bg-indigo-600 text-white border-indigo-700 shadow-2xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-indigo-300'
+                      }`}
+                    >
+                      <span>{isChecked ? '☑️' : '⬜'}</span>
+                      <span>{cName}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isChecked ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                        {count} تلميذ
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 2. اللائحة المنسدلة لواجهات وأدوات التحليل الفرعية (ممركزة في وسط الشاشة) */}
@@ -4927,50 +5089,66 @@ export default function Analysis() {
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                   <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                     <Target className="w-4 h-4 text-emerald-600" />
-                    <span>المستويات المهارية المعتمدة في المراقبة المستمرة (المذكرة الوزارية 142-08 والتوجيهات التربوية)</span>
+                    <span>المستويات المهارية المعتمدة في المراقبة المستمرة (المذكرة الوزارية 142-08 ص 9 والتوجيهات التربوية 2007)</span>
                   </h4>
-                  <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
-                    السلك الثانوي التأهيلي · مدة الفرض: ساعتان (2h00)
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => (window as any).openOfficialPdfViewerModal?.('/assets/aistudio/_____________________________________________________3a655c1c.pdf', 'التوجيهات التربوية والبرامج الخاصة بتدريس مادة الرياضيات بالثانوي التأهيلي (نونبر 2007)', 'التوجيهات_التربوية_الرياضيات_الثانوي_التأهيلي_2007.pdf')}
+                      className="text-[11px] font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-300 px-2.5 py-1 rounded-lg cursor-pointer transition-colors"
+                    >
+                      📘 التوجيهات التربوية 2007 PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => (window as any).openOfficialPdfViewerModal?.('/assets/aistudio/n14208_evalped_08_a6af9323.pdf', 'المذكرة الوزارية رقم 142-08 الخاصة بالتقويم التربوي لمادة الرياضيات بالثانوي التأهيلي', 'المذكرة_الوزارية_142_08_التقويم_التربوي_الرياضيات.pdf')}
+                      className="text-[11px] font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg cursor-pointer transition-colors"
+                    >
+                      📋 المذكرة الوزارية 142-08 PDF
+                    </button>
+                    <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+                      علمي/تقني/اقتصاد: ساعتان (2h) · أدبي/أصيل/فنون: ساعة واحدة (1h)
+                    </span>
+                  </div>
                 </div>
                 <p className="text-xs text-slate-500 mb-5 leading-relaxed">
-                  تحدد المذكرة الوزارية رقم 142 والتوجيهات التربوية لمادة الرياضيات بالثانوي التأهيلي توزيعاً مهارياً متوازناً لمواضيع الفروض المحروسة:
+                  تحدد المذكرة الوزارية رقم 142-08 (بتاريخ 16 نونبر 2007، الصفحة 9) والتوجيهات التربوية لمادة الرياضيات بالثانوي التأهيلي توزيع المستويات المهارية لمواضيع الفروض المحروسة والفروض المنزلية كما يلي:
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/50">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-black text-blue-900">1. استرداد المعارف وتطبيق مباشر</span>
+                      <span className="text-xs font-black text-blue-900">1. المستوى الأول: تطبيق مباشر للمعارف</span>
                       <span className="text-xs font-mono font-black text-blue-700 bg-white px-2 py-0.5 rounded-md border border-blue-200">
-                        25% إلى 30% (5 - 6 ن)
+                        علمي: ~40% (8 ن) | أدبي: 60% (12 ن)
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 leading-relaxed">
-                      التعاريف، الخاصيات، المبرهنات الأساسية (مبرهنة القيم الوسيطية، قواعد الاشتقاق، صيغ الحساب المثلثي، نهايات مرجعية، والأشكال الجبرية للأعداد العقدية دون تعقيد).
+                      أسئلة تقترح وضعيات للتطبيق المباشر للمعارف (تعريف، خاصية، مبرهنة، خوارزمية، صيغة، تقنية، قاعدة...) مثل قواعد الاشتقاق، صيغ الحساب المثلثي، نهايات مرجعية، والمتتاليات الاعتيادية.
                     </p>
                   </div>
 
                   <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/50">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-black text-emerald-900">2. التطبيق في وضعيات مألوفة والاستدلال</span>
+                      <span className="text-xs font-black text-emerald-900">2. المستوى الثاني: استحضار معارف غير معلنة</span>
                       <span className="text-xs font-mono font-black text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
-                        50% إلى 55% (10 - 11 ن)
+                        علمي: ~45% (9 ن) | أدبي: 40% (8 ن)
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 leading-relaxed">
-                      دراسة تغيرات الدوال، رسم المنحنيات والمماسات والفروع اللانهائية، المتتاليات العددية وتقاربها، توظيف أنواع الاستدلال الرياضي (الترجع، الخلف، فصل الحالات، المضاد للعكس)، والحساب التكاملي.
+                      أسئلة تقترح وضعيات تستدعي استحضار وتطبيق لمعارف غير معلنة في السؤال في وضعيات مألوفة (دراسة تغيرات الدوال، رسم المنحنيات والمماسات، تقارب المتتاليات، وتوظيف الاستدلال بالترجع أو الخلف أو فصل الحالات).
                     </p>
                   </div>
 
                   <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/50">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-black text-purple-900">3. الاستدلال وحل وضعيات مشكلة والتوليف</span>
+                      <span className="text-xs font-black text-purple-900">3. المستوى الثالث: توليف ووضعيات غير مألوفة</span>
                       <span className="text-xs font-mono font-black text-purple-700 bg-white px-2 py-0.5 rounded-md border border-purple-200">
-                        15% إلى 20% (3 - 4 ن)
+                        علمي/تقني/اقتصاد: 10% إلى 20% (2-4 ن)
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 leading-relaxed">
-                      ترييض وضعيات غير مألوفة، الربط التركيبي بين مجالات الرياضيات (دوال، متتاليات، أعداد عقدية)، استثمار الدوال المساعدة، مسائل الاستمثال، وابتكار استراتيجيات البرهان.
+                      أسئلة تقترح وضعيات غير مألوفة تستدعي معالجتها توليف معارف ونتائج، وتخصيص ما بين 30% و60% من مكونات الفروض المنزلية للمستويين الثاني والثالث.
                     </p>
                   </div>
                 </div>
@@ -4978,11 +5156,11 @@ export default function Analysis() {
                 {/* Additional criteria banner */}
                 <div className="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-800">📌 معايير التصحيح الوزارية:</span>
-                    <span>سلامة المنهجية والاستدلال (70%) · دقة الحسابات والنتائج (20%) · جودة التحرير والرموز والنظافة (10% - نقطة مخصصة).</span>
+                    <span className="font-bold text-slate-800">📌 ضوابط المذكرة 142-08 (ص 9):</span>
+                    <span>تغطية الفروض المحروسة لـ 75% على الأقل من المقرر · الفروض المنزلية: 30% إلى 60% مستويان 2 و3 · حساب المعدل الدوري 100% من الفروض المحروسة.</span>
                   </div>
                   <div className="text-[11px] font-bold text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-md border border-emerald-200">
-                    مطابقة تامة لمنظومة مسار
+                    مطابقة تامة للمذكرة 142-08 ومنظومة مسار
                   </div>
                 </div>
               </div>

@@ -373,8 +373,9 @@ export const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
                   fill="#ffffff"
                   stroke={stat.color}
                   strokeWidth="2"
-                  title={`المعدل الحسابي: ${stat.mean}`}
-                />
+                >
+                  <title>{`المعدل الحسابي: ${stat.mean}`}</title>
+                </polygon>
 
                 {/* Outliers */}
                 {stat.outliers.map((outVal, oIdx) => {

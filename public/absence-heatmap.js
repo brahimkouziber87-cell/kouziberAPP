@@ -48,6 +48,15 @@
             .replace(/'/g, '&#39;');
     }
 
+    function escapeJsAttr(str) {
+        return escapeHtml(String(str ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r|\n/g, ' '));
+    }
+
+    function getClassStudentsSafe(className) {
+        const raw = window.db && window.db.classes ? window.db.classes[className] : null;
+        return Array.isArray(raw) ? raw : (raw && Array.isArray(raw.students) ? raw.students : []);
+    }
+
     /**
      * حساب بداية ونهاية الموسم الدراسي
      */
@@ -182,10 +191,21 @@
             }
         }
 
-        if (!className || !window.db || !window.db.classes || !window.db.classes[className]) {
+        const resolved = (typeof window.resolveReportTargetClasses === 'function')
+            ? window.resolveReportTargetClasses(className)
+            : {
+                classes: (window.db && window.db.classes && window.db.classes[className]) ? [className] : [],
+                label: className,
+                isMulti: false
+            };
+
+        if (!className || !resolved.classes || resolved.classes.length === 0) {
             const availableClasses = (window.db && window.db.classes) ? Object.keys(window.db.classes) : [];
             if (availableClasses.length > 0) {
                 className = availableClasses[0];
+                resolved.classes = [className];
+                resolved.label = className;
+                resolved.isMulti = false;
                 const selectEl = document.getElementById('reportClassSelect');
                 if (selectEl && !selectEl.value) {
                     selectEl.value = className;
@@ -201,6 +221,8 @@
         }
 
         _heatmapState.className = className;
+        _heatmapState.targetClasses = resolved.classes;
+        _heatmapState.displayLabel = resolved.label || className;
         _heatmapState.dateFrom = dateFrom || '';
         _heatmapState.dateTo = dateTo || '';
 
@@ -210,10 +232,18 @@
             periodSel.value = _heatmapState.periodFilter;
         }
 
-        // تصفية تسجيلات الغياب لهذا القسم عبر الفهرس السريع مع استبعاد العطل الرسمية والرخص الإدارية
-        const rawClassRecords = (typeof window.getClassRecordsFast === 'function')
-            ? window.getClassRecordsFast(className)
-            : ((window.db && window.db.records) ? window.db.records.filter(r => r.className === className) : []);
+        // تصفية تسجيلات الغياب للقسم أو الأقسام المدمجة مع استبعاد العطل الرسمية والرخص الإدارية
+        let rawClassRecords = [];
+        if (typeof window.getCombinedRecordsForClasses === 'function') {
+            rawClassRecords = window.getCombinedRecordsForClasses(className);
+        } else {
+            resolved.classes.forEach(cls => {
+                const recs = (typeof window.getClassRecordsFast === 'function')
+                    ? window.getClassRecordsFast(cls)
+                    : ((window.db && window.db.records) ? window.db.records.filter(r => (r.className || r.class) === cls) : []);
+                if (Array.isArray(recs)) rawClassRecords.push(...recs);
+            });
+        }
         const isProtectedFn = (typeof window.isRecordProtectedHolidayOrLeave === 'function')
             ? window.isRecordProtectedHolidayOrLeave
             : null;
@@ -407,7 +437,7 @@
                     🚨 اليوم الأكثر هشاشة
                 </div>
                 <div style="font-size: 1.15rem; font-weight: 900; color: #9a3412;">
-                    يوم ${peakDayObj.name}
+                    يوم ${escapeHtml(peakDayObj.name)}
                 </div>
                 <div style="font-size: 0.72rem; color: #ea580c; font-weight: 700; margin-top: 2px;">
                     ${peakDayVal} ${unit} (${peakDayPercent}% من غياب القسم)
@@ -462,11 +492,25 @@
 
     function getLessonForClassAndDate(className, dateStr) {
         if (!window.db || !dateStr) return null;
-        const logs = Array.isArray(window.db.textbook) ? window.db.textbook : (Array.isArray(window.db.lessonLog) ? window.db.lessonLog : []);
-        const matched = logs.find(entry => {
+        const candidates = [];
+        if (Array.isArray(window.db.textbook)) candidates.push(...window.db.textbook);
+        if (Array.isArray(window.db.lessonLog)) candidates.push(...window.db.lessonLog);
+        if (Array.isArray(window.db.lessonLogs)) {
+            candidates.push(...window.db.lessonLogs);
+        } else if (window.db.lessonLogs && typeof window.db.lessonLogs === 'object') {
+            if (className && className !== 'ALL' && Array.isArray(window.db.lessonLogs[className])) {
+                candidates.push(...window.db.lessonLogs[className]);
+            } else {
+                Object.values(window.db.lessonLogs).forEach(arr => {
+                    if (Array.isArray(arr)) candidates.push(...arr);
+                });
+            }
+        }
+        const matched = candidates.find(entry => {
             if (!entry || entry.date !== dateStr) return false;
             if (!className || className === 'ALL') return true;
-            return entry.className === className || entry.class === className;
+            const entryCls = entry.className || entry.class;
+            return !entryCls || entryCls === className;
         });
         if (!matched) return null;
         return {
@@ -532,8 +576,8 @@
                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">
                         ${topSpots.map(spot => `
                             <button type="button"
-                                onclick="window.onHeatmapCellClick('${spot.dateStr}', '${escapeHtml(spot.dayName)}', ${spot.weekNum})"
-                                title="انقر لعرض تفاصيل الغائبين ليوم ${escapeHtml(spot.dayName)} (${spot.dateStr})"
+                                onclick="window.showHeatmapCellDetails('${escapeJsAttr(spot.dateStr)}', '${escapeJsAttr(spot.dayName)}', ${spot.weekNum})"
+                                title="انقر لعرض تفاصيل الغائبين ليوم ${escapeHtml(spot.dayName)} (${escapeHtml(spot.dateStr)})"
                                 style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; border: 1.5px solid ${spot.heat.border}; background: ${spot.heat.bg}; color: ${spot.heat.color}; font-family: inherit; font-size: 0.72rem; font-weight: 800; cursor: pointer; transition: transform 0.15s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.06);"
                                 onmouseenter="this.style.transform='translateY(-1px)';"
                                 onmouseleave="this.style.transform='none';"
@@ -564,8 +608,8 @@
                         <div style="display: grid; grid-template-columns: 80px repeat(${weeks.length}, minmax(28px, 1fr)); gap: 3px; margin-bottom: 3px; align-items: center;">
                             <!-- عنوان اليوم -->
                             <div style="font-size: 0.74rem; font-weight: 800; color: #334155; display: flex; align-items: center; justify-content: space-between; padding-left: 6px;">
-                                <span>${wd.name}</span>
-                                <span style="font-size: 0.62rem; color: #94a3b8; font-weight: 600;">${wd.short}</span>
+                                <span>${escapeHtml(wd.name)}</span>
+                                <span style="font-size: 0.62rem; color: #94a3b8; font-weight: 600;">${escapeHtml(wd.short)}</span>
                             </div>
 
                             <!-- خلايا الأسابيع لهذا اليوم -->
@@ -589,7 +633,7 @@
 
                                 return `
                                     <div
-                                        onclick="window.showHeatmapCellDetails('${dateStr}', '${wd.name}', ${w.weekNum})"
+                                        onclick="window.showHeatmapCellDetails('${escapeJsAttr(dateStr)}', '${escapeJsAttr(wd.name)}', ${w.weekNum})"
                                         title="${escapeHtml(tooltipText)}"
                                         style="
                                             height: 28px;
@@ -695,9 +739,9 @@
                 <div style="display: grid; grid-template-columns: 85px repeat(${STANDARD_PERIODS.length}, 1fr); gap: 4px; margin-bottom: 4px; text-align: center; font-size: 0.7rem; font-weight: 800; color: #475569;">
                     <div style="text-align: right; padding-right: 4px; color: #94a3b8;">اليوم / الحصة</div>
                     ${STANDARD_PERIODS.map(p => `
-                        <div style="background: #f1f5f9; border-radius: 4px; padding: 4px 2px;" title="${p.label}">
-                            <div>${p.name}</div>
-                            <div style="font-size: 0.6rem; color: #64748b; font-weight: 600;">${p.label}</div>
+                        <div style="background: #f1f5f9; border-radius: 4px; padding: 4px 2px;" title="${escapeHtml(p.label)}">
+                            <div>${escapeHtml(p.name)}</div>
+                            <div style="font-size: 0.6rem; color: #64748b; font-weight: 600;">${escapeHtml(p.label)}</div>
                         </div>
                     `).join('')}
                 </div>
@@ -707,7 +751,7 @@
                     return `
                         <div style="display: grid; grid-template-columns: 85px repeat(${STANDARD_PERIODS.length}, 1fr); gap: 4px; margin-bottom: 4px; align-items: center;">
                             <div style="font-size: 0.76rem; font-weight: 800; color: #1e293b;">
-                                ${wd.name}
+                                ${escapeHtml(wd.name)}
                             </div>
                             ${STANDARD_PERIODS.map(p => {
                                 const cell = periodMatrix[wd.idx][p.id];
@@ -716,7 +760,7 @@
 
                                 return `
                                     <div
-                                        onclick="window.showHeatmapPeriodDetails(${wd.idx}, '${p.id}', '${escapeHtml(wd.name)}', '${escapeHtml(p.name)}', '${escapeHtml(p.label)}')"
+                                        onclick="window.showHeatmapPeriodDetails(${wd.idx}, '${escapeJsAttr(p.id)}', '${escapeJsAttr(wd.name)}', '${escapeJsAttr(p.name)}', '${escapeJsAttr(p.label)}')"
                                         style="
                                             height: 38px;
                                             background: ${heat.bg};
@@ -732,7 +776,7 @@
                                             cursor: pointer;
                                             transition: transform 0.15s ease;
                                         "
-                                        title="${wd.name} - ${p.name} (${p.label}): ${val} ${unit} غياب — انقر لعرض التلاميذ الغائبين"
+                                        title="${escapeHtml(`${wd.name} - ${p.name} (${p.label}): ${val} ${unit} غياب — انقر لعرض التلاميذ الغائبين`)}"
                                         onmouseenter="this.style.transform='scale(1.05)';"
                                         onmouseleave="this.style.transform='scale(1)';"
                                     >
@@ -777,8 +821,10 @@
                         </thead>
                         <tbody>
                             ${records.map(r => {
-                                const std = ((window.db && window.db.classes && window.db.classes[_heatmapState.className]) || []).find(s => s.id === r.studentId);
-                                const stdName = std ? std.name : (r.studentName || 'تلميذ');
+                                const recClass = r.className || r.class || (_heatmapState.targetClasses && _heatmapState.targetClasses[0]) || _heatmapState.className;
+                                const std = getClassStudentsSafe(recClass).find(s => String(s.id) === String(r.studentId));
+                                const isMulti = Array.isArray(_heatmapState.targetClasses) && _heatmapState.targetClasses.length > 1;
+                                const stdName = (std ? std.name : (r.studentName || 'تلميذ')) + (isMulti && recClass ? ` (${recClass})` : '');
                                 const isUnjustified = r.status === 'غائب';
                                 return `
                                     <tr style="border-bottom: 1px solid #e2e8f0;">
@@ -826,15 +872,22 @@
             ? window.isRecordProtectedHolidayOrLeave
             : null;
 
-        const rawDayRecords = (typeof window.getClassDateRecordsFast === 'function')
-            ? window.getClassDateRecordsFast(_heatmapState.className, dateStr)
-            : ((window.db && window.db.records) ? window.db.records : []).filter(r => r.className === _heatmapState.className && r.date === dateStr);
+        const targetClasses = (Array.isArray(_heatmapState.targetClasses) && _heatmapState.targetClasses.length > 0)
+            ? _heatmapState.targetClasses
+            : [_heatmapState.className];
+        const rawDayRecords = [];
+        targetClasses.forEach(cls => {
+            const recs = (typeof window.getClassDateRecordsFast === 'function')
+                ? window.getClassDateRecordsFast(cls, dateStr)
+                : ((window.db && window.db.records) ? window.db.records : []).filter(r => (r.className || r.class) === cls && r.date === dateStr);
+            if (Array.isArray(recs)) rawDayRecords.push(...recs);
+        });
 
         const dayRecords = rawDayRecords.filter(r => !isProtectedFn || !isProtectedFn(r));
         const absentRecords = dayRecords.filter(r => r.status === 'غائب' || r.status === 'مبرر');
         const lateRecords = dayRecords.filter(r => r.status === 'متأخر');
         const totalHours = absentRecords.reduce((s, r) => s + getRecordHours(r), 0);
-        const lessonInfo = getLessonForClassAndDate(_heatmapState.className, dateStr);
+        const lessonInfo = getLessonForClassAndDate(targetClasses[0], dateStr);
 
         if (!detailsContainer) return;
 
@@ -860,8 +913,9 @@
                         </thead>
                         <tbody>
                             ${combinedRecords.map(r => {
-                                const std = ((window.db && window.db.classes && window.db.classes[_heatmapState.className]) || []).find(s => s.id === r.studentId);
-                                const stdName = std ? std.name : (r.studentName || 'تلميذ');
+                                const recClass = r.className || r.class || targetClasses[0];
+                                const std = getClassStudentsSafe(recClass).find(s => String(s.id) === String(r.studentId));
+                                const stdName = (std ? std.name : (r.studentName || 'تلميذ')) + (targetClasses.length > 1 && recClass ? ` (${recClass})` : '');
                                 const isUnjustified = r.status === 'غائب';
                                 const isLate = r.status === 'متأخر';
                                 const badgeColor = isUnjustified ? '#dc2626' : (isLate ? '#b45309' : '#2563eb');
@@ -1112,7 +1166,7 @@
             document.body.appendChild(modal);
         }
 
-        const className = _heatmapState.className || 'القسم';
+        const className = _heatmapState.displayLabel || _heatmapState.className || 'القسم';
         const teacherName = (window.db && window.db.teacherProfile && window.db.teacherProfile.name) || 'أستاذ(ة) الرياضيات';
         const schoolName = (window.db && window.db.teacherProfile && window.db.teacherProfile.school) || '';
 
@@ -1303,16 +1357,17 @@
         const allRecords = (window.db && Array.isArray(window.db.records)) ? window.db.records : [];
         const dayRecords = allRecords.filter(r =>
             r.date === dateStr &&
-            (className === 'ALL' || !className || r.className === className) &&
+            (className === 'ALL' || !className || (r.className || r.class) === className) &&
             (r.status === 'غائب' || r.status === 'مبرر' || r.status === 'متأخر') &&
             (!isProtectedFn || !isProtectedFn(r))
         );
         const resItem = getSelectedLibraryResourceItem();
         const lessonInfo = getLessonForClassAndDate(className, dateStr);
         const names = dayRecords.map((r, idx) => {
-            const std = ((window.db && window.db.classes && window.db.classes[r.className]) || []).find(s => s.id === r.studentId);
+            const recClass = r.className || r.class || '';
+            const std = getClassStudentsSafe(recClass).find(s => String(s.id) === String(r.studentId));
             const stdName = std ? std.name : (r.studentName || 'تلميذ');
-            return `${idx + 1}. ${stdName} (${r.className} - ${r.status})`;
+            return `${idx + 1}. ${stdName} (${recClass} - ${r.status})`;
         }).join('\n');
 
         const summary = `📋 قائمة التلاميذ الغائبين ليوم ${dateStr} (${className === 'ALL' ? 'جميع الأقسام' : className}):\n` +
@@ -1353,7 +1408,7 @@
 
         const rawRecords = (window.db && Array.isArray(window.db.records)) ? window.db.records : [];
         const filteredRecords = rawRecords.filter(r =>
-            (activeClass === 'ALL' || r.className === activeClass) &&
+            (activeClass === 'ALL' || (r.className || r.class) === activeClass) &&
             (r.status === 'غائب' || r.status === 'مبرر' || r.status === 'متأخر') &&
             (!isProtectedFn || !isProtectedFn(r))
         );
@@ -1462,10 +1517,10 @@
                                     <option value="${escapeHtml(String(item.id || item.title))}">${escapeHtml(item.title || 'مورد تعليمي')} (${escapeHtml(item.level || 'عام')})</option>
                                 `).join('')}
                             </select>
-                            <button type="button" onclick="window.filterLibraryByHeatmapDay('${escapeHtml(activeClass)}', '${escapeHtml(activeLesson ? activeLesson.title : '')}')" style="background: #2563eb; color: #ffffff; border: none; border-radius: 6px; padding: 5px 10px; font-size: 0.74rem; font-weight: 800; cursor: pointer;">
+                            <button type="button" onclick="window.filterLibraryByHeatmapDay('${escapeJsAttr(activeClass)}', '${escapeJsAttr(activeLesson ? activeLesson.title : '')}')" style="background: #2563eb; color: #ffffff; border: none; border-radius: 6px; padding: 5px 10px; font-size: 0.74rem; font-weight: 800; cursor: pointer;">
                                 🔍 تصفية موارد المكتبة لهذا اليوم
                             </button>
-                            <button type="button" onclick="window.copyAbsentStudentsWithResourceSummary('${escapeHtml(activeDate)}', '${escapeHtml(activeClass)}')" style="background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 10px; font-size: 0.74rem; font-weight: 800; cursor: pointer;">
+                            <button type="button" onclick="window.copyAbsentStudentsWithResourceSummary('${escapeJsAttr(activeDate)}', '${escapeJsAttr(activeClass)}')" style="background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 10px; font-size: 0.74rem; font-weight: 800; cursor: pointer;">
                                 📋 نسخ لائحة الغائبين والمورد
                             </button>
                         </div>
@@ -1486,8 +1541,9 @@
                                 </thead>
                                 <tbody>
                                     ${activeRecords.map((r, idx) => {
-                                        const stdList = (window.db && window.db.classes && window.db.classes[r.className]) || [];
-                                        const std = stdList.find(s => s.id === r.studentId);
+                                        const recClass = r.className || r.class || '';
+                                        const stdList = getClassStudentsSafe(recClass);
+                                        const std = stdList.find(s => String(s.id) === String(r.studentId));
                                         const stdName = std ? std.name : (r.studentName || 'تلميذ');
                                         const phone = std ? (std.guardianPhone || std.phone || '') : '';
                                         const isUnjustified = r.status === 'غائب';
@@ -1508,7 +1564,7 @@
                                                     ${escapeHtml(r.session || r.period || 'حصة الرياضيات')} (${isLate ? 'تأخر' : `${getRecordHours(r)} س`})
                                                 </td>
                                                 <td style="padding: 6px 8px;">
-                                                    <button type="button" onclick="window.shareLibraryResourceWithStudent('${escapeHtml(stdName)}', '${escapeHtml(r.className || '')}', '${escapeHtml(activeDate)}', '${escapeHtml(phone)}')" style="background: #16a34a; color: #ffffff; border: none; border-radius: 6px; padding: 3px 9px; font-size: 0.72rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                                                    <button type="button" onclick="window.shareLibraryResourceWithStudent('${escapeJsAttr(stdName)}', '${escapeJsAttr(r.className || r.class || '')}', '${escapeJsAttr(activeDate)}', '${escapeJsAttr(phone)}')" style="background: #16a34a; color: #ffffff; border: none; border-radius: 6px; padding: 3px 9px; font-size: 0.72rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                                                         <span>💬</span>
                                                         <span>إرسال الدرس/التمرين</span>
                                                     </button>
@@ -1540,7 +1596,7 @@
                         </div>
                         ${MOROCCAN_WEEKDAYS.map(wd => `
                             <div style="display: grid; grid-template-columns: 75px repeat(${filteredWeeks.length}, minmax(24px, 1fr)); gap: 2px; margin-bottom: 2px; align-items: center;">
-                                <div style="font-size: 0.72rem; font-weight: 800; color: #334155;">${wd.name}</div>
+                                <div style="font-size: 0.72rem; font-weight: 800; color: #334155;">${escapeHtml(wd.name)}</div>
                                 ${filteredWeeks.map(w => {
                                     const dayObj = w.days.find(d => d.dayIdx === wd.idx);
                                     if (!dayObj) return `<div style="height: 24px; background: #f8fafc; border-radius: 3px;"></div>`;
@@ -1552,8 +1608,8 @@
                                     const stdCount = dayData ? dayData.studentsSet.size : 0;
                                     return `
                                         <div
-                                            onclick="window.selectLibraryHeatmapDay('${dateStr}', '${wd.name}', ${w.weekNum})"
-                                            title="${wd.name} ${dateStr}: ${stdCount} تلميذ غائب (${val} حصة) — انقر لعرض قائمة التلاميذ الغائبين في مكتبة الموارد"
+                                            onclick="window.selectLibraryHeatmapDay('${escapeJsAttr(dateStr)}', '${escapeJsAttr(wd.name)}', ${w.weekNum})"
+                                            title="${escapeHtml(`${wd.name} ${dateStr}: ${stdCount} تلميذ غائب (${val} حصة) — انقر لعرض قائمة التلاميذ الغائبين في مكتبة الموارد`)}"
                                             style="
                                                 height: 24px;
                                                 background: ${heat.bg};
@@ -1616,7 +1672,7 @@
                     const isSelected = (activeDate === spot.dateStr);
                     return `
                         <button type="button"
-                            onclick="window.selectLibraryHeatmapDay('${spot.dateStr}', '${escapeHtml(spot.dayName)}', ${spot.weekNum})"
+                            onclick="window.selectLibraryHeatmapDay('${escapeJsAttr(spot.dateStr)}', '${escapeJsAttr(spot.dayName)}', ${spot.weekNum})"
                             style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; border: ${isSelected ? '2px solid #0f172a' : `1.5px solid ${spot.heat.border}`}; background: ${spot.heat.bg}; color: ${spot.heat.color}; font-family: inherit; font-size: 0.72rem; font-weight: 800; cursor: pointer; box-shadow: ${isSelected ? '0 2px 6px rgba(0,0,0,0.2)' : 'none'};"
                         >
                             <span>${escapeHtml(spot.dayName)} ${spot.dateStr}</span>
@@ -1657,6 +1713,7 @@
     window.filterLibraryByHeatmapDay = filterLibraryByHeatmapDay;
     window.shareLibraryResourceWithStudent = shareLibraryResourceWithStudent;
     window.copyAbsentStudentsWithResourceSummary = copyAbsentStudentsWithResourceSummary;
+    window.onHeatmapCellClick = showHeatmapCellDetails;
 
     // استماع لتحميل الصفحة (يتم الرسم فقط إذا كان تبويب التقارير مرئياً)
     function _initHeatmapIfVisible() {

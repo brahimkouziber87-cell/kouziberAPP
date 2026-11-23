@@ -166,19 +166,25 @@
         // مسح السجلات
         for (let i = 0; i < records.length; i++) {
             const r = records[i];
-            if (!r || !r.date) continue;
-            if (classFilter !== 'all' && r.className !== classFilter) continue;
+            if (!r || !r.date || !/^\d{4}-\d{2}-\d{2}$/.test(r.date)) continue;
+            const recClass = r.className || r.class || '';
+            if (classFilter !== 'all' && recClass !== classFilter) continue;
 
             const isUnjust = (r.status === 'غائب');
             const isJust = (r.status === 'مبرر');
             if (!isUnjust && !isJust) continue;
 
-            // استثناء العطل الرسمية
+            // استثناء العطل الرسمية والرخص الإدارية المعفاة
+            if (typeof window.isRecordProtectedHolidayOrLeave === 'function' && window.isRecordProtectedHolidayOrLeave(r)) {
+                continue;
+            }
             if (typeof window.isAbsenceDisabledOnDate === 'function' && window.isAbsenceDisabledOnDate(r.date, r.session)) {
                 continue;
             }
 
-            const dur = parseFloat(r.duration) || 1;
+            const dur = (typeof window.getRecordAbsenceDuration === 'function')
+                ? window.getRecordAbsenceDuration(r)
+                : ((r.part === 'h1' || r.part === 'h2') ? 1 : (parseFloat(String(r.duration ?? r.hours ?? '1').replace(',', '.')) || 1));
             let bucketKey = '';
             let bucketLabel = '';
             let sortKey = 0;
@@ -222,8 +228,9 @@
             b.studentsSet.add(r.studentId);
             b.recordsCount++;
 
-            if (!b.classMap[r.className]) b.classMap[r.className] = 0;
-            b.classMap[r.className] += dur;
+            const clsKey = recClass || 'غير محدد';
+            if (!b.classMap[clsKey]) b.classMap[clsKey] = 0;
+            b.classMap[clsKey] += dur;
         }
 
         // تحويل الخريطة إلى مصفوفة مرتبة
@@ -620,8 +627,8 @@
                     <!-- 2. Peak Period -->
                     <div style="background: #fff7ed; border: 1px solid #fed7aa; border-right: 4px solid #ea580c; border-radius: 10px; padding: 10px 14px;">
                         <div style="font-size: 0.74rem; font-weight: 700; color: #c2410c;">ذروة الغياب (أعلى فترة)</div>
-                        <div style="font-size: 1.05rem; font-weight: 800; color: #9a3412; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${peakTitle}">
-                            ${peakTitle}
+                        <div style="font-size: 1.05rem; font-weight: 800; color: #9a3412; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(peakTitle)}">
+                            ${escapeHtml(peakTitle)}
                         </div>
                         <div style="font-size: 0.72rem; color: #ea580c; font-weight: 700; margin-top: 4px;">
                             تستدعي التدخل الوقائي

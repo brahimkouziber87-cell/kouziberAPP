@@ -209,14 +209,14 @@
     };
 
     // Batch Action: Mark All Selected as Paid for Active Month
-    window.batchMarkTutoringPaid = function () {
+    window.batchMarkTutoringPaid = async function () {
         const count = window.selectedTutoringStudentIds.size;
         if (count === 0) return;
 
         const monthInput = document.getElementById('tutoringMonth');
         const month = monthInput ? monthInput.value : (window.formatLocalMonth ? window.formatLocalMonth() : (window.formatLocalDate ? window.formatLocalDate().slice(0, 7) : new Date().toLocaleDateString('en-CA').slice(0, 7)));
 
-        if (!confirm(`هل أنت متأكد من رغبتك في تسجيل الأداء الكامل لشهر (${month}) لجميع التلاميذ المحددين (${count} تلميذ) دفعة واحدة؟`)) {
+        if (!(await window.showConfirmDialog(`هل أنت متأكد من رغبتك في تسجيل الأداء الكامل لشهر (${month}) لجميع التلاميذ المحددين (${count} تلميذ) دفعة واحدة؟`))) {
             return;
         }
 
@@ -460,11 +460,11 @@
     };
 
     // Batch Action: Delete Selected Students
-    window.batchDeleteTutoringStudents = function () {
+    window.batchDeleteTutoringStudents = async function () {
         const count = window.selectedTutoringStudentIds.size;
         if (count === 0) return;
 
-        if (!confirm(`هل أنت متأكد من حذف ${count} تلميذ محدد نهائياً مع كافة حصصهم وسجلاتهم؟ لا يمكن التراجع عن هذا الإجراء.`)) {
+        if (!(await window.showConfirmDialog(`هل أنت متأكد من حذف ${count} تلميذ محدد نهائياً مع كافة حصصهم وسجلاتهم؟ لا يمكن التراجع عن هذا الإجراء.`))) {
             return;
         }
 
@@ -2094,8 +2094,8 @@
     };
 
     // Seed Sample Moroccan Tutoring Schedule with Groups & Individual Private Sessions
-    window.seedTutoringSampleSchedule = function () {
-        if (!confirm('هل تريد استيراد نموذج جدول أسبوعي متكامل لحصص الدعم والتقوية (يشمل حصص المجموعات وحصص الدعم الخصوصي الفردي)؟')) return;
+    window.seedTutoringSampleSchedule = async function () {
+        if (!(await window.showConfirmDialog('هل تريد استيراد نموذج جدول أسبوعي متكامل لحصص الدعم والتقوية (يشمل حصص المجموعات وحصص الدعم الخصوصي الفردي)؟'))) return;
 
         if (!db.tutoring.scheduleSlots) db.tutoring.scheduleSlots = [];
         if (!db.tutoring.students) db.tutoring.students = [];
@@ -2654,8 +2654,8 @@
         unlock();
     };
 
-    window.deleteTutoringScheduleSlot = function (slotId) {
-        if (!confirm('هل أنت متأكد من حذف هذا الموعد من الجدول الأسبوعي؟')) return;
+    window.deleteTutoringScheduleSlot = async function (slotId) {
+        if (!(await window.showConfirmDialog('هل أنت متأكد من حذف هذا الموعد من الجدول الأسبوعي؟'))) return;
         db.tutoring.scheduleSlots = (db.tutoring.scheduleSlots || []).filter(s => s.id !== slotId);
         if (typeof saveDB === 'function') saveDB();
         window.renderTutoringWeeklySchedule();
@@ -3868,8 +3868,8 @@
                                     <tr style="border-bottom: 1px solid #f1f5f9;">
                                         <td style="padding: 10px; font-weight: bold; color: #1e293b;">
                                             <div style="display: flex; align-items: center; gap: 6px;">
-                                                <a href="javascript:void(0)" onclick="openTutoringStudentProfileModal('${item.student.id}')" style="color: #2563eb; text-decoration: none;">
-                                                    ${item.student.name}
+                                                <a href="#" onclick="event.preventDefault(); openTutoringStudentProfileModal('${item.student.id}')" style="color: #2563eb; text-decoration: none;">
+                                                    ${typeof escapeTutoringHtml === 'function' ? escapeTutoringHtml(item.student.name) : item.student.name}
                                                 </a>
                                                 ${statusCfg ? `
                                                     <span class="tutoring-status-tag ${statusCfg.key}" style="display:inline-flex; align-items:center; gap:3px; padding:1px 7px; border-radius:12px; font-size:0.68rem; font-weight:800; background:${statusCfg.bgColor}; color:${statusCfg.color}; border:1px solid ${statusCfg.borderColor};">
@@ -4503,11 +4503,11 @@
                             ${studentsSummary.map(item => `
                                 <tr style="border-bottom: 1px solid #f1f5f9; ${item.remaining > 0 ? 'background: #fffbeb;' : ''}">
                                     <td style="padding: 10px; font-weight: bold; color: #0f172a;">
-                                        <a href="javascript:void(0)" onclick="closeTutoringAllTimeRevenueModal(); openTutoringStudentProfileModal('${item.student.id}')" style="color: #2563eb; text-decoration: none;">
-                                            ${item.student.name}
+                                        <a href="#" onclick="event.preventDefault(); closeTutoringAllTimeRevenueModal(); openTutoringStudentProfileModal('${item.student.id}')" style="color: #2563eb; text-decoration: none;">
+                                            ${typeof escapeTutoringHtml === 'function' ? escapeTutoringHtml(item.student.name) : item.student.name}
                                         </a>
                                     </td>
-                                    <td style="padding: 10px; color: #64748b;">${item.student.group || '-'}</td>
+                                    <td style="padding: 10px; color: #64748b;">${typeof escapeTutoringHtml === 'function' ? escapeTutoringHtml(item.student.group || '-') : (item.student.group || '-')}</td>
                                     <td style="padding: 10px; color: #475569;">${item.rate} د.م/س</td>
                                     <td style="padding: 10px; font-weight: bold;">${item.totalHours} س</td>
                                     <td style="padding: 10px; font-weight: 800; color: #0f172a;">${item.totalDue} د.م</td>
@@ -5861,7 +5861,7 @@
                 <tr style="border-bottom: 1px solid #f1f5f9; ${att === 'absent' ? 'background: #fffdfd;' : ''}">
                     <td style="padding: 10px 14px;">
                         <div style="font-weight: 800; color: #0f172a;">
-                            <a href="javascript:void(0)" onclick="openTutoringStudentProfileModal('${student.id}')" style="color: #0284c7; text-decoration: none;" title="عرض الملف الشخصي">
+                            <a href="#" onclick="event.preventDefault(); openTutoringStudentProfileModal('${student.id}')" style="color: #0284c7; text-decoration: none;" title="عرض الملف الشخصي">
                                 ${escapeTutoringHtml(student.name)}
                             </a>
                             <button type="button" onclick="const sel=document.getElementById('tutoringAttStudentFilter'); if(sel){ sel.value='${student.id}'; window.setTutoringAttViewMode('individual'); }" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; padding: 1px 6px; font-size: 0.7rem; color: #475569; cursor: pointer; margin-right: 6px;" title="فتح السجل الفردي لهذا التلميذ">

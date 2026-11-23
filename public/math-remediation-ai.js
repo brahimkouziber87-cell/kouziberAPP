@@ -9,6 +9,16 @@
 (function (window) {
     'use strict';
 
+    function escHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     // قائمة المواضيع والمفاهيم الرياضية للمقررات المغربية حسب المستوى والأسدوس
     const MOROCCAN_MATH_CURRICULUM = {
         'tcs': {
@@ -131,6 +141,46 @@
                 'التعداد وحساب الاحتمالات واتخاذ القرار',
                 'الإحصاء بمتغيرين ومستقيم الانحدار الخطي'
             ]
+        },
+        '1bac_eco': {
+            levelName: 'الأولى باكالوريا علوم اقتصادية والتدبير',
+            s1: [
+                'مبادئ في المنطق الرياضي والعمليات على العبارات',
+                'المعادلات والمتراجحات من الدرجة الأولى والثانية والنظمات والبرمجة الخطية',
+                'عموميات حول الدوال العددية وتطبيقاتها الاقتصادية',
+                'المتتاليات العددية (الحسابية والهندسية)'
+            ],
+            s2: [
+                'التعداد والمبدأ الأساسي للتعداد والتأليفات',
+                'نهايات الدوال العددية',
+                'الاشتقاق وتطبيقاته ودراسة الدوال وتمثيلها المبياني',
+                'المصفوفات وحل النظمات الخطية (حسب الخيار)'
+            ]
+        },
+        '1bac_lsh': {
+            levelName: 'الأولى باكالوريا آداب وعلوم إنسانية وتعليم أصيل',
+            s1: [
+                'مبادئ في المنطق الرياضي',
+                'المعادلات والمتراجحات من الدرجة الأولى والثانية والنظمات',
+                'التناسبية والنسب المئوية والسلالم',
+                'المتتاليات العددية (الحسابية والهندسية)'
+            ],
+            s2: [
+                'التعداد والحساب التوافقي في وضعيات بسيطة',
+                'نهايات الدوال العددية الحدودية والجذرية',
+                'الاشتقاق ودراسة الدوال العددية البسيطة وتمثيلها المبياني'
+            ]
+        },
+        '2bac_lsh': {
+            levelName: 'الثانية باكالوريا آداب وعلوم إنسانية وتعليم أصيل',
+            s1: [
+                'المتتاليات العددية الترجعية u_{n+1}=au_n+b ونهاية متتالية',
+                'حساب الاحتمالات وتساوي الاحتمالات والاحتمال الشرطي والمتغير العشوائي'
+            ],
+            s2: [
+                'الاشتقاق ودراسة الدوال العددية ودالة اللوغاريتم النبيري (ln)',
+                'الدالة الأسية النبيرية (exp) والمعادلات والمتراجحات الأسية'
+            ]
         }
     };
 
@@ -155,18 +205,25 @@
      */
     function detectLevelKeyFromClassName(className) {
         if (!className) return 'tcs';
-        const c = className.toLowerCase();
-        if (c.includes('2bac') || c.includes('ثانية باك') || c.includes('2ème')) {
+        const c = String(className).toLowerCase();
+        if (c.includes('tcl') || c.includes('tco') || c.includes('tc-l') || c.includes('جذع مشترك آداب') || c.includes('جذع أدبي') || c.includes('جذع أصيل')) return 'tcl';
+        if (c.includes('tc') || c.includes('tcs') || c.includes('tct') || c.includes('جذع') || c.includes('tronc')) {
+            if (c.includes('lsh') || c.includes('آداب') || c.includes('إنسانية') || c.includes('أدبي') || c.includes('أصيل')) return 'tcl';
+            return 'tcs';
+        }
+        if (c.includes('2bac') || c.includes('ثانية باك') || c.includes('2ème') || c.includes('2eme') || c.startsWith('2')) {
             if (c.includes('sm') || c.includes('رياضية') || c.includes('math')) return '2bac_sm';
-            if (c.includes('eco') || c.includes('اقتصاد') || c.includes('tgc')) return '2bac_eco';
+            if (c.includes('eco') || c.includes('اقتصاد') || c.includes('tgc') || c.includes('sgc') || c.includes('gct') || c.includes('تدبير')) return '2bac_eco';
+            if (c.includes('lsh') || c.includes('sh') || c.includes('let') || c.includes('آداب') || c.includes('إنسانية') || c.includes('أصيل')) return '2bac_lsh';
             return '2bac_exp';
         }
-        if (c.includes('1bac') || c.includes('أولى باك') || c.includes('1ère')) {
+        if (c.includes('1bac') || c.includes('أولى باك') || c.includes('1ère') || c.includes('1ere') || c.startsWith('1')) {
             if (c.includes('sm') || c.includes('رياضية') || c.includes('math')) return '1bac_sm';
+            if (c.includes('eco') || c.includes('اقتصاد') || c.includes('tgc') || c.includes('sgc') || c.includes('gct') || c.includes('تدبير')) return '1bac_eco';
+            if (c.includes('lsh') || c.includes('sh') || c.includes('let') || c.includes('آداب') || c.includes('إنسانية') || c.includes('أصيل')) return '1bac_lsh';
             return '1bac_exp';
         }
-        if (c.includes('tcl') || c.includes('آداب') || c.includes('إنسانية') || c.includes('أدبي')) return 'tcl';
-        if (c.includes('tc') || c.includes('tcs') || c.includes('tct') || c.includes('جذع') || c.includes('علمي') || c.includes('tronc')) return 'tcs';
+        if (c.includes('آداب') || c.includes('إنسانية') || c.includes('أدبي')) return 'tcl';
         return 'tcs'; // الافتراضي هو الجذع المشترك العلمي
     }
 
@@ -581,12 +638,14 @@
         const teacherName = (window.db && window.db.teacherProfile && window.db.teacherProfile.name) || (window.db && window.db.profile && window.db.profile.name) || 'أستاذ مادة الرياضيات';
         const schoolName = (window.db && window.db.teacherProfile && window.db.teacherProfile.school) || (window.db && window.db.profile && window.db.profile.school) || 'المؤسسة التعليمية';
 
+        const academicYear = (window.db?.teacherProfile?.academicYear) || (window.db?.schoolYear) || '2026-2027';
+
         const printHtml = `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>خطة الدعم البيداغوجي والاستدراك الرياضي - ${className}</title>
+    <title>خطة الدعم البيداغوجي والاستدراك الرياضي - ${escHtml(className)}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         @page {
@@ -654,15 +713,15 @@
             المملكة المغربية<br>
             وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
             الأكاديمية الجهوية للتربية والتكوين<br>
-            المؤسسة: ${schoolName}
+            المؤسسة: ${escHtml(schoolName)}
         </div>
         <div class="header-title">
             <h1>خطة الدعم البيداغوجي ومعالجة التعثرات في مادة الرياضيات</h1>
-            <h2>تشخيص نتائج الفروض وتفييء المتعلمين (المذكرة 142-08) • ${className} • ${sem}</h2>
+            <h2>تشخيص نتائج الفروض وتفييء المتعلمين (المذكرة 142-08) • ${escHtml(className)} • ${sem}</h2>
         </div>
         <div style="font-size: 9pt; font-weight: 700; text-align: left; line-height: 1.4;">
-            الموسم الدراسي: 2026-2027<br>
-            الأستاذ: ${teacherName}<br>
+            الموسم الدراسي: ${escHtml(academicYear)}<br>
+            الأستاذ: ${escHtml(teacherName)}<br>
             المادة: الرياضيات<br>
             التاريخ: ${new Date().toLocaleDateString('ar-MA')}
         </div>
@@ -675,7 +734,7 @@
     <div class="signature-section">
         <div class="signature-box">
             توقيع الأستاذ المؤطر:<br>
-            <strong>${teacherName}</strong>
+            <strong>${escHtml(teacherName)}</strong>
         </div>
         <div class="signature-box">
             تأشيرة السيد المفتش التربوي / الإدارة التربوية:<br>
@@ -954,11 +1013,13 @@
         const semester = window.activeSemester || 's1';
         const semLabel = semester === 's2' ? 'الأسدوس الثاني' : 'الأسدوس الأول';
 
+        const academicYear = (db.teacherProfile && db.teacherProfile.academicYear) || db.schoolYear || '2026-2027';
+
         const header = (typeof window.buildOfficialMoroccanHeader === 'function')
             ? window.buildOfficialMoroccanHeader('خطة الدعم البيداغوجي ومعالجة التعثرات في مادة الرياضيات', safeClass, null, options)
             : `<div style="text-align: center; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 14px;">
-                <h2 style="margin: 0; color: #1e3a8a;">خطة الدعم البيداغوجي ومعالجة التعثرات - ${safeClass}</h2>
-                <div style="font-size: 0.85rem; color: #64748b;">${semLabel} • السنة الدراسية 2026-2027</div>
+                <h2 style="margin: 0; color: #1e3a8a;">خطة الدعم البيداغوجي ومعالجة التعثرات - ${escHtml(safeClass)}</h2>
+                <div style="font-size: 0.85rem; color: #64748b;">${semLabel} • السنة الدراسية ${escHtml(academicYear)}</div>
                </div>`;
 
         // إذا كانت هناك خطة سابقة مولدة بالذكاء الاصطناعي لنفس القسم
@@ -981,41 +1042,28 @@
             ` + (typeof window.buildOfficialVisasSection === 'function' ? window.buildOfficialVisasSection(options) : '');
         }
 
-        // في حال عدم توليد الخطة بالذكاء بعد، يتم توليد تقرير تركيبي بيداغوجي فوري عالي المعايير
+        // في حال عدم توليد الخطة بالذكاء بعد، يتم توليد تقرير تركيبي انطلاقاً من البيانات الحقيقية للقسم
         const stats = computeClassExamStats(safeClass, semester) || {
-            classAverage: 11.2,
-            successRate: '68%',
-            failureRate: '32%',
-            totalStudents: 34,
-            evaluatedCount: 34,
+            classAverage: 0,
+            successRate: '0%',
+            failureRate: '0%',
+            totalStudents: 0,
+            evaluatedCount: 0,
             strugglingStudents: [],
             topStudents: []
         };
 
-        const strugglingList = (stats.strugglingStudents && stats.strugglingStudents.length > 0)
-            ? stats.strugglingStudents
-            : [
-                { name: 'تلميذ متعثر 1', average: '7.50', absenceHours: 2 },
-                { name: 'تلميذ متعثر 2', average: '8.25', absenceHours: 4 },
-                { name: 'تلميذ متعثر 3', average: '9.00', absenceHours: 0 }
-            ];
-
-        const topList = (stats.topStudents && stats.topStudents.length > 0)
-            ? stats.topStudents
-            : [
-                { name: 'تلميذ متفوق (ميسر أقران 1)', average: '17.50' },
-                { name: 'تلميذ متفوق (ميسر أقران 2)', average: '16.75' }
-            ];
+        const strugglingList = Array.isArray(stats.strugglingStudents) ? stats.strugglingStudents : [];
 
         const kpisHtml = (options.optStats !== false) ? `
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; text-align: center; font-family: 'Cairo', system-ui, sans-serif;">
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; text-align: center; font-family: 'Cairo', system-ui, sans-serif; font-variant-numeric: tabular-nums;">
                 <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 8px; border-radius: 8px;">
                     <div style="font-size: 0.75rem; color: #64748b; font-weight: 700;">المعدل العام للقسم</div>
                     <div style="font-size: 1.15rem; font-weight: 900; color: #1e3a8a;">${stats.classAverage} / 20</div>
                 </div>
                 <div style="background: #f0fdf4; border: 1.5px solid #bbf7d0; padding: 8px; border-radius: 8px;">
                     <div style="font-size: 0.75rem; color: #15803d; font-weight: 700;">نسبة التحكم والنجاح</div>
-                    <div style="font-size: 1.15rem; font-weight: 900; color: #166534;">${stats.successRate}</div>
+                    <div style="font-size: 1.15rem; font-weight: 900; color: #166534;">${escHtml(stats.successRate)}</div>
                 </div>
                 <div style="background: #fef2f2; border: 1.5px solid #fecaca; padding: 8px; border-radius: 8px;">
                     <div style="font-size: 0.75rem; color: #991b1b; font-weight: 700;">فئة الدعم ذات الأولوية</div>
@@ -1028,16 +1076,18 @@
             </div>
         ` : '';
 
-        const strugglingRows = strugglingList.map((s, idx) => `
-            <tr style="border-bottom: 1px solid #e2e8f0; font-size: 0.82rem; background: ${idx % 2 === 0 ? '#fff' : '#fef2f2'};">
-                <td style="padding: 6px; text-align: center; font-weight: 800; color: #dc2626;">${idx + 1}</td>
-                <td style="padding: 6px 10px; font-weight: 800; color: #0f172a;">${s.name}</td>
-                <td style="padding: 6px; text-align: center; font-weight: 900; color: #dc2626; background: #fee2e2;">${s.average} / 20</td>
-                <td style="padding: 6px; text-align: center; color: #64748b;">${s.absenceHours || 0} س</td>
-                <td style="padding: 6px 10px; color: #475569;">صعوبة في الحساب الجبري وترييض المسائل والبرهان الهندسي</td>
-                <td style="padding: 6px 10px; font-weight: 700; color: #166534;">ورشة دعم فارقي + بيداغوجيا الأقران</td>
-            </tr>
-        `).join('');
+        const strugglingRows = strugglingList.length > 0
+            ? strugglingList.map((s, idx) => `
+                <tr style="border-bottom: 1px solid #e2e8f0; font-size: 0.82rem; background: ${idx % 2 === 0 ? '#fff' : '#fef2f2'}; font-variant-numeric: tabular-nums;">
+                    <td style="padding: 6px; text-align: center; font-weight: 800; color: #dc2626;">${idx + 1}</td>
+                    <td style="padding: 6px 10px; font-weight: 800; color: #0f172a;">${escHtml(s.name)}</td>
+                    <td style="padding: 6px; text-align: center; font-weight: 900; color: #dc2626; background: #fee2e2;">${escHtml(s.average)} / 20</td>
+                    <td style="padding: 6px; text-align: center; color: #64748b;">${s.absenceHours || 0} س</td>
+                    <td style="padding: 6px 10px; color: #475569;">صعوبة في الحساب الجبري وترييض المسائل والبرهان الهندسي</td>
+                    <td style="padding: 6px 10px; font-weight: 700; color: #166534;">ورشة دعم فارقي + بيداغوجيا الأقران</td>
+                </tr>
+            `).join('')
+            : `<tr><td colspan="6" style="padding: 12px; text-align: center; font-weight: 700; color: #15803d; background: #f0fdf4;">جميع تلاميذ القسم مستوفون لعتبة التحكم (&ge; 10 / 20) ولا توجد تعثرات مرصودة بهذه الفترة.</td></tr>`;
 
         return header + kpisHtml + `
             <div style="margin-bottom: 16px; font-family: 'Cairo', system-ui, sans-serif;">
@@ -1273,7 +1323,7 @@
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <label style="font-size: 0.82rem; font-weight: 800; color: #1e293b;">القسم المستهدف:</label>
                         <select onchange="window.setAutoRemediationClass(this.value)" style="padding: 6px 12px; border-radius: 8px; border: 1.5px solid #2563eb; background: #f8fafc; font-weight: 800; font-size: 0.84rem; color: #1e40af;">
-                            ${classes.map(c => `<option value="${c}" ${c === cls ? 'selected' : ''}>${c}</option>`).join('')}
+                            ${classes.map(c => `<option value="${escHtml(c)}" ${c === cls ? 'selected' : ''}>${escHtml(c)}</option>`).join('')}
                         </select>
                     </div>
 
@@ -1287,12 +1337,12 @@
                 </div>
 
                 <!-- Stats summary badge -->
-                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 800;">
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 800; font-variant-numeric: tabular-nums;">
                     <span style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 4px 10px; border-radius: 6px;">
                         ⚠️ ${struggling.length} متعلم بحاجة لدعم عاجل
                     </span>
                     <span style="background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 4px 10px; border-radius: 6px;">
-                        معدل الفروض العام: ${stats.overallAverage} / 20
+                        معدل الفروض العام: ${stats ? (stats.classAverage ?? stats.overallAverage ?? '—') : '—'} / 20
                     </span>
                 </div>
             </div>
@@ -1309,16 +1359,18 @@
 
                 ${struggling.length === 0 ? `
                     <div style="text-align: center; color: #16a34a; font-weight: 800; padding: 10px; font-size: 0.85rem;">
-                        🎉 ما شاء الله! كافة تلاميذ قسم ${cls} مستوفون لعتبة النجاح في هذه الفترة التقويمية.
+                        🎉 ما شاء الله! كافة تلاميذ قسم ${escHtml(cls)} مستوفون لعتبة النجاح في هذه الفترة التقويمية.
                     </div>
                 ` : `
                     <div style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 110px; overflow-y: auto;">
                         ${struggling.map(s => {
                             const isHl = (highlightStudentId && s.id === highlightStudentId);
+                            const avgNum = Number(s.average);
+                            const avgFormatted = Number.isFinite(avgNum) ? avgNum.toFixed(2) : escHtml(s.average);
                             return `
                                 <div style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 6px; background: ${isHl ? '#fef08a' : '#fef2f2'}; border: 1.5px solid ${isHl ? '#ca8a04' : '#fecaca'}; font-size: 0.76rem; font-weight: 800; color: ${isHl ? '#854d0e' : '#991b1b'};">
-                                    <span>${s.name}</span>
-                                    <span style="background: ${isHl ? '#facc15' : '#fee2e2'}; color: ${isHl ? '#713f12' : '#b91c1c'}; padding: 1px 5px; border-radius: 4px; font-family: monospace;">${s.average.toFixed(2)}</span>
+                                    <span>${escHtml(s.name)}</span>
+                                    <span style="background: ${isHl ? '#facc15' : '#fee2e2'}; color: ${isHl ? '#713f12' : '#b91c1c'}; padding: 1px 5px; border-radius: 4px; font-family: monospace;">${avgFormatted}</span>
                                 </div>
                             `;
                         }).join('')}
@@ -1384,7 +1436,7 @@
 
                                     ${timetableSlots.length === 0 ? `
                                         <div style="font-size: 0.8rem; color: #475569; margin-bottom: 10px;">
-                                            لم يتم العثور على حصص مخصصة لقسم ${cls} في جدول الحصص. يمكنك اختيار تاريخ ووقت استدراكي حر:
+                                            لم يتم العثور على حصص مخصصة لقسم ${escHtml(cls)} في جدول الحصص. يمكنك اختيار تاريخ ووقت استدراكي حر:
                                         </div>
                                     ` : `
                                         <div style="font-size: 0.78rem; font-weight: 700; color: #334155; margin-bottom: 6px;">
@@ -1393,10 +1445,10 @@
                                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin-bottom: 12px;">
                                             ${timetableSlots.map((ts, sIdx) => `
                                                 <label style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1.5px solid ${ts.isThisClass ? '#3b82f6' : '#cbd5e1'}; border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 0.8rem;">
-                                                    <input type="radio" name="ttSlotRadio_${act.id}" value="${ts.day}_${ts.time}" ${sIdx === 0 ? 'checked' : ''} onchange="window.onAutoRemediationSlotSelected('${act.id}', '${ts.day}', '${ts.time}', '${ts.room}')">
+                                                    <input type="radio" name="ttSlotRadio_${act.id}" value="${escHtml(ts.day)}_${escHtml(ts.time)}" ${sIdx === 0 ? 'checked' : ''} onchange="window.onAutoRemediationSlotSelected('${act.id}', '${escapeQuotes(ts.day)}', '${escapeQuotes(ts.time)}', '${escapeQuotes(ts.room)}')">
                                                     <div>
-                                                        <div style="font-weight: 800; color: #0f172a;">${ts.day}: ${ts.time} (${ts.hrs} س)</div>
-                                                        <div style="font-size: 0.7rem; color: #64748b;">${ts.isThisClass ? 'حصة رسمية للقسم' : 'حصة دعم / شغور'} • ${ts.room}</div>
+                                                        <div style="font-weight: 800; color: #0f172a;">${escHtml(ts.day)}: ${escHtml(ts.time)} (${escHtml(ts.hrs)} س)</div>
+                                                        <div style="font-size: 0.7rem; color: #64748b;">${ts.isThisClass ? 'حصة رسمية للقسم' : 'حصة دعم / شغور'} • ${escHtml(ts.room)}</div>
                                                     </div>
                                                 </label>
                                             `).join('')}
@@ -1429,7 +1481,7 @@
                                         </div>
 
                                         <button type="button"
-                                            onclick="window.confirmRemediationTimetableLink('${act.id}', '${escapeQuotes(act.title)}', '${escapeQuotes(act.objective)}', '${cls}')"
+                                            onclick="window.confirmRemediationTimetableLink('${act.id}', '${escapeQuotes(act.title)}', '${escapeQuotes(act.objective)}', '${escapeQuotes(cls)}')"
                                             style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; padding: 7px 18px; border-radius: 8px; font-weight: 900; font-size: 0.82rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(16,185,129,0.3);">
                                             <span data-lucide="check-circle" data-size="14"></span>
                                             <span>تأكيد وتثبيت الحصة في جدول الحصص ودفتر النصوص 💾</span>
@@ -1485,18 +1537,41 @@
 
         // استخراج أسماء التلاميذ المتعثرين
         const stats = computeClassExamStats(className, _activeAutoRemediationSemester);
-        const strugglingNames = (stats.strugglingStudents || []).map(s => s.name).join('، ') || 'المتعلمون المتعثرون في الفروض';
+        const strugglingNames = (stats?.strugglingStudents || []).map(s => s.name).join('، ') || 'المتعلمون المتعثرون في الفروض';
+        const existingLogs = window.db.lessonLogs[className];
+        const nextSessionNum = String(existingLogs.length + 1);
+        const selectedSlotRadio = document.querySelector(`input[name="ttSlotRadio_${actId}"]:checked`)?.value || '';
+        const selectedTime = selectedSlotRadio.includes('_') ? selectedSlotRadio.split('_').slice(1).join('_') : '15:00';
 
-        // 1. تسجيل الحصة في دفتر النصوص
+        // 1. تسجيل الحصة في دفتر النصوص وفق النموذج الرسمي المعتمد
         if (addToLessonLog) {
-            window.db.lessonLogs[className].push({
+            const supportSummary = `حصة دعم ومعالجة تعثرات بيداغوجية مبرمجة لقسم (${className}) - القاعة: ${roomVal} • الهدف الإجرائي: ${objective} • الفئة المستهدفة: ${strugglingNames.substring(0, 120)}`;
+            existingLogs.push({
                 id: 'log_remed_' + Date.now(),
                 date: dateVal,
-                session: 'حصة دعم بيداغوجي مبرمجة في جدول الحصص',
-                subject: title,
-                objectives: objective,
-                content: `حصة معالجة تعثرات بيداغوجية مبرمجة لقسم (${className}) - القاعة: ${roomVal} • المستهدفون: ${strugglingNames.substring(0, 100)}`,
-                type: 'remediation',
+                sessionNum: nextSessionNum,
+                timeSlot: selectedTime,
+                duration: '2',
+                sessionType: 'soutien',
+                isExtraSession: true,
+                isRemedial: true,
+                outOfSchedule: true,
+                remedialBadgeTitle: 'حصة دعم بيداغوجي مبرمجة',
+                remedialReason: objective,
+                remedialBeneficiaries: strugglingNames.substring(0, 120),
+                number: `دعم بيداغوجي: ${title}`,
+                title: title,
+                axes: [{
+                    title: title,
+                    color: '#ffffff',
+                    paragraphs: [{
+                        title: 'أنشطة الدعم ومعالجة التعثرات',
+                        content: supportSummary,
+                        type: 'applications'
+                    }]
+                }],
+                summary: supportSummary,
+                notes: `القاعة: ${roomVal} • مرتبطة بجدول الحصص`,
                 room: roomVal,
                 targetedStudents: strugglingNames,
                 status: 'مكتملة ومبرمجة',
@@ -1509,7 +1584,7 @@
             window.db.calendarEvents.push({
                 id: 'cal_remed_' + Date.now(),
                 date: dateVal,
-                time: '15:00',
+                time: selectedTime,
                 title: `🎯 حصة دعم مبرمجة: ${title} (${className})`,
                 type: 'task',
                 className: className,
@@ -1520,6 +1595,12 @@
 
         if (typeof window.saveToLocalStorage === 'function') window.saveToLocalStorage();
         if (typeof window.saveDB === 'function') window.saveDB();
+        if (typeof window.renderLessonLogs === 'function') {
+            try { window.renderLessonLogs(); } catch (e) {}
+        }
+        if (typeof window.updateLessonLogStats === 'function') {
+            try { window.updateLessonLogStats(className); } catch (e) {}
+        }
 
         const successMsg = `تم بنجاح ربط وتثبيت حصة الدعم "${title}" لقسم ${className} في جدول الحصص ودفتر النصوص 📅✨`;
         if (typeof window.showNotification === 'function') {
@@ -1532,14 +1613,14 @@
             window.notifySafeToast(successMsg);
         }
 
-        // إغلاق الدرج أو النافذة
+        // تحديث درج الربط بعد الحفظ
         const drawer = document.getElementById('timetableDrawer_' + actId);
         if (drawer) {
             drawer.innerHTML = `
                 <div style="background: #ecfdf5; border: 1.5px solid #10b981; border-radius: 8px; padding: 12px; text-align: center; color: #065f46;">
                     <div style="font-weight: 800; font-size: 0.9rem; margin-bottom: 4px;">✅ تم تثبيت الحصة في جدول الحصص ودفتر النصوص بنجاح!</div>
-                    <div style="font-size: 0.78rem; margin-bottom: 8px;">التاريخ: ${dateVal} • القاعة: ${roomVal}</div>
-                    <button type="button" onclick="window.printOfficialRemediationReportSheet('${className}', '${dateVal}', '${escapeQuotes(title)}', '${escapeQuotes(objective)}', '${roomVal}')" style="background: #10b981; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 800; font-size: 0.78rem; cursor: pointer;">
+                    <div style="font-size: 0.78rem; margin-bottom: 8px;">التاريخ: ${escHtml(dateVal)} • القاعة: ${escHtml(roomVal)}</div>
+                    <button type="button" onclick="window.printOfficialRemediationReportSheet('${escapeQuotes(className)}', '${escapeQuotes(dateVal)}', '${escapeQuotes(title)}', '${escapeQuotes(objective)}', '${escapeQuotes(roomVal)}')" style="background: #10b981; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 800; font-size: 0.78rem; cursor: pointer;">
                         طباعة محضر حصة الدعم التربوي المبرمجة 🖨️
                     </button>
                 </div>
@@ -1553,13 +1634,14 @@
         const schoolName = (window.db?.teacherProfile?.school) || (window.db?.profile?.school) || 'الثانوية التأهيلية';
 
         const stats = computeClassExamStats(className, _activeAutoRemediationSemester);
-        const struggling = stats.strugglingStudents || [];
+        const struggling = stats?.strugglingStudents || [];
+        const acadYear = (window.db?.teacherProfile?.academicYear) || (window.db?.schoolYear) || '2026 / 2027';
 
         const html = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>محضر إنجاز حصة دعم بيداغوجي واستدراك مبرمجة - ${className}</title>
+    <title>محضر إنجاز حصة دعم بيداغوجي واستدراك مبرمجة - ${escHtml(className)}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         @page { size: A4 portrait; margin: 12mm; }
@@ -1569,7 +1651,7 @@
         .official-header .center { text-align: center; }
         .title { font-size: 14pt; font-weight: 900; color: #1e3a8a; margin: 0 0 4px 0; }
         .meta-box { background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 10pt; line-height: 1.8; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 9.5pt; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 9.5pt; font-variant-numeric: tabular-nums; }
         th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: center; }
         th { background: #f1f5f9; font-weight: 800; }
         .sign-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 35px; page-break-inside: avoid; }
@@ -1581,23 +1663,23 @@
         <div class="side">
             المملكة المغربية<br>
             وزارة التربية الوطنية والتعليم الأولي والتكوين المهني والتأهيل<br>
-            المؤسسة: ${schoolName}
+            المؤسسة: ${escHtml(schoolName)}
         </div>
         <div class="center">
             <h2 class="title">محضر إنجاز حصة دعم بيداغوجي واستدراك مبرمجة</h2>
             <div style="font-size: 9.5pt; font-weight: 700; color: #475569;">مادة الرياضيات • السلك الثانوي التأهيلي (المذكرة 142-08)</div>
         </div>
         <div class="side" style="text-align: left;">
-            الموسم الدراسي: ${(window.db && window.db.schoolYear) || '2026 / 2027'}<br>
-            الأستاذ: ${teacherName}<br>
+            الموسم الدراسي: ${escHtml(acadYear)}<br>
+            الأستاذ: ${escHtml(teacherName)}<br>
             تاريخ الطباعة: ${new Date().toLocaleDateString('ar-MA')}
         </div>
     </div>
 
     <div class="meta-box">
-        <div>القسم المستفيد: <b>${className}</b> • تاريخ انعقاد الحصة: <b>${sessionDate}</b> • القاعة: <b>${room}</b></div>
-        <div>موضوع الحصة: <b>${title}</b></div>
-        <div>الهدف البيداغوجي الإجرائي: <b>${objective}</b></div>
+        <div>القسم المستفيد: <b>${escHtml(className)}</b> • تاريخ انعقاد الحصة: <b>${escHtml(sessionDate)}</b> • القاعة: <b>${escHtml(room)}</b></div>
+        <div>موضوع الحصة: <b>${escHtml(title)}</b></div>
+        <div>الهدف البيداغوجي الإجرائي: <b>${escHtml(objective)}</b></div>
         <div>السند التنظيمي: مندرجة ضمن جدول الحصص المبرمج وموثقة رسمياً في دفتر النصوص.</div>
     </div>
 
@@ -1616,23 +1698,27 @@
             </tr>
         </thead>
         <tbody>
-            ${struggling.map((s, idx) => `
+            ${struggling.length > 0 ? struggling.map((s, idx) => {
+                const avgNum = Number(s.average);
+                const avgDisp = Number.isFinite(avgNum) ? avgNum.toFixed(2) : escHtml(s.average);
+                return `
                 <tr>
                     <td>${idx + 1}</td>
-                    <td style="text-align: right; font-weight: 700;">${s.name}</td>
-                    <td style="font-weight: 800; color: #dc2626;">${s.average.toFixed(2)}</td>
+                    <td style="text-align: right; font-weight: 700;">${escHtml(s.name)}</td>
+                    <td style="font-weight: 800; color: #dc2626;">${avgDisp}</td>
                     <td>${s.absenceHours || 0} س</td>
                     <td style="color: #166534; font-weight: 700;">تحكم وتملك للمفهوم ✅</td>
                     <td style="width: 90px;"></td>
                 </tr>
-            `).join('')}
+            `;
+            }).join('') : `<tr><td colspan="6" style="padding: 12px; color: #15803d; font-weight: 700;">حصة دعم عام ومراجعة شاملة لجميع متعلمي القسم (لا توجد تعثرات دون العتبة).</td></tr>`}
         </tbody>
     </table>
 
     <div class="sign-grid">
         <div class="sign-box">
             توقيع وختم أستاذ مادة الرياضيات:<br><br>
-            ${teacherName}
+            ${escHtml(teacherName)}
         </div>
         <div class="sign-box">
             تأشيرة الحراسة العامة / إدارة المؤسسة:<br><br>

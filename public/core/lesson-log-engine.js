@@ -93,9 +93,17 @@
 
             const matchingLogs = logs.filter(log => {
                 if (!log) return false;
-                const logLesson = String(log.lesson || log.title || log.topic || '').trim();
-                const logContent = String(log.content || '').trim();
-                return (cleanTitle && (logLesson.includes(cleanTitle) || cleanTitle.includes(logLesson) || logContent.includes(cleanTitle)));
+                const logLesson = String(log.number || log.lesson || log.title || log.topic || '').trim();
+                const logContent = String(log.content || log.notes || '').trim();
+                const axesText = Array.isArray(log.axes)
+                    ? log.axes.map(a => (a && typeof a === 'object') ? String(a.title || '') : String(a || '')).join(' ')
+                    : String(log.axis || '');
+                return Boolean(cleanTitle && (
+                    logLesson.includes(cleanTitle) ||
+                    (logLesson && cleanTitle.includes(logLesson)) ||
+                    logContent.includes(cleanTitle) ||
+                    axesText.includes(cleanTitle)
+                ));
             });
 
             const loggedHours = matchingLogs.reduce((acc, l) => acc + (Number(l.duration || l.hours || 1) || 1), 0);
@@ -454,7 +462,7 @@
         const logs = Array.isArray(clsObj.lessonLog)
             ? clsObj.lessonLog
             : (db.lessonLogs && Array.isArray(db.lessonLogs[targetClass]) ? db.lessonLogs[targetClass] : []);
-        const completedTitles = logs.map(l => String(l.lesson || l.title || l.topic || '').trim()).filter(Boolean).slice(-8);
+        const completedTitles = logs.map(l => String(l.number || l.lesson || l.title || l.topic || '').trim()).filter(Boolean).slice(-8);
 
         const brief = buildCompanionAppPedagogicalBrief({
             className: targetClass,

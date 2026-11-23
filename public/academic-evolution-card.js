@@ -30,6 +30,44 @@
             .replace(/'/g, '&#039;');
     }
 
+    function escapeJsAttr(str) {
+        return escapeHtml(String(str ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r|\n/g, ' '));
+    }
+
+    function escapeJsonAttr(obj) {
+        return JSON.stringify(obj)
+            .replace(/</g, '\\u003c')
+            .replace(/>/g, '\\u003e')
+            .replace(/&/g, '\\u0026')
+            .replace(/'/g, '\\u0027')
+            .replace(/"/g, '&quot;');
+    }
+
+    function getClassStudentsSafe(className) {
+        const raw = window.db && window.db.classes ? window.db.classes[className] : null;
+        return Array.isArray(raw) ? raw : (raw && Array.isArray(raw.students) ? raw.students : []);
+    }
+
+    function getLocalIsoDateOffset(daysOffset) {
+        const base = (typeof window.getAppNow === 'function') ? new Date(window.getAppNow().getTime()) : new Date();
+        if (daysOffset) base.setDate(base.getDate() + daysOffset);
+        const y = base.getFullYear();
+        const m = String(base.getMonth() + 1).padStart(2, '0');
+        const d = String(base.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function getDynamicAcademicYear() {
+        const now = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth() + 1;
+        return m >= 8 ? `${y} / ${y + 1}` : `${y - 1} / ${y}`;
+    }
+
+    function sanitizeFilenamePart(str) {
+        return String(str || '').replace(/[\\/?*[\]:"<>|\s]+/g, '_').replace(/^_+|_+$/g, '');
+    }
+
     /**
      * استخراج قائمة الأقسام المتاحة للمدرس
      */
@@ -55,7 +93,7 @@
             if (semester === 's2') {
                 grades = rec.s2 || {};
             } else {
-                grades = rec.s1 || { f1: rec.f1, f2: rec.f2, f3: rec.f3 };
+                grades = rec.s1 || { f1: rec.f1, f2: rec.f2, f3: rec.f3, f4: rec.f4 };
             }
         }
 
@@ -111,6 +149,7 @@
             f1,
             f2,
             f3,
+            f4,
             label1,
             label2
         };
@@ -129,7 +168,7 @@
         var totalStudentsCount = 0;
 
         targetClasses.forEach(className => {
-            const studentList = window.db.classes[className] || [];
+            const studentList = getClassStudentsSafe(className);
             totalStudentsCount += studentList.length;
 
             studentList.forEach(std => {
@@ -307,35 +346,17 @@
     /**
      * تعبئة بيانات نموذجية تجريبية للنقط لتسهيل المعاينة
      */
-    function seedDemoAcademicEvolutionGrades() {
+    async function seedDemoAcademicEvolutionGrades() {
         if (!window.db) return;
-        if (!confirm('هل تريد ملء نقط نموذجية واقعية للفرضين 1 و 2 للأقسام لمعاينة مؤشر تطور الأداء ولوحة الشرف؟')) {
+        if (!(await window.showConfirmDialog('هل تريد ملء نقط نموذجية واقعية للفرضين 1 و 2 للأقسام لمعاينة مؤشر تطور الأداء ولوحة الشرف؟'))) {
             return;
         }
 
         if (!window.db.classes || Object.keys(window.db.classes).length === 0) {
-            // إنشاء قسمين تجريبيين بالسلك الثانوي التأهيلي لمادة الرياضيات إذا لم تكن هناك أقسام
-            window.db.classes = {
-                '2 باك علوم رياضية (2BAC-SM)': [
-                    { id: '1', name: 'أحمد العلمي الفاسي', massarId: 'G130012345' },
-                    { id: '2', name: 'مريم التازي العمراني', massarId: 'G130012346' },
-                    { id: '3', name: 'ياسين بنجلون الإدريسي', massarId: 'G130012347' },
-                    { id: '4', name: 'فاطمة الزهراء الصقلي', massarId: 'G130012348' },
-                    { id: '5', name: 'حمزة الوردي المنصوري', massarId: 'G130012349' },
-                    { id: '6', name: 'زينب برادة الفيلالي', massarId: 'G130012350' },
-                    { id: '7', name: 'عمر الخمليشي الحسني', massarId: 'G130012351' },
-                    { id: '8', name: 'سارة أيت علي أوبلا', massarId: 'G130012352' },
-                    { id: '9', name: 'مهدي القباج المرابط', massarId: 'G130012353' },
-                    { id: '10', name: 'هبة بوشعيب الشرايبي', massarId: 'G130012354' }
-                ],
-                '1 باك علوم تجريبية (1BAC-SE)': [
-                    { id: '11', name: 'أيوب السبتي التلمساني', massarId: 'G130022341' },
-                    { id: '12', name: 'ابتسام الناصري الإبراهيمي', massarId: 'G130022342' },
-                    { id: '13', name: 'رضا بنسودة العلوي', massarId: 'G130022343' },
-                    { id: '14', name: 'سلمى الشرقاوي اليعقوبي', massarId: 'G130022344' },
-                    { id: '15', name: 'أنس المحمدي القادري', massarId: 'G130022345' }
-                ]
-            };
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('يرجى إضافة الأقسام ولائحة التلاميذ أولاً قبل تعبئة النقط.', 'warning');
+            }
+            return;
         }
 
         if (!window.db.grades) window.db.grades = {};
@@ -355,7 +376,7 @@
 
         Object.keys(window.db.classes).forEach(cls => {
             if (!window.db.grades[cls]) window.db.grades[cls] = {};
-            const students = window.db.classes[cls];
+            const students = getClassStudentsSafe(cls);
             students.forEach((s, idx) => {
                 const profile = sampleProfiles[idx % sampleProfiles.length];
                 window.db.grades[cls][s.id] = {
@@ -550,7 +571,7 @@
 
                     <div class="cert-footer">
                         <div class="sig-box">
-                            <div>تحريراً في: <strong>${new Date().toLocaleDateString('ar-MA')}</strong></div>
+                            <div>تحريراً في: <strong>${((typeof window.getAppNow === 'function') ? window.getAppNow() : new Date()).toLocaleDateString('ar-MA')}</strong></div>
                             <div class="sig-line">تأشير الإدارة التربوية</div>
                         </div>
                         <div class="sig-box">
@@ -627,7 +648,7 @@ ${teacherName}`;
                     <td style="padding: 6px 8px; text-align: center; font-weight: 700;">${s.delta > 0 ? '+' : ''}${s.pct}%</td>
                     <td style="padding: 6px 8px; text-align: center;">
                         <span style="display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 800; background: ${s.badgeBg}; color: ${s.badgeColor};">
-                            ${s.categoryLabel}
+                            ${escapeHtml(s.categoryLabel)}
                         </span>
                     </td>
                 </tr>
@@ -675,7 +696,7 @@ ${teacherName}`;
                     <h3 style="margin: 4px 0; color: #1e3a8a;">${escapeHtml(institutionName)} - مادة الرياضيات</h3>
                     <p style="margin: 0; font-size: 12px; color: #64748b;">
                         الدورة: <strong>${_evoState.semester === 's2' ? 'الدورة الثانية' : 'الدورة الأولى'}</strong> |
-                        الأقسام: <strong>${_evoState.classFilter === 'all' ? 'جميع الأقسام' : _evoState.classFilter}</strong> |
+                        الأقسام: <strong>${_evoState.classFilter === 'all' ? 'جميع الأقسام' : escapeHtml(_evoState.classFilter)}</strong> |
                         الأستاذ: <strong>${escapeHtml(teacherName)}</strong>
                     </p>
                 </div>
@@ -901,7 +922,7 @@ ${teacherName}`;
                             ${data.maxImprover ? `+${data.maxImprover.delta} ن` : '--'}
                         </div>
                         <div style="font-size: 0.72rem; color: #7e22ce; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            ${data.maxImprover ? `${data.maxImprover.name} (${data.maxImprover.className})` : 'لا توجد بيانات'}
+                            ${data.maxImprover ? `${escapeHtml(data.maxImprover.name)} (${escapeHtml(data.maxImprover.className)})` : 'لا توجد بيانات'}
                         </div>
                     </div>
                 </div>
@@ -983,11 +1004,11 @@ ${teacherName}`;
 
                             <!-- أزرار الإجراءات الفورية -->
                             <div style="display: flex; gap: 6px; align-items: center; border-top: 1px dashed ${clr.border}; padding-top: 8px;">
-                                <button type="button" onclick='window.printStudentImprovementCertificate(${JSON.stringify(st).replace(/'/g, "&apos;")})' style="flex: 1; background: #ffffff; color: #047857; border: 1.5px solid #a7f3d0; padding: 5px 8px; border-radius: 6px; font-size: 0.73rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" title="طباعة شهادة تنويه بالتقدم الدراسي">
+                                <button type="button" onclick="window.printStudentImprovementCertificate(${escapeJsonAttr(st)})" style="flex: 1; background: #ffffff; color: #047857; border: 1.5px solid #a7f3d0; padding: 5px 8px; border-radius: 6px; font-size: 0.73rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" title="طباعة شهادة تنويه بالتقدم الدراسي">
                                     <span>🏆</span>
                                     <span>شهادة تنويه</span>
                                 </button>
-                                <button type="button" onclick='window.sendWhatsAppImprovementMessage(${JSON.stringify(st).replace(/'/g, "&apos;")})' style="flex: 1; background: #ecfdf5; color: #065f46; border: 1.5px solid #86efac; padding: 5px 8px; border-radius: 6px; font-size: 0.73rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" title="إرسال رسالة تشجيع لولي الأمر عبر واتساب">
+                                <button type="button" onclick="window.sendWhatsAppImprovementMessage(${escapeJsonAttr(st)})" style="flex: 1; background: #ecfdf5; color: #065f46; border: 1.5px solid #86efac; padding: 5px 8px; border-radius: 6px; font-size: 0.73rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" title="إرسال رسالة تشجيع لولي الأمر عبر واتساب">
                                     <span>💬</span>
                                     <span>تهنئة الولي</span>
                                 </button>
@@ -1024,8 +1045,8 @@ ${teacherName}`;
                                     <span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 2px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 900;">
                                         +${st.delta} ن
                                     </span>
-                                    <button type="button" onclick='window.printStudentImprovementCertificate(${JSON.stringify(st).replace(/'/g, "&apos;")})' style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 4px 6px; border-radius: 5px; font-size: 0.7rem; cursor: pointer;" title="طباعة شهادة التنويه">🏆</button>
-                                    <button type="button" onclick='window.sendWhatsAppImprovementMessage(${JSON.stringify(st).replace(/'/g, "&apos;")})' style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 4px 6px; border-radius: 5px; font-size: 0.7rem; cursor: pointer;" title="تهنئة الولي">💬</button>
+                                    <button type="button" onclick="window.printStudentImprovementCertificate(${escapeJsonAttr(st)})" style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 4px 6px; border-radius: 5px; font-size: 0.7rem; cursor: pointer;" title="طباعة شهادة التنويه">🏆</button>
+                                    <button type="button" onclick="window.sendWhatsAppImprovementMessage(${escapeJsonAttr(st)})" style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 4px 6px; border-radius: 5px; font-size: 0.7rem; cursor: pointer;" title="تهنئة الولي">💬</button>
                                 </div>
                             </div>
                         `;
@@ -1085,8 +1106,8 @@ ${teacherName}`;
                         <td style="padding: 7px 6px;">
                             <div style="display: flex; gap: 4px; justify-content: center;">
                                 ${s.delta > 0 ? `
-                                    <button type="button" onclick='window.printStudentImprovementCertificate(${JSON.stringify(s).replace(/'/g, "&apos;")})' style="background: #f0fdf4; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; cursor: pointer;" title="طباعة شهادة التنويه">🏆</button>
-                                    <button type="button" onclick='window.sendWhatsAppImprovementMessage(${JSON.stringify(s).replace(/'/g, "&apos;")})' style="background: #f0fdf4; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; cursor: pointer;" title="تهنئة الولي">💬</button>
+                                    <button type="button" onclick="window.printStudentImprovementCertificate(${escapeJsonAttr(s)})" style="background: #f0fdf4; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; cursor: pointer;" title="طباعة شهادة التنويه">🏆</button>
+                                    <button type="button" onclick="window.sendWhatsAppImprovementMessage(${escapeJsonAttr(s)})" style="background: #f0fdf4; border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; cursor: pointer;" title="تهنئة الولي">💬</button>
                                 ` : '-'}
                             </div>
                         </td>
@@ -1206,7 +1227,7 @@ ${teacherName}`;
             window.db.mathOlympiadClub = {
                 members: {},
                 workshop: {
-                    date: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
+                    date: getLocalIsoDateOffset(5),
                     time: '15:00 - 17:00',
                     room: 'قاعة الأنشطة / نادي الرياضيات',
                     topic: 'تقنيات البرهان الرياضي، المتفاوتات الكلاسيكية، والهندسة الأولمبية'
@@ -1216,7 +1237,7 @@ ${teacherName}`;
         if (!window.db.mathOlympiadClub.members) window.db.mathOlympiadClub.members = {};
         if (!window.db.mathOlympiadClub.workshop) {
             window.db.mathOlympiadClub.workshop = {
-                date: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
+                date: getLocalIsoDateOffset(5),
                 time: '15:00 - 17:00',
                 room: 'قاعة الأنشطة / نادي الرياضيات',
                 topic: 'تقنيات البرهان الرياضي، المتفاوتات الكلاسيكية، والهندسة الأولمبية'
@@ -1246,11 +1267,11 @@ ${teacherName}`;
             const classGrades = (window.db.grades && window.db.grades[className]) ? window.db.grades[className] : {};
 
             students.forEach((std, idx) => {
-                const stdRecord = classGrades[std.id];
-                const f1 = getStudentExamMarks(stdRecord, sem, 'f1');
-                const f2 = getStudentExamMarks(stdRecord, sem, 'f2');
-                const f3 = getStudentExamMarks(stdRecord, sem, 'f3');
-                const f4 = getStudentExamMarks(stdRecord, sem, 'f4');
+                const marks = getStudentExamMarks(className, std.id, sem, 'f_all');
+                const f1 = marks.f1;
+                const f2 = marks.f2;
+                const f3 = marks.f3;
+                const f4 = marks.f4;
 
                 const validMarks = [f1, f2, f3, f4].filter(v => v !== null && !isNaN(v));
                 if (validMarks.length === 0) return;
@@ -1265,6 +1286,7 @@ ${teacherName}`;
                 else if (criterion === 'f1') scoreToCompare = f1;
                 else if (criterion === 'f2') scoreToCompare = f2;
                 else if (criterion === 'f3') scoreToCompare = f3;
+                else if (criterion === 'f4') scoreToCompare = f4;
 
                 if (scoreToCompare !== null && scoreToCompare >= threshold) {
                     const memberKey = `${className}__${std.id}`;
@@ -1393,7 +1415,8 @@ ${teacherName}`;
             avg: 'معدل الفروض المحروسة للدورة',
             f1: 'نقطة الفرض المحروس 1',
             f2: 'نقطة الفرض المحروس 2',
-            f3: 'نقطة الفرض المحروس 3'
+            f3: 'نقطة الفرض المحروس 3',
+            f4: 'نقطة الفرض المحروس 4'
         };
 
         var html = `
@@ -1436,6 +1459,7 @@ ${teacherName}`;
                         <option value="f1" ${_olympiadState.criterion === 'f1' ? 'selected' : ''} style="color:#0f172a;">المعيار: الفرض 1</option>
                         <option value="f2" ${_olympiadState.criterion === 'f2' ? 'selected' : ''} style="color:#0f172a;">المعيار: الفرض 2</option>
                         <option value="f3" ${_olympiadState.criterion === 'f3' ? 'selected' : ''} style="color:#0f172a;">المعيار: الفرض 3</option>
+                        <option value="f4" ${_olympiadState.criterion === 'f4' ? 'selected' : ''} style="color:#0f172a;">المعيار: الفرض 4</option>
                     </select>
 
                     <select onchange="window.setOlympiadFilter('threshold', this.value)" style="background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; border-radius: 7px; padding: 5px 8px; font-size: 0.75rem; font-weight: 900; cursor: pointer;">
@@ -1553,20 +1577,21 @@ ${teacherName}`;
                                 </div>
                             </div>
 
-                            <div style="display: flex; gap: 6px; font-size: 0.71rem; color: #334155; background: #ffffff; border: 1px solid #f1f5f9; border-radius: 6px; padding: 4px 8px; justify-content: space-around;">
+                            <div style="display: flex; gap: 6px; font-size: 0.71rem; color: #334155; background: #ffffff; border: 1px solid #f1f5f9; border-radius: 6px; padding: 4px 8px; justify-content: space-around; flex-wrap: wrap;">
                                 <span>الفرض 1: <strong>${cand.f1 !== null ? cand.f1 : '--'}</strong></span>
                                 <span>الفرض 2: <strong>${cand.f2 !== null ? cand.f2 : '--'}</strong></span>
                                 <span>الفرض 3: <strong>${cand.f3 !== null ? cand.f3 : '--'}</strong></span>
+                                ${cand.f4 !== null ? `<span>الفرض 4: <strong>${cand.f4}</strong></span>` : ''}
                                 <span style="color: #15803d;">أعلى نقطة: <strong>${cand.bestMark}</strong></span>
                             </div>
 
                             <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; border-top: 1px dashed #fde68a; padding-top: 6px;">
-                                <select onchange="window.updateOlympiadMemberSpecialty('${escapeHtml(cand.memberKey)}', this.value)" style="flex: 1; padding: 4px 6px; font-size: 0.72rem; font-weight: 800; border: 1px solid #fcd34d; border-radius: 6px; background: ${specObj.bg}; color: ${specObj.color}; cursor: pointer;">
+                                <select onchange="window.updateOlympiadMemberSpecialty('${escapeJsAttr(cand.memberKey)}', this.value)" style="flex: 1; padding: 4px 6px; font-size: 0.72rem; font-weight: 800; border: 1px solid #fcd34d; border-radius: 6px; background: ${specObj.bg}; color: ${specObj.color}; cursor: pointer;">
                                     ${Object.entries(OLYMPIAD_SPECIALTIES).map(([k, v]) => `
                                         <option value="${k}" ${cand.specialty === k ? 'selected' : ''} style="background:#fff; color:#0f172a;">${v.label}</option>
                                     `).join('')}
                                 </select>
-                                <button type="button" onclick="window.printStudentOlympiadCertificate('${escapeHtml(cand.className)}', '${escapeHtml(String(cand.id))}')" style="background: #1e3a8a; color: #ffffff; border: none; border-radius: 6px; padding: 4px 9px; font-size: 0.71rem; font-weight: 800; cursor: pointer; white-space: nowrap;" title="طباعة شهادة التميز والترشيح لأولمبياد الرياضيات">
+                                <button type="button" onclick="window.printStudentOlympiadCertificate('${escapeJsAttr(cand.className)}', '${escapeJsAttr(String(cand.id))}')" style="background: #1e3a8a; color: #ffffff; border: none; border-radius: 6px; padding: 4px 9px; font-size: 0.71rem; font-weight: 800; cursor: pointer; white-space: nowrap;" title="طباعة شهادة التميز والترشيح لأولمبياد الرياضيات">
                                     🏅 شهادة الأولمبياد
                                 </button>
                             </div>
@@ -1594,7 +1619,7 @@ ${teacherName}`;
         var academy = tp.academy || 'الأكاديمية الجهوية للتربية والتكوين';
         var direction = tp.direction || tp.province || 'المديرية الإقليمية';
         var teacher = tp.name || 'أستاذ(ة) مادة الرياضيات';
-        var year = tp.schoolYear || tp.year || '2024 / 2025';
+        var year = tp.academicYear || tp.schoolYear || tp.year || getDynamicAcademicYear();
         var semLabel = _olympiadState.semester === 's2' ? 'الدورة الثانية' : 'الدورة الأولى';
 
         var fontFamily = typeof window.getSelectedPrintFontFamily === 'function'
@@ -1750,7 +1775,7 @@ ${teacherName}`;
 
         if (typeof window.openCustomPrintPreviewModal === 'function') {
             window.openCustomPrintPreviewModal(htmlContent, {
-                title: `لائحة_مرشحي_أولمبياد_الرياضيات_${school}`,
+                title: `لائحة_مرشحي_أولمبياد_الرياضيات_${sanitizeFilenamePart(school)}`,
                 orientation: 'portrait',
                 subtitle: `اللائحة الرسمية للتلاميذ المقترحين لنادي أولمبياد الرياضيات والتميز (${data.candidates.length} تلميذ متميز)`
             });
@@ -1767,7 +1792,7 @@ ${teacherName}`;
         var academy = tp.academy || 'الأكاديمية الجهوية للتربية والتكوين';
         var direction = tp.direction || tp.province || 'المديرية الإقليمية';
         var teacher = tp.name || 'أستاذ(ة) مادة الرياضيات';
-        var year = tp.schoolYear || tp.year || '2024 / 2025';
+        var year = tp.academicYear || tp.schoolYear || tp.year || getDynamicAcademicYear();
         var specObj = OLYMPIAD_SPECIALTIES[cand.specialty] || OLYMPIAD_SPECIALTIES.all_round;
 
         var fontFamily = typeof window.getSelectedPrintFontFamily === 'function'
@@ -1866,7 +1891,7 @@ ${teacherName}`;
 
         if (typeof window.openCustomPrintPreviewModal === 'function') {
             window.openCustomPrintPreviewModal(htmlContent, {
-                title: `شهادة_أولمبياد_الرياضيات_${cand.name}`,
+                title: `شهادة_أولمبياد_الرياضيات_${sanitizeFilenamePart(cand.name)}`,
                 orientation: 'landscape',
                 subtitle: `شهادة التميز والعضوية في نادي أولمبياد الرياضيات — ${cand.name} (${cand.className})`
             });

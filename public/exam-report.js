@@ -88,11 +88,64 @@
         return 'أستاذ مادة الرياضيات';
     }
 
+    function getAppLocalNow() {
+        try {
+            if (typeof window.getAppNow === 'function') {
+                const n = window.getAppNow();
+                if (n instanceof Date && !isNaN(n.getTime())) return n;
+            }
+        } catch (_) {}
+        return new Date();
+    }
+
+    function formatLocalYMD(dateObj) {
+        const d = (dateObj instanceof Date && !isNaN(dateObj.getTime())) ? dateObj : getAppLocalNow();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
+    function addDaysLocalYMD(days, baseDate) {
+        const d = (baseDate instanceof Date && !isNaN(baseDate.getTime())) ? new Date(baseDate.getTime()) : getAppLocalNow();
+        d.setDate(d.getDate() + (days || 0));
+        return formatLocalYMD(d);
+    }
+
+    function getDefaultAcademicYear() {
+        const now = getAppLocalNow();
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        return m >= 8 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
+    }
+
+    function safeLogoUrl(rawUrl, fallbackPath) {
+        const str = typeof rawUrl === 'string' ? rawUrl.trim() : '';
+        if (!str) return fallbackPath;
+        if (/^(https?:\/\/|\/|data:image\/(?:png|jpeg|jpg|gif|webp|svg\+xml);base64,)/i.test(str)) {
+            return escapeHtml(str);
+        }
+        return fallbackPath;
+    }
+
+    function escapeJsAttr(str) {
+        if (str === null || str === undefined) return '';
+        const jsEscaped = String(str)
+            .replace(/\\/g, '\\\\')
+            .replace(/'/g, "\\'")
+            .replace(/"/g, '\\"')
+            .replace(/\r/g, '\\r')
+            .replace(/\n/g, '\\n')
+            .replace(/</g, '\\x3c')
+            .replace(/>/g, '\\x3e');
+        return escapeHtml(jsEscaped);
+    }
+
     function getSchoolMetadata() {
         const tp = (window.db && window.db.teacherProfile) || {};
         const st = (window.db && window.db.settings) || {};
         const school = tp.school || st.schoolName || 'الثانوية التأهيلية';
-        const year = tp.academicYear || st.academicYear || '2026/2027';
+        const year = tp.academicYear || st.academicYear || getDefaultAcademicYear();
         const academy = tp.academy || st.academy || 'الأكاديمية الجهوية للتربية والتكوين';
         const direction = tp.directorate || st.directorate || 'المديرية الإقليمية';
         return { school, year, academy, direction };
@@ -125,14 +178,36 @@
         const readValue = (id) => {
             const el = document.getElementById(id);
             const val = el && typeof el.value === 'string' ? el.value.trim() : '';
-            return val && val !== '__ALL__' ? val : '';
+            if (!val || val === '__ALL__') return '';
+            if (val === '__MULTI__' || val.startsWith('__MULTI__')) {
+                const res = typeof window.resolveReportTargetClasses === 'function' ? window.resolveReportTargetClasses(val) : null;
+                return (res && res.classes && res.classes[0]) ? res.classes[0] : '';
+            }
+            return val;
         };
-        return readValue('examReportClassSelect')
+        const directClass = readValue('examReportClassSelect')
             || readValue('reportClassSelect')
             || readValue('massarMakeupClassSelect')
-            || window.activeClass
-            || (window.db && window.db.currentClass)
-            || '';
+            || readValue('classSelect')
+            || (typeof window.activeClass === 'string' && window.activeClass !== '__ALL__' ? window.activeClass.trim() : '')
+            || (window.db && typeof window.db.currentClass === 'string' && window.db.currentClass !== '__ALL__' ? window.db.currentClass.trim() : '');
+        if (directClass) return directClass;
+
+        const dbClasses = (window.db && window.db.classes && typeof window.db.classes === 'object')
+            ? Object.keys(window.db.classes).filter(k => k && k !== '__ALL__' && !k.startsWith('__MULTI__'))
+            : [];
+        if (dbClasses.length > 0) return dbClasses[0];
+
+        const fallbackSel = document.getElementById('reportClassSelect') || document.getElementById('classSelect');
+        if (fallbackSel && fallbackSel.options) {
+            for (let i = 0; i < fallbackSel.options.length; i++) {
+                const optVal = (fallbackSel.options[i].value || '').trim();
+                if (optVal && optVal !== '__ALL__' && !optVal.startsWith('__MULTI__')) {
+                    return optVal;
+                }
+            }
+        }
+        return '';
     }
 
     /**
@@ -153,7 +228,7 @@
     /**
      * استخراج النقط والتلاميذ من قاعدة البيانات مع ربط سجل الفروض التعويضية (المذكرة 142-08)
      */
-    function extractExamMarksFromDB(className, semester, examKey) {
+    function extractExamMarksFromDB(className, semester, examKey, updateCache = true) {
         const marks = [];
         const absents = [];
         const allStudents = [];
@@ -237,8 +312,13 @@
             }
         });
 
-        // ترتيب النقط تنازلياً من أعلى معدل إلى أدنى معدل
-        const rankedMarks = [...marks].sort((a, b) => b.mark - a.mark).map((m, idx) => {
+        // ترتيب النقط تنازلياً من أعلى معدل إلى أدنى معدل مع الترتيب المعياري للتساوي (1، 1، 3)
+        const sortedMarks = [...marks].sort((a, b) => b.mark - a.mark);
+        let currentRank = 1;
+        const rankedMarks = sortedMarks.map((m, idx) => {
+            if (idx > 0 && Math.abs(m.mark - sortedMarks[idx - 1].mark) >= 0.001) {
+                currentRank = idx + 1;
+            }
             let apprec = '';
             let appColor = '#334155';
             if (m.mark >= 16) { apprec = 'ممتاز (Très bien)'; appColor = '#15803d'; }
@@ -249,7 +329,7 @@
             else { apprec = 'تعثر / ضعيف (Faible)'; appColor = '#dc2626'; }
 
             return {
-                rank: idx + 1,
+                rank: currentRank,
                 order: m.order,
                 id: m.id,
                 name: m.name,
@@ -261,13 +341,15 @@
             };
         });
 
-        cachedExamStudentsData = {
-            allStudents,
-            rankedMarks,
-            absents,
-            completedMakeups,
-            totalStudents: students.length
-        };
+        if (updateCache !== false) {
+            cachedExamStudentsData = {
+                allStudents,
+                rankedMarks,
+                absents,
+                completedMakeups,
+                totalStudents: students.length
+            };
+        }
 
         return {
             marks,
@@ -419,8 +501,8 @@
         const storedReports = getStoredExamReports();
         const existing = storedReports[reportKey];
 
-        const todayStr = new Date().toISOString().split('T')[0];
-        const defaultCorrection = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const todayStr = formatLocalYMD(getAppLocalNow());
+        const defaultCorrection = addDaysLocalYMD(7);
 
         // استخلاص معطيات الفرض المحروس الرسمية من المذكرة 142-08 والمقرر الوزاري
         let defaultTopics = '';
@@ -436,16 +518,33 @@
             const trackKey = window.getCurriculumLevelForClass(className);
             const lvlData = window.MOROCCAN_SECONDARY_MATH_CURRICULUM[trackKey];
             if (lvlData) {
-                defaultDuration = lvlData.examDuration === 1 ? '1h' : '2h';
+                if (typeof lvlData.examDuration === 'number' && lvlData.examDuration >= 1 && lvlData.examDuration <= 4) {
+                    defaultDuration = `${lvlData.examDuration}h`;
+                } else if (typeof lvlData.examDuration === 'string' && /^\d+h$/.test(lvlData.examDuration.trim())) {
+                    defaultDuration = lvlData.examDuration.trim();
+                } else {
+                    defaultDuration = lvlData.examDuration === 1 ? '1h' : '2h';
+                }
                 defaultCoef = lvlData.coefficient || defaultCoef;
+                let matchedOfficialWeightsScale = '';
                 const semObj = lvlData.semesters && lvlData.semesters[semester];
                 if (semObj && Array.isArray(semObj.examSchedule)) {
                     const exMatch = semObj.examSchedule.find(e => e.examNumber === examNum) || semObj.examSchedule[examNum - 1];
-                    if (exMatch && exMatch.topics) {
-                        defaultTopics = exMatch.topics;
+                    if (exMatch) {
+                        if (exMatch.topics) {
+                            defaultTopics = exMatch.topics;
+                        }
+                        if (exMatch.officialWeights && typeof window.parseOfficialWeightsTo20Scale === 'function') {
+                            const parsedWeights = window.parseOfficialWeightsTo20Scale(exMatch.officialWeights);
+                            matchedOfficialWeightsScale = (parsedWeights && typeof parsedWeights === 'object')
+                                ? (parsedWeights.formattedScale || '')
+                                : String(parsedWeights || '');
+                        }
                     }
                 }
-                if (lvlData.cadreReferentiel && Array.isArray(lvlData.cadreReferentiel.domains) && lvlData.cadreReferentiel.domains.length > 0) {
+                if (matchedOfficialWeightsScale) {
+                    defaultScale = matchedOfficialWeightsScale;
+                } else if (lvlData.cadreReferentiel && Array.isArray(lvlData.cadreReferentiel.domains) && lvlData.cadreReferentiel.domains.length > 0) {
                     defaultScale = lvlData.cadreReferentiel.domains.map((d, i) => `التمرين ${i + 1} (${d.domain} - وزن ${d.weight}%): ${Math.max(2, Math.round(d.weight * 0.2))} ن`).join(' | ');
                 }
             }
@@ -471,6 +570,9 @@
         }
 
         if (existing) {
+            if (existing.gradingScale && (typeof existing.gradingScale === 'object' || String(existing.gradingScale).includes('[object Object]'))) {
+                existing.gradingScale = defaultScale;
+            }
             currentExamReport = existing;
         } else {
             currentExamReport = {
@@ -912,15 +1014,15 @@
                                         </span>
                                     </div>
                                     <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap; border-top: 1px dashed #fecdd3; padding-top: 6px;">
-                                        <select onchange="window.quickUpdateMakeupJustification('${std.id}', this.value)" style="flex: 1; min-width: 120px; padding: 4px 6px; font-size: 0.72rem; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; color: #1e293b;">
+                                        <select onchange="window.quickUpdateMakeupJustification('${escapeJsAttr(std.id)}', this.value)" style="flex: 1; min-width: 120px; padding: 4px 6px; font-size: 0.72rem; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; color: #1e293b;">
                                             <option value="justified_medical" ${justStatus === 'justified_medical' ? 'selected' : ''}>✅ مبرر (شهادة طبية)</option>
                                             <option value="justified_admin" ${justStatus === 'justified_admin' ? 'selected' : ''}>✅ مبرر (عذر إداري/عائلي)</option>
                                             <option value="pending" ${justStatus === 'pending' ? 'selected' : ''}>⏳ في طور الإدلاء بالمبرر</option>
                                             <option value="unjustified" ${justStatus === 'unjustified' ? 'selected' : ''}>❌ بدون مبرر مقبول (00/20)</option>
                                         </select>
                                         <div style="display: flex; align-items: center; gap: 4px;">
-                                            <input type="number" id="inlineMakeupMark_${std.id}" min="0" max="20" step="0.25" placeholder="النقطة /20" style="width: 78px; padding: 4px 6px; font-size: 0.75rem; font-weight: 800; border: 1.5px solid #059669; border-radius: 5px; text-align: center; background: #f0fdf4; color: #065f46;">
-                                            <button type="button" onclick="window.applyMakeupExamMarkInline('${std.id}')" style="background: #059669; color: #ffffff; border: none; border-radius: 5px; padding: 4px 8px; font-size: 0.72rem; font-weight: 800; cursor: pointer; white-space: nowrap;" title="حفظ نقطة الفرض التعويضي وتحديث التقرير ومسك النقط">
+                                            <input type="number" id="inlineMakeupMark_${escapeHtml(std.id)}" min="0" max="20" step="0.25" placeholder="النقطة /20" style="width: 78px; padding: 4px 6px; font-size: 0.75rem; font-weight: 800; border: 1.5px solid #059669; border-radius: 5px; text-align: center; background: #f0fdf4; color: #065f46;">
+                                            <button type="button" onclick="window.applyMakeupExamMarkInline('${escapeJsAttr(std.id)}')" style="background: #059669; color: #ffffff; border: none; border-radius: 5px; padding: 4px 8px; font-size: 0.72rem; font-weight: 800; cursor: pointer; white-space: nowrap;" title="حفظ نقطة الفرض التعويضي وتحديث التقرير ومسك النقط">
                                                 💾 مسك
                                             </button>
                                         </div>
@@ -1063,57 +1165,88 @@
         if (typeof autoCalculateExamStats === 'function') {
             autoCalculateExamStats(false);
         }
-        const className = getSelectedClassForReport() || 'قسم غير محدد';
+        const resolvedClass = getSelectedClassForReport();
+        const className = resolvedClass || 'قسم غير محدد';
         const semester = document.getElementById('examReportSemester')?.value || 's1';
         const examNum = String(getExamNumberFromKey(document.getElementById('examReportNumber')?.value || 1));
+        const examKey = `f${examNum}`;
         const getVal = id => document.getElementById(id)?.value || '';
 
-        const passDate = getVal('examReportPassDate') || '---';
-        const correctionDate = getVal('examReportCorrectionDate') || '---';
-        const duration = getVal('examReportDuration') || '2h';
-        const coef = getVal('examReportCoef') || '1';
-        const topics = getVal('examReportTopics') || 'غير مححدد';
-        const gradingScale = getVal('examReportGradingScale') || '---';
-        const difficulties = getVal('examReportDifficulties') || 'لم تسجل صعوبات خاصة';
-        const remediation = getVal('examReportRemediation') || 'مواصلة الدعم والتتبع المستمر';
+        const passDate = getVal('examReportPassDate') || (currentExamReport && currentExamReport.passDate) || formatLocalYMD(getAppLocalNow());
+        const correctionDate = getVal('examReportCorrectionDate') || (currentExamReport && currentExamReport.correctionDate) || addDaysLocalYMD(7);
+        const duration = getVal('examReportDuration') || (currentExamReport && currentExamReport.duration) || '2h';
+        const coef = getVal('examReportCoef') || (currentExamReport && currentExamReport.coefficient) || '1';
+        const topics = getVal('examReportTopics') || (currentExamReport && currentExamReport.topics) || 'غير محدد';
+        let rawGradingScale = getVal('examReportGradingScale') || (currentExamReport && currentExamReport.gradingScale) || '';
+        if (typeof rawGradingScale === 'object') {
+            rawGradingScale = rawGradingScale.formattedScale || '';
+        }
+        if (String(rawGradingScale).includes('[object Object]') || !String(rawGradingScale).trim()) {
+            rawGradingScale = 'التمرين 1 (تطبيق مباشر للمفاهيم - 30%): 6 ن | التمرين 2 (استحضار وتوظيف - 50%): 10 ن | التمرين 3 (توليف واستدلال - 20%): 4 ن';
+        }
+        const gradingScale = String(rawGradingScale).trim();
+        const difficulties = getVal('examReportDifficulties') || (currentExamReport && currentExamReport.difficulties) || 'لم تسجل صعوبات خاصة';
+        const remediation = getVal('examReportRemediation') || (currentExamReport && currentExamReport.remediation) || 'مواصلة الدعم والتتبع المستمر';
 
-        const stats = (currentExamReport && currentExamReport.stats) ? currentExamReport.stats : {
-            totalStudents: 0, presentCount: 0, absentCount: 0, minMark: 0, maxMark: 0, avgMark: 0,
+        // استخراج البيانات مباشرة للفرض المحدد لضمان عدم تأثر الصفحة الثانية بأي عملية مسح أو مقارنة فروض أخرى
+        const freshExtracted = resolvedClass
+            ? extractExamMarksFromDB(resolvedClass, semester, examKey, true)
+            : cachedExamStudentsData;
+        const allStudents = (freshExtracted && Array.isArray(freshExtracted.allStudents) && freshExtracted.allStudents.length > 0)
+            ? freshExtracted.allStudents
+            : (cachedExamStudentsData.allStudents || []);
+        const rankedMarks = (freshExtracted && Array.isArray(freshExtracted.rankedMarks) && freshExtracted.rankedMarks.length > 0)
+            ? freshExtracted.rankedMarks
+            : (cachedExamStudentsData.rankedMarks || []);
+        const absents = (freshExtracted && Array.isArray(freshExtracted.absents))
+            ? freshExtracted.absents
+            : (cachedExamStudentsData.absents || []);
+
+        const freshStats = (freshExtracted && Array.isArray(freshExtracted.marks) && (freshExtracted.totalStudents > 0 || allStudents.length > 0))
+            ? computeExamStats(freshExtracted.marks, freshExtracted.totalStudents || allStudents.length, absents.length)
+            : null;
+
+        const stats = freshStats || ((currentExamReport && currentExamReport.stats) ? currentExamReport.stats : {
+            totalStudents: allStudents.length, presentCount: rankedMarks.length, absentCount: absents.length, minMark: 0, maxMark: 0, avgMark: 0,
             passCount: 0, passRate: 0, failCount: 0, failRate: 0,
             distribution: {
                 veryLow: { count: 0, percent: 0 }, low: { count: 0, percent: 0 },
                 medium: { count: 0, percent: 0 }, good: { count: 0, percent: 0 },
                 excellent: { count: 0, percent: 0 }
             }
-        };
+        });
 
         const teacher = getTeacherName();
         const meta = getSchoolMetadata();
         const semLabel = semester === 's1' ? 'الدورة الأولى' : 'الدورة الثانية';
 
-        const { allStudents, rankedMarks, absents } = cachedExamStudentsData;
         const studentCount = (allStudents && allStudents.length) || 0;
 
         // ضبط التحجيم والتنسيق الديناميكي لجدولي كشف النقط والترتيب الاستحقاقي لضمان حصر التقرير في صفحتين اثنتين وملء الصفحة 2 بأناقة واكتمال
-        let tableFontSize = '8.3pt';
-        let tablePadding = '3.8px 5px';
-        let tableLineHeight = '1.3';
-        if (studentCount > 44) {
-            tableFontSize = '6.2pt';
-            tablePadding = '0.8px 2px';
-            tableLineHeight = '1.1';
-        } else if (studentCount > 38) {
-            tableFontSize = '6.8pt';
-            tablePadding = '1.2px 2px';
-            tableLineHeight = '1.15';
+        let tableFontSize = '8.1pt';
+        let apprecFontSize = '7.3pt';
+        let tablePadding = '3.2px 4px';
+        let tableLineHeight = '1.25';
+        if (studentCount > 42) {
+            tableFontSize = '6.1pt';
+            apprecFontSize = '5.8pt';
+            tablePadding = '0.7px 2px';
+            tableLineHeight = '1.08';
+        } else if (studentCount > 36) {
+            tableFontSize = '6.6pt';
+            apprecFontSize = '6.2pt';
+            tablePadding = '1.1px 2.5px';
+            tableLineHeight = '1.12';
         } else if (studentCount > 30) {
-            tableFontSize = '7.4pt';
-            tablePadding = '2px 3px';
-            tableLineHeight = '1.2';
+            tableFontSize = '7.1pt';
+            apprecFontSize = '6.5pt';
+            tablePadding = '1.5px 3px';
+            tableLineHeight = '1.15';
         } else if (studentCount > 22) {
-            tableFontSize = '7.9pt';
-            tablePadding = '3px 4px';
-            tableLineHeight = '1.25';
+            tableFontSize = '7.7pt';
+            apprecFontSize = '7pt';
+            tablePadding = '2.5px 4px';
+            tableLineHeight = '1.2';
         }
 
         // توليد أسطر جدول لائحة القسم (3 أعمدة: الرقم الترتيبي، اسم التلميذ، النقطة)
@@ -1122,9 +1255,9 @@
                 const markTxt = std.isAbsent ? '<span style="color:#dc2626; font-weight:bold;">غائب</span>' : (std.mark !== null ? `<span style="font-weight:bold; color:${std.mark >= 10 ? '#15803d' : '#dc2626'};">${std.mark.toFixed(2)}</span>` : '--');
                 return `
                     <tr>
-                        <td style="text-align: center; font-weight: bold; width: 44px; padding: ${tablePadding}; line-height: ${tableLineHeight};">${std.order}</td>
-                        <td style="text-align: right; padding: ${tablePadding}; padding-right: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; line-height: ${tableLineHeight};">${escapeHtml(std.name)}</td>
-                        <td style="text-align: center; width: 68px; padding: ${tablePadding}; line-height: ${tableLineHeight};">${markTxt}</td>
+                        <td style="text-align: center; font-weight: bold; width: 38px; padding: ${tablePadding}; line-height: ${tableLineHeight}; white-space: nowrap;">${std.order}</td>
+                        <td style="text-align: right; padding: ${tablePadding}; padding-right: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 165px; line-height: ${tableLineHeight};">${escapeHtml(std.name)}</td>
+                        <td style="text-align: center; width: 60px; padding: ${tablePadding}; line-height: ${tableLineHeight}; white-space: nowrap;">${markTxt}</td>
                     </tr>
                 `;
             }).join('')
@@ -1134,10 +1267,10 @@
         const rankedRowsHtml = (rankedMarks && rankedMarks.length > 0)
             ? rankedMarks.map(rm => `
                 <tr>
-                    <td style="text-align: center; font-weight: bold; width: 40px; padding: ${tablePadding}; line-height: ${tableLineHeight};">${rm.rank}</td>
-                    <td style="text-align: right; padding: ${tablePadding}; padding-right: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; line-height: ${tableLineHeight};">${escapeHtml(rm.name)}</td>
-                    <td style="text-align: center; font-weight: 900; width: 58px; padding: ${tablePadding}; color:#1e3a8a; line-height: ${tableLineHeight};">${rm.mark.toFixed(2)}</td>
-                    <td style="text-align: center; font-size: ${tableFontSize}; width: 80px; padding: ${tablePadding}; line-height: ${tableLineHeight};">${rm.appreciation}</td>
+                    <td style="text-align: center; font-weight: bold; width: 34px; padding: ${tablePadding}; line-height: ${tableLineHeight}; white-space: nowrap;">${rm.rank}</td>
+                    <td style="text-align: right; padding: ${tablePadding}; padding-right: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 145px; line-height: ${tableLineHeight};">${escapeHtml(rm.name)}</td>
+                    <td style="text-align: center; font-weight: 900; width: 48px; padding: ${tablePadding}; color:#1e3a8a; line-height: ${tableLineHeight}; white-space: nowrap;">${rm.mark.toFixed(2)}</td>
+                    <td style="text-align: center; font-size: ${apprecFontSize}; width: 98px; padding: ${tablePadding}; line-height: ${tableLineHeight}; white-space: nowrap;">${rm.appreciation}</td>
                 </tr>
             `).join('')
             : '<tr><td colspan="4" style="text-align:center;">لا توجد نقط مسجلة</td></tr>';
@@ -1232,7 +1365,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>تقرير الفرض المحروس رقم ${examNum} - ${className} - ${meta.school}</title>
+    <title>تقرير الفرض المحروس رقم ${escapeHtml(examNum)} - ${escapeHtml(className)} - ${escapeHtml(meta.school)}</title>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700;800;900&family=Harmattan:wght@400;700&family=Marhey:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Reem+Kufi:wght@400;600;700&family=Scheherazade+New:wght@400;700&display=swap" rel="stylesheet">
     <style>
         @page {
@@ -1267,7 +1400,6 @@
         .report-page {
             width: 100%;
             max-width: 210mm;
-            min-height: 278mm;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -1277,10 +1409,11 @@
         }
         @media screen {
             .report-page {
+                min-height: 274mm;
                 border: 1px solid #cbd5e1;
                 box-shadow: 0 4px 16px rgba(0,0,0,0.08);
                 padding: 5mm 7mm;
-                margin-bottom: 20px;
+                margin-bottom: 18px;
                 border-radius: 4px;
             }
         }
@@ -1289,14 +1422,14 @@
             break-after: page !important;
             page-break-before: auto !important;
             break-before: auto !important;
-            margin-bottom: 0 !important;
         }
         .report-page-2 {
-            page-break-after: avoid !important;
-            break-after: avoid !important;
-            page-break-before: always !important;
-            break-before: page !important;
+            page-break-after: auto !important;
+            break-after: auto !important;
+            page-break-before: auto !important;
+            break-before: auto !important;
             margin-top: 0 !important;
+            margin-bottom: 0 !important;
         }
         .header-box {
             border: 1.5px solid #1e3a8a;
@@ -1424,11 +1557,12 @@
             }
             .no-print { display: none !important; }
             .report-page {
+                display: block !important;
                 border: none !important;
                 box-shadow: none !important;
                 padding: 0 !important;
                 margin: 0 !important;
-                min-height: 276mm !important;
+                min-height: 0 !important;
                 height: auto !important;
                 max-height: none !important;
                 box-sizing: border-box !important;
@@ -1437,7 +1571,7 @@
             .print-table thead, .stats-table thead {
                 display: table-header-group !important;
             }
-            .print-table tr, .stats-table tr, .signatures, .section-box {
+            .print-table tr, .stats-table tr, .signatures {
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
             }
@@ -1448,8 +1582,8 @@
                 break-after: page !important;
             }
             .report-page-2 {
-                page-break-before: always !important;
-                break-before: page !important;
+                page-break-before: auto !important;
+                break-before: auto !important;
                 page-break-after: auto !important;
                 break-after: auto !important;
             }
@@ -1482,8 +1616,8 @@
                     </div>
                     <div style="text-align: left; width: 33%; line-height: 1.35;">
                         <div style="display: flex; align-items: center; justify-content: flex-start; gap: 6px; margin-bottom: 3px;">
-                            <img src="${(window.db && window.db.teacherProfile && (window.db.teacherProfile.schoolLogo || window.db.teacherProfile.institutionLogo)) || '/institution-logo.svg'}" alt="" style="width: 38px; height: 38px; object-fit: contain; border-radius: 50%; border: 1px solid #d4af37; padding: 1.5px; background: #ffffff;" onerror="this.onerror=null; this.src='/institution-logo.svg';">
-                            <img src="${(window.db && window.db.teacherProfile && (window.db.teacherProfile.teacherLogo || window.db.teacherProfile.photo)) || '/logo.svg'}" alt="" style="width: 38px; height: 38px; object-fit: contain; border-radius: 50%; border: 1px solid #1e3a8a; padding: 1.5px; background: #ffffff;" onerror="this.onerror=null; this.src='/logo.svg';">
+                            <img src="${safeLogoUrl(window.db && window.db.teacherProfile && (window.db.teacherProfile.schoolLogo || window.db.teacherProfile.institutionLogo), '/institution-logo.svg')}" alt="" style="width: 38px; height: 38px; object-fit: contain; border-radius: 50%; border: 1px solid #d4af37; padding: 1.5px; background: #ffffff;" onerror="this.onerror=null; this.src='/institution-logo.svg';">
+                            <img src="${safeLogoUrl(window.db && window.db.teacherProfile && (window.db.teacherProfile.teacherLogo || window.db.teacherProfile.photo), '/logo.svg')}" alt="" style="width: 38px; height: 38px; object-fit: contain; border-radius: 50%; border: 1px solid #1e3a8a; padding: 1.5px; background: #ffffff;" onerror="this.onerror=null; this.src='/logo.svg';">
                         </div>
                         مادة: <strong>الرياضيات</strong> · القسم: <strong style="color: #1e3a8a;">${escapeHtml(className)}</strong><br>
                         الأستاذ(ة): <strong>${escapeHtml(teacher)}</strong>
@@ -1635,7 +1769,7 @@
 
         <!-- تذييل الصفحة 1 -->
         <div class="page-footer-bar">
-            <span>منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر · تقرير الفرض المحروس رقم ${examNum} (${escapeHtml(className)})</span>
+            <span>منظومة التدبير التربوي - مادة الرياضيات - ${escapeHtml(teacher)} · تقرير الفرض المحروس رقم ${examNum} (${escapeHtml(className)})</span>
             <span style="font-weight: 900; color: #1e3a8a;">الصفحة 1 من 2</span>
         </div>
     </div>
@@ -1644,7 +1778,7 @@
     <!-- الصفحة 2: كشف النقط الرسمي والترتيب الاستحقاقي ولائحة الغياب -->
     <!-- ============================================================== -->
     <div class="report-page report-page-2">
-        <div style="display: flex; flex-direction: column; height: 100%; justify-content: space-between;">
+        <div style="display: block; width: 100%;">
             <div>
                 <!-- الشريط الرسمي ثلاثي الألوان -->
                 <div style="height: 3px; background: linear-gradient(90deg, #1e3a8a 0%, #d4af37 50%, #15803d 100%); border-radius: 2px; margin-bottom: 5px;"></div>
@@ -1671,18 +1805,18 @@
                 </div>
 
                 <!-- الجداول المزدوجة المتوازية جنباً إلى جنب -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start;">
+                <div style="display: grid; grid-template-columns: 0.90fr 1.10fr; gap: 6px; align-items: start;">
                     <!-- جدول كشف نقط القسم حسب الترتيب التسلسلي (3 خانات) -->
                     <div style="border: 1.2px solid #cbd5e1; border-radius: 5px; overflow: hidden;">
-                        <div style="background: #1e3a8a; color: #ffffff; font-weight: 800; font-size: 7.8pt; padding: 3px 6px; text-align: center;">
+                        <div style="background: #1e3a8a; color: #ffffff; font-weight: 800; font-size: 7.6pt; padding: 2.5px 6px; text-align: center;">
                             📋 كشف نقط القسم حسب الترتيب التسلسلي (3 خانات)
                         </div>
                         <table class="print-table" style="font-size: ${tableFontSize};">
                             <thead>
                                 <tr style="background: #f1f5f9; color: #1e293b;">
-                                    <th style="width: 44px; padding: ${tablePadding};">ر.ت</th>
-                                    <th style="padding: ${tablePadding}; text-align: right; padding-right: 6px;">اسم التلميذ(ة)</th>
-                                    <th style="width: 68px; padding: ${tablePadding};">النقطة / 20</th>
+                                    <th style="width: 38px; padding: ${tablePadding};">ر.ت</th>
+                                    <th style="padding: ${tablePadding}; text-align: right; padding-right: 5px;">اسم التلميذ(ة)</th>
+                                    <th style="width: 60px; padding: ${tablePadding};">النقطة / 20</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1693,16 +1827,16 @@
 
                     <!-- جدول الترتيب الاستحقاقي للقسم (4 خانات) -->
                     <div style="border: 1.2px solid #cbd5e1; border-radius: 5px; overflow: hidden;">
-                        <div style="background: #0284c7; color: #ffffff; font-weight: 800; font-size: 7.8pt; padding: 3px 6px; text-align: center;">
+                        <div style="background: #0284c7; color: #ffffff; font-weight: 800; font-size: 7.6pt; padding: 2.5px 6px; text-align: center;">
                             🏆 الترتيب الاستحقاقي (من أعلى نقطة إلى أدنى نقطة)
                         </div>
                         <table class="print-table" style="font-size: ${tableFontSize};">
                             <thead>
                                 <tr style="background: #f0f9ff; color: #0369a1;">
-                                    <th style="width: 40px; padding: ${tablePadding};">الرتبة</th>
-                                    <th style="padding: ${tablePadding}; text-align: right; padding-right: 6px;">اسم التلميذ(ة)</th>
-                                    <th style="width: 58px; padding: ${tablePadding};">النقطة</th>
-                                    <th style="width: 80px; padding: ${tablePadding};">التقدير</th>
+                                    <th style="width: 34px; padding: ${tablePadding};">الرتبة</th>
+                                    <th style="padding: ${tablePadding}; text-align: right; padding-right: 5px;">اسم التلميذ(ة)</th>
+                                    <th style="width: 48px; padding: ${tablePadding};">النقطة</th>
+                                    <th style="width: 98px; padding: ${tablePadding};">التقدير</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1713,7 +1847,7 @@
                 </div>
 
                 <!-- لائحة التلاميذ الغائبين عن الفرض -->
-                <div style="margin-top: 4px;">
+                <div style="margin-top: 3px;">
                     ${absentsHtml}
                 </div>
 
@@ -1726,51 +1860,51 @@
 
             <div>
                 <!-- شريط التأشيرات والمصادقة الإدارية والتفتيشية الثلاثية الرسمية المعتمدة -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 5px; padding-top: 4px; border-top: 1.2px dashed #94a3b8;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 4px; padding-top: 3px; border-top: 1.2px dashed #94a3b8; page-break-inside: avoid; break-inside: avoid;">
                     <!-- إشهاد أستاذ المادة -->
-                    <div style="border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; padding: 4px 6px; text-align: center; font-size: 7.2pt;">
-                        <div style="font-weight: 800; color: #1e3a8a; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; margin-bottom: 2px;">
+                    <div style="border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; padding: 3px 5px; text-align: center; font-size: 7pt;">
+                        <div style="font-weight: 800; color: #1e3a8a; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.5px; margin-bottom: 1.5px;">
                             توقيع وإشهاد أستاذ المادة
                         </div>
-                        <div style="font-size: 6.6pt; color: #475569; margin-bottom: 2px;">
+                        <div style="font-size: 6.4pt; color: #475569; margin-bottom: 1px;">
                             يشهد بصحة النقط ومطابقتها لأوراق التحرير
                         </div>
-                        <div class="signature-handwritten" style="font-size: 9pt; font-weight: 800; color: #1e3a8a; min-height: 24px; display: flex; align-items: center; justify-content: center;">
+                        <div class="signature-handwritten" style="font-size: 8.5pt; font-weight: 800; color: #1e3a8a; min-height: 18px; display: flex; align-items: center; justify-content: center;">
                             ${escapeHtml(teacher)}
                         </div>
-                        <div style="font-size: 6.5pt; color: #64748b;">
+                        <div style="font-size: 6.3pt; color: #64748b;">
                             بتاريخ: ${escapeHtml(correctionDate !== '---' ? correctionDate : passDate)}
                         </div>
                     </div>
 
                     <!-- تأشيرة وملاحظات المفتش التربوي -->
-                    <div style="border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; padding: 4px 6px; text-align: center; font-size: 7.2pt;">
-                        <div style="font-weight: 800; color: #334155; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; margin-bottom: 2px;">
+                    <div style="border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; padding: 3px 5px; text-align: center; font-size: 7pt;">
+                        <div style="font-weight: 800; color: #334155; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.5px; margin-bottom: 1.5px;">
                             تأشيرة وملاحظات المفتش التربوي
                         </div>
-                        <div style="font-size: 6.6pt; color: #475569; margin-bottom: 2px;">
+                        <div style="font-size: 6.4pt; color: #475569; margin-bottom: 1px;">
                             ملاحظات حول سلم التنقيط وتوزيع النقط
                         </div>
-                        <div style="min-height: 24px; color: #94a3b8; font-size: 7pt; display: flex; align-items: center; justify-content: center;">
+                        <div style="min-height: 18px; color: #94a3b8; font-size: 6.8pt; display: flex; align-items: center; justify-content: center;">
                             ..................................................
                         </div>
-                        <div style="font-size: 6.5pt; color: #64748b;">
+                        <div style="font-size: 6.3pt; color: #64748b;">
                             التأشيرة والخاتم: .......................
                         </div>
                     </div>
 
                     <!-- مصادقة وخاتم رئيس المؤسسة -->
-                    <div style="border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; padding: 4px 6px; text-align: center; font-size: 7.2pt;">
-                        <div style="font-weight: 800; color: #15803d; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; margin-bottom: 2px;">
+                    <div style="border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; padding: 3px 5px; text-align: center; font-size: 7pt;">
+                        <div style="font-weight: 800; color: #15803d; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.5px; margin-bottom: 1.5px;">
                             مصادقة وخاتم رئيس المؤسسة
                         </div>
-                        <div style="font-size: 6.6pt; color: #475569; margin-bottom: 2px;">
+                        <div style="font-size: 6.4pt; color: #475569; margin-bottom: 1px;">
                             اطلع عليه وأدرج بسجل المراقبة المستمرة
                         </div>
-                        <div style="min-height: 24px; color: #94a3b8; font-size: 7pt; display: flex; align-items: center; justify-content: center;">
+                        <div style="min-height: 18px; color: #94a3b8; font-size: 6.8pt; display: flex; align-items: center; justify-content: center;">
                             ..................................................
                         </div>
-                        <div style="font-size: 6.5pt; color: #64748b;">
+                        <div style="font-size: 6.3pt; color: #64748b;">
                             المؤسسة: ${escapeHtml(meta.school)}
                         </div>
                     </div>
@@ -1778,7 +1912,7 @@
 
                 <!-- تذييل الصفحة 2 -->
                 <div class="page-footer-bar">
-                    <span>منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر · كشف نقط الفرض المحروس رقم ${examNum} (${escapeHtml(className)})</span>
+                    <span>منظومة التدبير التربوي - مادة الرياضيات - ${escapeHtml(teacher)} · كشف نقط الفرض المحروس رقم ${examNum} (${escapeHtml(className)})</span>
                     <span style="font-weight: 900; color: #1e3a8a;">الصفحة 2 من 2</span>
                 </div>
             </div>
@@ -1793,6 +1927,7 @@
             window.openCustomPrintPreviewModal(htmlContent, {
                 title: `تقرير_الفرض_المحروس_${examNum}_${className}`,
                 orientation: 'portrait',
+                margins: { preset: 'narrow', top: 6, right: 8, bottom: 6, left: 8 },
                 subtitle: `تقرير إحصائي وتربوي مفصل من صفحتين (A4) — القسم: ${className} | الفرض المحروس رقم ${examNum}`
             });
             return;
@@ -1835,7 +1970,7 @@
     }
 
     function escapeHtml(str) {
-        if (!str) return '';
+        if (str === null || str === undefined) return '';
         return String(str)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
@@ -1901,7 +2036,7 @@
         const inputEl = document.getElementById(customInputId || `inlineMakeupMark_${studentId}`);
         if (!inputEl) return;
 
-        const rawVal = (inputEl.value || '').trim();
+        const rawVal = (inputEl.value || '').trim().replace(',', '.');
         const parsed = parseFloat(rawVal);
         if (isNaN(parsed) || parsed < 0 || parsed > 20) {
             if (typeof window.showToast === 'function') {
@@ -1943,7 +2078,7 @@
             studentId,
             justification: existing.justification || existing.justificationType || 'justified_medical',
             justificationType: existing.justificationType || existing.justification || 'justified_medical',
-            makeupDate: existing.makeupDate || new Date().toISOString().split('T')[0],
+            makeupDate: existing.makeupDate || formatLocalYMD(getAppLocalNow()),
             timeSlot: existing.timeSlot || '10:00 - 11:00',
             room: existing.room || 'قاعة الرياضيات',
             makeupMark: parsed,
@@ -2007,7 +2142,7 @@
 
         const registry = getOrInitMakeupExamsRegistry();
         const mKey = getMakeupExamKey(className, semester, examKey, studentId);
-        const defaultMakeupDate = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
+        const defaultMakeupDate = addDaysLocalYMD(3);
 
         registry[mKey] = {
             className,
@@ -2050,7 +2185,7 @@
         const completedMakeups = extracted.completedMakeups || [];
         const allStudents = extracted.allStudents || [];
 
-        const defaultDate = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
+        const defaultDate = addDaysLocalYMD(3);
         const firstInfo = (absents[0] && absents[0].makeupInfo) || {};
         const unifiedDate = firstInfo.makeupDate || defaultDate;
         const unifiedTime = firstInfo.timeSlot || '10:00 - 11:00';
@@ -2121,7 +2256,7 @@
                             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                                 <select id="makeupQuickAddAbsentStudent" style="padding:6px 10px; border:1px solid #cbd5e1; border-radius:7px; font-size:0.78rem; font-weight:700; min-width:210px;">
                                     <option value="">-- إضافة تلميذ(ة) إلى لائحة الغائبين (غ) --</option>
-                                    ${nonAbsentStudents.map(s => `<option value="${s.id}">#${s.order} ${escapeHtml(s.name)} (${s.mark !== null ? s.mark + '/20' : 'بدون نقطة'})</option>`).join('')}
+                                    ${nonAbsentStudents.map(s => `<option value="${escapeHtml(s.id)}">#${s.order} ${escapeHtml(s.name)} (${s.mark !== null ? s.mark + '/20' : 'بدون نقطة'})</option>`).join('')}
                                 </select>
                                 <button type="button" onclick="const sel=document.getElementById('makeupQuickAddAbsentStudent'); if(sel && sel.value) window.markStudentAbsentForCurrentExam(sel.value);" style="background:#f1f5f9; color:#be123c; border:1px solid #fda4af; border-radius:7px; padding:6px 10px; font-size:0.76rem; font-weight:800; cursor:pointer;">
                                     ➕ تسجيل كغائب (غ)
@@ -2169,7 +2304,7 @@
                                                     <div style="font-size:0.71rem; color:#64748b;">مسار: ${escapeHtml(std.massar || '---')}</div>
                                                 </td>
                                                 <td style="padding:8px 10px;">
-                                                    <select onchange="window.quickUpdateMakeupJustification('${std.id}', this.value)" style="width:100%; padding:5px 7px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.75rem; font-weight:700;">
+                                                    <select onchange="window.quickUpdateMakeupJustification('${escapeJsAttr(std.id)}', this.value)" style="width:100%; padding:5px 7px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.75rem; font-weight:700;">
                                                         <option value="justified_medical" ${justStatus === 'justified_medical' ? 'selected' : ''}>✅ مبرر (شهادة طبية)</option>
                                                         <option value="justified_admin" ${justStatus === 'justified_admin' ? 'selected' : ''}>✅ مبرر (ترخيص إداري/عائلي)</option>
                                                         <option value="pending" ${justStatus === 'pending' ? 'selected' : ''}>⏳ في طور التبرير</option>
@@ -2181,8 +2316,8 @@
                                                 </td>
                                                 <td style="padding:8px 10px; text-align:center;">
                                                     <div style="display:inline-flex; align-items:center; gap:5px;">
-                                                        <input type="number" id="modalMakeupMark_${std.id}" min="0" max="20" step="0.25" placeholder="0 - 20" style="width:76px; padding:5px; border:1.5px solid #059669; border-radius:6px; text-align:center; font-weight:800; background:#f0fdf4;">
-                                                        <button type="button" onclick="window.applyMakeupExamMarkInline('${std.id}', 'modalMakeupMark_${std.id}')" style="background:#059669; color:#fff; border:none; border-radius:6px; padding:5px 10px; font-size:0.75rem; font-weight:800; cursor:pointer;">
+                                                        <input type="number" id="modalMakeupMark_${escapeHtml(std.id)}" min="0" max="20" step="0.25" placeholder="0 - 20" style="width:76px; padding:5px; border:1.5px solid #059669; border-radius:6px; text-align:center; font-weight:800; background:#f0fdf4;">
+                                                        <button type="button" onclick="window.applyMakeupExamMarkInline('${escapeJsAttr(std.id)}', 'modalMakeupMark_${escapeJsAttr(std.id)}')" style="background:#059669; color:#fff; border:none; border-radius:6px; padding:5px 10px; font-size:0.75rem; font-weight:800; cursor:pointer;">
                                                             💾 مسك النقطة
                                                         </button>
                                                     </div>
@@ -2238,7 +2373,7 @@
         const examKey = normalizeExamKey(document.getElementById('examReportNumber')?.value || 'f1');
         const examNum = examKey.replace('f', '');
 
-        const makeupDate = document.getElementById('makeupModalDate')?.value || new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
+        const makeupDate = document.getElementById('makeupModalDate')?.value || addDaysLocalYMD(3);
         const timeSlot = document.getElementById('makeupModalTime')?.value || '10:00 - 11:00';
         const room = document.getElementById('makeupModalRoom')?.value || 'قاعة الرياضيات';
         const topics = document.getElementById('makeupModalTopics')?.value || '';
@@ -2348,7 +2483,7 @@
         });
 
         const firstInfo = (targetList[0] && targetList[0].makeupInfo) || {};
-        const makeupDate = document.getElementById('makeupModalDate')?.value || document.getElementById('massarMakeupDateInput')?.value || firstInfo.makeupDate || new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
+        const makeupDate = document.getElementById('makeupModalDate')?.value || document.getElementById('massarMakeupDateInput')?.value || firstInfo.makeupDate || addDaysLocalYMD(3);
         const timeSlot = document.getElementById('makeupModalTime')?.value || document.getElementById('massarMakeupStartTimeSelect')?.value || firstInfo.timeSlot || '10:00 - 11:00';
         const room = document.getElementById('makeupModalRoom')?.value || document.getElementById('massarMakeupRoomInput')?.value || firstInfo.room || 'قاعة الرياضيات';
         const topics = document.getElementById('makeupModalTopics')?.value || document.getElementById('massarMakeupTopicsInput')?.value || firstInfo.topics || document.getElementById('examReportTopics')?.value || `موضوع مكافئ للفرض المحروس رقم ${examNum} يغطي نفس الكفايات والمضامين المقررة`;
@@ -2379,7 +2514,7 @@
                         <td style="text-align:center; font-weight:800; color:#1e3a8a;">${escapeHtml(mDate)}</td>
                         <td style="text-align:center;"></td>
                         <td style="text-align:center;">${markDisplay}</td>
-                        <td style="text-align:center; font-size:7.8pt;">${statusLabel}</td>
+                        <td style="text-align:center; font-size:7.8pt;">${escapeHtml(statusLabel)}</td>
                     </tr>
                 `;
             }).join('')
@@ -2392,14 +2527,19 @@
                 </tr>
             `).join('');
 
-        const convocationsSlipsHtml = (absents.length > 0 ? absents.slice(0, 2) : [{ name: '........................................', order: '..', massar: '............' }]).map(std => `
-            <div style="border: 1.5px dashed #1e3a8a; border-radius: 8px; padding: 8px 12px; background: #f8fafc; margin-top: 6px; page-break-inside: avoid;">
+        const slipsTargets = targetList.filter(t => t.isAbsent);
+        const slipsSource = slipsTargets.length > 0
+            ? slipsTargets
+            : (absents.length > 0 ? absents : [{ name: '........................................', order: '..', massar: '............' }]);
+
+        const convocationsSlipsHtml = slipsSource.map(std => `
+            <div style="border: 1.5px dashed #1e3a8a; border-radius: 8px; padding: 8px 12px; background: #f8fafc; margin-top: 6px; page-break-inside: avoid; break-inside: avoid;">
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 5px; font-size: 8pt;">
-                    <strong>✂️ وصل استدعاء لاجتياز الفرض المحروس التعويضي رقم ${examNum} (${escapeHtml(className)}) — مادة الرياضيات</strong>
+                    <strong>✂️ وصل استدعاء لاجتياز الفرض المحروس التعويضي رقم ${escapeHtml(examNum)} (${escapeHtml(className)}) — مادة الرياضيات</strong>
                     <span style="color: #1e3a8a; font-weight: 800;">المؤسسة: ${escapeHtml(meta.school)}</span>
                 </div>
                 <div style="font-size: 8.5pt; line-height: 1.55;">
-                    يتعين على التلميذ(ة): <strong style="color: #1e3a8a;">${escapeHtml(std.name)}</strong> (الرقم الترتيبي: <strong>${std.order}</strong> | رمز مسار: <strong>${escapeHtml(std.massar || '---')}</strong>) الحضور لاجتياز <strong>الفرض المحروس التعويضي رقم ${examNum}</strong> في مادة الرياضيات، وذلك يوم: <strong style="color: #991b1b;">${escapeHtml(makeupDate)}</strong> على الساعة: <strong>${escapeHtml(timeSlot)}</strong> بـ: <strong>${escapeHtml(room)}</strong>، تعويضاً عن الفرض المجرى بتاريخ ${escapeHtml(originalPassDate)} (عملاً بمقتضيات المذكرة الوزارية 142-08).
+                    يتعين على التلميذ(ة): <strong style="color: #1e3a8a;">${escapeHtml(std.name)}</strong> (الرقم الترتيبي: <strong>${escapeHtml(std.order)}</strong> | رمز مسار: <strong>${escapeHtml(std.massar || '---')}</strong>) الحضور لاجتياز <strong>الفرض المحروس التعويضي رقم ${escapeHtml(examNum)}</strong> في مادة الرياضيات، وذلك يوم: <strong style="color: #991b1b;">${escapeHtml((std.makeupInfo && std.makeupInfo.makeupDate) || makeupDate)}</strong> على الساعة: <strong>${escapeHtml((std.makeupInfo && std.makeupInfo.timeSlot) || timeSlot)}</strong> بـ: <strong>${escapeHtml((std.makeupInfo && std.makeupInfo.room) || room)}</strong>، تعويضاً عن الفرض المجرى بتاريخ ${escapeHtml(originalPassDate)} (عملاً بمقتضيات المذكرة الوزارية 142-08).
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 8pt; color: #334155;">
                     <div>توقيع أستاذ(ة) المادة: <span class="hw-text">${escapeHtml(teacher)}</span></div>
@@ -2414,20 +2554,20 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>محضر واستدعاء الفرض المحروس التعويضي رقم ${examNum} - ${escapeHtml(className)}</title>
+    <title>محضر واستدعاء الفرض المحروس التعويضي رقم ${escapeHtml(examNum)} - ${escapeHtml(className)}</title>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700;800;900&family=Harmattan:wght@400;700&family=Marhey:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Reem+Kufi:wght@400;600;700&family=Scheherazade+New:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        @page { size: A4 portrait; margin: 0 !important; }
+        @page { size: A4 portrait; margin: 6mm 8mm !important; }
         * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         html, body {
             margin: 0 !important; padding: 0 !important;
-            width: 210mm; height: 297mm;
+            width: 210mm; min-height: 297mm;
             font-family: ${fontFamily};
             color: #0f172a; direction: rtl; background: #ffffff;
         }
         .page-container {
-            width: 210mm; height: 297mm;
-            padding: 8mm 10mm;
+            width: 100%; max-width: 210mm; min-height: 282mm;
+            padding: 4mm 6mm;
             display: flex; flex-direction: column; justify-content: space-between;
         }
         .hw-text {
@@ -2573,9 +2713,13 @@
         if (!window.db || !window.db.timetable) return null;
         const dayNamesWithHamza = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
         const dayNamesNoHamza = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+        const dayNamesEn = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const dayNamesEnLower = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         const d1 = dayNamesWithHamza[dayIdx];
         const d2 = dayNamesNoHamza[dayIdx];
-        return window.db.timetable[d1] || window.db.timetable[d2] || null;
+        const d3 = dayNamesEn[dayIdx];
+        const d4 = dayNamesEnLower[dayIdx];
+        return window.db.timetable[d1] || window.db.timetable[d2] || window.db.timetable[d3] || window.db.timetable[d4] || window.db.timetable[dayIdx] || null;
     }
 
     function getTimetableSlotsForDayIndex(dayIdx) {
@@ -2584,9 +2728,15 @@
         if (!tt) return sessions;
 
         TIMETABLE_STANDARD_SLOTS.forEach(slotDef => {
-            const cls = (tt[slotDef.code + '_class'] || '').trim();
-            const customTime = (tt[slotDef.code + '_time'] || '').trim();
-            const room = (tt[slotDef.code + '_room'] || tt.room || '').trim();
+            let cls = (tt[slotDef.code + '_class'] || '').trim();
+            if (!cls && typeof tt[slotDef.code] === 'string' && tt[slotDef.code].trim()) {
+                // يدعم الصيغة النصية المباشرة في جدول الحصص (مثلاً '2BAC-SM-1 - رياضيات' أو '2BAC-SM-1')
+                cls = tt[slotDef.code].split(/\s+[-–—]\s+/)[0].trim();
+            } else if (!cls && tt[slotDef.code] && typeof tt[slotDef.code] === 'object') {
+                cls = String(tt[slotDef.code].className || tt[slotDef.code].class || '').trim();
+            }
+            const customTime = (tt[slotDef.code + '_time'] || (tt[slotDef.code] && tt[slotDef.code].time) || '').trim();
+            const room = (tt[slotDef.code + '_room'] || (tt[slotDef.code] && tt[slotDef.code].room) || tt.room || '').trim();
             if (cls) {
                 let startStr = slotDef.start;
                 let endStr = slotDef.end;
@@ -2744,7 +2894,7 @@
     function generateSuggestedConflictFreeSlots(targetClassName = '', maxSuggestions = 6) {
         const suggestions = [];
         const candidateStartTimes = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
-        const now = new Date();
+        const now = getAppLocalNow();
 
         for (let offset = 1; offset <= 12 && suggestions.length < maxSuggestions; offset++) {
             const d = new Date(now.getTime() + offset * 86400000);
@@ -2850,7 +3000,7 @@
                 const timeSel = document.getElementById('massarMakeupStartTimeSelect');
                 if (timeSel && suggested[0].timeStr) timeSel.value = suggested[0].timeStr;
             } else {
-                dateInput.value = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
+                dateInput.value = addDaysLocalYMD(3);
             }
         }
 
@@ -2862,14 +3012,24 @@
         const semester = document.getElementById('massarMakeupSemesterSelect')?.value || 's1';
         const examKey = document.getElementById('massarMakeupExamSelect')?.value || 'f1';
 
-        // تحديث شارة المعامل وعدد الفروض
+        // تحديث شارة المعامل وعدد الفروض وفق المذكرة الوزارية 142-08
         const badge = document.getElementById('massarMakeupClassNormBadge');
         if (badge && className) {
             let coef = 4, exams = 3;
-            if (className.includes('SM') || className.includes('رياضية')) { coef = 9; exams = 4; }
-            else if (className.includes('PC') || className.includes('SVT') || className.includes('تجريبية') || className.includes('تكنولوجية')) { coef = 7; exams = 3; }
-            else if (className.includes('TCS') || className.includes('مشترك علمي')) { coef = 4; exams = 3; }
-            else if (className.includes('آداب') || className.includes('أصيل') || className.includes('إنسانية')) { coef = 2; exams = 2; }
+            if (window.GradesCalculator && typeof window.GradesCalculator.getStreamOfficialConfig === 'function') {
+                const cfg = window.GradesCalculator.getStreamOfficialConfig(className);
+                coef = cfg.coefficient || coef;
+                exams = cfg.examsPerSemester || exams;
+            } else {
+                const up = className.toUpperCase();
+                if (up.includes('SM') || className.includes('رياضية')) { coef = 9; exams = 4; }
+                else if (up.includes('STE') || up.includes('STM') || className.includes('تكنولوجية')) { coef = 6; exams = 3; }
+                else if (up.includes('PC') || up.includes('SVT') || up.includes('EXP') || className.includes('تجريبية')) { coef = 7; exams = 3; }
+                else if (up.includes('ECO') || up.includes('SGC') || className.includes('اقتصاد') || className.includes('تدبير')) { coef = 4; exams = 3; }
+                else if (up.includes('LSH') || className.includes('آداب') || className.includes('إنسانية')) { coef = 1; exams = 2; }
+                else if (up.includes('TCL') || up.includes('TCO')) { coef = 2; exams = 2; }
+                else if (up.includes('TCS') || up.includes('TCT') || className.includes('مشترك علمي')) { coef = 4; exams = 3; }
+            }
             badge.textContent = `معامل ${coef} • ${exams} فروض`;
         }
 
@@ -3045,9 +3205,10 @@
             const best = suggestions[0];
             selectSuggestedMakeupSlot(best.dateStr, best.timeStr, best.room);
         } else {
-            const targetDate = new Date(Date.now() + 3 * 86400000);
+            const targetDate = getAppLocalNow();
+            targetDate.setDate(targetDate.getDate() + 3);
             if (targetDate.getDay() === 0) targetDate.setDate(targetDate.getDate() + 1);
-            const dateStr = targetDate.toISOString().split('T')[0];
+            const dateStr = formatLocalYMD(targetDate);
             selectSuggestedMakeupSlot(dateStr, '10:00', 'قاعة الرياضيات');
         }
     }
@@ -3144,11 +3305,13 @@
             return;
         }
 
-        const students = Array.isArray(window.db.classes[className]) ? window.db.classes[className] : (window.db.classes[className].students || []);
+        const clsObj = window.db && window.db.classes && window.db.classes[className];
+        if (!clsObj) return;
+        const students = Array.isArray(clsObj) ? clsObj : (clsObj.students || []);
         const std = students.find(s => String(s.id) === String(studentId));
         if (!std) return;
 
-        let dateVal = document.getElementById('massarMakeupDateInput')?.value || new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
+        let dateVal = document.getElementById('massarMakeupDateInput')?.value || addDaysLocalYMD(3);
         let timeVal = document.getElementById('massarMakeupStartTimeSelect')?.value || '10:00';
         const durationVal = parseInt(document.getElementById('massarMakeupDurationSelect')?.value || '60', 10);
 
@@ -3240,7 +3403,7 @@
         const semester = document.getElementById('massarMakeupSemesterSelect')?.value || 's1';
         const examKey = document.getElementById('massarMakeupExamSelect')?.value || 'f1';
         const examNum = examKey.replace('f', '');
-        const dateVal = document.getElementById('massarMakeupDateInput')?.value || new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
+        const dateVal = document.getElementById('massarMakeupDateInput')?.value || addDaysLocalYMD(3);
         const timeVal = document.getElementById('massarMakeupStartTimeSelect')?.value || '10:00';
         const roomVal = document.getElementById('massarMakeupRoomInput')?.value || 'قاعة الرياضيات';
         const topicsVal = document.getElementById('massarMakeupTopicsInput')?.value || '';
@@ -3408,18 +3571,18 @@
                                 </td>
                                 <td style="padding: 7px 10px;">
                                     <div style="display: flex; align-items: center; gap: 4px;">
-                                        <input type="number" min="0" max="20" step="0.25" value="${markVal}"
-                                            id="${inputId}"
+                                        <input type="number" min="0" max="20" step="0.25" value="${escapeHtml(markVal)}"
+                                            id="${escapeHtml(inputId)}"
                                             placeholder="نقطة /20"
                                             style="width: 68px; padding: 3px 5px; border: 1.5px solid ${isCompleted ? '#10b981' : '#cbd5e1'}; border-radius: 5px; text-align: center; font-weight: 800; font-size: 0.78rem; background: #fff;">
-                                        <button type="button" onclick="window.applyMakeupExamMarkInline('${escapeHtml(e.studentId)}', '${inputId}', '${escapeHtml(e.className)}', '${escapeHtml(e.semester)}', '${escapeHtml(e.examKey)}')"
+                                        <button type="button" onclick="window.applyMakeupExamMarkInline('${escapeJsAttr(e.studentId)}', '${escapeJsAttr(inputId)}', '${escapeJsAttr(e.className)}', '${escapeJsAttr(e.semester)}', '${escapeJsAttr(e.examKey)}')"
                                             style="background: #059669; color: #fff; border: none; border-radius: 5px; padding: 4px 8px; font-size: 0.72rem; font-weight: 800; cursor: pointer;" title="حفظ النقطة وتحديث سجل النقط الرسمي للقسم">
                                             ${isCompleted ? 'تحديث' : 'مسك'}
                                         </button>
                                     </div>
                                 </td>
                                 <td style="padding: 7px 10px; text-align: center;">
-                                    <button type="button" onclick="window.deleteMassarMakeupScheduleEntry('${escapeHtml(mKey)}')"
+                                    <button type="button" onclick="window.deleteMassarMakeupScheduleEntry('${escapeJsAttr(mKey)}')"
                                         style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; border-radius: 5px; padding: 3px 7px; font-size: 0.72rem; font-weight: 700; cursor: pointer;" title="حذف من جدول الفروض التعويضية">
                                         🗑️
                                     </button>
@@ -3456,7 +3619,7 @@
 
         for (let i = 1; i <= maxExams; i++) {
             const examKey = `f${i}`;
-            const { marks, absents, totalStudents } = extractExamMarksFromDB(className, semester, examKey);
+            const { marks, absents, totalStudents } = extractExamMarksFromDB(className, semester, examKey, false);
             const stats = computeExamStats(marks, totalStudents, absents.length);
             let delta = null;
             if (stats.presentCount > 0 && prevAvg !== null) {
@@ -3700,6 +3863,76 @@
     window.printMassarMakeupConvocationFromGuide = printMassarMakeupConvocationFromGuide;
     window.renderMassarMakeupSchedulerTable = renderMassarMakeupSchedulerTable;
     window.deleteMassarMakeupScheduleEntry = deleteMassarMakeupScheduleEntry;
+    window.prefillOfficialNote142ExamContent = function () {
+        const className = getSelectedClassForReport();
+        const semesterEl = document.getElementById('examReportSemester');
+        const examNumEl = document.getElementById('examReportNumber');
+        const semester = semesterEl ? semesterEl.value : 's1';
+        const examNum = examNumEl ? parseInt(examNumEl.value, 10) || 1 : 1;
+
+        if (!className || typeof window.getCurriculumLevelForClass !== 'function' || !window.MOROCCAN_SECONDARY_MATH_CURRICULUM) {
+            if (typeof window.showToast === 'function') window.showToast('يرجى اختيار قسم محدد أولاً لاستيراد بيانات المذكرة 142-08', 'warning');
+            return;
+        }
+        const trackKey = window.getCurriculumLevelForClass(className);
+        const lvlData = window.MOROCCAN_SECONDARY_MATH_CURRICULUM[trackKey];
+        if (!lvlData) return;
+
+        const durEl = document.getElementById('examReportDuration');
+        const coefEl = document.getElementById('examReportCoef');
+        const topicsEl = document.getElementById('examReportTopics');
+        const scaleEl = document.getElementById('examReportGradingScale');
+
+        if (durEl) {
+            if (typeof lvlData.examDuration === 'number' && lvlData.examDuration >= 1 && lvlData.examDuration <= 4) {
+                durEl.value = `${lvlData.examDuration}h`;
+            } else {
+                durEl.value = lvlData.examDuration === 1 ? '1h' : '2h';
+            }
+        }
+        if (coefEl && lvlData.coefficient) coefEl.value = lvlData.coefficient;
+
+        const semObj = lvlData.semesters && lvlData.semesters[semester];
+        const exMatch = (semObj && Array.isArray(semObj.examSchedule))
+            ? (semObj.examSchedule.find(e => e.examNumber === examNum) || semObj.examSchedule[examNum - 1])
+            : null;
+
+        if (exMatch) {
+            if (topicsEl && exMatch.topics) topicsEl.value = exMatch.topics;
+            if (scaleEl && exMatch.officialWeights && typeof window.parseOfficialWeightsTo20Scale === 'function') {
+                const parsedScale = window.parseOfficialWeightsTo20Scale(exMatch.officialWeights);
+                const formattedScale = (parsedScale && typeof parsedScale === 'object')
+                    ? (parsedScale.formattedScale || '')
+                    : String(parsedScale || '');
+                if (formattedScale) scaleEl.value = formattedScale;
+            }
+        }
+        if (typeof window.showToast === 'function') {
+            window.showToast(`✅ تم استيراد الدروس والباريم الرسمي للفرض ${examNum} (${semester === 's1' ? 'الدورة 1' : 'الدورة 2'}) وفق المذكرة 142-08`, 'success');
+        }
+    };
+
+    window.openCurrentExamSpecificationTable = function () {
+        const className = getSelectedClassForReport();
+        const semesterEl = document.getElementById('examReportSemester');
+        const examNumEl = document.getElementById('examReportNumber');
+        const semester = semesterEl ? semesterEl.value : 's1';
+        const examNum = examNumEl ? parseInt(examNumEl.value, 10) || 1 : 1;
+
+        if (typeof window.openSpecificationTableFromCurriculum === 'function') {
+            const trackKey = (typeof window.getCurriculumLevelForClass === 'function' && className)
+                ? window.getCurriculumLevelForClass(className)
+                : 'TCS';
+            window.openSpecificationTableFromCurriculum(trackKey, semester, examNum);
+        } else if (typeof window.buildSpecificationPdfHTML === 'function' && typeof window.openCustomPrintPreviewModal === 'function') {
+            const htmlDoc = window.buildSpecificationPdfHTML(className || 'TCS', { semester, examNumber: examNum });
+            window.openCustomPrintPreviewModal(htmlDoc, {
+                title: `جدول_التخصيص_الرسمي_142_08_${className || 'الرياضيات'}_الفرض_${examNum}`,
+                orientation: 'portrait'
+            });
+        }
+    };
+
     window.cleanupExamReportMemory = function () {
         cachedExamStudentsData = {
             allStudents: [],

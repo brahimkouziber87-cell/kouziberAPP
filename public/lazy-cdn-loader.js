@@ -248,6 +248,7 @@
     'openCustomFunctionPlotterModal',
     'drawSpaceOrProbTemplate',
     'insertCurrentLessonHeaderOnBoard',
+    'openLessonHeaderModal',
     'toggleBoardExerciseTimer',
     'saveBoardToLessonLog',
     'addBoardPage',

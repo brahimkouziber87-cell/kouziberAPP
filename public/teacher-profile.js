@@ -16,191 +16,49 @@
         }
         const tp = window.db.teacherProfile;
 
-        // استكمال الحقول الإدارية والمهنية في حال كانت غير معرّفة
-        if (!tp.name) tp.name = 'أستاذ مادة الرياضيات';
+        // استكمال الحقول الإدارية والمهنية بقيم فارغة ونظيفة في حال كانت غير معرّفة
+        if (tp.name === undefined) tp.name = '';
         if (tp.nameFr === undefined) tp.nameFr = '';
-        if (tp.ppr === undefined) tp.ppr = ''; // رقم التأجير
-        if (tp.cin === undefined) tp.cin = ''; // رقم البطاقة الوطنية
-        if (tp.specialty === undefined) tp.specialty = 'مادة الرياضيات - التعليم الثانوي التأهيلي';
-        if (tp.framework === undefined) tp.framework = 'أستاذ التعليم الثانوي التأهيلي';
-        if (tp.scale === undefined) tp.scale = 'السلم 11 - الدرجة الأولى';
-        if (tp.echelon === undefined) tp.echelon = 'الرتبة 6';
-        if (tp.hireDate === undefined) tp.hireDate = '2015-09-02'; // تاريخ التوظيف
-        if (tp.gradeDate === undefined) tp.gradeDate = '2021-01-01'; // تاريخ التسمية في الدرجة
-        if (tp.schoolSeniorityDate === undefined) tp.schoolSeniorityDate = '2020-09-01'; // الأقدمية في المؤسسة
-        if (tp.school === undefined) tp.school = 'الثانوية التأهيلية';
-        if (tp.directorate === undefined) tp.directorate = 'المديرية الإقليمية للتربية والتكوين';
-        if (tp.academy === undefined) tp.academy = 'الأكاديمية الجهوية للتربية والتكوين';
+        if (tp.ppr === undefined) tp.ppr = '';
+        if (tp.cin === undefined) tp.cin = '';
+        if (tp.specialty === undefined) tp.specialty = '';
+        if (tp.framework === undefined) tp.framework = '';
+        if (tp.scale === undefined) tp.scale = '';
+        if (tp.echelon === undefined) tp.echelon = '';
+        if (tp.hireDate === undefined) tp.hireDate = '';
+        if (tp.gradeDate === undefined) tp.gradeDate = '';
+        if (tp.schoolSeniorityDate === undefined) tp.schoolSeniorityDate = '';
+        if (tp.school === undefined) tp.school = '';
+        if (tp.directorate === undefined) tp.directorate = '';
+        if (tp.academy === undefined) tp.academy = '';
         if (tp.city === undefined) tp.city = '';
         if (tp.email === undefined) tp.email = '';
         if (tp.phone === undefined) tp.phone = '';
-        if (tp.bio === undefined) {
-            tp.bio = 'أستاذ التعليم الثانوي التأهيلي لمادة الرياضيات، متخصص في البيداغوجيا النشطة وتوظيف التكنولوجيا الحديثة والبرمجيات الديداكتيكية (GeoGebra, LaTeX) في تعليم وتعلم الرياضيات، والتحضير للامتحانات الإشهادية والأولمبياد المدرسي.';
-        }
+        if (tp.bio === undefined) tp.bio = '';
 
         // حقول الصورة الشخصية وشعار المؤسسة التعليمية
         if (tp.avatarDataUrl === undefined) tp.avatarDataUrl = '';
         if (tp.schoolLogoDataUrl === undefined) tp.schoolLogoDataUrl = '';
         if (tp.primaryHeaderImage === undefined) tp.primaryHeaderImage = 'both'; // 'both' | 'avatar' | 'logo'
 
-        // المؤهلات الأكاديمية والشواهد
-        if (!Array.isArray(tp.qualifications) || tp.qualifications.length === 0) {
-            tp.qualifications = [
-                {
-                    id: 'q_1',
-                    title: 'شهادة التأهيل التربوي للتعليم الثانوي التأهيلي',
-                    field: 'ديداكتيك وتدريس مادة الرياضيات',
-                    institution: 'المركز الجهوي لمهن التربية والتكوين (CRMEF)',
-                    year: '2015',
-                    grade: 'ميزة حسن جداً',
-                    type: 'شهادة تأهيل تربوي ومهني'
-                },
-                {
-                    id: 'q_2',
-                    title: 'الإجازة في الدراسات الأساسية (مسلك العلوم الرياضية والتطبيقات SMA)',
-                    field: 'الرياضيات البحتة والتطبيقية',
-                    institution: 'كلية العلوم - جامعة محمد الخامس',
-                    year: '2014',
-                    grade: 'ميزة حسن',
-                    type: 'شهادة جامعية أكاديمية'
-                },
-                {
-                    id: 'q_3',
-                    title: 'شهادة البكالوريا - مسلك العلوم الرياضية (أ)',
-                    field: 'العلوم الرياضية والفيزيائية',
-                    institution: 'وزارة التربية الوطنية',
-                    year: '2011',
-                    grade: 'ميزة حسن جداً',
-                    type: 'شهادة جامعية أكاديمية'
-                },
-                {
-                    id: 'q_4',
-                    title: 'شهادة الكفاءة المهنية للتدريس بالثانوي التأهيلي',
-                    field: 'التربية والتكوين - مادة الرياضيات',
-                    institution: 'الأكاديمية الجهوية للتربية والتكوين',
-                    year: '2016',
-                    grade: 'ميزة حسن جداً',
-                    type: 'شهادة تأهيل تربوي ومهني'
-                }
-            ];
+        // المؤهلات الأكاديمية والشواهد (تبدأ فارغة بدون بيانات تجريبية)
+        if (!Array.isArray(tp.qualifications)) {
+            tp.qualifications = [];
         }
 
-        // الإنجازات والأنشطة التربوية والديداكتيكية
-        if (!Array.isArray(tp.achievements) || tp.achievements.length === 0) {
-            tp.achievements = [
-                {
-                    id: 'ach_1',
-                    title: 'تأطير نادي الرياضيات والأولمبياد المدرسي',
-                    category: 'نادي تربوي وتفوق',
-                    categoryKey: 'olympiad',
-                    date: '2025 - 2026',
-                    description: 'إعداد وتأطير فريق المؤسسة في الأولمبياد الوطنية للرياضيات وتحقيق مراتب جهوية متقدمة وتأهل تلميذين للإقصائيات الوطنية.',
-                    icon: 'award',
-                    color: '#7c3aed'
-                },
-                {
-                    id: 'ach_2',
-                    title: 'إنتاج حقيبة ديداكتيكية رقمية تفاعلية ببرمجية GeoGebra ثلاثية الأبعاد',
-                    category: 'موارد رقمية وديداكتيك',
-                    categoryKey: 'digital',
-                    date: '2024 - 2025',
-                    description: 'تصميم أكثر من 45 محاكاة تفاعلية ثلاثية الأبعاد وثنائية الأبعاد في الهندسة الفضائية ودراسة الدوال العددية لفائدة تلاميذ الثانية باكالوريا.',
-                    icon: 'sparkles',
-                    color: '#0284c7'
-                },
-                {
-                    id: 'ach_3',
-                    title: 'المشاركة الفعالة في لجان تصحيح الامتحان الوطني الموحد للبكالوريا',
-                    category: 'امتحانات إشهادية',
-                    categoryKey: 'exam',
-                    date: '2023 - 2025',
-                    description: 'المشاركة في مراكز التصحيح الإقليمية لعدة دورات عادية واستدراكية، مع تقديم تقرير بيداغوجي تحليلي حول مواطن تعثر المترشحين في المسائل التوليفية.',
-                    icon: 'file-check',
-                    color: '#059669'
-                },
-                {
-                    id: 'ach_4',
-                    title: 'تنظيم برنامج الدعم التربوي المؤسساتي الموجه والمعالجة البيداغوجية',
-                    category: 'دعم ومعالجة',
-                    categoryKey: 'support',
-                    date: '2024 - 2026',
-                    description: 'تأطير ورشات المعالجة البيداغوجية الموجهة للتلاميذ المتعثرين في الرياضيات وتحقيق نسبة تحسن ملحوظة في نتائج المراقبة المستمرة بلغت +40%.',
-                    icon: 'trending-up',
-                    color: '#ea580c'
-                },
-                {
-                    id: 'ach_5',
-                    title: 'شهادة تقدير وتكريم من المديرية الإقليمية للتربية والتكوين',
-                    category: 'تقدير وتميز',
-                    categoryKey: 'honor',
-                    date: '2024',
-                    description: 'الحصول على شهادة تقديرية تثميناً للمجهودات المتميزة والمبادرات البيداغوجية الرائدة في إدماج الوسائل الرقمية وتطوير تدريس الرياضيات.',
-                    icon: 'medal',
-                    color: '#e11d48'
-                }
-            ];
+        // الإنجازات والأنشطة التربوية والديداكتيكية (تبدأ فارغة بدون بيانات تجريبية)
+        if (!Array.isArray(tp.achievements)) {
+            tp.achievements = [];
         }
 
-        // محطات المسار المهني والمؤسسات السابقة
-        if (!Array.isArray(tp.careerStations) || tp.careerStations.length === 0) {
-            tp.careerStations = [
-                {
-                    id: 'car_1',
-                    role: 'أستاذ التعليم الثانوي التأهيلي لمادة الرياضيات',
-                    school: tp.school || 'الثانوية التأهيلية الحالية',
-                    directorate: tp.directorate || 'المديرية الإقليمية',
-                    period: '2020 - حتى الآن',
-                    current: true,
-                    tasks: 'تدريس مستويات الثانية باكالوريا علوم والأولى باكالوريا، وتنسيق أنشطة مادة الرياضيات بالمؤسسة.'
-                },
-                {
-                    id: 'car_2',
-                    role: 'أستاذ التعليم الثانوي التأهيلي',
-                    school: 'الثانوية التأهيلية المسيرة الخضراء',
-                    directorate: 'المديرية الإقليمية للتربية والتكوين',
-                    period: '2015 - 2020',
-                    current: false,
-                    tasks: 'تدريس الجذوع المشتركة العلمية والأولى باكالوريا، وتنشيط النادي العلمي.'
-                }
-            ];
+        // محطات المسار المهني والمؤسسات السابقة (تبدأ فارغة بدون بيانات تجريبية)
+        if (!Array.isArray(tp.careerStations)) {
+            tp.careerStations = [];
         }
 
-        // التكوينات المستمرة والمهارات
-        if (!Array.isArray(tp.trainings) || tp.trainings.length === 0) {
-            tp.trainings = [
-                {
-                    id: 'tr_1',
-                    title: 'توظيف الذكاء الاصطناعي التوليدي في الديداكتيك الرقمي لمادة الرياضيات',
-                    provider: 'المركز الوطني للتجديد التربوي والتجريب',
-                    year: '2025',
-                    duration: '30 ساعة',
-                    hours: 30
-                },
-                {
-                    id: 'tr_2',
-                    title: 'استراتيجيات التدريس الصريح وتدبير الفروق الفردية والدعم المتمايز',
-                    provider: 'المديرية الإقليمية - مشروع المؤسسة المندمج',
-                    year: '2024',
-                    duration: '24 ساعة',
-                    hours: 24
-                },
-                {
-                    id: 'tr_3',
-                    title: 'إنتاج وثائق الامتحانات الموحدة والجذاذات البيداغوجية بنظام LaTeX',
-                    provider: 'الجمعية المغربية لأساتذة الرياضيات',
-                    year: '2023',
-                    duration: '40 ساعة',
-                    hours: 40
-                },
-                {
-                    id: 'tr_4',
-                    title: 'التقويم التربوي وبناء الأطر المرجعية للامتحانات الإشهادية',
-                    provider: 'الأكاديمية الجهوية للتربية والتكوين',
-                    year: '2022',
-                    duration: '18 ساعة',
-                    hours: 18
-                }
-            ];
+        // التكوينات المستمرة والمهارات (تبدأ فارغة بدون بيانات تجريبية)
+        if (!Array.isArray(tp.trainings)) {
+            tp.trainings = [];
         }
 
         return tp;
@@ -1723,7 +1581,17 @@
         }
 
         window.db.teacherProfile = tp;
-        if (typeof window.saveDB === 'function') window.saveDB();
+        window.db._lastSavedTimestamp = Date.now();
+        if (typeof window.performDBSave === 'function') {
+            window.performDBSave();
+        } else if (typeof window.saveDB === 'function') {
+            window.saveDB();
+        }
+        if (tp.email && tp.email.includes('@') && typeof window.activateDirectGmailSession === 'function') {
+            try {
+                window.activateDirectGmailSession(tp.email, true, tp.name, null, { explicitLink: true });
+            } catch (_) {}
+        }
 
         const setIfExists = (id, val) => {
             const el = document.getElementById(id);
@@ -1764,8 +1632,8 @@
     }
     window.addNewAchievement = addNewAchievement;
 
-    function deleteTeacherAchievement(id) {
-        if (!confirm('هل أنت متأكد من حذف هذا الإنجاز من الملف المهني؟')) return;
+    async function deleteTeacherAchievement(id) {
+        if (!(await window.showConfirmDialog('هل أنت متأكد من حذف هذا الإنجاز من الملف المهني؟'))) return;
         const tp = getTeacherProfile();
         if (Array.isArray(tp.achievements)) {
             tp.achievements = tp.achievements.filter(a => a.id !== id);
@@ -1794,8 +1662,8 @@
     }
     window.addNewQualification = addNewQualification;
 
-    function deleteTeacherQualification(id) {
-        if (!confirm('هل تريد حذف هذه الشهادة من السجل الأكاديمي؟')) return;
+    async function deleteTeacherQualification(id) {
+        if (!(await window.showConfirmDialog('هل تريد حذف هذه الشهادة من السجل الأكاديمي؟'))) return;
         const tp = getTeacherProfile();
         if (Array.isArray(tp.qualifications)) {
             tp.qualifications = tp.qualifications.filter(q => q.id !== id);
@@ -1825,8 +1693,8 @@
     }
     window.addNewCareerStation = addNewCareerStation;
 
-    function deleteTeacherCareerStation(id) {
-        if (!confirm('هل تريد حذف هذه المحطة الوظيفية؟')) return;
+    async function deleteTeacherCareerStation(id) {
+        if (!(await window.showConfirmDialog('هل تريد حذف هذه المحطة الوظيفية؟'))) return;
         const tp = getTeacherProfile();
         if (Array.isArray(tp.careerStations)) {
             tp.careerStations = tp.careerStations.filter(c => c.id !== id);
@@ -1855,8 +1723,8 @@
     }
     window.addNewTraining = addNewTraining;
 
-    function deleteTeacherTraining(id) {
-        if (!confirm('هل تريد حذف هذه الدورة التكوينية؟')) return;
+    async function deleteTeacherTraining(id) {
+        if (!(await window.showConfirmDialog('هل تريد حذف هذه الدورة التكوينية؟'))) return;
         const tp = getTeacherProfile();
         if (Array.isArray(tp.trainings)) {
             tp.trainings = tp.trainings.filter(tr => tr.id !== id);

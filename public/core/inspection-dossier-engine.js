@@ -76,10 +76,22 @@
                 ? clsData.lessonLog
                 : (db.lessonLogs && Array.isArray(db.lessonLogs[clsName]) ? db.lessonLogs[clsName] : []);
 
+            const loggedHours = logs.reduce((acc, l) => acc + (Number(l && (l.duration || l.hours || 1)) || 1), 0);
+            const officialWeekly = Number(streamCfg.weeklyHours) || 5;
+            const plannedAnnualHours = officialWeekly * 34;
+            const curriculumCompletionPct = Math.min(100, Number(((loggedHours / Math.max(1, plannedAnnualHours)) * 100).toFixed(1)));
+
             classSummaries.push({
                 className: clsName,
                 streamLabel: streamCfg.label,
                 coefficient: streamCfg.coefficient,
+                examsPerSemester: streamCfg.examsPerSemester || 3,
+                examDurationHours: streamCfg.examDurationHours || 2,
+                homeworkPerSemester: streamCfg.homeworkPerSemester || streamCfg.examsPerSemester || 3,
+                officialWeeklyHours: officialWeekly,
+                plannedAnnualHours,
+                loggedHours,
+                curriculumCompletionPct,
                 studentCount: students.length,
                 evaluatedCount: stats.count,
                 mean: stats.mean,
@@ -89,7 +101,7 @@
                 strugglingCount: stats.strugglingCount,
                 excellentCount: stats.excellentCount,
                 loggedSessionsCount: logs.length,
-                weeklyHours: ttSummary.byClass[clsName] || 0
+                weeklyHours: ttSummary.byClass[clsName] || officialWeekly
             });
         });
 
@@ -99,11 +111,16 @@
             generatedDate: new Date().toISOString().slice(0, 10),
             semesterLabel: semester === 's2' ? 'الأسدس الثاني' : 'الأسدس الأول',
             teacher: {
-                name: profile.name || 'الأستاذ(ة) إبراهيم قزيبر',
+                name: profile.name || 'أستاذ(ة) المادة',
                 academy: profile.academy || 'الأكاديمية الجهوية للتربية والتكوين',
                 directorate: profile.directorate || 'المديرية الإقليمية',
                 school: profile.school || 'المؤسسة التعليمية',
-                academicYear: profile.academicYear || '2025/2026'
+                academicYear: profile.academicYear || (() => {
+                    if (typeof window.getCurrentAcademicYear === 'function') return window.getCurrentAcademicYear();
+                    const now = new Date();
+                    const y = now.getFullYear();
+                    return (now.getMonth() + 1) >= 9 ? `${y}/${y + 1}` : `${y - 1}/${y}`;
+                })()
             },
             totalClasses: classNames.length,
             totalStudents: totalStudentsAll,
@@ -125,16 +142,17 @@
                     <td style="padding:7px;border:1px solid #cbd5e1;font-weight:800;color:#1e3a8a;">${escapeText(c.className)}</td>
                     <td style="padding:7px;border:1px solid #cbd5e1;">${escapeText(c.streamLabel)}</td>
                     <td style="padding:7px;border:1px solid #cbd5e1;text-align:center;font-weight:800;">${c.coefficient}</td>
+                    <td style="padding:7px;border:1px solid #cbd5e1;text-align:center;font-weight:700;color:#6d28d9;">${c.examsPerSemester || 3} (${c.examDurationHours || 2}س)</td>
                     <td style="padding:7px;border:1px solid #cbd5e1;text-align:center;">${c.studentCount}</td>
                     <td style="padding:7px;border:1px solid #cbd5e1;text-align:center;font-weight:800;color:#0f172a;">${c.mean.toFixed(2)}</td>
                     <td style="padding:7px;border:1px solid #cbd5e1;text-align:center;font-weight:800;color:${c.passRate >= 50 ? '#166534' : '#991b1b'};">${c.passRate}%</td>
                     <td style="padding:7px;border:1px solid #cbd5e1;text-align:center;">${c.stdDev.toFixed(2)}</td>
                     <td style="padding:7px;border:1px solid #cbd5e1;text-align:center;color:#065f46;font-weight:800;">${c.excellentCount}</td>
                     <td style="padding:7px;border:1px solid #cbd5e1;text-align:center;color:#991b1b;font-weight:800;">${c.strugglingCount}</td>
-                    <td style="padding:7px;border:1px solid #cbd5e1;text-align:center;">${c.loggedSessionsCount}</td>
+                    <td style="padding:7px;border:1px solid #cbd5e1;text-align:center;font-weight:700;">${c.loggedSessionsCount} حصة (${c.loggedHours || 0}س / ${c.plannedAnnualHours || 170}س)</td>
                 </tr>
             `).join('')
-            : `<tr><td colspan="11" style="padding:14px;text-align:center;border:1px solid #cbd5e1;color:#64748b;">لا توجد أقسام مسجلة حالياً</td></tr>`;
+            : `<tr><td colspan="12" style="padding:14px;text-align:center;border:1px solid #cbd5e1;color:#64748b;">لا توجد أقسام مسجلة حالياً</td></tr>`;
 
         const remRowsHtml = model.remediationTargets.length > 0
             ? model.remediationTargets.slice(0, 12).map((r, idx) => `
@@ -150,7 +168,7 @@
             : `<tr><td colspan="6" style="padding:12px;text-align:center;border:1px solid #cbd5e1;color:#166534;">لا توجد حالات تعثر مسجلة دون العتبة حالياً</td></tr>`;
 
         return `
-            <div class="report-page" style="font-family:'Cairo',sans-serif;direction:rtl;color:#0f172a;padding:10px;">
+            <div class="report-page" style="font-family:'Cairo',sans-serif;direction:rtl;color:#0f172a;padding:10px;font-variant-numeric:tabular-nums;">
                 <div style="border:2px solid #1e3a8a;border-radius:12px;padding:14px 18px;margin-bottom:16px;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;">
                     <div style="font-size:0.82rem;font-weight:800;line-height:1.6;color:#1e293b;">
                         <div>المملكة المغربية</div>
@@ -161,6 +179,7 @@
                     <div style="text-align:center;">
                         <div style="font-size:1.15rem;font-weight:900;color:#1e3a8a;">ملف التفتيش التربوي وحصيلة مجالس الأقسام</div>
                         <div style="font-size:0.84rem;font-weight:800;color:#475569;margin-top:4px;">مادة الرياضيات | ${escapeText(model.semesterLabel)} — الموسم الدراسي ${escapeText(model.teacher.academicYear)}</div>
+                        <div style="font-size:0.73rem;font-weight:700;color:#1d4ed8;margin-top:2px;">مؤطر وفق التوجيهات التربوية (نونبر 2007) والمذكرة الوزارية رقم 142-08 (16 نونبر 2007)</div>
                     </div>
                     <div style="font-size:0.82rem;font-weight:800;line-height:1.6;text-align:left;color:#1e293b;">
                         <div>الأستاذ(ة): ${escapeText(model.teacher.name)}</div>
@@ -171,22 +190,23 @@
                 </div>
 
                 <h4 style="margin:12px 0 8px 0;font-size:0.95rem;font-weight:900;color:#1e3a8a;border-right:4px solid #2563eb;padding-right:8px;">
-                    1. الحصيلة الإحصائية والبيداغوجية للأقسام المسندة
+                    1. الحصيلة الإحصائية والبيداغوجية للأقسام المسندة (وفق المذكرة 142-08)
                 </h4>
-                <table style="width:100%;border-collapse:collapse;font-size:0.78rem;margin-bottom:16px;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.76rem;margin-bottom:16px;">
                     <thead>
                         <tr style="background:#eff6ff;color:#1e3a8a;">
                             <th style="padding:7px;border:1px solid #93c5fd;">#</th>
                             <th style="padding:7px;border:1px solid #93c5fd;">القسم</th>
                             <th style="padding:7px;border:1px solid #93c5fd;">المسلك / السلك</th>
                             <th style="padding:7px;border:1px solid #93c5fd;">المعامل</th>
-                            <th style="padding:7px;border:1px solid #93c5fd;">عدد التلاميذ</th>
+                            <th style="padding:7px;border:1px solid #93c5fd;">فروض الدورة</th>
+                            <th style="padding:7px;border:1px solid #93c5fd;">التلاميذ</th>
                             <th style="padding:7px;border:1px solid #93c5fd;">المعدل العام</th>
-                            <th style="padding:7px;border:1px solid #93c5fd;">نسبة الاستيفاء (≥10)</th>
-                            <th style="padding:7px;border:1px solid #93c5fd;">الانحراف المعياري</th>
+                            <th style="padding:7px;border:1px solid #93c5fd;">الاستيفاء (≥10)</th>
+                            <th style="padding:7px;border:1px solid #93c5fd;">الانحراف</th>
                             <th style="padding:7px;border:1px solid #93c5fd;">المتفوقون (≥14)</th>
                             <th style="padding:7px;border:1px solid #93c5fd;">المتعثرون (&lt;8)</th>
-                            <th style="padding:7px;border:1px solid #93c5fd;">حصص دفتر النصوص</th>
+                            <th style="padding:7px;border:1px solid #93c5fd;">حصص دفتر النصوص والغلاف</th>
                         </tr>
                     </thead>
                     <tbody>${rowsHtml}</tbody>
@@ -195,7 +215,7 @@
                 <h4 style="margin:12px 0 8px 0;font-size:0.95rem;font-weight:900;color:#991b1b;border-right:4px solid #dc2626;padding-right:8px;">
                     2. لائحة التلاميذ ذوي الأولوية في الدعم الاستدراكي والمعالجة البيداغوجية
                 </h4>
-                <table style="width:100%;border-collapse:collapse;font-size:0.78rem;margin-bottom:20px;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.78rem;margin-bottom:16px;">
                     <thead>
                         <tr style="background:#fef2f2;color:#991b1b;">
                             <th style="padding:6px;border:1px solid #fca5a5;">رتبة الأولوية</th>
@@ -209,7 +229,13 @@
                     <tbody>${remRowsHtml}</tbody>
                 </table>
 
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:22px;text-align:center;font-size:0.82rem;font-weight:800;">
+                <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:10px 14px;margin-bottom:18px;font-size:0.76rem;line-height:1.55;color:#334155;">
+                    <div style="font-weight:900;color:#1e3a8a;margin-bottom:3px;">3. ضوابط التقويم التربوي المعتمدة وفق المذكرة الوزارية رقم 142-08 (الصفحة 9) والتوجيهات التربوية (2007):</div>
+                    <div>• <strong>بنية الفروض المحروسة:</strong> تغطية ≥ 75% من فقرات البرنامج المقررة في الفترة البينية، مع توزيع الأسئلة وفق المستويات المهارية المعتمدة: 60% م1 و40% م2 للتعليم الأصيل والآداب والفنون التطبيقية، و10% إلى 20% م3 مع التوازن بين م1 وم2 لباقي الجذوع والشعب العلمية والتقنية والاقتصادية.</div>
+                    <div>• <strong>استثمار الفروض المنزلية وحصص التصحيح:</strong> تغطية المستويين المهاريين الثاني والثالث بنسبة 30% إلى 60% في الفروض المنزلية، مع تخصيص حصة رسمية لتصحيح كل فرض محروس ودعم التعثرات المرصودة وتوثيقها في دفتر النصوص.</div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px;text-align:center;font-size:0.82rem;font-weight:800;">
                     <div style="border:1.5px dashed #94a3b8;border-radius:10px;padding:12px 10px 38px 10px;">توقيع الأستاذ(ة)</div>
                     <div style="border:1.5px dashed #94a3b8;border-radius:10px;padding:12px 10px 38px 10px;">تأشيرة السيد(ة) المدير(ة)</div>
                     <div style="border:1.5px dashed #94a3b8;border-radius:10px;padding:12px 10px 38px 10px;">تأشيرة السيد(ة) المفتش(ة) التربوي(ة)</div>

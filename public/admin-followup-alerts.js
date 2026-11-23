@@ -23,82 +23,6 @@
         if (!window.db.adminFollowUpSlips || !Array.isArray(window.db.adminFollowUpSlips)) {
             window.db.adminFollowUpSlips = [];
         }
-
-        // في حال كان السجل فارغاً عند أول تشغيل، نقوم بتجهيز نموذج تجريبي واقعي
-        // أحدهما أُرسل منذ أكثر من 48 ساعة (52 ساعة) لتمكين الأستاذ من معاينة نظام التنبيه واختباره فوراً
-        if (window.db.adminFollowUpSlips.length === 0) {
-            const now = Date.now();
-            const classesList = window.db.classes ? Object.keys(window.db.classes) : [];
-            const primaryClass = classesList[0] || '2 باك علوم رياضية (أ)';
-            const secondaryClass = classesList[1] || '1 باك علوم تجريبية (1)';
-            const tpSeed = (window.db && (window.db.teacherProfile || window.db.profile)) || {};
-            const teacherName = tpSeed.name || 'أستاذ المادة';
-
-            window.db.adminFollowUpSlips = [
-                {
-                    id: 'slip_seed_delayed_1',
-                    slipNumber: 'KM-2609-01',
-                    title: 'كشف المتابعة الإداري وحالات الإنذار المبكر',
-                    className: primaryClass,
-                    sentAt: new Date(now - 53 * 3600 * 1000).toISOString(), // 53 ساعة مضت (> 48 ساعة)
-                    sentBy: teacherName,
-                    targetOffice: 'الحراسة العامة للخارجية',
-                    channel: 'تسليم ورقي مع تأشيرة الاستلام',
-                    studentsCount: 4,
-                    criticalCount: 2,
-                    urgency: 'high',
-                    status: 'pending',
-                    reminderCount: 0,
-                    remindedAt: null,
-                    notes: 'إحالة عاجلة: تلاميذ متجاوزون لعتبة الغياب غير المبرر (أكثر من 8 ساعات) وسلوك مشوش يستدعي توجيه استدعاء رسمي لأولياء الأمور.',
-                    createdAt: new Date(now - 53 * 3600 * 1000).toISOString()
-                },
-                {
-                    id: 'slip_seed_pending_2',
-                    slipNumber: 'KM-2609-02',
-                    title: 'كشف تتبع إهمال الواجبات والتأخرات المتكررة',
-                    className: secondaryClass,
-                    sentAt: new Date(now - 18 * 3600 * 1000).toISOString(), // 18 ساعة مضت (< 48 ساعة)
-                    sentBy: teacherName,
-                    targetOffice: 'إدارة المؤسسة',
-                    channel: 'واتساب الإدارة التربوية',
-                    studentsCount: 3,
-                    criticalCount: 0,
-                    urgency: 'medium',
-                    status: 'pending',
-                    reminderCount: 0,
-                    remindedAt: null,
-                    notes: 'تقرير دوري لرصد حالات إهمال إنجاز الواجبات والتأخر الصباحي قصد التنسيق والتنبيه.',
-                    createdAt: new Date(now - 18 * 3600 * 1000).toISOString()
-                },
-                {
-                    id: 'slip_seed_responded_3',
-                    slipNumber: 'KM-2609-03',
-                    title: 'كشف حالات الغياب غير المبرر - الأسبوع المنصرم',
-                    className: primaryClass,
-                    sentAt: new Date(now - 120 * 3600 * 1000).toISOString(), // 5 أيام مضت
-                    sentBy: teacherName,
-                    targetOffice: 'الحراسة العامة للخارجية',
-                    channel: 'تسليم ورقي مع تأشيرة الاستلام',
-                    studentsCount: 2,
-                    criticalCount: 1,
-                    urgency: 'high',
-                    status: 'responded',
-                    reminderCount: 1,
-                    remindedAt: new Date(now - 70 * 3600 * 1000).toISOString(),
-                    notes: 'كشف متابعة أسبوعي للتلاميذ المتغيبين بدون إذن.',
-                    createdAt: new Date(now - 120 * 3600 * 1000).toISOString(),
-                    response: {
-                        respondedAt: new Date(now - 48 * 3600 * 1000).toISOString(),
-                        decision: 'استدعاء ولي الأمر وتوقيع التزام بالانضباط',
-                        referenceNumber: 'إداري/2026/104',
-                        notes: 'حضر ولي الأمر إلى مكتب الحراسة العامة وتم توقيع التزام خطي بالمواظبة وتعويض الساعات الضائعة.'
-                    }
-                }
-            ];
-
-            if (typeof window.saveDB === 'function') window.saveDB();
-        }
     }
 
     /**
@@ -312,21 +236,21 @@
                         <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
                             <div style="display: inline-flex; align-items: center; gap: 5px;">
                                 ${slip.status !== 'responded' ? `
-                                    <button type="button" onclick="openAdminFollowUpReminderModal('${slip.id}')" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 5px 9px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; cursor: pointer;" title="توجيه تذكير للإدارة">
+                                    <button type="button" onclick="openAdminFollowUpReminderModal('${escapeJsAttr(slip.id)}')" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 5px 9px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; cursor: pointer;" title="توجيه تذكير للإدارة">
                                         <span data-lucide="bell" data-size="12"></span> تذكير
                                     </button>
-                                    <button type="button" onclick="openAdminFollowUpResponseModal('${slip.id}')" style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 5px 9px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; cursor: pointer;" title="تسجيل رد الإدارة">
+                                    <button type="button" onclick="openAdminFollowUpResponseModal('${escapeJsAttr(slip.id)}')" style="background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 5px 9px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; cursor: pointer;" title="تسجيل رد الإدارة">
                                         <span data-lucide="check" data-size="12"></span> رد
                                     </button>
                                 ` : `
-                                    <button type="button" onclick="openAdminFollowUpResponseModal('${slip.id}')" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 5px 9px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer;" title="عرض وتعديل قرار الإدارة">
+                                    <button type="button" onclick="openAdminFollowUpResponseModal('${escapeJsAttr(slip.id)}')" style="background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 5px 9px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer;" title="عرض وتعديل قرار الإدارة">
                                         تفاصيل الرد
                                     </button>
                                 `}
-                                <button type="button" onclick="previewFollowUpSlipReport('${slip.className}')" style="background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; padding: 5px 8px; border-radius: 6px; font-size: 0.74rem; cursor: pointer;" title="معاينة وطباعة الكشف">
+                                <button type="button" onclick="previewFollowUpSlipReport('${escapeJsAttr(slip.className)}')" style="background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; padding: 5px 8px; border-radius: 6px; font-size: 0.74rem; cursor: pointer;" title="معاينة وطباعة الكشف">
                                     <span data-lucide="printer" data-size="12"></span>
                                 </button>
-                                <button type="button" onclick="deleteAdminFollowUpSlip('${slip.id}')" style="background: #fff; color: #94a3b8; border: 1px solid #e2e8f0; padding: 5px 7px; border-radius: 6px; font-size: 0.74rem; cursor: pointer;" title="حذف السجل" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">
+                                <button type="button" onclick="deleteAdminFollowUpSlip('${escapeJsAttr(slip.id)}')" style="background: #fff; color: #94a3b8; border: 1px solid #e2e8f0; padding: 5px 7px; border-radius: 6px; font-size: 0.74rem; cursor: pointer;" title="حذف السجل" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">
                                     ✕
                                 </button>
                             </div>
@@ -642,7 +566,7 @@
         document.getElementById('respSlipNumberDisplay').textContent = slip.slipNumber;
         document.getElementById('respSlipTitleDisplay').textContent = `${slip.title} - ${slip.className}`;
 
-        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayStr = getLocalDateStr();
         document.getElementById('respDateInput').value = slip.response?.respondedAt?.slice(0, 10) || todayStr;
         document.getElementById('respDecisionSelect').value = slip.response?.decision || 'استدعاء ولي الأمر وتوقيع التزام بالانضباط';
         document.getElementById('respReferenceInput').value = slip.response?.referenceNumber || '';
@@ -664,7 +588,7 @@
         const slip = window.db.adminFollowUpSlips.find(s => s.id === slipId);
         if (!slip) return;
 
-        const dateVal = document.getElementById('respDateInput')?.value || new Date().toISOString().slice(0, 10);
+        const dateVal = document.getElementById('respDateInput')?.value || getLocalDateStr();
         const decisionVal = document.getElementById('respDecisionSelect')?.value || 'استدعاء ولي الأمر وتوقيع التزام';
         const referenceVal = document.getElementById('respReferenceInput')?.value || '';
         const notesVal = document.getElementById('respNotesTextarea')?.value || '';
@@ -781,8 +705,9 @@
             const classes = Object.keys(window.db.classes || {});
             let opts = `<option value="all">كافة الأقسام المسندة معاً</option>`;
             classes.forEach(c => {
-                const count = (window.db.classes[c] || []).length;
-                opts += `<option value="${escapeHtml(c)}">${escapeHtml(c)} (${count} تلميذ)</option>`;
+                const rawCls = window.db.classes[c];
+                const list = Array.isArray(rawCls) ? rawCls : (rawCls && Array.isArray(rawCls.students) ? rawCls.students : []);
+                opts += `<option value="${escapeHtml(c)}">${escapeHtml(c)} (${list.length} تلميذ)</option>`;
             });
             classSelect.innerHTML = opts;
             if (preselectedClass) classSelect.value = preselectedClass;
@@ -790,13 +715,14 @@
 
         // توليد رقم الكشف التلقائي
         const count = (window.db.adminFollowUpSlips || []).length + 1;
-        const now = new Date();
+        const now = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+        const yrShort = String(now.getFullYear()).slice(-2);
         const monthStr = String(now.getMonth() + 1).padStart(2, '0');
         const numStr = String(count).padStart(2, '0');
-        document.getElementById('createFollowUpNumberInput').value = `KM-26${monthStr}-${numStr}`;
+        document.getElementById('createFollowUpNumberInput').value = `KM-${yrShort}${monthStr}-${numStr}`;
 
         // ضبط التوقيت الافتراضي (الآن)
-        document.getElementById('createFollowUpDateInput').value = now.toISOString().slice(0, 10);
+        document.getElementById('createFollowUpDateInput').value = getLocalDateStr(now);
         document.getElementById('createFollowUpTimeInput').value = now.toTimeString().slice(0, 5);
 
         // عدد الحالات التقديري
@@ -829,7 +755,7 @@
         const slipNumber = document.getElementById('createFollowUpNumberInput')?.value.trim() || 'KM-' + Date.now();
         const title = document.getElementById('createFollowUpTitleInput')?.value.trim() || 'كشف المتابعة الإداري وحالات الإنذار';
         const className = document.getElementById('createFollowUpClassSelect')?.value || 'كافة الأقسام';
-        const dateStr = document.getElementById('createFollowUpDateInput')?.value || new Date().toISOString().slice(0, 10);
+        const dateStr = document.getElementById('createFollowUpDateInput')?.value || getLocalDateStr();
         const timeStr = document.getElementById('createFollowUpTimeInput')?.value || '09:00';
         const targetOffice = document.getElementById('createFollowUpOfficeSelect')?.value || 'الحراسة العامة للخارجية';
         const channel = document.getElementById('createFollowUpChannelSelect')?.value || 'تسليم ورقي مع تأشيرة الاستلام';
@@ -981,8 +907,8 @@
     /**
      * حذف كشف متابعة
      */
-    function deleteAdminFollowUpSlip(slipId) {
-        if (!confirm('هل أنت متأكد من رغبتك في حذف هذا الكشف من سجل المتابعة؟')) return;
+    async function deleteAdminFollowUpSlip(slipId) {
+        if (!(await window.showConfirmDialog('هل أنت متأكد من رغبتك في حذف هذا الكشف من سجل المتابعة؟'))) return;
         if (!window.db || !window.db.adminFollowUpSlips) return;
 
         window.db.adminFollowUpSlips = window.db.adminFollowUpSlips.filter(s => s.id !== slipId);
@@ -1037,6 +963,14 @@
         }
     }
 
+    function getLocalDateStr(dObj) {
+        const d = dObj || ((typeof window.getAppNow === 'function') ? window.getAppNow() : new Date());
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
     function escapeHtml(str) {
         if (!str) return '';
         return String(str)
@@ -1047,10 +981,14 @@
             .replace(/'/g, '&#039;');
     }
 
+    function escapeJsAttr(str) {
+        return escapeHtml(String(str ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r|\n/g, ' '));
+    }
+
     function showFollowUpToast(msg) {
         const toast = document.createElement('div');
         toast.style.cssText = 'position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); background: #0f172a; color: #ffffff; padding: 12px 24px; border-radius: 30px; z-index: 999999; font-family: "Cairo", sans-serif; font-weight: bold; font-size: 0.88rem; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid #334155; display: flex; align-items: center; gap: 8px;';
-        toast.innerHTML = msg;
+        toast.textContent = msg;
         document.body.appendChild(toast);
         setTimeout(() => {
             toast.style.transition = 'opacity 0.4s';

@@ -294,7 +294,11 @@ test('Core Engine 1 — GradesCalculator: conditional formatting, Moroccan strea
     assert.equal(G.getStreamOfficialConfig('2BAC علوم رياضية أ').coefficient, 9);
     assert.equal(G.getStreamOfficialConfig('2BAC علوم فيزيائية 1').coefficient, 7);
     assert.equal(G.getStreamOfficialConfig('جذع مشترك علمي 2').coefficient, 4);
-    assert.equal(G.getStreamOfficialConfig('1BAC آداب وعلوم إنسانية').coefficient, 2);
+    assert.equal(G.getStreamOfficialConfig('جذع مشترك آداب وعلوم إنسانية').coefficient, 2);
+    assert.equal(G.getStreamOfficialConfig('1BAC آداب وعلوم إنسانية').coefficient, 1);
+    assert.equal(G.getStreamOfficialConfig('1BAC آداب وعلوم إنسانية').weeklyHours, 2);
+    assert.equal(G.getStreamOfficialConfig('1BAC آداب وعلوم إنسانية').examDurationHours, 1);
+    assert.equal(G.getStreamOfficialConfig('2BAC علوم وتكنولوجيات كهربائية STE').weeklyHours, 4);
 
     const semAvg = G.calculateStudentSemesterAverage({ f1: 14, f2: 16, f3: 15, act: 18 }, { includeActivity: true, activityWeight: 0.25 });
     assert.equal(semAvg, 15.75);
@@ -501,7 +505,8 @@ test('End-to-End Companion Document Bridge UI & Moroccan Qualifying Secondary St
         { code: '2BAC-PC-BIOF-2', coef: 7, exams: 3 },
         { code: '2BAC-SVT-1', coef: 7, exams: 3 },
         { code: '2BAC-ECO-1', coef: 4, exams: 3 },
-        { code: '2BAC-LSH-1', coef: 2, exams: 2 }
+        { code: '1BAC-LSH-1', coef: 1, exams: 2 },
+        { code: '2BAC-LSH-1', coef: 1, exams: 2 }
     ];
     for (const item of streamsToCheck) {
         const cfg = win.GradesCalculator.getStreamOfficialConfig(item.code);
@@ -1209,4 +1214,1139 @@ test('Student Print Report: renders empty incident dates with unified formatting
     assert.equal(fluctuating.direction, 'fluctuating');
     assert.ok(fluctuating.badgeText.includes('أداء متذبذب'));
 });
+
+test('Security & Gmail Hardening: PBKDF2 password hashing, URL protocol guard, quick-lock reauth enforcement, in-memory OAuth token, RS256 server JWT & Electron sandbox', async () => {
+    const appJsCode = fs.readFileSync(path.join(ROOT, 'public/app.js'), 'utf8');
+    const firebaseCode = fs.readFileSync(path.join(ROOT, 'public/firebase-setup.js'), 'utf8');
+    const calendarCode = fs.readFileSync(path.join(ROOT, 'public/google-calendar-sync.js'), 'utf8');
+    const resourcesCode = fs.readFileSync(path.join(ROOT, 'public/resources.js'), 'utf8');
+    const serverCode = fs.readFileSync(path.join(ROOT, 'server.ts'), 'utf8');
+    const electronMainCode = fs.readFileSync(path.join(ROOT, 'electron/main.cjs'), 'utf8');
+
+    // 1. Verify openSafeExternalUrl strictly blocks javascript:/data: and allows https:/mailto:
+    const urlStart = appJsCode.indexOf('window.openSafeExternalUrl = function');
+    const urlEnd = appJsCode.indexOf('window.notifySafeToast = function', urlStart);
+    assert.ok(urlStart !== -1 && urlEnd > urlStart, 'openSafeExternalUrl must exist in public/app.js');
+
+    const clickedAnchors = [];
+    const { dom: urlDom, win: urlWin, sandbox: urlSandbox } = createDomSandbox('<!DOCTYPE html><html><body></body></html>');
+    urlSandbox.URL = globalThis.URL;
+    const origCreateEl = urlDom.window.document.createElement.bind(urlDom.window.document);
+    urlDom.window.document.createElement = (tag) => {
+        const el = origCreateEl(tag);
+        if (String(tag).toLowerCase() === 'a') {
+            el.click = () => clickedAnchors.push({ href: el.href, rel: el.rel, target: el.target });
+        }
+        return el;
+    };
+    vm.runInContext(appJsCode.slice(urlStart, urlEnd), urlSandbox, { filename: 'safe-url.vm.js' });
+
+    assert.equal(urlWin.openSafeExternalUrl('javascript:alert(1)'), null, 'Must block javascript: URLs');
+    assert.equal(urlWin.openSafeExternalUrl('data:text/html,<script>alert(1)</script>'), null, 'Must block data: URLs');
+    assert.ok(urlWin.openSafeExternalUrl('https://men.gov.ma/test') !== null, 'Must allow https: URLs');
+    assert.ok(urlWin.openSafeExternalUrl('mailto:teacher@example.com') !== null, 'Must allow mailto: URLs');
+    assert.equal(clickedAnchors.length, 2);
+    assert.equal(clickedAnchors[0].rel, 'noopener noreferrer');
+    assert.equal(clickedAnchors[0].target, '_blank');
+
+    // 2 & 3. Verify PBKDF2-SHA256 teacher password hashing, legacy compatibility, and strict Google reauth lock
+    const secStart = appJsCode.indexOf('function constantTimeStringEqual(a, b) {');
+    const secEndMarker = 'window.unlockViaGoogleReauth = unlockViaGoogleReauth;';
+    const secEnd = appJsCode.indexOf(secEndMarker, secStart);
+    assert.ok(secStart !== -1 && secEnd > secStart, 'PBKDF2 & quick-lock helpers must exist in public/app.js');
+
+    const { dom: lockDom, win: lockWin, sandbox: lockSandbox } = createDomSandbox(`<!DOCTYPE html><html><body>
+        <div id="quickLockScreenModal" style="display:flex;"></div>
+        <div id="quickUnlockErrorMsg" style="display:none;"></div>
+        <input id="quickUnlockPasswordInput" />
+    </body></html>`);
+    Object.defineProperty(lockWin, 'crypto', { value: globalThis.crypto, configurable: true });
+    lockSandbox.TextEncoder = globalThis.TextEncoder;
+    lockSandbox.Uint8Array = globalThis.Uint8Array;
+    lockSandbox.db = { teacherProfile: { email: 'teacher@gmail.com', password: '' }, settings: {} };
+    lockSandbox.saveDB = () => {};
+    lockSandbox.showNotification = () => {};
+    vm.runInContext(appJsCode.slice(secStart, secEnd + secEndMarker.length), lockSandbox, { filename: 'security-lock.vm.js' });
+
+    const hashed = await lockWin.hashTeacherPasswordSecure('Math@2026!Strong');
+    assert.ok(hashed.startsWith('pbkdf2$100000$'), 'Password hash must use PBKDF2 with 100,000 iterations');
+    assert.equal(await lockWin.verifyPasswordMatch('Math@2026!Strong', hashed), true, 'Correct password must match PBKDF2 hash');
+    assert.equal(await lockWin.verifyPasswordMatch('WrongPassword123', hashed), false, 'Wrong password must fail PBKDF2 hash');
+
+    const legacySha = await lockWin.hashPasswordSHA256('LegacyPass2025');
+    assert.equal(await lockWin.verifyPasswordMatch('LegacyPass2025', legacySha), true, 'Legacy SHA-256 hash must still verify for smooth auto-migration');
+    assert.equal(await lockWin.verifyPasswordMatch('LegacyPass2025', 'LegacyPass2025'), true, 'Legacy plaintext must still verify for smooth auto-migration');
+    assert.equal(await lockWin.verifyPasswordMatch('WrongPass', 'LegacyPass2025'), false);
+
+    // 3a. Must NOT unlock from localStorage flags alone when Google OAuth fails
+    lockWin.localStorage.setItem('gdrive_authenticated', 'true');
+    lockWin.localStorage.setItem('gdrive_last_email', 'teacher@gmail.com');
+    lockWin.handleGoogleSignInOfficial = async () => null;
+    lockWin.getVerifiedFirebaseAuthUser = () => null;
+    await lockWin.unlockViaGoogleReauth();
+    assert.equal(lockDom.window.document.getElementById('quickLockScreenModal').style.display, 'flex', 'Quick lock must stay locked when Google OAuth fails even if localStorage flags are set');
+
+    // 3b. Must NOT unlock if a different Google email signs in
+    lockWin.handleGoogleSignInOfficial = async () => 'ya29.real_oauth_token_sample_1234567890';
+    lockWin.getVerifiedFirebaseAuthUser = () => ({ email: 'other.user@gmail.com' });
+    await lockWin.unlockViaGoogleReauth();
+    assert.equal(lockDom.window.document.getElementById('quickLockScreenModal').style.display, 'flex', 'Quick lock must reject mismatched Google account');
+
+    // 3c. Must unlock ONLY when verified Google account matches owner email
+    lockWin.getVerifiedFirebaseAuthUser = () => ({ email: 'teacher@gmail.com' });
+    await lockWin.unlockViaGoogleReauth();
+    assert.equal(lockDom.window.document.getElementById('quickLockScreenModal').style.display, 'none', 'Quick lock must unlock when verified Google account matches owner');
+
+    // 4. Verify Gmail / OAuth hardening invariants in firebase-setup.js, google-calendar-sync.js, and resources.js
+    assert.equal(firebaseCode.includes('brahim.kouziber87@gmail.com'), false, 'No hardcoded personal email allowed in firebase-setup.js');
+    assert.equal(/sessionStorage\.(set|get)Item\(\s*['"]gdrive_access_token['"]/.test(firebaseCode), false, 'firebase-setup.js must not store/read OAuth token in sessionStorage');
+    assert.equal(/sessionStorage\.(set|get)Item\(\s*['"]gdrive_access_token['"]/.test(calendarCode), false, 'google-calendar-sync.js must not read OAuth token from sessionStorage');
+    assert.equal(/sessionStorage\.(set|get)Item\(\s*['"]gdrive_access_token['"]/.test(resourcesCode), false, 'resources.js must not read OAuth token from sessionStorage');
+    assert.equal(firebaseCode.includes("'direct_gmail_token_' + Date.now()"), false, 'Must not fabricate direct_gmail_token_* tokens');
+    assert.ok(firebaseCode.includes('window.getVerifiedFirebaseAuthUser'), 'Must expose verified Firebase auth user helper');
+    assert.ok(firebaseCode.includes('showConfirmDialog'), 'handleClearAllBackups must require user confirmation via showConfirmDialog');
+
+    // 5. Verify server.ts RS256 Firebase JWT verification, 100k PBKDF2 shares, no req.query.pin, and WebSocket hardening
+    assert.ok(serverCode.includes("crypto.createVerify('RSA-SHA256')"), 'server.ts must cryptographically verify Firebase ID tokens using RSA-SHA256');
+    assert.ok(serverCode.includes('securetoken@system.gserviceaccount.com'), 'server.ts must fetch official Google X.509 certificates for Firebase ID tokens');
+    assert.ok(serverCode.includes('const SHARE_PBKDF2_ITERATIONS = 100000;'), 'server.ts must use 100,000 PBKDF2 iterations for new encrypted shares');
+    assert.equal(serverCode.includes('req.query.pin'), false, 'server.ts must never read share PIN from URL query parameters');
+    assert.ok(serverCode.includes('maxPayload: 2 * 1024 * 1024'), 'WebSocket server must enforce maxPayload limit');
+    assert.ok(serverCode.includes('Cross-origin WebSocket rejected'), 'WebSocket server must block cross-origin upgrades (CSWSH)');
+    assert.ok(serverCode.includes("const senderRole = currentPeer ? currentPeer.role : 'student';"), 'Unjoined WebSocket peers must default to student role');
+
+    // 6. Verify zero hardcoded personal emails & zero javascript:void(0) URIs across core app files
+    const indexHtmlCode = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    const idbCode = fs.readFileSync(path.join(ROOT, 'src/services/indexedDbEngine.ts'), 'utf8');
+    const tutoringAdvCode = fs.readFileSync(path.join(ROOT, 'public/tutoring-advanced.js'), 'utf8');
+    assert.equal(indexHtmlCode.includes('brahim.kouziber87@gmail.com'), false, 'No hardcoded personal email allowed in index.html');
+    assert.equal(idbCode.includes('brahim.kouziber87@gmail.com'), false, 'No hardcoded personal email allowed in indexedDbEngine.ts');
+    assert.equal(resourcesCode.includes('javascript:void(0)'), false, 'No javascript:void(0) URIs allowed in resources.js');
+    assert.equal(tutoringAdvCode.includes('javascript:void(0)'), false, 'No javascript:void(0) URIs allowed in tutoring-advanced.js');
+
+    // 7. Verify Firestore rules default-deny & verified email boundary
+    const rulesCode = fs.readFileSync(path.join(ROOT, 'firestore.rules'), 'utf8');
+    assert.ok(rulesCode.includes('allow read, write: if false;'), 'firestore.rules must include global default-deny');
+    assert.ok(rulesCode.includes('request.auth.token.email_verified == true'), 'firestore.rules must require verified email');
+
+    // 8. Verify Electron BrowserWindow sandbox hardening
+    assert.ok(/sandbox:\s*true/.test(electronMainCode), 'electron/main.cjs must enable renderer sandbox: true');
+    assert.ok(/contextIsolation:\s*true/.test(electronMainCode), 'electron/main.cjs must keep contextIsolation: true');
+    assert.ok(/nodeIntegration:\s*false/.test(electronMainCode), 'electron/main.cjs must keep nodeIntegration: false');
+});
+
+test('Gmail Account Linking Lifecycle: confirmGmailQuickSwitch, activateDirectGmailSession, GIS OAuth verification, header badge & teacherProfile sync', async () => {
+    const firebaseCode = fs.readFileSync(path.join(ROOT, 'public/firebase-setup.js'), 'utf8');
+
+    const { dom, win, sandbox } = createDomSandbox(`<!DOCTYPE html><html dir="rtl" lang="ar"><body>
+        <div id="loginScreen" style="display:flex;">
+            <input id="loginDriveEmailInput" value="" />
+            <div id="loginDriveSyncStatus" style="display:none;"></div>
+        </div>
+        <div id="headerDriveSyncBadge" class="header-chip"><span id="headerDriveSyncText">ربط البريد الموثّق</span></div>
+        <div id="backupStatus">غير مسجل الدخول</div>
+        <button id="backupLoginBtn" style="display:flex;"></button>
+        <button id="backupLogoutBtn" style="display:none;"></button>
+        <div id="backupActionBtns" style="display:none;"></div>
+        <input id="teacherEmail" value="" />
+    </body></html>`);
+
+    // Extract the helper and Gmail linking blocks from public/firebase-setup.js
+    const helpersStart = firebaseCode.indexOf('function safeStringify(obj, space)');
+    const helpersEnd = firebaseCode.indexOf('// الحد الأقصى الآمن لحجم الوثيقة في Firestore');
+    const tokenBlockStart = firebaseCode.indexOf('let cachedAccessToken = null;');
+    const tokenBlockEnd = firebaseCode.indexOf('async function getBackupFileMetadata(accessToken)');
+    const modalBlockStart = firebaseCode.indexOf('window.openGmailQuickSwitchModal = (prefillEmail = \'\') => {');
+    const modalBlockEnd = firebaseCode.indexOf('// Auto-restore remembered email hint on load');
+
+    assert.ok(helpersStart !== -1 && helpersEnd > helpersStart);
+    assert.ok(tokenBlockStart !== -1 && tokenBlockEnd > tokenBlockStart);
+    assert.ok(modalBlockStart !== -1 && modalBlockEnd > modalBlockStart);
+
+    sandbox.auth = { currentUser: null };
+    sandbox.provider = { setCustomParameters: () => {} };
+    sandbox.basicGoogleProvider = { setCustomParameters: () => {} };
+    sandbox.btoa = (s) => Buffer.from(s, 'binary').toString('base64');
+    sandbox.unescape = globalThis.unescape;
+    sandbox.CustomEvent = dom.window.CustomEvent;
+    win.db = { teacherProfile: { name: 'ذ. أستاذ الرياضيات', email: '', password: '' } };
+    win.checkForDriveUpdates = async () => ({ status: 'no_cloud_backup' });
+    win.showAppToast = () => {};
+
+    const combinedCode = [
+        firebaseCode.slice(helpersStart, helpersEnd),
+        firebaseCode.slice(tokenBlockStart, tokenBlockEnd),
+        firebaseCode.slice(modalBlockStart, modalBlockEnd)
+    ].join('\n');
+
+    vm.runInContext(combinedCode, sandbox, { filename: 'gmail-linking-lifecycle.vm.js' });
+
+    // 1. Open Gmail Quick Switch Modal, enter an email, and call confirmGmailQuickSwitch()
+    win.openGmailQuickSwitchModal();
+    const modalInp = dom.window.document.getElementById('gmailQuickSwitchInput');
+    assert.ok(modalInp, 'gmailQuickSwitchInput must be created in DOM');
+    modalInp.value = 'math.teacher2026@gmail.com';
+
+    await win.confirmGmailQuickSwitch();
+
+    assert.equal(win.localStorage.getItem('gdrive_last_email'), 'math.teacher2026@gmail.com');
+    assert.equal(win.db.teacherProfile.email, 'math.teacher2026@gmail.com', 'teacherProfile.email must update when Gmail is linked');
+    assert.equal(dom.window.document.getElementById('teacherEmail').value, 'math.teacher2026@gmail.com');
+    assert.ok(win._directGmailUser && win._directGmailUser.email === 'math.teacher2026@gmail.com');
+    assert.equal(dom.window.document.getElementById('headerDriveSyncBadge').classList.contains('synced'), true, 'Header badge must show synced class when Gmail is linked');
+    assert.equal(dom.window.document.getElementById('headerDriveSyncText').textContent, 'Gmail: math.teacher2026 ✓');
+    assert.equal(dom.window.document.getElementById('backupStatus').innerText, 'تم تسجيل الدخول كـ: math.teacher2026@gmail.com');
+    // Unverified direct Gmail link must NOT be treated as a verified Firebase/OAuth user for lock-screen bypass
+    assert.equal(win.getVerifiedFirebaseAuthUser(), null);
+    // getGoogleDriveToken(false) must return null (never the email address string) when no OAuth token is active
+    assert.equal(await win.getGoogleDriveToken(false), null, 'getGoogleDriveToken must never return an email address as an OAuth Bearer token');
+
+    // 2. Activate session with a real Google OAuth access token (GIS / OAuth flow)
+    const sampleOAuthToken = 'ya29.a0AfB_byCRealGoogleOAuthAccessTokenForDriveAndFirestore123456789';
+    win.activateDirectGmailSession('math.teacher2026@gmail.com', true, 'أستاذ الرياضيات', sampleOAuthToken, { explicitLink: true });
+    assert.equal(win.hasActiveDriveToken(), true);
+    assert.equal(await win.getGoogleDriveToken(false), sampleOAuthToken, 'getGoogleDriveToken must return the real OAuth token when active');
+    assert.ok(win.getVerifiedFirebaseAuthUser(), 'Real OAuth token session must be recognized as verified');
+    assert.equal(win.getVerifiedFirebaseAuthUser().email, 'math.teacher2026@gmail.com');
+    assert.equal(dom.window.document.getElementById('headerDriveSyncText').textContent, 'Google Drive: متزامن ✓');
+
+    // 3. Verify zero blocking browser dialogs (alert/confirm/prompt) and zero platform strings across all public JS files
+    const publicDir = path.join(ROOT, 'public');
+    const collectJsFiles = (dir) => {
+        const out = [];
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory()) out.push(...collectJsFiles(full));
+            else if (entry.name.endsWith('.js')) out.push(full);
+        }
+        return out;
+    };
+    for (const file of collectJsFiles(publicDir)) {
+        const rel = path.relative(ROOT, file);
+        const src = fs.readFileSync(file, 'utf8');
+        assert.equal(/(?:^|[^a-zA-Z0-9_$.])(?:window\.)?(?:alert|confirm|prompt)\s*\(/.test(src), false, `No blocking alert/confirm/prompt allowed in ${rel}`);
+        assert.equal(src.includes('AI Studio'), false, `No platform string allowed in ${rel}`);
+    }
+});
+
+test('Multi-Class Unified Report Filter: selects 2 or more classes and aggregates combined reports, discipline KPIs, and absence data', () => {
+    const appCode = fs.readFileSync(path.join(ROOT, 'public/app.js'), 'utf8');
+    const multiStart = appCode.indexOf('function resolveReportTargetClasses(classSpec)');
+    const multiEnd = appCode.indexOf('function populateReportStudentSelect(className)');
+    const disciplineStart = appCode.indexOf('function updateClassDisciplineRate(className, dateFrom, dateTo)');
+    const disciplineEnd = appCode.indexOf('function updateAttendancePieChart(className, counts)');
+    const absStart = appCode.indexOf('function resolveTargetClassForAbsenceReport(explicitClass = null)');
+    const absEnd = appCode.indexOf('function buildUnifiedClassAbsenceAndLatenessReportHtml(dataObj)');
+
+    assert.ok(multiStart !== -1 && multiEnd !== -1, 'Multi-class report functions must exist in public/app.js');
+    assert.ok(disciplineStart !== -1 && disciplineEnd !== -1, 'updateClassDisciplineRate must exist in public/app.js');
+    assert.ok(absStart !== -1 && absEnd !== -1, 'computeUnifiedClassAbsenceAndLatenessData must exist in public/app.js');
+
+    const { dom, win, sandbox } = createDomSandbox(`<!DOCTYPE html><html><body>
+        <div id="reportsView" style="display:block;">
+            <span id="reportMultiClassActiveCountBadge"></span>
+            <button id="btnToggleReportMultiClassPicker"></button>
+            <select id="reportClassSelect">
+                <option value="">-- اختر القسم --</option>
+                <option value="__ALL__">جميع الأقسام</option>
+                <option value="__MULTI__">أقسام متعددة</option>
+            </select>
+            <div id="reportMultiClassPickerPanel" style="display:none;">
+                <div id="reportMultiClassPickerItems"></div>
+                <div id="reportMultiClassMergedSummary"></div>
+            </div>
+            <input type="date" id="reportDateFrom" value="2026-09-01" />
+            <input type="date" id="reportDateTo" value="2027-07-10" />
+            <span id="reportTotalAbsent">0</span>
+            <span id="reportTotalLate">0</span>
+            <span id="reportTotalHw">0</span>
+            <span id="reportAttendanceRateBadge"></span>
+            <span id="reportAbsentRateBadge"></span>
+            <span id="reportLateRateBadge"></span>
+            <span id="reportHwRateBadge"></span>
+            <span id="reportPassRateBadge"></span>
+            <div id="disciplineRateCard">
+                <span id="classDisciplineRate"></span>
+                <span id="classAttendanceSessionsCount"></span>
+                <span id="classAbsenceRateDetail"></span>
+                <span id="classAbsenceHoursCount"></span>
+                <span id="classHwRateDetail"></span>
+                <span id="classHwCountText"></span>
+                <span id="classPassRateDetail"></span>
+                <span id="classPassCountText"></span>
+                <span id="classExcellenceRateDetail"></span>
+                <span id="classExcellenceCountText"></span>
+                <span id="classAtRiskRateDetail"></span>
+                <span id="classAtRiskCountText"></span>
+            </div>
+            <div id="atRiskStudentsCard"><div class="table-responsive"><table><tbody id="atRiskTableBody"></tbody></table></div><div id="atRiskEmptyMsg"></div></div>
+            <table><tbody id="reportTableBody"></tbody></table>
+            <div id="aiSupportPlanCard"></div>
+        </div>
+    </body></html>`);
+
+    const mockDb = {
+        classes: {
+            '2BAC-PC-1': [
+                { id: 's1', orderNum: 1, name: 'أحمد العلمي', massar: 'G1001' },
+                { id: 's2', orderNum: 2, name: 'سلمى بنعلي', massar: 'G1002' }
+            ],
+            '2BAC-PC-2': [
+                { id: 's3', orderNum: 1, name: 'يوسف المرابط', massar: 'G2001' },
+                { id: 's4', orderNum: 2, name: 'مريم التازي', massar: 'G2002' }
+            ],
+            '1BAC-SM-1': [
+                { id: 's5', orderNum: 1, name: 'عمر الفاسي', massar: 'G3001' }
+            ]
+        },
+        records: [
+            { id: 'r1', className: '2BAC-PC-1', studentId: 's1', date: '2026-10-12', session: '08:30 - 10:30', status: 'غائب', duration: 2, hours: 2 },
+            { id: 'r2', className: '2BAC-PC-2', studentId: 's3', date: '2026-10-14', session: '10:30 - 12:30', status: 'غائب', duration: 2, hours: 2 },
+            { id: 'r3', className: '2BAC-PC-2', studentId: 's4', date: '2026-10-15', session: '14:30 - 16:30', status: 'متأخر', duration: 1, hours: 1 },
+            { id: 'r4', className: '1BAC-SM-1', studentId: 's5', date: '2026-10-16', session: '08:30 - 10:30', status: 'غائب', duration: 4, hours: 4 }
+        ],
+        grades: {
+            '2BAC-PC-1': { s1: { f1: 14, f2: 16 }, s2: { f1: 12, f2: 12 } },
+            '2BAC-PC-2': { s3: { f1: 8, f2: 9 }, s4: { f1: 15, f2: 17 } },
+            '1BAC-SM-1': { s5: { f1: 18, f2: 19 } }
+        },
+        behaviors: {},
+        teacherProfile: { name: 'ذ. أستاذ الرياضيات' }
+    };
+
+    sandbox.db = mockDb;
+    win.db = mockDb;
+    sandbox.getSortedClasses = () => ['2BAC-PC-1', '2BAC-PC-2', '1BAC-SM-1'];
+    win.getSortedClasses = sandbox.getSortedClasses;
+    sandbox.escapeHtml = (s) => String(s || '');
+    win.escapeHtml = sandbox.escapeHtml;
+    sandbox.lucideIcon = () => '';
+    win.lucideIcon = sandbox.lucideIcon;
+    sandbox.incrementClassUsage = () => {};
+    sandbox.isRecordProtectedHolidayOrLeave = () => false;
+    sandbox.getClassRecordsFast = (cls) => mockDb.records.filter(r => r.className === cls);
+    sandbox.getStudentClassRecordsFast = (stdId, cls) => mockDb.records.filter(r => String(r.studentId) === String(stdId) && r.className === cls);
+    sandbox.getTotalAbsentHours = (stdId, cls) => mockDb.records.filter(r => String(r.studentId) === String(stdId) && r.className === cls && (r.status === 'غائب' || r.status === 'مبرر')).reduce((s, r) => s + (r.hours || 1), 0);
+    sandbox.calculateStudentAvg = (g) => {
+        const vals = ['f1', 'f2'].map(k => parseFloat(g && g[k])).filter(v => !isNaN(v));
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    };
+    sandbox.updateAttendancePieChart = () => {};
+    sandbox.updateAbsenceByDayChart = () => {};
+    sandbox.updateMonthlyAbsenceEvolutionChart = () => {};
+    sandbox.updateReportGradesComparisonChart = () => {};
+    sandbox.updateGradesDistributionChart = () => {};
+    sandbox.updateStudentClassification = () => {};
+    sandbox.populateReportStudentSelect = () => {};
+    sandbox.CustomEvent = dom.window.CustomEvent;
+
+    const snippet = [
+        'window._selectedReportMultiClasses = [];',
+        appCode.slice(multiStart, multiEnd),
+        appCode.slice(disciplineStart, disciplineEnd),
+        appCode.slice(absStart, absEnd)
+    ].join('\n');
+
+    vm.runInContext(snippet, sandbox, { filename: 'multi-class-report.vm.js' });
+
+    // Select 2 classes: 2BAC-PC-1 and 2BAC-PC-2 (excluding 1BAC-SM-1)
+    win.refreshReportClassDropdown();
+    win.toggleReportMultiClassItem('2BAC-PC-1');
+    win.toggleReportMultiClassItem('2BAC-PC-2');
+
+    const selectEl = dom.window.document.getElementById('reportClassSelect');
+    assert.equal(selectEl.value, '__MULTI__', 'Selecting 2 classes in multi-class picker must set reportClassSelect to __MULTI__');
+
+    const resolved = win.resolveReportTargetClasses('__MULTI__');
+    assert.equal(resolved.mode, 'multi');
+    assert.equal(resolved.isMulti, true);
+    assert.deepEqual(Array.from(resolved.classes), ['2BAC-PC-1', '2BAC-PC-2']);
+    assert.equal(resolved.label, '2BAC-PC-1 + 2BAC-PC-2');
+
+    // Verify combined report table and totals only include the 2 selected classes (4 students, 4 absent hours, 1 late)
+    assert.equal(dom.window.document.getElementById('reportTotalAbsent').textContent, '4', 'Combined absent hours for 2BAC-PC-1 + 2BAC-PC-2 must be 4 (excluding 1BAC-SM-1)');
+    assert.equal(dom.window.document.getElementById('reportTotalLate').textContent, '1', 'Combined late count for 2BAC-PC-1 + 2BAC-PC-2 must be 1');
+    const renderedRows = dom.window.document.querySelectorAll('#reportTableBody tr');
+    assert.equal(renderedRows.length, 4, 'Combined report table must render all 4 students from the 2 selected classes');
+
+    // Verify official absence & lateness report data aggregates the 2 selected classes
+    const absReport = win.computeUnifiedClassAbsenceAndLatenessData();
+    assert.equal(absReport.meta.className, '2BAC-PC-1 + 2BAC-PC-2');
+    assert.equal(absReport.totals.studentsCount, 4);
+    assert.equal(absReport.totals.totalAbsentHours, 4);
+    assert.equal(absReport.totals.totalLateCount, 1);
+});
+
+test('Secret PIN Re-Entry & Login Screen Direct Gmail Linking: verifies PIN re-entry across logout, blank/email username, Eastern Arabic digits, and saveAndCloseTeacherSettings', async () => {
+    const appJsCode = fs.readFileSync(path.join(ROOT, 'public/app.js'), 'utf8');
+    const firebaseCode = fs.readFileSync(path.join(ROOT, 'public/firebase-setup.js'), 'utf8');
+
+    const { dom, win, sandbox } = createDomSandbox(`<!DOCTYPE html><html dir="rtl" lang="ar"><body>
+        <div id="loginScreen" style="display:flex;">
+            <input id="loginDriveEmailInput" value="" />
+            <div id="loginDriveSyncStatus" style="display:none;"></div>
+            <form id="setupForm" style="display:block;">
+                <input id="setupName" value="الأستاذ إبراهيم" />
+                <input id="setupUsername" value="brahim" />
+                <input id="setupPassword" value="1234" />
+            </form>
+            <form id="loginForm" style="display:none;">
+                <input id="loginUsername" value="" />
+                <input id="loginPassword" value="" />
+                <p id="loginError" style="display:none;"></p>
+            </form>
+        </div>
+        <div id="teacherSettingsModal" style="display:none;">
+            <input id="settingsTeacherName" value="الأستاذ إبراهيم" />
+            <input id="settingsUsername" value="brahim" />
+            <input id="settingsOldPassword" value="" />
+            <input id="settingsNewPassword" value="" />
+        </div>
+        <div id="headerDriveSyncBadge" class="header-chip"><span id="headerDriveSyncText">ربط البريد الموثّق</span></div>
+        <div id="backupStatus">غير مسجل الدخول</div>
+        <button id="backupLoginBtn" style="display:flex;"></button>
+        <button id="backupLogoutBtn" style="display:none;"></button>
+        <div id="backupActionBtns" style="display:none;"></div>
+        <input id="teacherEmail" value="" />
+    </body></html>`);
+
+    Object.defineProperty(win, 'crypto', { value: globalThis.crypto, configurable: true });
+    sandbox.TextEncoder = globalThis.TextEncoder;
+    sandbox.Uint8Array = globalThis.Uint8Array;
+    sandbox.db = {
+        teacherProfile: { name: 'أستاذ مادة الرياضيات', username: '', email: '', password: '' },
+        classes: {},
+        settings: {}
+    };
+    win.db = sandbox.db;
+    sandbox.saveDB = () => {};
+    sandbox.performDBSave = () => { sandbox.db._lastSavedTimestamp = Date.now(); };
+    sandbox.updateTeacherNameInHeader = () => {};
+    sandbox.autoSaveTeacherSettings = () => {};
+    sandbox.showAppToast = () => {};
+    sandbox.notifySafeToast = () => {};
+    win.notifySafeToast = sandbox.notifySafeToast;
+
+    // Extract PBKDF2 hashing + login/setup + password settings functions from public/app.js
+    const secStart = appJsCode.indexOf('function constantTimeStringEqual(a, b) {');
+    const secEnd = appJsCode.indexOf('window.verifyPasswordMatch = verifyPasswordMatch;') + 'window.verifyPasswordMatch = verifyPasswordMatch;'.length;
+    const authStart = appJsCode.indexOf('function getPreferredLoginUsername() {');
+    const authEnd = appJsCode.indexOf('function updateTeacherNameInHeader() {');
+    const pwdStart = appJsCode.indexOf('async function updateTeacherPassword() {');
+    const pwdEnd = appJsCode.indexOf('function openTeacherSettings(initialTab = \'settingsPersonal\') {');
+    const closeStart = appJsCode.indexOf('async function saveAndCloseTeacherSettings() {');
+    const closeEnd = appJsCode.indexOf('document.addEventListener(\'keydown\', (e) => {');
+
+    assert.ok(secStart !== -1 && authStart !== -1 && pwdStart !== -1 && closeStart !== -1);
+
+    vm.runInContext([
+        appJsCode.slice(secStart, secEnd),
+        appJsCode.slice(authStart, authEnd),
+        appJsCode.slice(pwdStart, pwdEnd),
+        appJsCode.slice(closeStart, closeEnd)
+    ].join('\n'), sandbox, { filename: 'pin-reentry-test.vm.js' });
+
+    // 1. Initial setup sets PBKDF2 password and logs in
+    await sandbox.handleSetup();
+    assert.ok(sandbox.db.teacherProfile.password.startsWith('pbkdf2$100000$'));
+    assert.equal(dom.window.document.getElementById('loginScreen').style.display, 'none');
+
+    // 2. Logout and re-enter the exact same PIN (even when #loginUsername was cleared or has spaces/Arabic digits)
+    sandbox.logout();
+    assert.equal(dom.window.document.getElementById('loginScreen').style.display, 'flex');
+    assert.equal(dom.window.document.getElementById('loginUsername').value, 'brahim', 'Logout must pre-fill loginUsername so user only needs to enter PIN');
+
+    // Clear loginUsername to simulate user only typing their PIN on their device after Gmail linking
+    dom.window.document.getElementById('loginUsername').value = '';
+    dom.window.document.getElementById('loginPassword').value = ' 1234 ';
+    await sandbox.handleLogin();
+    assert.equal(dom.window.document.getElementById('loginScreen').style.display, 'none', 'Re-entering valid PIN with blank username must succeed');
+
+    // 3. Logout and re-enter PIN using Eastern Arabic numerals (١٢٣٤) and full teacher name
+    sandbox.logout();
+    dom.window.document.getElementById('loginUsername').value = 'الأستاذ إبراهيم';
+    dom.window.document.getElementById('loginPassword').value = '١٢٣٤';
+    await sandbox.handleLogin();
+    assert.equal(dom.window.document.getElementById('loginScreen').style.display, 'none', 'Re-entering valid PIN in Eastern Arabic numerals with teacher name must succeed');
+
+    // 4. Change PIN in Settings and click "تم وحفظ" (saveAndCloseTeacherSettings) without clicking separate password button
+    dom.window.document.getElementById('teacherSettingsModal').style.display = 'flex';
+    dom.window.document.getElementById('settingsOldPassword').value = '1234';
+    dom.window.document.getElementById('settingsNewPassword').value = '5678';
+    await sandbox.saveAndCloseTeacherSettings();
+    assert.equal(dom.window.document.getElementById('teacherSettingsModal').style.display, 'none');
+    assert.equal(await win.verifyPasswordMatch('5678', sandbox.db.teacherProfile.password), true, 'saveAndCloseTeacherSettings must persist new PIN when filled');
+
+    // 5. Logout and login with new PIN 5678
+    sandbox.logout();
+    dom.window.document.getElementById('loginPassword').value = '5678';
+    await sandbox.handleLogin();
+    assert.equal(dom.window.document.getElementById('loginScreen').style.display, 'none', 'New PIN saved via saveAndCloseTeacherSettings must work on re-entry');
+});
+
+test('Zeroed-Out Clean Initialization: No pre-seeded demo classes, students, grades, admin slips, or teacher profile items', () => {
+    const appJsPath = path.join(ROOT, 'public/app.js');
+    const appJsCode = fs.readFileSync(appJsPath, 'utf8');
+
+    const { win, sandbox } = createDomSandbox('<!DOCTYPE html><html><body></body></html>');
+    sandbox.db = {
+        teacherProfile: { name: '', password: '' },
+        classes: {},
+        grades: {},
+        records: []
+    };
+    win.db = sandbox.db;
+
+    const sanitizeStart = appJsCode.indexOf('function sanitizeAndSyncSecondaryMathDB() {');
+    const sanitizeEnd = appJsCode.indexOf('sanitizeAndSyncSecondaryMathDB();') + 'sanitizeAndSyncSecondaryMathDB();'.length;
+    assert.ok(sanitizeStart !== -1 && sanitizeEnd > sanitizeStart);
+    vm.runInContext(appJsCode.slice(sanitizeStart, sanitizeEnd), sandbox, { filename: 'zero-init-test.vm.js' });
+
+    assert.equal(Object.keys(sandbox.db.classes).length, 0, 'Fresh database must have 0 pre-seeded classes');
+    assert.equal(Object.keys(sandbox.db.grades).length, 0, 'Fresh database must have 0 pre-seeded grades');
+
+    runPublicScript(sandbox, 'public/admin-followup-alerts.js');
+    if (typeof win.getAdminFollowUpMetrics === 'function') {
+        const metrics = win.getAdminFollowUpMetrics();
+        assert.equal(metrics.totalCount, 0, 'Fresh database must have 0 pre-seeded admin follow-up slips');
+    }
+    assert.equal((sandbox.db.adminFollowUpSlips || []).length, 0, 'adminFollowUpSlips must remain empty');
+
+    runPublicScript(sandbox, 'public/teacher-profile.js');
+    const tp = sandbox.db.teacherProfile;
+    assert.equal((tp.qualifications || []).length, 0, 'qualifications must start empty');
+    assert.equal((tp.achievements || []).length, 0, 'achievements must start empty');
+    assert.equal((tp.careerStations || []).length, 0, 'careerStations must start empty');
+    assert.equal((tp.trainings || []).length, 0, 'trainings must start empty');
+});
+
+test('Whiteboard Lesson Header Engine & Curriculum Sync: multi-theme rendering, curriculum lookup & Studio modal', () => {
+    const { dom, win, sandbox } = createDomSandbox(`<!DOCTYPE html><html><body>
+        <select id="lessonLogClassSelect"><option value="2BAC-PC-1" selected>2BAC-PC-1</option></select>
+        <input id="lessonLogNumber" value="">
+        <input id="lessonLogTitle" value="">
+        <input id="lessonLogSessionNum" value="4">
+        <select id="lessonLogSessionType"><option value="exercices" selected>exercices</option></select>
+        <canvas id="whiteboardCanvas" width="900" height="600"></canvas>
+    </body></html>`);
+
+    sandbox.db = {
+        teacherProfile: { name: 'محمد أمين', school: 'ثانوية الخوارزمي التأهيلية' },
+        classes: { '2BAC-PC-1': [], '1BAC-SM-1': [], 'TCS-1': [] },
+        lessonLogs: {
+            '2BAC-PC-1': [
+                {
+                    number: 'الدوال اللوغاريتمية',
+                    axes: [{ title: 'النهايات الأساسية للدالة ln واشتقاقها' }],
+                    sessionNum: '4',
+                    sessionType: 'exercices',
+                    objective: 'توظيف النهايات الاعتيادية في حساب النهايات'
+                }
+            ]
+        }
+    };
+    win.db = sandbox.db;
+    win.currentClass = '2BAC-PC-1';
+
+    runPublicScript(sandbox, 'public/secondary-math-curriculum.js');
+    runPublicScript(sandbox, 'public/whiteboard/wb-vector-engine.js');
+
+    assert.equal(typeof win.getSecondaryMathLessonsForClass, 'function', 'getSecondaryMathLessonsForClass must be exported');
+    const bacPcInfo = win.getSecondaryMathLessonsForClass('2BAC-PC-1');
+    assert.equal(bacPcInfo.levelId, '2BAC_EXP');
+    assert.ok(bacPcInfo.allLessons.length >= 8, '2BAC_EXP must return official curriculum lessons');
+
+    const smInfo = win.getSecondaryMathLessonsForClass('1BAC-SM-1');
+    assert.equal(smInfo.levelId, '1BAC_SM');
+    assert.ok(smInfo.allLessons.length >= 8, '1BAC_SM must return official curriculum lessons');
+
+    const tcsInfo = win.getSecondaryMathLessonsForClass('TCS-1');
+    assert.equal(tcsInfo.levelId, 'TCS');
+    assert.ok(tcsInfo.allLessons.length >= 8, 'TCS must return official curriculum lessons');
+
+    const drawnTexts = [];
+    const mockCtx = {
+        save() {},
+        restore() {},
+        beginPath() {},
+        moveTo() {},
+        lineTo() {},
+        rect() {},
+        roundRect() {},
+        clip() {},
+        fill() {},
+        stroke() {},
+        fillRect() {},
+        measureText(str) {
+            return { width: String(str || '').length * 7 };
+        },
+        fillText(txt) {
+            drawnTexts.push(String(txt));
+        }
+    };
+
+    const themes = ['academic', 'chalkboard', 'workshop', 'compact'];
+    const backgrounds = ['white', 'green', 'dark'];
+    for (const styleTheme of themes) {
+        for (const currentBg of backgrounds) {
+            drawnTexts.length = 0;
+            const obj = {
+                t: 'lesson_header',
+                x: 24,
+                y: 12,
+                w: 760,
+                h: styleTheme === 'compact' ? 50 : 88,
+                todayStr: 'الأحد 22 نونبر 2026',
+                className: '2BAC-PC-1',
+                levelLabel: 'الثانية باك علوم تجريبية',
+                lessonTitle: 'الدوال اللوغاريتمية',
+                axisTitle: 'النهايات الأساسية للدالة ln واشتقاقها',
+                objective: 'حساب النهايات',
+                sessionNum: '4',
+                sessionTypeLabel: 'تمارين تطبيقية',
+                teacherName: 'محمد أمين',
+                schoolName: 'ثانوية الخوارزمي التأهيلية',
+                styleTheme,
+                showInstitutionalMeta: true
+            };
+            win.WbVectorEngine.drawVectorObject(mockCtx, obj, { currentBg, isPdfActive: false });
+            assert.ok(drawnTexts.some(t => t.includes('الدوال اللوغاريتمية')), `Theme ${styleTheme} on bg ${currentBg} must render lessonTitle`);
+            const bounds = win.WbVectorEngine.getObjectBounds(obj, { currentBg, isPdfActive: false });
+            assert.equal(bounds.x, 24);
+            assert.equal(bounds.w, 760);
+        }
+    }
+    void dom;
+});
+
+test('Moroccan Curriculum & Note 142-08 Audit: all 10 tracks balance hours cleanly & Absence Heatmap exposes click handler', () => {
+    const { win, sandbox } = createDomSandbox('<!DOCTYPE html><html dir="rtl" lang="ar"><body><div id="heatmapGridContainer"></div></body></html>');
+    runPublicScript(sandbox, 'public/secondary-math-curriculum.js');
+    runPublicScript(sandbox, 'public/absence-heatmap.js');
+
+    const curric = win.MOROCCAN_SECONDARY_MATH_CURRICULUM;
+    assert.ok(curric && Array.isArray(Object.keys(curric)));
+
+    const requiredTracks = ['TCS', 'TCL', '1BAC_SM', '1BAC_EXP', '1BAC_ECO', '1BAC_LSH', '2BAC_SM', '2BAC_EXP', '2BAC_ECO', '2BAC_LSH'];
+    for (const trackKey of requiredTracks) {
+        const track = curric[trackKey];
+        assert.ok(track, `Missing track ${trackKey}`);
+        assert.ok(Number.isFinite(track.totalOfficialHours), `${trackKey} must define totalOfficialHours`);
+        assert.ok(Number.isFinite(track.netLessonsHours), `${trackKey} must define netLessonsHours`);
+        assert.ok(Number.isFinite(track.evalAndSupportHours), `${trackKey} must define evalAndSupportHours`);
+        assert.equal(
+            track.netLessonsHours + track.evalAndSupportHours,
+            track.totalOfficialHours,
+            `${trackKey}: netLessonsHours + evalAndSupportHours must equal totalOfficialHours`
+        );
+        const s1Hours = (track.semesters.s1.lessons || []).reduce((sum, l) => sum + (Number(l.hours) || 0), 0);
+        const s2Hours = (track.semesters.s2.lessons || []).reduce((sum, l) => sum + (Number(l.hours) || 0), 0);
+        assert.equal(
+            s1Hours + s2Hours,
+            track.netLessonsHours,
+            `${trackKey}: sum of lesson hours (${s1Hours + s2Hours}) must match netLessonsHours (${track.netLessonsHours})`
+        );
+    }
+
+    assert.equal(typeof win.showHeatmapCellDetails, 'function');
+    assert.equal(typeof win.onHeatmapCellClick, 'function');
+    assert.equal(win.onHeatmapCellClick, win.showHeatmapCellDetails);
+});
+
+test('Individual Student Report Audit: stdRecords ReferenceError fix, track annual hours parity, lessonLogs[className], XSS sanitization & Sep-Aug school year', () => {
+    const appJsCode = fs.readFileSync(path.join(ROOT, 'public/app.js'), 'utf8');
+    const extractFnBlock = (startMarker, endMarker) => {
+        const startIdx = appJsCode.indexOf(startMarker);
+        assert.ok(startIdx !== -1, `Missing marker: ${startMarker}`);
+        const endIdx = appJsCode.indexOf(endMarker, startIdx);
+        assert.ok(endIdx !== -1, `Missing end marker: ${endMarker}`);
+        return appJsCode.slice(startIdx, endIdx);
+    };
+
+    const heatmapAndReportBlock = extractFnBlock(
+        'function _getFallbackAcademicWeeks(',
+        'function updateClassDisciplineRate('
+    );
+    const detailedAbsenceBlock = extractFnBlock(
+        'function buildStudentDetailedAbsenceReportHtml(',
+        'window.buildStudentDetailedAbsenceReportHtml = buildStudentDetailedAbsenceReportHtml;'
+    );
+
+    const { dom, win, sandbox } = createDomSandbox(`<!DOCTYPE html><html dir="rtl" lang="ar"><body>
+        <select id="reportClassSelect"><option value="2BAC-SM-1" selected>2BAC-SM-1</option></select>
+        <select id="reportStudentSelect"><option value="st/42" selected>st/42</option></select>
+        <input id="reportDateFrom" value="2026-09-01" />
+        <input id="reportDateTo" value="2026-12-31" />
+        <div id="studentChartContainer">
+            <span id="studentAttendanceChartBadge"></span>
+            <div id="studentChartsGrid">
+                <div id="studentProgressChartCard"></div>
+                <div id="studentAttendanceChartCard"></div>
+            </div>
+            <canvas id="studentProgressChart"></canvas>
+            <canvas id="studentAttendanceChart"></canvas>
+        </div>
+        <div id="studentBehaviorDetails" style="display:none;"></div>
+        <button id="btnPrintBehavior" style="display:none;"></button>
+        <button id="btnShareBehavior" style="display:none;"></button>
+        <button id="btnExportStudentPDF" style="display:none;"></button>
+    </body></html>`);
+
+    const escapeHtmlImpl = (str) => String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    const mockDb = {
+        settings: {
+            printModeOptProgressChart: true,
+            printModeOptAbsenceChart: true,
+            printModeOptMonthMatrix: true,
+            printModeOptIncidentsLog: true
+        },
+        teacherProfile: {
+            name: 'الأستاذ <script>alert(9)</script>',
+            academy: 'الرباط سلا القنيطرة',
+            directorate: 'سلا',
+            school: 'ثانوية الخوارزمي <b>التأهيلية</b>',
+            academicYear: ''
+        },
+        classes: {
+            '2BAC-SM-1': {
+                students: [
+                    { id: 'st/42', name: 'آدم <img src=x onerror=alert(1)>', orderNum: 12, massar: 'R140042001' }
+                ]
+            }
+        },
+        lessonLogs: {
+            '2BAC-SM-1': [
+                { date: '2026-10-14', sessionNum: '3', title: 'الاشتقاق <script>bad()</script>' }
+            ]
+        },
+        behaviors: {
+            '2BAC-SM-1': {
+                'st/42': { status: 'تنبيه', note: 'ملاحظة صفية <img src=x onerror=alert(2)>' }
+            }
+        },
+        notes: {
+            '2BAC-SM-1': [
+                { studentId: 'st/42', date: '2026-10-15', text: 'دفتر التتبع <script>xss()</script>' }
+            ]
+        },
+        grades: {
+            '2BAC-SM-1': {
+                'st/42': {
+                    s1: { f1: 14, f2: 16, f3: 15, f4: 17, act: 18 },
+                    s2: { f1: 11, f2: 12 }
+                }
+            }
+        },
+        records: [
+            {
+                id: 'r1',
+                className: '2BAC-SM-1',
+                studentId: 'st/42',
+                date: '2026-10-12',
+                status: 'غائب',
+                hours: 2,
+                session: '08:00 - 10:00',
+                notes: 'غياب <script>x()</script>'
+            },
+            {
+                id: 'r2',
+                className: '2BAC-SM-1',
+                studentId: 'st/42',
+                date: '2027-02-10',
+                status: 'مبرر',
+                hours: 2,
+                session: '14:00 - 16:00'
+            }
+        ]
+    };
+
+    Object.assign(sandbox, {
+        CustomEvent: win.CustomEvent,
+        db: mockDb,
+        activeSemester: 's1',
+        escapeHtml: escapeHtmlImpl,
+        getActiveSemester: () => sandbox.activeSemester,
+        getStudentGradesBySemester: (c, sid, sem) => mockDb.grades[c]?.[sid]?.[sem] || {},
+        getExamsCountForClass: () => 4,
+        getSubjectCoefForClass: () => 9,
+        calculateStudentAvg: (g) => {
+            const vals = [g.f1, g.f2, g.f3, g.f4].map(Number).filter(n => !isNaN(n));
+            return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+        },
+        getWeeklyHoursForClass: (cls) => (cls.includes('SM') ? 7 : 4),
+        getStudentClassRecordsFast: (sid, cls) => mockDb.records.filter(r => r.className === cls && r.studentId === sid),
+        getRecordAbsenceDuration: (rec) => Number(rec.hours) || 1,
+        isRecordProtectedHolidayOrLeave: () => false,
+        getStudentPrintModeOptions: () => ({
+            officialHeader: true,
+            progressChart: true,
+            absenceChart: true,
+            officialVisas: true,
+            monthMatrix: true,
+            weekGrid: false,
+            incidentsLog: true
+        }),
+        isStudentPrintModeEnabled: () => false,
+        getClassColorTheme: () => ({ solid: '#1e3a8a' }),
+        getAppNow: () => new Date('2026-08-15T10:00:00Z'),
+        formatLocalDate: () => '2026-10-16',
+        generateStudentMonthlyAbsenceChartDataUrl: () => ({ dataUrl: 'data:image/png;base64,AAAA' }),
+        getDualLogosHTML: () => '',
+        saveDB: () => {},
+        showAppToast: () => {}
+    });
+    win.db = mockDb;
+
+    vm.runInContext(heatmapAndReportBlock + '\n' + detailedAbsenceBlock, sandbox, {
+        filename: 'individual-student-report-audit.vm.js'
+    });
+
+    // 1. Call updateStudentProgressChart — must succeed without ReferenceError: stdRecords is not defined
+    (win.updateStudentProgressChart || sandbox.updateStudentProgressChart)();
+    const detailsEl = dom.window.document.getElementById('studentBehaviorDetails');
+    const html = detailsEl.innerHTML;
+    assert.equal(detailsEl.style.display, 'block');
+    assert.ok(html.includes('الدورة الأولى'), 'Active semester label must display in grades section header');
+    assert.ok(html.includes('الأنشطة المندمجة:'), 'Integrated activities score should be displayed');
+    assert.ok(html.includes('15.50 / 20'), 'Note 142-08 average of continuous exams (14,16,15,17) must stay 15.50');
+    assert.ok(html.includes('الاشتقاق &lt;script&gt;bad()&lt;/script&gt;'), 'Canonical db.lessonLogs[className] title must appear safely escaped');
+    assert.equal(detailsEl.querySelector('img[src="x"]'), null, 'No raw <img> XSS injection allowed');
+    assert.equal(detailsEl.querySelector('script'), null, 'No raw <script> XSS injection allowed');
+
+    // 2. Verify track annual hours parity: 4h total absence out of 238h (7h*34) => ((238-4)/238)*100 = 98.3%
+    const attBadgeText = dom.window.document.getElementById('studentAttendanceChartBadge').textContent;
+    assert.equal(attBadgeText, 'المواظبة: 98.3% (4س غياب)');
+    assert.ok(html.includes('238 ساعة سنوية'), 'Heatmap analytics card must compute dynamic 238h for 2BAC-SM');
+    assert.ok(html.includes('98.3%'), 'Heatmap analytics attendance rate must match header badge (98.3%)');
+
+    // 3. Verify Sep-Aug school year calculation in August -> 2025 / 2026
+    assert.ok(html.includes('2025/2026') || html.includes('2025 / 2026'), 'August date must resolve to previous academic year 2025/2026');
+
+    // 4. Verify outside-period toggle handles studentId containing slashes cleanly
+    const toggleContainer = dom.window.document.getElementById('allTimeAbsenceDatesContainer_st_42');
+    assert.ok(toggleContainer, 'Sanitized container ID must exist for st/42');
+    assert.equal(toggleContainer.style.display, 'none');
+    (win.toggleAllTimeAbsenceDates || sandbox.toggleAllTimeAbsenceDates)('st/42', '2BAC-SM-1');
+    assert.equal(toggleContainer.style.display, 'block');
+
+    // 5. Verify buildStudentDetailedAbsenceReportHtml XSS escaping & dynamic academicYear override
+    mockDb.teacherProfile.academicYear = '2026 / 2027 (رسمي)';
+    const detailedHtml = (win.buildStudentDetailedAbsenceReportHtml || sandbox.buildStudentDetailedAbsenceReportHtml)(mockDb.classes['2BAC-SM-1'].students[0], '2BAC-SM-1', '2026-09-01', '2026-12-31');
+    assert.ok(detailedHtml.includes('2026 / 2027 (رسمي)'), 'Detailed absence report must honor teacherProfile.academicYear');
+    assert.ok(!detailedHtml.includes('<script>alert(9)</script>'), 'Teacher profile XSS must be escaped');
+    assert.ok(!detailedHtml.includes('<img src=x onerror=alert(1)>'), 'Student name XSS must be escaped');
+});
+
+test('Supervised Exam Report Extended Audit: Note 142-08 handlers, competition ranking (1,1,3), zero grades, stream norms & timetable conflicts', () => {
+    const { dom, win, sandbox } = createDomSandbox(`<!DOCTYPE html><html dir="rtl" lang="ar"><body>
+        <select id="examReportClassSelect"><option value="2BAC-SM-1" selected>2BAC-SM-1</option></select>
+        <select id="reportClassSelect"><option value="2BAC-SM-1" selected>2BAC-SM-1</option></select>
+        <select id="examReportSemester"><option value="s1" selected>s1</option><option value="s2">s2</option></select>
+        <select id="examReportNumber"><option value="1" selected>1</option><option value="2">2</option></select>
+        <span id="examReportStatusBadge"></span>
+        <span id="examReportStreamNormBadge"></span>
+        <input id="examReportPassDate" value="2026-11-10" />
+        <input id="examReportCorrectionDate" value="2026-11-17" />
+        <select id="examReportDuration"><option value="1h">1h</option><option value="2h" selected>2h</option><option value="3h">3h</option><option value="4h">4h</option></select>
+        <input id="examReportCoef" value="" />
+        <textarea id="examReportTopics"></textarea>
+        <input id="examReportGradingScale" value="" />
+        <textarea id="examReportDifficulties"></textarea>
+        <textarea id="examReportRemediation"></textarea>
+        <div id="examStatTotal"></div><div id="examStatPresent"></div><div id="examStatAbsent"></div>
+        <div id="examStatMax"></div><div id="examStatMin"></div><div id="examStatAvg"></div>
+        <div id="examStatPassRate"></div><div id="examStatFailRate"></div>
+        <div id="examStatMedian"></div><div id="examStatStdDev"></div><div id="examStatCV"></div>
+        <div id="distCount_veryLow"></div><div id="distPct_veryLow"></div><div id="distBar_veryLow"></div>
+        <div id="distCount_low"></div><div id="distPct_low"></div><div id="distBar_low"></div>
+        <div id="distCount_medium"></div><div id="distPct_medium"></div><div id="distBar_medium"></div>
+        <div id="distCount_good"></div><div id="distPct_good"></div><div id="distBar_good"></div>
+        <div id="distCount_excellent"></div><div id="distPct_excellent"></div><div id="distBar_excellent"></div>
+        <div id="examReportPieChartContainer"></div>
+        <div id="examReportProgressionStrip"></div>
+        <table><tbody id="examReportRosterTbody"></tbody></table>
+        <table><tbody id="examReportRankedTbody"></tbody></table>
+        <div id="examReportAbsentsContainer"></div>
+        <span id="examReportAbsentsCountBadge"></span>
+    </body></html>`);
+
+    let specCalled = null;
+    let capturedConvocationHtml = '';
+    win.showNotification = () => {};
+    win.showToast = () => {};
+    win.saveDB = () => {};
+    win.openSpecificationTableFromCurriculum = (trackKey, sem, num) => {
+        specCalled = { trackKey, sem, num };
+    };
+    win.openCustomPrintPreviewModal = (html) => {
+        capturedConvocationHtml = html;
+    };
+    win.parseOfficialWeightsTo20Scale = (w) => `سلم 20/20 (${JSON.stringify(w).slice(0, 20)})`;
+
+    runPublicScript(sandbox, 'public/core/grades-calculator.js');
+    runPublicScript(sandbox, 'public/secondary-math-curriculum.js');
+    runPublicScript(sandbox, 'public/exam-report.js');
+
+    win.db = {
+        currentClass: '2BAC-SM-1',
+        teacherProfile: { name: 'أستاذ مادة الرياضيات', school: 'الثانوية التأهيلية المرجعية' },
+        timetable: {
+            'الإثنين': { m1: '2BAC-SM-1 - رياضيات', m2: '2BAC-PC-1 - رياضيات' }
+        },
+        classes: {
+            '2BAC-SM-1': {
+                students: [
+                    { id: 's1', name: 'تلميذ أ', massar: 'M1' },
+                    { id: 's2', name: 'تلميذ ب', massar: 'M2' },
+                    { id: 's3', name: 'تلميذ ج', massar: 'M3' },
+                    { id: 's4', name: 'تلميذ د', massar: 'M4' },
+                    { id: 's5', name: 'تلميذ متغيب', massar: 'M5' }
+                ]
+            }
+        },
+        grades: {
+            '2BAC-SM-1': {
+                s1: { s1: { f1: 17 } },
+                s2: { s1: { f1: '17,0' } },
+                s3: { s1: { f1: 14 } },
+                s4: { s1: { f1: 0 } },
+                s5: { s1: { f1: 'غ' } }
+            }
+        }
+    };
+
+    // 1. Note 142-08 handlers run cleanly without ReferenceError
+    win.prefillOfficialNote142ExamContent();
+    assert.equal(dom.window.document.getElementById('examReportCoef').value, '9');
+    assert.ok(dom.window.document.getElementById('examReportTopics').value.length > 0);
+    const origOpenSpec = win.openSpecificationTableFromCurriculum;
+    assert.equal(typeof origOpenSpec, 'function', 'secondary-math-curriculum.js should export openSpecificationTableFromCurriculum');
+    win.openSpecificationTableFromCurriculum = (trackKey, sem, num) => {
+        specCalled = { trackKey, sem, num };
+    };
+    win.openCurrentExamSpecificationTable();
+    assert.deepEqual(specCalled, { trackKey: '2BAC_SM', sem: 's1', num: 1 });
+
+    // 2. Competition ranking (1, 1, 3, 4) & zero grade preservation
+    win.loadOrBuildReportForForm('2BAC-SM-1');
+    assert.equal(dom.window.document.getElementById('examStatPresent').textContent, '4');
+    assert.equal(dom.window.document.getElementById('examStatMax').textContent, '17');
+    assert.equal(dom.window.document.getElementById('examStatMin').textContent, '0');
+    const rankedRows = Array.from(dom.window.document.querySelectorAll('#examReportRankedTbody tr'));
+    assert.equal(rankedRows.length, 4);
+    assert.match(rankedRows[0].textContent, /1/);
+    assert.match(rankedRows[1].textContent, /1/);
+    assert.match(rankedRows[2].textContent, /3/);
+    assert.match(rankedRows[3].textContent, /4/);
+
+    // 3. GradesCalculator stream norms (SM / PC / ECO / LSH)
+    assert.equal(win.GradesCalculator.getStreamOfficialConfig('2BAC-SM-1').examsPerSemester, 4);
+    assert.equal(win.GradesCalculator.getStreamOfficialConfig('2BAC-PC-1').examsPerSemester, 3);
+    assert.equal(win.GradesCalculator.getStreamOfficialConfig('1BAC-ECO-1').examsPerSemester, 3);
+    assert.equal(win.GradesCalculator.getStreamOfficialConfig('2BAC-LSH-1').examsPerSemester, 2);
+
+    // 4. Makeup convocation slip & timetable conflict detection
+    win.quickUpdateMakeupJustification('s5', 'justified_admin');
+    win.printOfficialMakeupExamConvocation();
+    assert.ok(capturedConvocationHtml.includes('تلميذ متغيب'));
+    assert.ok(capturedConvocationHtml.includes('الفرض المحروس التعويضي'));
+
+    // Monday 08:30 (m1 = 2BAC-SM-1) -> class_session_match (no conflict for 2BAC-SM-1)
+    const matchRes = win.evaluateMakeupSlotConflict('2026-11-16', '08:30', 60, '2BAC-SM-1');
+    assert.equal(matchRes.hasConflict, false);
+    assert.equal(matchRes.status, 'class_session_match');
+
+    // Monday 10:30 (m2 = 2BAC-PC-1) -> conflict for 2BAC-SM-1
+    const clashRes = win.evaluateMakeupSlotConflict('2026-11-16', '10:30', 60, '2BAC-SM-1');
+    assert.equal(clashRes.hasConflict, true);
+    assert.equal(clashRes.status, 'conflict');
+
+    // Sunday -> weekend conflict
+    const sundayRes = win.evaluateMakeupSlotConflict('2026-11-15', '10:00', 60, '2BAC-SM-1');
+    assert.equal(sundayRes.hasConflict, true);
+});
+
+test('Reports Unified Helpers Audit (app.js): period filtering, holiday exclusion, comma-decimal grades & object class normalization', () => {
+    const appCode = fs.readFileSync(path.join(ROOT, 'public/app.js'), 'utf8');
+    const extractFnBlock = (startMarker, endMarker) => {
+        const startIdx = appCode.indexOf(startMarker);
+        assert.ok(startIdx !== -1, `Missing marker: ${startMarker}`);
+        const endIdx = appCode.indexOf(endMarker, startIdx);
+        assert.ok(endIdx !== -1, `Missing end marker: ${endMarker}`);
+        return appCode.slice(startIdx, endIdx);
+    };
+
+    const avgBlock = extractFnBlock('function calculateSemesterAvg(', 'function calculateStudentProgressionIndex(');
+    const multiBlock = extractFnBlock('function resolveReportTargetClasses(classSpec)', 'function renderReportMultiClassPicker()');
+
+    const { win, sandbox } = createDomSandbox();
+    const mockDb = {
+        classes: {
+            '2BAC-PC-1': {
+                students: [
+                    { id: 'st1', name: 'تلميذ كائن', orderNum: 1 }
+                ]
+            },
+            '1BAC-SM-1': [
+                { id: 'st2', name: 'تلميذ مصفوفة', orderNum: 1 }
+            ]
+        },
+        records: [
+            { id: 'r1', className: '2BAC-PC-1', studentId: 'st1', date: '2026-10-10', status: 'غائب', duration: 2 },
+            { id: 'r2', className: '2BAC-PC-1', studentId: 'st1', date: '2026-11-18', status: 'غائب', duration: 2 },
+            { id: 'r3', className: '2BAC-PC-1', studentId: 'st1', date: '2026-12-20', status: 'غائب', duration: 2 }
+        ]
+    };
+
+    Object.assign(sandbox, {
+        db: mockDb,
+        activeSemester: 's1',
+        getSortedClasses: () => ['2BAC-PC-1', '1BAC-SM-1'],
+        getExamsCountForClass: (cls) => (cls.includes('SM') ? 4 : 3),
+        isRecordProtectedHolidayOrLeave: (r) => r.date === '2026-11-18',
+        getClassRecordsFast: (cls) => mockDb.records.filter(r => r.className === cls)
+    });
+    win.db = mockDb;
+
+    vm.runInContext(avgBlock + '\n' + multiBlock, sandbox, { filename: 'app-report-helpers-audit.vm.js' });
+
+    // 1. Comma-decimal & zero grade parsing in calculateStudentAvg
+    const avgComma = win.calculateStudentAvg({ f1: '14,50', f2: '0', f3: '15,50' }, '2BAC-PC-1', 's1');
+    assert.equal(avgComma, 10);
+
+    // 2. Object-wrapped { students: [] } normalization across all classes
+    const combinedStudents = win.getCombinedStudentsForClasses('__ALL__');
+    assert.equal(combinedStudents.length, 2);
+    assert.equal(combinedStudents[0].name, 'تلميذ كائن');
+    assert.equal(combinedStudents[1].name, 'تلميذ مصفوفة');
+
+    // 3. Period filtering + protected holiday exclusion
+    const filteredRecords = win.getCombinedRecordsForClasses('2BAC-PC-1', '2026-10-01', '2026-11-30')
+        .filter(r => !sandbox.isRecordProtectedHolidayOrLeave(r));
+    assert.equal(filteredRecords.length, 1);
+    assert.equal(filteredRecords[0].id, 'r1');
+});
+
+test('Standalone Report Modules Audit: sparse Pearson correlation guard, comma decimals in PDF dataset & Olympiad candidate extraction', () => {
+    const { dom, win, sandbox } = createDomSandbox(`<!DOCTYPE html><html dir="rtl" lang="ar"><body>
+        <div id="gradesAbsenceImpactCard"></div>
+        <div id="dashMathOlympiadCard"></div>
+    </body></html>`);
+
+    win.showToast = () => {};
+    win.showAppToast = () => {};
+    win.getAppNow = () => new Date('2026-11-20T10:00:00Z');
+    win.isRecordProtectedHolidayOrLeave = (r) => r.status === 'عطلة رسمية' || r.date === '2026-11-18';
+    win.isAbsenceDisabledOnDate = (d) => d === '2026-11-18';
+    win.getExamsCountForClass = (cls) => (cls.includes('SM') ? 4 : 3);
+    win.getSortedClasses = () => ['2BAC-SM-1'];
+
+    win.db = {
+        classes: {
+            '2BAC-SM-1': {
+                students: [
+                    { id: 'st1', name: 'نخبة أولمبياد', massar: 'R1300111', orderNum: 1 }
+                ]
+            }
+        },
+        grades: {
+            '2BAC-SM-1': {
+                st1: {
+                    s1: { f1: '18,5', f2: '17,75', f3: 18, f4: '19,25' }
+                }
+            }
+        },
+        records: [
+            { id: 'r1', className: '2BAC-SM-1', studentId: 'st1', date: '2026-11-18', status: 'غائب', duration: 2 },
+            { id: 'r2', className: '2BAC-SM-1', studentId: 'st1', date: '2026-11-10', status: 'غائب', duration: 2 }
+        ]
+    };
+
+    runPublicScript(sandbox, 'public/grades-absence-impact-chart.js');
+    runPublicScript(sandbox, 'public/admin-comprehensive-pdf.js');
+    runPublicScript(sandbox, 'public/academic-evolution-card.js');
+
+    // 1. Sparse correlation guard in grades-absence-impact-chart.js (< 2 students -> no NaN, shows '--')
+    win.renderGradesAbsenceImpactChart('2BAC-SM-1');
+    const impactHtml = dom.window.document.getElementById('gradesAbsenceImpactCard').innerHTML;
+    assert.ok(impactHtml.includes('بيانات غير كافية'));
+    assert.ok(impactHtml.includes('يتطلب تلميذين على الأقل'));
+    assert.equal(impactHtml.includes('NaN'), false);
+
+    // 2. Comma decimals, 4-exam average, & protected holiday exclusion in admin-comprehensive-pdf.js
+    const adminDataset = win.buildAdminComprehensiveDataset({ semester: 's1', classFilter: '2BAC-SM-1' });
+    assert.equal(adminDataset.totals.studentsCount, 1);
+    assert.equal(adminDataset.totals.absentHours, 2, 'Protected holiday 2026-11-18 must be excluded');
+    const row = adminDataset.classSummaries[0].students[0];
+    assert.equal(row.s1.avg, 18.38);
+
+    // 3. Olympiad candidate extraction in academic-evolution-card.js
+    win.renderMathOlympiadClubCard();
+    const olympiadHtml = dom.window.document.getElementById('dashMathOlympiadCard').innerHTML;
+    assert.ok(olympiadHtml.includes('نخبة أولمبياد'));
+    assert.ok(olympiadHtml.includes('19.25'));
+});
+
+test('Official Supervised Exam Report — Page 2 retains all student marks, merit rankings, and absents even when subsequent exams (f2/f3/f4) are ungraded and reportClassSelect is __ALL__', () => {
+    const { win, sandbox } = createDomSandbox(`<!DOCTYPE html><html dir="rtl"><body>
+        <select id="reportClassSelect"><option value="__ALL__" selected>جميع الأقسام</option><option value="2BAC-PC-1">2BAC-PC-1</option></select>
+        <select id="examReportSemester"><option value="s1" selected>s1</option></select>
+        <select id="examReportNumber"><option value="1" selected>1</option></select>
+        <div id="examReportProgressionStrip"></div>
+    </body></html>`);
+
+    win.db = {
+        classes: {
+            '2BAC-PC-1': [
+                { id: 's1', name: 'سلمى بنعلي', massar: 'G1300101' },
+                { id: 's2', name: 'ياسين المرابط', massar: 'G1300102' },
+                { id: 's3', name: 'آية الإدريسي', massar: 'G1300103' }
+            ]
+        },
+        grades: {
+            '2BAC-PC-1': {
+                s1: { s1: { f1: 17.5 } }, // f2 and f3 are intentionally ungraded!
+                s2: { s1: { f1: 8.5 } },
+                s3: { s1: { f1: 'غ' } }
+            }
+        }
+    };
+
+    let capturedHtml = '';
+    let capturedOpts = null;
+    win.openCustomPrintPreviewModal = (html, opts) => {
+        capturedHtml = html;
+        capturedOpts = opts;
+    };
+
+    runPublicScript(sandbox, 'public/core/grades-calculator.js');
+    runPublicScript(sandbox, 'public/secondary-math-curriculum.js');
+    runPublicScript(sandbox, 'public/exam-report.js');
+
+    win.cleanupExamReportMemory();
+    win.printOfficialExamReport(false);
+
+    assert.ok(capturedHtml.includes('report-page-1'), 'Must contain Page 1');
+    assert.ok(capturedHtml.includes('report-page-2'), 'Must contain Page 2');
+    assert.equal(capturedHtml.includes('[object Object]'), false, 'Grading scale must never render [object Object]');
+
+    const page2Split = capturedHtml.split('class="report-page report-page-2"')[1] || '';
+    assert.ok(page2Split.includes('سلمى بنعلي'), 'Page 2 must contain student 1');
+    assert.ok(page2Split.includes('17.50'), 'Page 2 must display student 1 grade 17.50 in both roster and merit tables');
+    assert.ok(page2Split.includes('ممتاز (Très bien)'), 'Page 2 merit table must contain appreciation for 17.50');
+    assert.ok(page2Split.includes('ياسين المرابط'), 'Page 2 must contain struggling student 2');
+    assert.ok(page2Split.includes('8.50'), 'Page 2 must display student 2 grade 8.50');
+    assert.ok(page2Split.includes('آية الإدريسي'), 'Page 2 must list absent student 3');
+    assert.equal(page2Split.includes('لا توجد نقط مسجلة'), false, 'Page 2 merit table must not be empty');
+    assert.ok(capturedOpts && capturedOpts.margins && capturedOpts.margins.top === 6, 'Must pass 6mm narrow top/bottom margins to preview modal');
+});
+
+
+
 

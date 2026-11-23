@@ -317,15 +317,17 @@ export default function ReportsEvolutionChart() {
     const handleTabOpened = (e: any) => {
       loadDb(true);
       if (e && e.detail) {
-        if (e.detail.className && e.detail.className !== '__ALL__') {
+        if (e.detail.className && e.detail.className !== '__ALL__' && e.detail.className !== '__MULTI__') {
           setSelectedClass(e.detail.className);
+        } else if (Array.isArray(e.detail.selectedClasses) && e.detail.selectedClasses.length > 0) {
+          setSelectedClass(e.detail.selectedClasses[0]);
         }
         if (e.detail.studentId) setSelectedStudentId(e.detail.studentId);
         if (e.detail.viewMode) setViewMode(e.detail.viewMode);
       } else {
         // Also check #reportClassSelect in DOM if present
         const reportSelect = document.getElementById('reportClassSelect') as HTMLSelectElement | null;
-        if (reportSelect && reportSelect.value && reportSelect.value !== '__ALL__') {
+        if (reportSelect && reportSelect.value && reportSelect.value !== '__ALL__' && reportSelect.value !== '__MULTI__') {
           setSelectedClass(reportSelect.value);
         }
       }
@@ -729,7 +731,7 @@ export default function ReportsEvolutionChart() {
         : db.records;
     for (let i = 0; i < classRecords.length; i++) {
       const r = classRecords[i];
-      if (!r || r.className !== selectedClass || !r.studentId) continue;
+      if (!r || (r.className || r.class || '') !== selectedClass || !r.studentId) continue;
       if (isProtectedRecord ? isProtectedRecord(r) : (r.date && isProtectedDate && (() => { const c = isProtectedDate(r.date, r.session); return typeof c === 'boolean' ? c : !!(c && c.disabled); })())) {
         continue;
       }
@@ -1554,6 +1556,13 @@ export default function ReportsEvolutionChart() {
 
   // Official Print Report Handler with Official Footer
   const handlePrintOfficialEvolutionReport = () => {
+    const esc = (s: any) =>
+      String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     const certInfo = detectClassCertificationTarget(selectedClass);
     const milestones = classExamLevelsEvolution.milestones;
     const bacRows = filteredBacReadinessList;
@@ -1562,7 +1571,7 @@ export default function ReportsEvolutionChart() {
       .map(
         m => `
         <tr>
-          <td style="border:1px solid #334155;padding:6px;font-weight:bold;">${m.name}</td>
+          <td style="border:1px solid #334155;padding:6px;font-weight:bold;">${esc(m.name)}</td>
           <td style="border:1px solid #334155;padding:6px;text-align:center;font-weight:900;color:#1d4ed8;">${m['معدل القسم'] ?? '—'}</td>
           <td style="border:1px solid #334155;padding:6px;text-align:center;">${m['الوسيط الحسابي'] ?? '—'}</td>
           <td style="border:1px solid #334155;padding:6px;text-align:center;color:#15803d;font-weight:bold;">${m['أعلى نقطة'] ?? '—'}</td>
@@ -1583,13 +1592,13 @@ export default function ReportsEvolutionChart() {
         (r, i) => `
         <tr>
           <td style="border:1px solid #334155;padding:5px;text-align:center;">${i + 1}</td>
-          <td style="border:1px solid #334155;padding:5px;font-weight:bold;">${r.name}</td>
+          <td style="border:1px solid #334155;padding:5px;font-weight:bold;">${esc(r.name)}</td>
           <td style="border:1px solid #334155;padding:5px;text-align:center;">${r.annualAvg ?? '—'} / 20</td>
           <td style="border:1px solid #334155;padding:5px;text-align:center;">${r.gradesPillarScore}%</td>
           <td style="border:1px solid #334155;padding:5px;text-align:center;">${r.attendancePillarScore}% (${r.totalAbsenceHours}س)</td>
           <td style="border:1px solid #334155;padding:5px;text-align:center;">${r.homeworkPillarScore}%</td>
           <td style="border:1px solid #334155;padding:5px;text-align:center;font-weight:900;color:${r.readinessColor};">${r.readinessIndex}%</td>
-          <td style="border:1px solid #334155;padding:5px;text-align:center;font-weight:bold;color:${r.readinessColor};">${r.readinessLabel}</td>
+          <td style="border:1px solid #334155;padding:5px;text-align:center;font-weight:bold;color:${r.readinessColor};">${esc(r.readinessLabel)}</td>
         </tr>
       `
       )
@@ -1605,16 +1614,16 @@ export default function ReportsEvolutionChart() {
           </div>
           <div style="text-align:center;">
             <div style="font-size:16px;font-weight:900;color:#1e3a8a;">تقرير تطور مستويات الفروض المحروسة ومؤشر الجاهزية الإشهادية</div>
-            <div style="font-size:12px;font-weight:800;color:#0f766e;margin-top:2px;">القسم: ${selectedClass} (${certInfo.badge})</div>
+            <div style="font-size:12px;font-weight:800;color:#0f766e;margin-top:2px;">القسم: ${esc(selectedClass)} (${esc(certInfo.badge)})</div>
           </div>
           <div style="text-align:left;line-height:1.5;font-weight:700;">
-            <div>الأستاذ: إبراهيم قزيبر</div>
+            <div>الأستاذ(ة): ${esc(db?.teacherProfile?.name || 'أستاذ المادة')}</div>
             <div>المادة: الرياضيات</div>
             <div>عدد التلاميذ: ${students.length}</div>
           </div>
         </div>
 
-        <h4 style="margin:8px 0 6px 0;font-size:13px;color:#1e3a8a;">1. جدول تطور مستويات التلاميذ عبر الفروض المحروسة (${selectedClass}):</h4>
+        <h4 style="margin:8px 0 6px 0;font-size:13px;color:#1e3a8a;">1. جدول تطور مستويات التلاميذ عبر الفروض المحروسة (${esc(selectedClass)}):</h4>
         <table style="width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:14px;">
           <thead>
             <tr style="background:#f1f5f9;font-weight:900;">
@@ -1651,7 +1660,7 @@ export default function ReportsEvolutionChart() {
         </table>
 
         <div style="margin-top:18px;padding-top:8px;border-top:1.5px solid #cbd5e1;text-align:center;font-size:11px;font-weight:800;color:#1e3a8a;">
-          منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر
+          منظومة التدبير التربوي - مادة الرياضيات - ${esc(db?.teacherProfile?.name || 'أستاذ المادة')}
         </div>
       </div>
     `;
@@ -1678,7 +1687,7 @@ export default function ReportsEvolutionChart() {
         `• *نسبة المواظبة والحضور:* ${student.attendancePillarScore}% (مجموع الغياب: ${student.totalAbsenceHours} ساعة)\n` +
         `• *الالتزام بسلاسل التمارين المنزلية:* ${student.homeworkPillarScore}%\n\n` +
         `📌 *التوجيه البيداغوجي الموصى به:* ${student.mathPrescription}\n\n` +
-        `مع تحيات: منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر`
+        `مع تحيات: منظومة التدبير التربوي - مادة الرياضيات - ${db?.teacherProfile?.name || 'أستاذ المادة'}`
     );
     openWhatsAppSafely(`https://wa.me/?text=${text}`);
   };
@@ -1693,7 +1702,7 @@ export default function ReportsEvolutionChart() {
         (student.deltaTrajectory !== null && student.deltaTrajectory < 0
           ? `- تراجع النتيجة بين الدورتين بمقدار (${student.deltaTrajectory} نقطة).\n`
           : '') +
-        `نهيب بكم الحضور للمؤسسة للتواصل مع الأستاذ وتدارك الأمر لضمان نجاح التلميذ.\n- منظومة التدبير التربوي -مادة الرياضيات- الأستاذ إبراهيم قزيبر`
+        `نهيب بكم الحضور للمؤسسة للتواصل مع الأستاذ وتدارك الأمر لضمان نجاح التلميذ.\n- منظومة التدبير التربوي - مادة الرياضيات - ${db?.teacherProfile?.name || 'أستاذ المادة'}`
     );
     openWhatsAppSafely(`https://wa.me/?text=${text}`);
   };
