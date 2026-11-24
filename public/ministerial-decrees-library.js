@@ -109,8 +109,8 @@
                     text: 'مجال التحليل (50%: النهايات والاتصال والاشتقاق والتكامل والمعادلات التفاضلية 35% + المتتاليات 15%)، ومجال الجبر والاحتمالات (50%: الحسابيات في Z والبنيات الجبرية 25% + الأعداد العقدية 12.5% + الاحتمالات 12.5%).'
                 },
                 {
-                    title: 'نسب الأهمية لشعبة الاقتصاد والتدبير وشعبة الآداب (LSH)',
-                    text: 'في الاقتصاد والتدبير: التحليل 65% (الدوال والتكامل 50% + المتتاليات 15%) والاحتمالات 35%. وفي شعبة الآداب والعلوم الإنسانية (2BAC LSH): التحليل 75% (المتتاليات 20% + الدوال اللوغاريتمية والأسية 55%) وحساب الاحتمالات 25%.'
+                    title: 'نسب الأهمية لشعبة الاقتصاد والتدبير وشعبة الآداب (LSH - المترشحون الأحرار)',
+                    text: 'في الاقتصاد والتدبير: التحليل 65% (الدوال والتكامل 50% + المتتاليات 15%) والاحتمالات 35% (المدة: ساعتان). وفي شعبة الآداب والعلوم الإنسانية (2BAC LSH): مادة الرياضيات للمتمدرسين تخضع للمراقبة المستمرة فقط، أما الإطار المرجعي للامتحان الوطني للمترشحين الأحرار فيغطي التحليل 75% (المتتاليات 20% + الدوال اللوغاريتمية والأسية 55%) وحساب الاحتمالات 25%.'
                 }
             ]
         },
@@ -367,16 +367,22 @@
         const sessionType = sessionTypeOverride || (isObj ? (lessonInput.sessionType || 'cours') : 'cours');
         const isRemedialFlag = isObj && !!(lessonInput.isExtraSession || lessonInput.isRemedial || lessonInput.outOfSchedule);
 
-        // 1. تحديد المستوى والشعبة من اسم القسم (يدعم 1BAC SH / 1BAC LSH وكافة الشعب)
+        // 1. تحديد المستوى والشعبة من اسم القسم (يدعم 1BAC SH / 1BAC LSH والفنون التطبيقية وكافة الشعب)
+        const isAppliedArts = /\b[12]?b?arts?\b|فنون تطبيقية|الفنون التطبيقية/i.test(String(className || ''));
+        const is2BacClass = /2\s*bac|2b|ثانية/i.test(String(className || ''));
         const levelKey = (typeof window.getCurriculumLevelForClass === 'function')
             ? window.getCurriculumLevelForClass(className || '')
             : 'TCS';
         const curriculumMap = window.MOROCCAN_SECONDARY_MATH_CURRICULUM || {};
         const levelData = curriculumMap[levelKey] || curriculumMap.TCS || {};
-        const levelName = levelData.name || className || 'التعليم الثانوي التأهيلي';
-        const weeklyHours = levelData.weeklyHours || 5;
-        const coefficient = levelData.coefficient || 4;
-        const note142Summary = levelData.note142Summary || 'تنظيم فروض المراقبة المستمرة وفق المذكرة الوزارية رقم 142-08.';
+        const levelName = isAppliedArts
+            ? (is2BacClass ? 'السنة الثانية بكالوريا — شعبة الفنون التطبيقية' : 'السنة الأولى بكالوريا — شعبة الفنون التطبيقية')
+            : (levelData.name || className || 'التعليم الثانوي التأهيلي');
+        const weeklyHours = isAppliedArts ? 3 : (levelData.weeklyHours || 5);
+        const coefficient = isAppliedArts ? 4 : (levelData.coefficient || 4);
+        const note142Summary = isAppliedArts
+            ? 'شعبة الفنون التطبيقية (المذكرة 142-08 - جدولا 7 و12): 3 فروض محروسة (ساعة واحدة لكل فرض) + 3 فروض منزلية في كل دورة، 60% م1 و40% م2، مراقبة مستمرة فقط في الرياضيات.'
+            : (levelData.note142Summary || 'تنظيم فروض المراقبة المستمرة وفق المذكرة الوزارية رقم 142-08.');
 
         // 2. مطابقة عنوان الدرس مع المنهاج الرسمي والأطر المرجعية
         const currMatch = findCurriculumLessonAndDomain(levelKey, levelData, cleanTitle);
@@ -394,8 +400,8 @@
         const isHomeworkSession = sessionType === 'homework' || /فرض منزلي|واجب منزلي|تصحيح الواجب/.test(normTitle);
         const isSupportSession = isRemedialFlag || sessionType === 'soutien' || sessionType === 'rattrapage' || sessionType === 'examen_prep' || /حصه دعم|دعم تربوي|دعم واستدراك|استدراكيه|تحضير للامتحان/.test(normTitle);
 
-        const isCertificative1Bac = (levelKey === '1BAC_LSH');
-        const isCertificative2Bac = (levelKey === '2BAC_EXP' || levelKey === '2BAC_SM' || levelKey === '2BAC_ECO');
+        const isCertificative1Bac = (!isAppliedArts && levelKey === '1BAC_LSH');
+        const isCertificative2Bac = (!isAppliedArts && (levelKey === '2BAC_EXP' || levelKey === '2BAC_SM' || levelKey === '2BAC_ECO'));
 
         let decreeId = 'note_orientations_2007';
         let decreeNumber = 'التوجيهات التربوية الرسمية (نونبر 2007) + المذكرة الوزارية رقم 155';
@@ -946,17 +952,24 @@
      * فتح نافذة معاينة الوثيقة الوزارية الرسمية الأصلية (PDF) داخل التطبيق
      */
     function openOfficialPdfViewerModal(pdfUrl, title, downloadFileName) {
-        if (!pdfUrl) return;
+        const rawUrl = String(pdfUrl || '').trim();
+        if (!rawUrl || !/^(\/(?!\/)|https?:\/\/)/i.test(rawUrl)) return;
+        const safeUrl = rawUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         let modal = document.getElementById('officialPdfViewerModal');
         if (!modal) {
             modal = document.createElement('div');
             modal.id = 'officialPdfViewerModal';
             modal.style.cssText = 'display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.82); backdrop-filter: blur(5px); z-index: 10120; align-items: center; justify-content: center; padding: 14px; direction: rtl;';
             modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal && modal.style.display !== 'none') {
+                    modal.style.display = 'none';
+                }
+            });
             document.body.appendChild(modal);
         }
-        const safeTitle = String(title || 'الوثيقة الوزارية الرسمية (PDF)').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const safeDownload = String(downloadFileName || 'official_document.pdf').replace(/"/g, '');
+        const safeTitle = String(title || 'الوثيقة الوزارية الرسمية (PDF)').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const safeDownload = String(downloadFileName || 'official_document.pdf').replace(/["'<>]/g, '');
         modal.innerHTML = `
             <div class="card" style="width: 100%; max-width: 1120px; height: 92vh; display: flex; flex-direction: column; background: #ffffff; border-radius: 14px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45); border: 1.5px solid #cbd5e1;">
                 <div style="padding: 12px 18px; background: linear-gradient(135deg, #0f172a, #1e3a8a); color: #ffffff; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
@@ -968,14 +981,14 @@
                         </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <a href="${pdfUrl}" download="${safeDownload}" style="background: #10b981; color: #ffffff; padding: 6px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(16,185,129,0.3);">
+                        <a href="${safeUrl}" download="${safeDownload}" style="background: #10b981; color: #ffffff; padding: 6px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(16,185,129,0.3);">
                             <span>⬇️ تحميل الوثيقة (PDF)</span>
                         </a>
                         <button type="button" onclick="document.getElementById('officialPdfViewerModal').style.display='none'" style="background: rgba(255,255,255,0.15); border: none; color: #ffffff; width: 32px; height: 32px; border-radius: 8px; font-size: 1.1rem; cursor: pointer; font-weight: bold;">✕</button>
                     </div>
                 </div>
                 <div style="flex: 1; background: #334155; position: relative;">
-                    <iframe src="${pdfUrl}" title="${safeTitle}" style="width: 100%; height: 100%; border: none;"></iframe>
+                    <iframe src="${safeUrl}" title="${safeTitle}" style="width: 100%; height: 100%; border: none;"></iframe>
                 </div>
             </div>
         `;

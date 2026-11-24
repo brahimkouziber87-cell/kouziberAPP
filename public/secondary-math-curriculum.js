@@ -2507,8 +2507,14 @@
                 window.loadOrBuildReportForForm(targetClass || '');
             }
 
-            if (durEl) durEl.value = (lvl.examDuration === 1 || ex?.durationHours === 1) ? '1h' : '2h';
-            if (coefEl && lvl.coefficient) coefEl.value = lvl.coefficient;
+            const isTargetArt = /\b[12]?b?arts?\b|فنون تطبيقية|الفنون التطبيقية/i.test(String(targetClass || ''));
+            if (durEl) durEl.value = (isTargetArt || lvl.examDuration === 1 || ex?.durationHours === 1) ? '1h' : '2h';
+            if (coefEl) {
+                const resolvedCoef = (isTargetArt && typeof window.getSubjectCoefForClass === 'function')
+                    ? window.getSubjectCoefForClass(targetClass)
+                    : (isTargetArt ? 4 : lvl.coefficient);
+                if (resolvedCoef) coefEl.value = resolvedCoef;
+            }
             if (ex) {
                 if (topicsEl) topicsEl.value = ex.topics || ex.officialWeights || '';
                 if (scaleEl && ex.officialWeights) {
@@ -2558,7 +2564,8 @@
             if (semSelect) semSelect.value = semKey || 's1';
             if (numSelect) numSelect.value = String(examNum || 1);
             if (typeSelect) typeSelect.value = 'فرض محروس';
-            if (durSelect) durSelect.value = (lvl.examDuration === 1 || ex?.durationHours === 1) ? '1h' : '2h';
+            const isTargetArt = /\b[12]?b?arts?\b|فنون تطبيقية|الفنون التطبيقية/i.test(String(targetClass || ''));
+            if (durSelect) durSelect.value = (isTargetArt || lvl.examDuration === 1 || ex?.durationHours === 1) ? '1h' : '2h';
             if (topicsInput && ex) topicsInput.value = ex.topics || ex.officialWeights || '';
 
             const formWrap = document.getElementById('upcomingExamFormContainer');

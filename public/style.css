@@ -5856,8 +5856,20 @@ body:has(#distanceTeachingView[style*="display:block"]) #floatingVoiceSearchBtn 
         display: block !important;
         width: 100% !important;
         max-width: 100% !important;
+        overflow: visible !important;
+        height: auto !important;
+    }
+    body.printing-calendar-view #calendarView .card {
+        break-inside: auto !important;
+        page-break-inside: auto !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
     }
     #calendarMainSubnavBar,
+    #calendarActionsToolbar,
     #googleCalendarSyncBannerMount,
     #calendarWhatsappReminderBanner {
         display: none !important;
@@ -12579,6 +12591,15 @@ body.student-print-mode.print-mode-size-a5 .student-a4-minimalist-sheet .student
         height: auto !important;
     }
 
+    body.printing-custom-preview #customReportPreviewScrollStage {
+        display: block !important;
+        overflow: visible !important;
+        width: 100% !important;
+        height: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
     body.printing-full-report .no-print,
     body.printing-universal-doc .no-print,
     body.printing-custom-preview .no-print,
@@ -12593,11 +12614,29 @@ body.student-print-mode.print-mode-size-a5 .student-a4-minimalist-sheet .student
     body.printing-custom-preview #customReportPrintableSheet {
         width: 100% !important;
         max-width: none !important;
+        min-height: 0 !important;
+        zoom: 100% !important;
         box-shadow: none !important;
         border: none !important;
         margin: 0 !important;
         padding: 0 !important;
         font-family: var(--print-font-family, 'Cairo', 'Amiri', sans-serif) !important;
+    }
+
+    .cal-print-monthly-sheet,
+    .cal-print-agenda-sheet,
+    .cal-print-detailed-schedule-sheet {
+        display: block !important;
+        visibility: visible !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        width: 100% !important;
+    }
+
+    .cal-print-kpi-row,
+    .cal-week-divider-row {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
     }
 
     /* تحسين الجداول والصفحات في كافة التقارير المطبوعة */
@@ -13369,6 +13408,7 @@ body.dark-mode #whiteboardDesktopHubModal .wb-desk-tab-btn.active {
     .reports-axes-grid {
         grid-template-columns: repeat(6, minmax(135px, 1fr)) !important;
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
         padding-bottom: 4px;
     }
 }
@@ -13383,6 +13423,20 @@ body.dark-mode #whiteboardDesktopHubModal .wb-desk-tab-btn.active {
         width: 100%;
         justify-content: center;
     }
+}
+
+body.dark-mode #homeOfficialPedagogicalReferenceStrip {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode #homeOfficialPedagogicalReferenceStrip span {
+    color: inherit;
+}
+
+body.dark-mode #homeOfficialPedagogicalReferenceStrip > div:first-child > span {
+    color: #93c5fd !important;
 }
 
 body.dark-mode #reportMasterFilterCard,

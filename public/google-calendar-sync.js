@@ -783,33 +783,33 @@
                 </div>
 
                 <!-- Right Controls & Actions -->
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: nowrap; flex: 0 0 auto; max-width: 100%; overflow-x: auto;">
                     <!-- Auto-Sync Toggle Switch -->
-                    <label style="display: inline-flex; align-items: center; gap: 7px; background: #ffffff; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 800; color: #1e293b; user-select: none;" title="عند تفعيل هذا الخيار، يتم إرسال وتحديث وتزامن أي موعد أو محطة أو فرض فورياً في Google Calendar">
-                        <input type="checkbox" id="calToggleAutoSync" ${isAuto ? 'checked' : ''} onchange="window.toggleGoogleCalendarAutoSync(this.checked)" style="width: 16px; height: 16px; accent-color: #2563eb; cursor: pointer;">
+                    <label style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: #ffffff; border: 1px solid #cbd5e1; height: 34px; min-height: 34px; padding: 0 11px; margin: 0; border-radius: 9px; cursor: pointer; font-size: 0.77rem; font-weight: 800; color: #1e293b; user-select: none; white-space: nowrap; flex-shrink: 0; box-sizing: border-box;" title="عند تفعيل هذا الخيار، يتم إرسال وتحديث وتزامن أي موعد أو محطة أو فرض فورياً في Google Calendar">
+                        <input type="checkbox" id="calToggleAutoSync" ${isAuto ? 'checked' : ''} onchange="window.toggleGoogleCalendarAutoSync(this.checked)" style="width: 15px; height: 15px; margin: 0; padding: 0; accent-color: #2563eb; cursor: pointer; flex-shrink: 0;">
                         <span>⚡ تزامن تلقائي مباشر</span>
                     </label>
 
                     <!-- Manual Sync Now Button -->
-                    <button type="button" class="btn-primary" onclick="window.syncAllToGoogleCalendar(true)" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-weight: 800; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25); cursor: pointer;" title="مزامنة فورية شاملة لكافة المحطات والفروض والمواعيد المسجلة">
+                    <button type="button" class="btn-primary" onclick="window.syncAllToGoogleCalendar(true)" style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #fff; border: none; height: 34px; min-height: 34px; padding: 0 12px; margin: 0; border-radius: 9px; font-weight: 800; font-size: 0.77rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25); white-space: nowrap; flex-shrink: 0; width: auto; box-sizing: border-box; cursor: pointer;" title="مزامنة فورية شاملة لكافة المحطات والفروض والمواعيد المسجلة">
                         <span class="ui-icon" style="margin:0;"><span data-lucide="refresh-cw" data-size="14"></span></span>
                         <span>مزامنة فورية الآن</span>
                     </button>
 
                     <!-- Import from Google Button -->
-                    <button type="button" class="btn-secondary" onclick="window.importFromGoogleCalendar(true)" style="background: #ffffff; border: 1px solid #cbd5e1; color: #334155; padding: 7px 12px; border-radius: 8px; font-weight: 800; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;" title="جلب الأحداث والاجتماعات من حساب تقويم جوجل إلى المنظومة">
+                    <button type="button" class="btn-secondary" onclick="window.importFromGoogleCalendar(true)" style="background: #ffffff; border: 1px solid #cbd5e1; color: #334155; height: 34px; min-height: 34px; padding: 0 11px; margin: 0; border-radius: 9px; font-weight: 800; font-size: 0.77rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; flex-shrink: 0; width: auto; box-sizing: border-box; cursor: pointer;" title="جلب الأحداث والاجتماعات من حساب تقويم جوجل إلى المنظومة">
                         <span class="ui-icon" style="margin:0;"><span data-lucide="download" data-size="14"></span></span>
                         <span>استيراد من Google</span>
                     </button>
 
                     <!-- Direct Smartphone ICS Calendar Export Button -->
-                    <button type="button" class="btn-secondary" onclick="if(window.downloadMinisterialCalendarICS) window.downloadMinisterialCalendarICS();" style="background: #f0fdf4; border: 1px solid #86efac; color: #166534; padding: 7px 12px; border-radius: 8px; font-weight: 800; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;" title="تنزيل ملف التقويم الموحد (.ics) لإضافته مباشرة إلى تقويم الهاتف الذكي (iPhone / Android / Outlook) مع التنبيهات">
+                    <button type="button" class="btn-secondary" onclick="if(window.downloadMinisterialCalendarICS) window.downloadMinisterialCalendarICS();" style="background: #f0fdf4; border: 1px solid #86efac; color: #166534; height: 34px; min-height: 34px; padding: 0 11px; margin: 0; border-radius: 9px; font-weight: 800; font-size: 0.77rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; flex-shrink: 0; width: auto; box-sizing: border-box; cursor: pointer;" title="تنزيل ملف التقويم الموحد (.ics) لإضافته مباشرة إلى تقويم الهاتف الذكي (iPhone / Android / Outlook) مع التنبيهات">
                         <span class="ui-icon" style="margin:0;"><span data-lucide="calendar-check" data-size="14"></span></span>
                         <span>📲 تقويم الهاتف (.ICS)</span>
                     </button>
 
                     ${!isConnected ? `
-                        <button type="button" class="btn-primary" onclick="if(window.handleDriveLogin) window.handleDriveLogin();" style="background: #ffffff; border: 1.5px solid #4285F4; color: #1a73e8; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <button type="button" class="btn-primary" onclick="if(window.handleDriveLogin) window.handleDriveLogin();" style="background: #ffffff; border: 1.5px solid #4285F4; color: #1a73e8; height: 34px; min-height: 34px; padding: 0 11px; margin: 0; border-radius: 9px; font-weight: 800; font-size: 0.77rem; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; flex-shrink: 0; width: auto; box-sizing: border-box; cursor: pointer;">
                             <span>تسجيل الدخول بـ Google</span>
                         </button>
                     ` : ''}

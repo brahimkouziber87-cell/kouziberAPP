@@ -2485,7 +2485,289 @@ test('Comprehensive Moroccan Math Pedagogical & Note 142-08 Audit: 100% weight s
 
     const pvEco = win.getCouncilClassStatistics('2BAC-PC-1', 's1');
     assert.ok(pvEco.students[0].orientationAdvice.includes('ENCG') || pvEco.students[0].orientationAdvice.includes('الاقتصادية'));
+
+    // 6. ART (singular/plural) & LET shorthands in GradesCalculator
+    assert.equal(win.GradesCalculator.getStreamOfficialConfig('1BAC-ART-1').code, 'ART');
+    assert.equal(win.GradesCalculator.getStreamOfficialConfig('2BAC-ART-1').examDurationHours, 1);
+    assert.equal(win.GradesCalculator.getStreamOfficialConfig('1BAC-LET-1').code, 'BAC_LSH');
+    assert.equal(win.GradesCalculator.getStreamOfficialConfig('2BAC-LET-1').coefficient, 1);
+
+    // 7. Ministerial Decrees Library: 2BAC-ARTS is continuous assessment (no National Math Exam) + URL guard in PDF modal
+    runPublicScript(sandbox, 'public/ministerial-decrees-library.js');
+    const artsRef = win.resolveLessonLegalReference('2BAC-ARTS-1', { number: 'الاشتقاق ودراسة الدوال', sessionType: 'cours' });
+    assert.equal(artsRef.decreeId, 'note_orientations_2007');
+    assert.equal(artsRef.coefficient, 4);
+    assert.equal(artsRef.weeklyHours, 3);
+
+    win.openOfficialPdfViewerModal('javascript:alert(1)', 'XSS', 'bad.pdf');
+    assert.equal(win.document.getElementById('officialPdfViewerModal'), null, 'Dangerous javascript: URL must be rejected');
+    win.openOfficialPdfViewerModal('/assets/aistudio/n14208_evalped_08_a6af9323.pdf', 'المذكرة 142-08', 'n142.pdf');
+    const pdfModal = win.document.getElementById('officialPdfViewerModal');
+    assert.ok(pdfModal && pdfModal.style.display === 'flex', 'Valid official PDF modal must open cleanly');
+
+    // 8. Official Note 142-08 weights-to-20 parser produces exact 20-point scale
+    const parsed20 = win.parseOfficialWeightsTo20Scale('الحدوديات (20%) + المعادلات (35%) + الحساب المثلثي (30%) + الإحصاء (15%)');
+    assert.equal(parsed20.totalPct, 100);
+    assert.equal(parsed20.items.reduce((s, it) => s + it.points20, 0), 20);
 });
+
+test('Calendar Print Hub, Month & Agenda Print Audit: unifies all live sources, pads calendar grids, strips global preview CSS & prevents XSS', () => {
+    const { dom, win, sandbox } = createDomSandbox(`<!DOCTYPE html><html dir="rtl" lang="ar"><body>
+        <span id="currentMonthYear">نونبر 2026</span>
+        <select id="monthlyCalMonthSelect"><option value="10" selected>نونبر</option></select>
+        <select id="monthlyCalYearSelect"><option value="2026" selected>2026</option></select>
+    </body></html>`);
+
+    const capturedPreviews = [];
+    win.db = {
+        teacherProfile: {
+            name: 'ذ. محمد التازي <script>alert(1)</script>',
+            academy: 'الرباط سلا القنيطرة',
+            directorate: 'سلا',
+            school: 'ثانوية الخوارزمي <b>التأهيلية</b>',
+            academicYear: '2026 / 2027'
+        },
+        officialHolidays: [
+            { id: 'hol_ind', title: 'عيد الاستقلال', startDate: '2026-11-18', endDate: '2026-11-18', categoryLabel: 'عطلة وطنية', daysCount: 1 }
+        ],
+        teacherLeaves: [
+            { id: 'lv_1', type: 'medical', title: 'رخصة طبية قصيرة', startDate: '2026-11-12', endDate: '2026-11-12', daysCount: 1, reason: 'شهادة طبية', disableStudentAbsence: true }
+        ],
+        academicMilestones: [
+            { id: 'ms_1', title: 'إجراء الفرض الأول <img src=x onerror=alert(2)>', startDate: '2026-11-10', endDate: '2026-11-10', category: 'exam', categoryLabel: 'محطة تقويمية', targetLevels: '2BAC-SM-1', timeSlot: '08:30 - 10:30' }
+        ],
+        upcomingExams: [
+            { id: 'ex_1', title: 'الفرض المحروس 1', date: '2026-11-20', correctionDate: '2026-11-25', className: '2BAC-SM-1', timeSlot: '10:30 - 12:30' },
+            { id: 'ex_dup', milestoneId: 'ms_1', title: 'إجراء الفرض الأول <img src=x onerror=alert(2)>', date: '2026-11-10', className: '2BAC-SM-1' }
+        ],
+        agenda: [
+            { id: 'ag_1', date: '2026-11-14', text: 'مجلس التنسيق التربوي <script>bad()</script>', type: 'مجلس قسم / تعليمي', className: '2BAC-PC-1', timeSlot: '15:00' }
+        ],
+        homeworkAgenda: {
+            '2BAC-SM-1': [
+                { id: 'hw_1', title: 'سلسلة النهايات والاتصال', dueDate: '2026-11-22', topic: 'الاتصال' }
+            ]
+        },
+        calendarEvents: [
+            { id: 'ev_custom', date: '2026-11-28', title: 'لقاء تربوي مع المفتش', type: 'meeting', className: 'جميع الأقسام' },
+            { id: 'hol_ind', date: '2026-11-18', title: 'عيد الاستقلال', isOfficial: true }
+        ]
+    };
+    win.getAppNow = () => new Date('2026-11-15T09:00:00Z');
+    win.getTimetableSessionsForDate = (dateStr) => {
+        if (dateStr === '2026-11-09') {
+            return { sessions: [{ startTime: '08:30', className: '2BAC-SM-1', room: 'Q4' }] };
+        }
+        return { sessions: [] };
+    };
+    win.openCustomPrintPreviewModal = (html, opts) => {
+        capturedPreviews.push({ html, opts });
+    };
+    win.renderCalendar = () => {};
+    win.renderSchoolYearProgress = () => {};
+
+    runPublicScript(sandbox, 'public/annual-calendar.js');
+
+    // 1. Month print HTML unifies all live sources, renders detailed days table & escapes XSS
+    const novDetailedHtml = win.buildMonthlyCalendarPrintHtml({
+        year: 2026,
+        month: 10,
+        includeDetailedDaysTable: true,
+        detailedDaysMode: 'all'
+    });
+    assert.ok(novDetailedHtml.includes('عيد الاستقلال'), 'Must include official holidays');
+    assert.ok(novDetailedHtml.includes('رخصة طبية قصيرة'), 'Must include teacher leaves');
+    assert.ok(novDetailedHtml.includes('إجراء الفرض الأول &lt;img src=x onerror=alert(2)&gt;'), 'Must escape milestone XSS');
+    assert.ok(novDetailedHtml.includes('الفرض المحروس 1'), 'Must include upcomingExams');
+    assert.ok(novDetailedHtml.includes('تصحيح الفرض: الفرض المحروس 1'), 'Must include exam correctionDate');
+    assert.ok(novDetailedHtml.includes('مجلس التنسيق التربوي &lt;script&gt;bad()&lt;/script&gt;'), 'Must include and escape db.agenda');
+    assert.ok(novDetailedHtml.includes('سلسلة النهايات والاتصال'), 'Must include db.homeworkAgenda');
+    assert.ok(novDetailedHtml.includes('لقاء تربوي مع المفتش'), 'Must include custom calendarEvents');
+    assert.ok(novDetailedHtml.includes('08:30 2BAC-SM-1 (Q4)'), 'Detailed days table must include timetable sessions');
+    assert.equal(novDetailedHtml.includes('<script>alert(1)</script>'), false, 'No unescaped script tags allowed');
+    assert.equal(novDetailedHtml.includes('<img src=x onerror=alert(2)>'), false, 'No unescaped img tags allowed');
+
+    // Deduplication: holiday 'عيد الاستقلال' must appear only once in the month agenda summary table (one <tr> item)
+    const novBodyOnly = win.buildMonthlyCalendarPrintHtml({ year: 2026, month: 10, returnInnerOnly: true });
+    assert.equal((novBodyOnly.match(/عيد الاستقلال/g) || []).length, 2, 'Holiday should appear once in grid cell + once in agenda table (not duplicated from calendarEvents)');
+
+    // Weekday alignment check for October 2026 (Oct 1 is Thursday -> 4 leading empty cells before day 1)
+    const octHtml = win.buildMonthlyCalendarPrintHtml({ year: 2026, month: 9, returnInnerOnly: true });
+    const firstRowMatch = octHtml.match(/<tbody>\s*<tr[^>]*>([\s\S]*?)<\/tr>/i);
+    assert.ok(firstRowMatch, 'First calendar week row must exist');
+    const emptyLeadingCells = (firstRowMatch[1].match(/<td[^>]*><\/td>/g) || []).length;
+    assert.equal(emptyLeadingCells, 4, 'October 2026 starts on Thursday (dow=4), requiring 4 leading padding cells');
+
+    // 2. Pedagogical Agenda Print supports month / upcoming / year scopes & filtering
+    const agendaMonthHtml = win.buildPedagogicalAgendaPrintHtml({ scope: 'month', year: 2026, month: 10 });
+    assert.ok(agendaMonthHtml.includes('سلسلة النهايات والاتصال'));
+    assert.ok(agendaMonthHtml.includes('الفرض المحروس 1'));
+    const agendaUpcomingHtml = win.buildPedagogicalAgendaPrintHtml({ scope: 'upcoming', year: 2026, month: 10 });
+    assert.equal(agendaUpcomingHtml.includes('مجلس التنسيق التربوي'), false, 'Past agenda item (Nov 14 < Nov 15) must be excluded in upcoming scope');
+    assert.ok(agendaUpcomingHtml.includes('سلسلة النهايات والاتصال'), 'Future item (Nov 22) must remain in upcoming scope');
+
+    const agendaClassFilteredHtml = win.buildPedagogicalAgendaPrintHtml({ scope: 'month', year: 2026, month: 10, className: 'TCL-9' });
+    assert.ok(agendaClassFilteredHtml.includes('عيد الاستقلال'), 'Class filter should retain all-classes holidays');
+    assert.equal(agendaClassFilteredHtml.includes('سلسلة النهايات والاتصال'), false, 'Class filter must exclude 2BAC-SM-1 homework');
+
+    const agendaFilteredEmptyHtml = win.buildPedagogicalAgendaPrintHtml({ scope: 'month', year: 2026, month: 10, category: 'homework', className: 'TCL-9' });
+    assert.ok(agendaFilteredEmptyHtml.includes('لا توجد مواعيد أو فروض أو واجبات مسجلة'), 'Empty category+class filter must render clean empty state');
+
+    // 3. Print Hub Modal: mounts controls, syncs selected Month/Year, triggers stripped preview CSS, and closes on Escape
+    win.openCalendarPrintHubModal();
+    const hub = dom.window.document.getElementById('calendarPrintHubModal');
+    assert.ok(hub, 'calendarPrintHubModal must mount in DOM');
+    const monthSel = dom.window.document.getElementById('calPrintHubMonthSelect');
+    const yearSel = dom.window.document.getElementById('calPrintHubYearSelect');
+    assert.equal(monthSel.value, '10');
+    assert.equal(yearSel.value, '2026');
+
+    monthSel.value = '9';
+    monthSel.dispatchEvent(new dom.window.Event('change'));
+    assert.ok(dom.window.document.getElementById('calPrintHubActiveLabel').textContent.includes('أكتوبر 2026'));
+    assert.ok(dom.window.document.getElementById('calPrintHubMonthCardTitle').textContent.includes('أكتوبر 2026'));
+
+    dom.window.document.getElementById('btnPrintHubMonthlyDetailed').click();
+    assert.equal(dom.window.document.getElementById('calendarPrintHubModal'), null, 'Hub modal must close after selecting a print action');
+    assert.equal(capturedPreviews.length, 1);
+    assert.ok(capturedPreviews[0].opts.title.includes('أكتوبر 2026'));
+    assert.equal(capturedPreviews[0].html.includes('@page'), false, 'openOrPrintCalendarDocument must strip @page rule before passing to preview modal');
+    assert.equal(/\bbody\s*\{/i.test(capturedPreviews[0].html), false, 'openOrPrintCalendarDocument must strip global body CSS before passing to preview modal');
+
+    // Reopen hub and test Pedagogical Agenda button + Escape key dismissal
+    win.openCalendarPrintHubModal();
+    dom.window.document.getElementById('calPrintHubAgendaScope').value = 'year';
+    dom.window.document.getElementById('btnPrintHubAgenda').click();
+    assert.equal(capturedPreviews.length, 2);
+    assert.ok(capturedPreviews[1].html.includes('الأجندة البيداغوجية الشاملة'));
+    assert.equal(capturedPreviews[1].html.includes('@page'), false);
+
+    win.openCalendarPrintHubModal();
+    assert.ok(dom.window.document.getElementById('calendarPrintHubModal'));
+    dom.window.document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape' }));
+    assert.equal(dom.window.document.getElementById('calendarPrintHubModal'), null, 'Escape key must close calendarPrintHubModal');
+});
+
+test('Monthly Detailed Schedule Print, Blank-Print Pipeline Fixes, CSS Media Rules & PDF Clone Audit', () => {
+    const { dom, win, sandbox } = createDomSandbox(`<!DOCTYPE html><html dir="rtl" lang="ar"><body>
+        <span id="currentMonthYear">نونبر 2026</span>
+        <select id="monthlyCalMonthSelect"><option value="10" selected>نونبر</option></select>
+        <select id="monthlyCalYearSelect"><option value="2026" selected>2026</option></select>
+        <div id="calendarView" style="display: block;"></div>
+    </body></html>`);
+
+    const capturedPreviews = [];
+    win.db = {
+        teacherProfile: { name: 'ذ. رشيد الحسني <script>xss()</script>', academicYear: '2026 / 2027' },
+        officialHolidays: [
+            { id: 'hol_ind', title: 'عيد الاستقلال', startDate: '2026-11-18', endDate: '2026-11-18', categoryLabel: 'عطلة وطنية', daysCount: 1, notes: 'عطلة مؤداة عنها' }
+        ],
+        teacherLeaves: [
+            { id: 'lv_1', type: 'medical', title: 'رخصة طبية', startDate: '2026-11-12', endDate: '2026-11-12', daysCount: 1, reason: 'شهادة طبية' }
+        ],
+        academicMilestones: [
+            { id: 'ms_1', title: 'الفرض الأول <img src=x onerror=alert(1)>', startDate: '2026-11-10', endDate: '2026-11-10', category: 'exam', targetLevels: '2BAC-SM-1', timeSlot: '08:30 - 10:30' }
+        ],
+        upcomingExams: [
+            { id: 'ex_1', title: 'الفرض المحروس 1', date: '2026-11-20', className: '2BAC-SM-1', timeSlot: '10:30 - 12:30' }
+        ],
+        agenda: [
+            { id: 'ag_1', date: '2026-11-14', text: 'مجلس التنسيق', type: 'اجتماع', className: '2BAC-PC-1', timeSlot: '15:00' }
+        ],
+        homeworkAgenda: {
+            '2BAC-SM-1': [{ id: 'hw_1', title: 'سلسلة الدوال', dueDate: '2026-11-23', topic: 'الاشتقاق' }]
+        },
+        calendarEvents: []
+    };
+    win.getAppNow = () => new Date('2026-11-15T09:00:00Z');
+    win.getTimetableSessionsForDate = (dateStr) => {
+        if (dateStr === '2026-11-09') {
+            return { sessions: [{ startTime: '08:30', endTime: '10:30', hours: 2, className: '2BAC-SM-1', room: 'Q4', hasHomework: true }] };
+        }
+        if (dateStr === '2026-11-18') {
+            // Even if timetable returns a session on a holiday, detailed schedule marks the day exempt
+            return { sessions: [{ startTime: '10:30', endTime: '12:30', hours: 2, className: '2BAC-PC-1', room: 'Q2' }] };
+        }
+        return { sessions: [] };
+    };
+    win.openCustomPrintPreviewModal = (html, opts) => capturedPreviews.push({ html, opts });
+    win.renderCalendar = () => {};
+    win.renderSchoolYearProgress = () => {};
+
+    runPublicScript(sandbox, 'public/annual-calendar.js');
+
+    // 1. stripGlobalBodyAndPageCssForPreview removes nested @media print, @page, *, html, body
+    const dirtyHtml = `<style>
+        @page { size: A4 landscape; margin: 8mm; }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 6mm; }
+        .cal-keep { color: #1e3a8a; }
+        @media print { body { padding: 0; } }
+    </style><div>محتوى رسمي</div>`;
+    const stripped = win.stripGlobalBodyAndPageCssForPreview(dirtyHtml);
+    assert.equal(stripped.includes('@page'), false, 'stripGlobalBodyAndPageCssForPreview must strip @page');
+    assert.equal(/\*\s*\{/.test(stripped), false, 'stripGlobalBodyAndPageCssForPreview must strip * { ... }');
+    assert.equal(/\b(?:html|body)\s*\{/i.test(stripped), false, 'stripGlobalBodyAndPageCssForPreview must strip html/body CSS rules');
+    assert.equal(/@media\s+print/i.test(stripped), false, 'stripGlobalBodyAndPageCssForPreview must strip @media print');
+    assert.ok(stripped.includes('.cal-keep'), 'stripGlobalBodyAndPageCssForPreview must retain scoped class CSS');
+
+    // 2. buildMonthlyDetailedSchedulePrintHtml supports 'all', 'events_only', 'sessions_only', weekly dividers, hours & XSS safety
+    const fullSchedHtml = win.buildMonthlyDetailedSchedulePrintHtml({ year: 2026, month: 10, detailedDaysMode: 'all', includeMiniGrid: true });
+    assert.ok(fullSchedHtml.includes('جدول أيام ومواعيد شهر نونبر 2026 التفصيلي'));
+    assert.ok(fullSchedHtml.includes('الأسبوع التربوي 1'), 'Must group days by pedagogical weeks');
+    assert.ok(fullSchedHtml.includes('2BAC-SM-1: 2 س'), 'Must summarize class hours breakdown');
+    assert.ok(fullSchedHtml.includes('08:30–10:30'), 'Must show formatted session time range');
+    assert.ok(fullSchedHtml.includes('📚 واجب'), 'Must indicate homework badge on scheduled session');
+    assert.ok(fullSchedHtml.includes('معفى تلقائياً من الحصص والغياب'), 'Must exempt holiday/leave rows');
+    assert.ok(fullSchedHtml.includes('ملاحظات الإنجاز'), 'Must render notes tracking column by default');
+    assert.ok(fullSchedHtml.includes('نظرة شاملة على شبكة شهر نونبر 2026'), 'Must render mini-grid when includeMiniGrid=true');
+    assert.ok(fullSchedHtml.includes('&lt;script&gt;xss()&lt;/script&gt;'), 'Must escape teacher name XSS');
+    assert.equal(fullSchedHtml.includes('<img src=x onerror=alert(1)>'), false, 'Must escape milestone XSS');
+
+    const sessionsOnlyHtml = win.buildMonthlyDetailedSchedulePrintHtml({ year: 2026, month: 10, detailedDaysMode: 'sessions_only', includeNotesColumn: false, returnInnerOnly: true });
+    assert.ok(sessionsOnlyHtml.includes('2026-11-09'), 'sessions_only must retain Nov 9 session day');
+    assert.equal(sessionsOnlyHtml.includes('2026-11-18'), false, 'sessions_only must exclude exempt holiday days');
+    assert.equal(sessionsOnlyHtml.includes('2026-11-20'), false, 'sessions_only must exclude days with no timetable sessions');
+    assert.equal(sessionsOnlyHtml.includes('ملاحظات الإنجاز'), false, 'includeNotesColumn=false must omit notes column');
+
+    const eventsOnlyHtml = win.buildMonthlyDetailedSchedulePrintHtml({ year: 2026, month: 10, detailedDaysMode: 'events_only', returnInnerOnly: true });
+    assert.ok(eventsOnlyHtml.includes('2026-11-09') && eventsOnlyHtml.includes('2026-11-18') && eventsOnlyHtml.includes('2026-11-23'), 'events_only must include session, holiday, and homework days');
+    assert.equal(eventsOnlyHtml.includes('2026-11-01'), false, 'events_only must exclude empty Sunday Nov 1');
+
+    // 3. Universal PDF builder & Print Hub Modal wiring for detailed monthly schedule
+    const univSched = win.buildActiveCalendarUniversalPdfHTML({ calendarDocKind: 'monthly_schedule', year: 2026, month: 10 });
+    assert.ok(univSched.includes('جدول أيام ومواعيد شهر نونبر 2026 التفصيلي'));
+    const univAgenda = win.buildActiveCalendarUniversalPdfHTML({ calendarDocKind: 'agenda', scope: 'month', year: 2026, month: 10 });
+    assert.ok(univAgenda.includes('الأجندة البيداغوجية الشاملة'));
+
+    win.openCalendarPrintHubModal();
+    const schedModeSel = dom.window.document.getElementById('calPrintHubScheduleMode');
+    const schedBtn = dom.window.document.getElementById('btnPrintHubMonthlySchedule');
+    assert.ok(schedModeSel && schedBtn, 'Print Hub Card 4 must expose schedule filter selector and print button');
+    schedModeSel.value = 'sessions_only';
+    schedBtn.click();
+    assert.equal(capturedPreviews.length, 1);
+    assert.ok(capturedPreviews[0].opts.title.includes('جدول أيام ومواعيد شهر نونبر 2026'));
+    assert.ok(capturedPreviews[0].html.includes('أيام الحصص الدراسية فقط'));
+
+    // 4. beforeprint / afterprint toggles printing-calendar-view automatically when calendarView is visible
+    win.dispatchEvent(new dom.window.Event('beforeprint'));
+    assert.ok(dom.window.document.body.classList.contains('printing-calendar-view'), 'beforeprint must add printing-calendar-view when #calendarView is active');
+    win.dispatchEvent(new dom.window.Event('afterprint'));
+    assert.equal(dom.window.document.body.classList.contains('printing-calendar-view'), false, 'afterprint must clean up auto printing-calendar-view');
+
+    // 5. Static audit of style.css and app.js blank-print & PDF-clone pipeline fixes
+    const cssText = fs.readFileSync(path.join(ROOT, 'public/style.css'), 'utf8');
+    assert.ok(cssText.includes('#customReportPreviewScrollStage') && /#customReportPreviewScrollStage[\s\S]*display:\s*block\s*!important/.test(cssText), 'style.css must reset preview flex scroll stage to block in @media print');
+    assert.ok(/body\.printing-calendar-view\s+#calendarView\s+\.card[\s\S]*break-inside:\s*auto\s*!important/.test(cssText), 'style.css must disable .card break-inside:avoid in calendar print mode');
+
+    const appJsText = fs.readFileSync(path.join(ROOT, 'public/app.js'), 'utf8');
+    assert.ok(appJsText.includes('left:-12000px; top:0; width:${frameWidthCss}; height:${frameHeightCss}; border:0; opacity:1; visibility:visible;'), 'printDocumentDirectly must render visible page-sized off-screen iframe');
+    assert.equal(/globalAppPrintIframe[\s\S]{0,400}visibility:\s*hidden/.test(appJsText), false, 'printDocumentDirectly must never hide iframe with visibility:hidden or 0x0 dimensions');
+    assert.ok(appJsText.includes('customReportPdfExportClone') && appJsText.includes('scrollX: 0, scrollY: 0'), 'PDF export must clone sheet into clean top-left container with scrollX:0, scrollY:0');
+});
+
+
 
 
 

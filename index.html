@@ -2322,6 +2322,10 @@
                             <span>🎯</span>
                             <span>نافذة المحطة المفصلة</span>
                         </button>
+                        <button type="button" onclick="if(typeof window.printPedagogicalAgendaSheet === 'function') window.printPedagogicalAgendaSheet({ scope: 'year' });" style="background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; padding: 6px 12px; border-radius: 8px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="معاينة وطباعة الأجندة البيداغوجية الشاملة (الفروض والواجبات والمحطات) بصيغة A4">
+                            <span>🖨️</span>
+                            <span>طباعة الأجندة (A4)</span>
+                        </button>
                         <button type="button" onclick="switchTab('calendar')" style="background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; padding: 6px 12px; border-radius: 8px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="الانتقال لمعاينة المحطات في التقويم الشهري والسنوي">
                             <span>📅</span>
                             <span>معاينة في التقويم ↗</span>
@@ -7529,16 +7533,6 @@
             <div id="calendarMonthlySubView" style="display: none;">
                 <div class="card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
-                        <div style="display: flex; gap: 8px; flex: 1; min-width: 180px; flex-wrap: wrap; align-items: center;">
-                            <input type="file" id="icsFileInput" accept=".ics" style="display: none;" onchange="handleIcsImport(event)">
-                            <button type="button" class="btn-primary" onclick="document.getElementById('icsFileInput').click()" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); height: 36px; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; font-weight: 800; padding: 0 12px; border-radius: 9px; width: auto; margin: 0; white-space: nowrap; box-sizing: border-box;">
-                                <span class="ui-icon" style="margin: 0;"><span data-lucide="calendar-plus" data-size="14"></span></span>
-                                <span>استيراد (.ics)</span>
-                            </button>
-                            <button type="button" class="btn-primary" onclick="openAddEventPrompt(new Date().toISOString().slice(0,10))" style="background: linear-gradient(135deg, #0284c7, #0369a1); height: 36px; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 0.8rem; font-weight: 800; padding: 0 12px; border-radius: 9px; width: auto; margin: 0; white-space: nowrap; box-sizing: border-box;">
-                                <span>+ إضافة فرض / محطة</span>
-                            </button>
-                        </div>
                         <div style="display: flex; align-items: center; justify-content: center; gap: 10px; flex: 2; min-width: 280px; background: #f8fafc; padding: 5px 14px; border-radius: 30px; border: 1px solid #cbd5e1; flex-wrap: wrap;">
                             <button type="button" class="btn-primary" onclick="changeMonth(-1)" title="الشهر السابق" style="width: 32px; height: 32px; padding: 0; border-radius: 50%; margin: 0; display: flex; align-items: center; justify-content: center; background: white; color: var(--primary); border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s;" onmouseover="this.style.background='var(--primary)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--primary)'">
                                 <span class="ui-icon" style="margin: 0;"><span data-lucide="chevron-right" data-size="18"></span></span>
@@ -7547,8 +7541,8 @@
                             <button type="button" class="btn-primary" onclick="changeMonth(1)" title="الشهر الموالي" style="width: 32px; height: 32px; padding: 0; border-radius: 50%; margin: 0; display: flex; align-items: center; justify-content: center; background: white; color: var(--primary); border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s;" onmouseover="this.style.background='var(--primary)'; this.style.color='white'" onmouseout="this.style.background='white'; this.style.color='var(--primary)'">
                                 <span class="ui-icon" style="margin: 0;"><span data-lucide="chevron-left" data-size="18"></span></span>
                             </button>
-                            <div style="display: inline-flex; align-items: center; gap: 5px; border-right: 1px solid #cbd5e1; padding-right: 8px;">
-                                <select id="monthlyCalMonthSelect" onchange="jumpMonthlyCalendarToMonthYear()" aria-label="اختيار الشهر" style="height: 30px; padding: 0 8px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; font-family: 'Cairo', sans-serif; font-size: 0.78rem; font-weight: 800; color: #0f172a; cursor: pointer;">
+                            <div style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-right: 1px solid #cbd5e1; padding-right: 10px; flex-wrap: nowrap; flex-shrink: 0;">
+                                <select id="monthlyCalMonthSelect" onchange="jumpMonthlyCalendarToMonthYear()" aria-label="اختيار الشهر" style="width: auto; min-width: 108px; height: 32px; margin: 0; padding: 0 8px; border-radius: 9px; border: 1px solid #cbd5e1; background: #ffffff; font-family: 'Cairo', sans-serif; font-size: 0.78rem; font-weight: 800; color: #0f172a; cursor: pointer; box-sizing: border-box; flex-shrink: 0; line-height: 1.2;">
                                     <option value="8">شتنبر (09)</option>
                                     <option value="9">أكتوبر (10)</option>
                                     <option value="10">نونبر (11)</option>
@@ -7562,24 +7556,33 @@
                                     <option value="6">يوليوز (07)</option>
                                     <option value="7">غشت (08)</option>
                                 </select>
-                                <select id="monthlyCalYearSelect" onchange="jumpMonthlyCalendarToMonthYear()" aria-label="اختيار السنة" style="height: 30px; padding: 0 8px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; font-family: 'Cairo', sans-serif; font-size: 0.78rem; font-weight: 800; color: #0f172a; cursor: pointer;">
+                                <select id="monthlyCalYearSelect" onchange="jumpMonthlyCalendarToMonthYear()" aria-label="اختيار السنة" style="width: auto; min-width: 72px; height: 32px; margin: 0; padding: 0 8px; border-radius: 9px; border: 1px solid #cbd5e1; background: #ffffff; font-family: 'Cairo', sans-serif; font-size: 0.78rem; font-weight: 800; color: #0f172a; cursor: pointer; box-sizing: border-box; flex-shrink: 0; line-height: 1.2;">
                                     <option value="2024">2024</option>
                                     <option value="2025">2025</option>
                                     <option value="2026">2026</option>
                                     <option value="2027">2027</option>
                                     <option value="2028">2028</option>
                                 </select>
-                                <button type="button" onclick="goToCurrentMonth()" style="height: 30px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0 10px; font-size: 0.76rem; font-weight: 800; cursor: pointer; font-family: 'Cairo', sans-serif; display: inline-flex; align-items: center; justify-content: center;" title="الرجوع إلى الشهر واليوم الحالي">
-                                    📍 اليوم
+                                <button type="button" onclick="goToCurrentMonth()" style="width: auto; height: 32px; min-height: 32px; background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #1e40af; border: 1px solid #93c5fd; border-radius: 9px; padding: 0 11px; margin: 0; font-size: 0.78rem; font-weight: 800; cursor: pointer; font-family: 'Cairo', sans-serif; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; flex-shrink: 0; box-sizing: border-box; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.14); transition: all 0.2s ease;" onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)'; this.style.color='#ffffff'; this.style.borderColor='#1d4ed8'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 8px rgba(37, 99, 235, 0.28)';" onmouseout="this.style.background='linear-gradient(135deg, #eff6ff, #dbeafe)'; this.style.color='#1e40af'; this.style.borderColor='#93c5fd'; this.style.transform='translateY(0)'; this.style.boxShadow='0 1px 3px rgba(37, 99, 235, 0.14)';" title="الرجوع إلى الشهر واليوم الحالي">
+                                    <span class="ui-icon" style="margin: 0; display: inline-flex; align-items: center;"><span data-lucide="calendar-check" data-size="14"></span></span>
+                                    <span>اليوم</span>
                                 </button>
                             </div>
                         </div>
-                        <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <button type="button" class="btn-primary" onclick="if(window.printMonthlyCalendarSheet) window.printMonthlyCalendarSheet();" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #ffffff; border: none; height: 36px; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; font-weight: 800; padding: 0 12px; width: auto; margin: 0; border-radius: 9px; white-space: nowrap; box-sizing: border-box; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25); cursor: pointer;" title="معاينة وطباعة التقويم الشهري والأجندة التفاعلية في ورقة A4 رسمية">
+                        <div style="flex: 0 0 auto; max-width: 100%; display: flex; justify-content: flex-end; align-items: center; gap: 6px; flex-wrap: nowrap; overflow-x: auto;">
+                            <button type="button" class="btn-primary" onclick="if(window.printMonthlyCalendarSheet) window.printMonthlyCalendarSheet();" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #ffffff; border: none; height: 34px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 0.76rem; font-weight: 800; padding: 0 10px; width: auto; flex-shrink: 0; margin: 0; border-radius: 9px; white-space: nowrap; box-sizing: border-box; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25); cursor: pointer;" title="معاينة وطباعة التقويم الشهري والأجندة التفاعلية في ورقة A4 رسمية">
                                 <span class="ui-icon" style="margin:0;"><span data-lucide="printer" data-size="14"></span></span>
                                 <span>طباعة الشهر والأجندة (A4)</span>
                             </button>
-                            <button type="button" id="btnCalendarWhatsappScheduler" class="btn-primary" onclick="openCalendarWhatsappModal()" style="background: linear-gradient(135deg, #10b981, #059669); height: 36px; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; font-weight: 800; padding: 0 12px; border-radius: 9px; width: auto; margin: 0; white-space: nowrap; box-sizing: border-box; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);">
+                            <button type="button" class="btn-primary" onclick="if(window.printMonthlyDetailedScheduleSheet) window.printMonthlyDetailedScheduleSheet();" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; border: none; height: 34px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 0.76rem; font-weight: 800; padding: 0 10px; width: auto; flex-shrink: 0; margin: 0; border-radius: 9px; white-space: nowrap; box-sizing: border-box; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25); cursor: pointer;" title="معاينة وطباعة جدول أيام ومواعيد الشهر التفصيلي بالحصص والفروض والعطل (A4)">
+                                <span>📆</span>
+                                <span>جدول أيام الشهر (A4)</span>
+                            </button>
+                            <button type="button" class="btn-primary" onclick="if(window.printPedagogicalAgendaSheet) window.printPedagogicalAgendaSheet({ scope: 'month' });" style="background: linear-gradient(135deg, #6d28d9, #4f46e5); color: #ffffff; border: none; height: 34px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 0.76rem; font-weight: 800; padding: 0 10px; width: auto; flex-shrink: 0; margin: 0; border-radius: 9px; white-space: nowrap; box-sizing: border-box; box-shadow: 0 2px 6px rgba(109, 40, 217, 0.25); cursor: pointer;" title="معاينة وطباعة الأجندة البيداغوجية لهذا الشهر في وثيقة مستقلة A4">
+                                <span>📒</span>
+                                <span>طباعة الأجندة (A4)</span>
+                            </button>
+                            <button type="button" id="btnCalendarWhatsappScheduler" class="btn-primary" onclick="openCalendarWhatsappModal()" style="background: linear-gradient(135deg, #10b981, #059669); height: 34px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 0.76rem; font-weight: 800; padding: 0 10px; border-radius: 9px; width: auto; flex-shrink: 0; margin: 0; white-space: nowrap; box-sizing: border-box; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);">
                                 <span class="calendar-wa-pulse"></span>
                                 <span class="ui-icon" style="margin:0;"><span data-lucide="bell" data-size="14"></span></span>
                                 <span>تذكير واتساب اليومي (8:00 ص)</span>

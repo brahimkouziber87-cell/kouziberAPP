@@ -3268,35 +3268,70 @@
         `;
     }
 
+    function stripGlobalBodyAndPageCssForPreview(htmlStr) {
+        if (!htmlStr) return '';
+        let raw = String(htmlStr);
+        // Extract inner body if full HTML document so it does not leak <head>/<body>/global @page/* into preview modals
+        const styleMatches = raw.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
+        const safeStyles = styleMatches.map(block => {
+            let css = block.replace(/^<style[^>]*>/i, '').replace(/<\/style>$/i, '');
+            // Remove @media print blocks cleanly (including nested braces)
+            css = css.replace(/@media\s+print\s*\{(?:[^{}]*|\{[^{}]*\})*\}/gi, '');
+            // Remove @page rules cleanly
+            css = css.replace(/@page\s*(?:[^{]*)?\{[^}]*\}/gi, '');
+            // Remove global *, html, body rules regardless of leading whitespace/newlines
+            css = css.replace(/(?:^|[}\r\n])\s*(?:\*+|html|body)(?:\s*,\s*(?:\*+|html|body))*\s*\{[^}]*\}/gi, match => (match.startsWith('}') ? '}' : ''));
+            css = css.trim();
+            return css ? `<style>${css}</style>` : '';
+        }).filter(Boolean).join('\n');
+
+        const bodyMatch = raw.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        const innerBody = bodyMatch ? bodyMatch[1] : raw.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+        return safeStyles ? `${safeStyles}\n${innerBody}` : innerBody;
+    }
+
     function openOrPrintCalendarDocument(fullHtmlDoc, title, orientation = 'landscape') {
         const docTitle = title || 'وثيقة_التقويم_المدرسي_A4';
         const docOrientation = orientation === 'portrait' ? 'portrait' : 'landscape';
 
         if (typeof window.openCustomPrintPreviewModal === 'function') {
-            window.openCustomPrintPreviewModal(fullHtmlDoc, {
+            window.openCustomPrintPreviewModal(stripGlobalBodyAndPageCssForPreview(fullHtmlDoc), {
                 title: docTitle,
                 orientation: docOrientation,
                 subtitle: 'معاينة الوثيقة الرسمية للتقويم المدرسي قبل الطباعة الورقية أو التصدير الرقمي (PDF)'
             });
         } else if (typeof window.printDocumentDirectly === 'function') {
-            window.printDocumentDirectly(fullHtmlDoc, docTitle, docOrientation);
+            window.printDocumentDirectly(stripGlobalBodyAndPageCssForPreview(fullHtmlDoc), docTitle, docOrientation);
         } else {
             try {
                 let printFrame = document.getElementById('calendarSafePrintIframe');
                 if (!printFrame) {
                     printFrame = document.createElement('iframe');
                     printFrame.id = 'calendarSafePrintIframe';
-                    printFrame.style.cssText = 'position:fixed; top:-9999px; left:-9999px; width:0; height:0; border:none; visibility:hidden;';
                     document.body.appendChild(printFrame);
                 }
-                const frameDoc = printFrame.contentWindow.document;
+                const wCss = docOrientation === 'portrait' ? '210mm' : '297mm';
+                const hCss = docOrientation === 'portrait' ? '297mm' : '210mm';
+                printFrame.style.cssText = `position:fixed; top:0; left:-12000px; width:${wCss}; height:${hCss}; border:none; visibility:visible; opacity:1; pointer-events:none;`;
+                const frameWin = printFrame.contentWindow;
+                const frameDoc = frameWin.document;
                 frameDoc.open();
                 frameDoc.write(fullHtmlDoc);
                 frameDoc.close();
-                setTimeout(() => {
-                    printFrame.contentWindow.focus();
-                    printFrame.contentWindow.print();
-                }, 400);
+                const triggerPrint = () => {
+                    try {
+                        frameWin.focus();
+                        frameWin.print();
+                    } catch (e) {
+                        window.print();
+                    }
+                };
+                const fontsPromise = (frameDoc.fonts && frameDoc.fonts.ready)
+                    ? Promise.race([frameDoc.fonts.ready, new Promise(r => setTimeout(r, 450))])
+                    : Promise.resolve();
+                fontsPromise.then(() => {
+                    requestAnimationFrame(() => requestAnimationFrame(triggerPrint));
+                });
             } catch (e) {
                 window.print();
             }
@@ -3698,120 +3733,421 @@
     }
 
     /**
-     * 4. بناء وطباعة التقويم الشهري والأجندة التفاعلية للشهر المعروض
+     * 4. بناء وطباعة التقويم الشهري والأجندة التفاعلية للشهر المختار
      */
+    function resolveMonthlyCalendarPrintTarget(options = {}) {
+        let calDate = null;
+        if (typeof window.getMonthlyCalendarDate === 'function') {
+            const candidate = window.getMonthlyCalendarDate();
+            if (candidate) {
+                const parsed = new Date(candidate);
+                if (!isNaN(parsed.getTime())) calDate = parsed;
+            }
+        }
+        if (!calDate && window.currentCalendarDate instanceof Date && !isNaN(window.currentCalendarDate.getTime())) {
+            calDate = new Date(window.currentCalendarDate.getTime());
+        }
+        if (!calDate && typeof window.getAppNow === 'function') {
+            const appNow = new Date(window.getAppNow());
+            if (!isNaN(appNow.getTime())) calDate = appNow;
+        }
+        if (!calDate) calDate = new Date();
+
+        const rawYear = (options.year !== undefined && options.year !== null && options.year !== '')
+            ? parseInt(options.year, 10)
+            : calDate.getFullYear();
+        const rawMonth = (options.month !== undefined && options.month !== null && options.month !== '')
+            ? parseInt(options.month, 10)
+            : calDate.getMonth();
+
+        const year = Number.isFinite(rawYear) ? rawYear : calDate.getFullYear();
+        const month = (Number.isFinite(rawMonth) && rawMonth >= 0 && rawMonth <= 11) ? rawMonth : calDate.getMonth();
+        return { year, month };
+    }
+
+    function normalizeCalendarItemTitle(str) {
+        return String(str || '').replace(/^[🎯📌📝🏠🌴🏖️🛡️📋📚🚨👥💻🎓🏆]+\s*/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    function getAllHomeworkAgendaEntries() {
+        const list = [];
+        if (!window.db || !window.db.homeworkAgenda) return list;
+        const hwData = window.db.homeworkAgenda;
+        if (Array.isArray(hwData)) {
+            hwData.forEach(item => {
+                if (item && (item.dueDate || item.date) && item.title) {
+                    list.push({ ...item, className: item.className || 'القسم', dueDate: item.dueDate || item.date });
+                }
+            });
+        } else if (typeof hwData === 'object') {
+            Object.keys(hwData).forEach(cls => {
+                const arr = Array.isArray(hwData[cls]) ? hwData[cls] : [];
+                arr.forEach(item => {
+                    if (item && (item.dueDate || item.date) && item.title) {
+                        list.push({ ...item, className: item.className || cls, dueDate: item.dueDate || item.date });
+                    }
+                });
+            });
+        }
+        return list;
+    }
+
+    function collectUnifiedCalendarSources() {
+        const milestones = getAcademicMilestones();
+        const milestoneIds = new Set(milestones.map(m => m && m.id).filter(Boolean));
+        const upcomingExams = (window.db && Array.isArray(window.db.upcomingExams)) ? window.db.upcomingExams : [];
+        const legacyExams = (window.db && Array.isArray(window.db.exams)) ? window.db.exams : [];
+        const agendaItems = (window.db && Array.isArray(window.db.agenda)) ? window.db.agenda : [];
+        const homeworks = getAllHomeworkAgendaEntries();
+        const calEvents = (window.db && Array.isArray(window.db.calendarEvents)) ? window.db.calendarEvents : [];
+        const legacyEvents = (window.db && Array.isArray(window.db.events)) ? window.db.events : [];
+
+        return {
+            milestones,
+            milestoneIds,
+            upcomingExams,
+            legacyExams,
+            agendaItems,
+            homeworks,
+            calEvents,
+            legacyEvents
+        };
+    }
+
     function buildMonthlyCalendarPrintHtml(options = {}) {
         const meta = getCalendarPrintHeaderMetadata();
-        const calDate = (typeof window.getMonthlyCalendarDate === 'function' && window.getMonthlyCalendarDate())
-            ? new Date(window.getMonthlyCalendarDate())
-            : new Date();
-        const year = options.year !== undefined ? options.year : calDate.getFullYear();
-        const month = options.month !== undefined ? options.month : calDate.getMonth();
+        const { year, month } = resolveMonthlyCalendarPrintTarget(options);
 
         const arabicMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'];
+        const daysAr = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
         const monthTitle = `${arabicMonths[month] || ''} ${year}`;
 
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const allMilestones = getAcademicMilestones();
-        const allEvents = (window.db && Array.isArray(window.db.events)) ? window.db.events : [];
-        const allExams = (window.db && Array.isArray(window.db.exams)) ? window.db.exams : [];
+        const sources = collectUnifiedCalendarSources();
+
+        const includeTimetableSessions = options.includeTimetableSessions !== false &&
+            typeof window.getTimetableSessionsForDate === 'function' &&
+            (options.includeDetailedDaysTable || (typeof window.getTimetableSyncConfig === 'function' && window.getTimetableSyncConfig()?.enabled && window.getTimetableSyncConfig()?.showInCalendar));
 
         const monthAgendaItems = [];
-        let cellsHtml = '';
+        const detailedDayRows = [];
+        const seenAgendaFingerprints = new Set();
 
-        for (let i = 0; i < firstDay; i++) {
-            cellsHtml += `<td style="border: 1px solid #cbd5e1; background: #f8fafc; height: 74px;"></td>`;
-        }
+        const registerAgendaItem = (item) => {
+            const normTitle = normalizeCalendarItemTitle(item.title).toLowerCase();
+            const fp = `${item.sortDate}_${normTitle}`;
+            if (item.dedupeKey && monthAgendaItems.some(x => x.key === item.dedupeKey)) return;
+            if (normTitle && seenAgendaFingerprints.has(fp)) return;
+            if (normTitle) seenAgendaFingerprints.add(fp);
+            monthAgendaItems.push({
+                key: item.dedupeKey || fp,
+                sortDate: item.sortDate,
+                priority: item.priority || 5,
+                date: item.dateDisplay || item.sortDate,
+                title: item.title,
+                category: item.category || 'موعد تربوي',
+                target: item.target || 'عام',
+                status: item.status || 'مبرمج'
+            });
+        };
 
-        let currentDow = firstDay;
-        let rowsHtml = '<tr>';
-
-        for (let i = 0; i < firstDay; i++) {
-            // already accounted in cellsHtml if we build row-by-row
-        }
-
-        // Build proper table rows (7 columns per week)
-        rowsHtml = '';
+        let studyDaysCount = 0;
+        let holidayLeaveDaysCount = 0;
+        let totalSessionsCount = 0;
         let weekCells = [];
+        let rowsHtml = '';
+
         for (let i = 0; i < firstDay; i++) {
-            weekCells.push(`<td style="border: 1px solid #cbd5e1; background: #f8fafc; height: 72px; vertical-align: top; padding: 4px;"></td>`);
+            weekCells.push(`<td style="border: 1px solid #cbd5e1; background: #f8fafc; height: 60px; vertical-align: top; padding: 3px 4px;"></td>`);
         }
+
+        const todayObj = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+        const todayIso = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
 
         for (let d = 1; d <= daysInMonth; d++) {
             const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
             const dow = new Date(year, month, d).getDay();
             const isSunday = dow === 0;
+            const isToday = dateStr === todayIso;
 
             const hol = getOfficialHolidayForDate(dateStr);
             const leave = getTeacherLeaveForDate(dateStr);
-            const dayMilestones = allMilestones.filter(ms => ms.startDate && dateStr >= ms.startDate && dateStr <= (ms.endDate || ms.startDate));
-            const dayEvents = allEvents.filter(ev => ev.date === dateStr && !(ev.id && (String(ev.id).startsWith('ms_') || String(ev.id).startsWith('hol_') || String(ev.id).startsWith('leave_'))));
-            const dayExams = allExams.filter(ex => ex.date === dateStr);
+            const dayMilestones = sources.milestones.filter(ms => ms && ms.startDate && dateStr >= ms.startDate && dateStr <= (ms.endDate || ms.startDate));
+
+            // فروض قادمة من db.upcomingExams و db.exams (مع تفادي تكرار المحطات المرتبطة بنفس milestoneId)
+            const dayExams = [];
+            const seenDayExamTitles = new Set();
+            const addExamIfFresh = (ex) => {
+                if (!ex) return;
+                const exStart = ex.date || '';
+                const isMainDate = exStart === dateStr;
+                const isCorrectionDate = !isMainDate && ex.correctionDate === dateStr;
+                if (!isMainDate && !isCorrectionDate) return;
+                if (ex.milestoneId && dayMilestones.some(m => m.id === ex.milestoneId)) return;
+                const rawTitle = isCorrectionDate
+                    ? (ex.isHomework ? `✍️ تصحيح الفرض المنزلي: ${ex.title || ''}` : `✍️ تصحيح الفرض: ${ex.title || ''}`)
+                    : (ex.title || 'فرض مراقبة مستمرة');
+                const norm = normalizeCalendarItemTitle(rawTitle).toLowerCase();
+                if (seenDayExamTitles.has(norm) || dayMilestones.some(m => normalizeCalendarItemTitle(m.title).toLowerCase() === norm)) return;
+                seenDayExamTitles.add(norm);
+                dayExams.push({ ...ex, _displayTitle: rawTitle, _isCorrection: isCorrectionDate });
+            };
+            sources.upcomingExams.forEach(addExamIfFresh);
+            sources.legacyExams.forEach(addExamIfFresh);
+
+            // بنود الأجندة (db.agenda)
+            const dayAgenda = [];
+            sources.agendaItems.forEach(ag => {
+                if (!ag || !ag.date) return;
+                const agEnd = ag.endDate || ag.date;
+                if (dateStr < ag.date || dateStr > agEnd) return;
+                if (ag.milestoneId && dayMilestones.some(m => m.id === ag.milestoneId)) return;
+                const norm = normalizeCalendarItemTitle(ag.text || ag.title).toLowerCase();
+                if (seenDayExamTitles.has(norm) || dayMilestones.some(m => normalizeCalendarItemTitle(m.title).toLowerCase() === norm)) return;
+                dayAgenda.push(ag);
+            });
+
+            // الواجبات المنزلية (db.homeworkAgenda)
+            const dayHomeworks = [];
+            sources.homeworks.forEach(hw => {
+                if (hw.dueDate !== dateStr) return;
+                const norm = normalizeCalendarItemTitle(hw.title).toLowerCase();
+                if (dayAgenda.some(ag => normalizeCalendarItemTitle(ag.text).toLowerCase().includes(norm))) return;
+                dayHomeworks.push(hw);
+            });
+
+            // أحداث التقويم المخصصة (db.calendarEvents + db.events) باستثناء المزامنات المكررة
+            const dayEvents = [];
+            const seenEvKeys = new Set();
+            sources.calEvents.concat(sources.legacyEvents).forEach(ev => {
+                if (!ev || !ev.date) return;
+                const evEnd = ev.endDate || ev.date;
+                if (dateStr < ev.date || dateStr > evEnd) return;
+                if (ev.isOfficial || ev.holidayId || ev.type === 'holiday') return;
+                if (ev.isTeacherLeave || ev.leaveId || ev.type === 'teacher_leave') return;
+                if (ev.isMilestone || ev.milestoneId || ev.isHomeworkAgendaSync || ev.hwId) return;
+                const idStr = String(ev.id || '');
+                if (idStr.startsWith('ms_') || idStr.startsWith('milestone_') || idStr.startsWith('ev_ms_') || idStr.startsWith('hol_') || idStr.startsWith('leave_') || idStr.startsWith('hw_sync_') || idStr.startsWith('cal_ag_')) return;
+                const norm = normalizeCalendarItemTitle(ev.cleanTitle || ev.title).toLowerCase();
+                if (!norm || seenEvKeys.has(norm)) return;
+                if (dayMilestones.some(m => normalizeCalendarItemTitle(m.title).toLowerCase() === norm)) return;
+                if (dayExams.some(ex => normalizeCalendarItemTitle(ex._displayTitle).toLowerCase() === norm)) return;
+                if (dayAgenda.some(ag => normalizeCalendarItemTitle(ag.text).toLowerCase() === norm)) return;
+                seenEvKeys.add(norm);
+                dayEvents.push(ev);
+            });
+
+            // الحصص الأسبوعية (إن وجدت)
+            let daySessions = [];
+            if (typeof window.getTimetableSessionsForDate === 'function' && !isSunday && !hol && !leave) {
+                try {
+                    const ttInfo = window.getTimetableSessionsForDate(dateStr);
+                    if (ttInfo && Array.isArray(ttInfo.sessions)) {
+                        daySessions = ttInfo.sessions;
+                    }
+                } catch (e) {}
+            }
+
+            if (hol || leave) {
+                holidayLeaveDaysCount++;
+            } else if (!isSunday) {
+                studyDaysCount++;
+                totalSessionsCount += daySessions.length;
+            }
 
             const badges = [];
             if (hol) {
-                badges.push({ label: `🏖️ ${hol.title}`, bg: '#dcfce7', col: '#166534', type: 'عطلة رسمية' });
-                if (!monthAgendaItems.some(x => x.key === `hol_${hol.id}`)) {
-                    monthAgendaItems.push({ key: `hol_${hol.id}`, date: `${hol.startDate}${hol.endDate && hol.endDate !== hol.startDate ? ' ⬅ ' + hol.endDate : ''}`, title: hol.title, category: 'عطلة مدرسية رسمية', target: 'جميع الأقسام (معفى من الغياب)' });
-                }
+                badges.push({ label: `🏖️ ${hol.title}`, bg: '#dcfce7', col: '#166534' });
+                registerAgendaItem({
+                    dedupeKey: `hol_${hol.id}`,
+                    sortDate: hol.startDate || dateStr,
+                    priority: 1,
+                    dateDisplay: `${hol.startDate}${hol.endDate && hol.endDate !== hol.startDate ? ' ⬅ ' + hol.endDate : ''}`,
+                    title: hol.title,
+                    category: hol.categoryLabel || 'عطلة مدرسية رسمية',
+                    target: hol.disableAbsence !== false ? 'جميع الأقسام (معفى من الغياب)' : 'جميع الأقسام',
+                    status: hol.endDate && hol.endDate < todayIso ? 'منقضية' : (dateStr <= todayIso && (hol.endDate || hol.startDate) >= todayIso ? 'جارية' : 'مبرمجة')
+                });
             }
             if (leave) {
-                badges.push({ label: `🛡️ رخصة: ${leave.typeLabel || 'إدارية'}`, bg: '#e0f2fe', col: '#0369a1', type: 'رخصة أستاذ' });
-                if (!monthAgendaItems.some(x => x.key === `lv_${leave.id}`)) {
-                    monthAgendaItems.push({ key: `lv_${leave.id}`, date: `${leave.startDate}${leave.endDate && leave.endDate !== leave.startDate ? ' ⬅ ' + leave.endDate : ''}`, title: `رخصة أستاذ: ${leave.typeLabel || ''}`, category: 'رخصة قانونية', target: leave.reason || 'معفى من الغياب' });
-                }
+                badges.push({ label: `🛡️ رخصة: ${leave.typeLabel || leave.title || 'إدارية'}`, bg: '#e0f2fe', col: '#0369a1' });
+                registerAgendaItem({
+                    dedupeKey: `lv_${leave.id}`,
+                    sortDate: leave.startDate || dateStr,
+                    priority: 2,
+                    dateDisplay: `${leave.startDate}${leave.endDate && leave.endDate !== leave.startDate ? ' ⬅ ' + leave.endDate : ''}`,
+                    title: `رخصة أستاذ: ${leave.title || leave.typeLabel || 'إدارية'}`,
+                    category: 'رخصة قانونية',
+                    target: leave.reason || 'معفى من الغياب',
+                    status: 'معتمدة'
+                });
             }
             dayMilestones.forEach(ms => {
-                badges.push({ label: `🎯 ${ms.title}`, bg: '#eff6ff', col: '#1d4ed8', type: 'محطة تربوية' });
-                if (!monthAgendaItems.some(x => x.key === `ms_${ms.id}`)) {
-                    monthAgendaItems.push({ key: `ms_${ms.id}`, date: `${ms.startDate}${ms.endDate && ms.endDate !== ms.startDate ? ' ⬅ ' + ms.endDate : ''}`, title: ms.title, category: ms.categoryLabel || 'محطة وزارية', target: ms.targetLevels || 'جميع المستويات' });
-                }
+                const isEx = ms.category === 'exam' || ms.category === 'certification' || ms.isUnifiedExam;
+                badges.push({
+                    label: `${isEx ? '📝' : '🎯'} ${ms.title}`,
+                    bg: isEx ? '#fef2f2' : '#eff6ff',
+                    col: isEx ? '#b91c1c' : '#1d4ed8'
+                });
+                registerAgendaItem({
+                    dedupeKey: `ms_${ms.id}`,
+                    sortDate: ms.startDate || dateStr,
+                    priority: isEx ? 3 : 4,
+                    dateDisplay: `${ms.startDate}${ms.endDate && ms.endDate !== ms.startDate ? ' ⬅ ' + ms.endDate : ''}`,
+                    title: ms.title,
+                    category: ms.categoryLabel || (isEx ? 'فرض / امتحان' : 'محطة وزارية'),
+                    target: `${ms.targetLevels || 'جميع المستويات'}${ms.timeSlot ? ' • ' + ms.timeSlot : ''}`,
+                    status: (ms.status === 'completed' || ms.isCompleted || (ms.endDate && ms.endDate < todayIso)) ? 'منجزة' : 'مبرمجة'
+                });
             });
             dayExams.forEach(ex => {
-                badges.push({ label: `📝 ${ex.title || 'فرض محروس'} (${ex.className || ''})`, bg: '#fef2f2', col: '#dc2626', type: 'فرض مراقبة' });
-                monthAgendaItems.push({ key: `ex_${ex.id}_${dateStr}`, date: dateStr, title: `${ex.title || 'فرض مراقبة مستمرة'}`, category: 'فرض محروس', target: ex.className || 'القسم' });
+                const targetText = ex.className || ex.level || 'القسم';
+                badges.push({ label: `📝 ${ex._displayTitle} (${targetText})`, bg: '#fef2f2', col: '#dc2626' });
+                registerAgendaItem({
+                    dedupeKey: `ex_${ex.id || ex._displayTitle}_${dateStr}`,
+                    sortDate: dateStr,
+                    priority: 3,
+                    dateDisplay: dateStr,
+                    title: ex._displayTitle,
+                    category: ex.isHomework ? 'فرض منزلي (تكويني)' : (ex.type || 'فرض محروس'),
+                    target: `${targetText}${ex.timeSlot ? ' • ' + ex.timeSlot : ''}`,
+                    status: ex.status === 'completed' ? 'منجز' : 'مبرمج'
+                });
+            });
+            dayAgenda.forEach(ag => {
+                const isHw = ag.type === 'فرض منزلي' || ag.isHomework;
+                const isEx = ag.type === 'فرض محروس' || ag.type === 'امتحان موحد';
+                badges.push({
+                    label: `${isHw ? '🏠' : isEx ? '📝' : '📌'} ${ag.text || ag.title || 'موعد'}${ag.className ? ' (' + ag.className + ')' : ''}`,
+                    bg: isHw ? '#fffbeb' : isEx ? '#fef2f2' : '#f5f3ff',
+                    col: isHw ? '#92400e' : isEx ? '#b91c1c' : '#5b21b6'
+                });
+                registerAgendaItem({
+                    dedupeKey: `ag_${ag.id || ag.text}`,
+                    sortDate: ag.date || dateStr,
+                    priority: isEx ? 3 : 5,
+                    dateDisplay: `${ag.date}${ag.endDate && ag.endDate !== ag.date ? ' ⬅ ' + ag.endDate : ''}`,
+                    title: ag.text || ag.title || 'بند بالأجندة',
+                    category: ag.type || 'أجندة بيداغوجية',
+                    target: `${ag.className || 'جميع الأقسام'}${ag.timeSlot ? ' • ' + ag.timeSlot : ''}${isHw ? ' (لا يمسك بمسار)' : ''}`,
+                    status: (ag.endDate || ag.date) < todayIso ? 'منقضية' : 'مبرمجة'
+                });
+            });
+            dayHomeworks.forEach(hw => {
+                badges.push({ label: `📚 واجب (${hw.className}): ${hw.title}`, bg: '#f5f3ff', col: '#6b21a8' });
+                registerAgendaItem({
+                    dedupeKey: `hw_${hw.className}_${hw.id || hw.title}_${dateStr}`,
+                    sortDate: dateStr,
+                    priority: 6,
+                    dateDisplay: dateStr,
+                    title: `واجب منزلي: ${hw.title}`,
+                    category: 'واجب منزلي (تكويني)',
+                    target: `${hw.className}${hw.topic ? ' • ' + hw.topic : ''}`,
+                    status: dateStr < todayIso ? 'منتهي الأجل' : 'قيد الإنجاز'
+                });
             });
             dayEvents.forEach(ev => {
-                badges.push({ label: `📌 ${ev.title || 'حدث'}`, bg: '#fef9c3', col: '#854d0e', type: 'موعد' });
-                monthAgendaItems.push({ key: `ev_${ev.id}_${dateStr}`, date: dateStr, title: ev.title || 'موعد تربوي', category: 'موعد / التزام', target: ev.className || ev.description || 'عام' });
+                badges.push({ label: `📌 ${ev.cleanTitle || ev.title || 'حدث'}`, bg: '#fef9c3', col: '#854d0e' });
+                registerAgendaItem({
+                    dedupeKey: `ev_${ev.id || ev.title}_${dateStr}`,
+                    sortDate: ev.date || dateStr,
+                    priority: 7,
+                    dateDisplay: `${ev.date}${ev.endDate && ev.endDate !== ev.date ? ' ⬅ ' + ev.endDate : ''}`,
+                    title: ev.cleanTitle || ev.title || 'موعد تربوي',
+                    category: ev.type === 'meeting' ? 'اجتماع / مجلس' : 'موعد / التزام',
+                    target: ev.className || ev.targetClass || ev.details || ev.description || 'عام',
+                    status: (ev.endDate || ev.date) < todayIso ? 'منجز' : 'مبرمج'
+                });
             });
 
-            const cellBg = hol ? '#f0fdf4' : leave ? '#f0f9ff' : isSunday ? '#f8fafc' : '#ffffff';
+            if (includeTimetableSessions && daySessions.length > 0 && !options.includeDetailedDaysTable) {
+                daySessions.forEach(s => {
+                    badges.push({ label: `🏫 ${s.startTime} ${s.className}`, bg: '#f0f9ff', col: '#0369a1' });
+                });
+            }
+
+            const hasEvents = Boolean(hol || leave || dayMilestones.length || dayExams.length || dayAgenda.length || dayHomeworks.length || dayEvents.length || (!isSunday && daySessions.length));
+            detailedDayRows.push({
+                dayNum: d,
+                dateStr,
+                dayName: daysAr[dow] || '',
+                isSunday,
+                isToday,
+                hol,
+                leave,
+                badges,
+                daySessions,
+                hasEvents
+            });
+
+            const cellBg = hol ? '#f0fdf4' : leave ? '#f0f9ff' : isToday ? '#fefce8' : isSunday ? '#f8fafc' : '#ffffff';
+            const cellBorder = isToday ? '2px solid #eab308' : '1px solid #cbd5e1';
 
             weekCells.push(`
-                <td style="border: 1px solid #cbd5e1; background: ${cellBg}; height: 72px; width: 14.28%; vertical-align: top; padding: 4px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
-                        <span style="font-size: 11px; font-weight: 900; color: ${isSunday ? '#dc2626' : '#0f172a'};">${d}</span>
-                        ${isSunday ? '<span style="font-size: 8px; color: #dc2626; font-weight: 700;">عطلة أسبوعية</span>' : ''}
+                <td style="border: ${cellBorder}; background: ${cellBg}; height: 60px; width: 14.28%; vertical-align: top; padding: 3px 4px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                        <span style="font-size: 10.5px; font-weight: 900; color: ${isSunday ? '#dc2626' : '#0f172a'};">${d}</span>
+                        ${isToday ? '<span style="font-size: 7.5px; background: #fef08a; color: #854d0e; padding: 0 4px; border-radius: 3px; font-weight: 900;">اليوم</span>' : (isSunday ? '<span style="font-size: 7px; color: #dc2626; font-weight: 700;">عطلة</span>' : '')}
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0; max-width: 100%; overflow: hidden;">
                         ${badges.slice(0, 3).map(b => `
-                            <div style="font-size: 8.5px; font-weight: 800; background: ${b.bg}; color: ${b.col}; padding: 1px 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <div style="font-size: 7.8px; font-weight: 800; background: ${b.bg}; color: ${b.col}; padding: 1px 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; box-sizing: border-box;">
                                 ${escapeHtml(b.label)}
                             </div>
                         `).join('')}
-                        ${badges.length > 3 ? `<div style="font-size: 8px; color: #475569; font-weight: 800;">+${badges.length - 3} أحداث أخرى</div>` : ''}
+                        ${badges.length > 3 ? `<div style="font-size: 7.2px; color: #475569; font-weight: 800;">+${badges.length - 3} عناصر أخرى</div>` : ''}
                     </div>
                 </td>
             `);
 
             if (weekCells.length === 7) {
-                rowsHtml += `<tr>${weekCells.join('')}</tr>`;
+                rowsHtml += `<tr style="page-break-inside: avoid; break-inside: avoid;">${weekCells.join('')}</tr>`;
                 weekCells = [];
             }
         }
 
         if (weekCells.length > 0) {
             while (weekCells.length < 7) {
-                weekCells.push(`<td style="border: 1px solid #cbd5e1; background: #f8fafc; height: 72px; vertical-align: top; padding: 4px;"></td>`);
+                weekCells.push(`<td style="border: 1px solid #cbd5e1; background: #f8fafc; height: 60px; vertical-align: top; padding: 3px 4px;"></td>`);
             }
-            rowsHtml += `<tr>${weekCells.join('')}</tr>`;
+            rowsHtml += `<tr style="page-break-inside: avoid; break-inside: avoid;">${weekCells.join('')}</tr>`;
         }
 
+        monthAgendaItems.sort((a, b) => {
+            const cmp = String(a.sortDate || '').localeCompare(String(b.sortDate || ''));
+            return cmp !== 0 ? cmp : (a.priority || 5) - (b.priority || 5);
+        });
+
+        const includeDetailedDays = Boolean(options.includeDetailedDaysTable);
+        const detailedFilterMode = options.detailedDaysMode === 'events_only' ? 'events_only' : 'all';
+        const filteredDetailedRows = detailedFilterMode === 'events_only'
+            ? detailedDayRows.filter(r => r.hasEvents)
+            : detailedDayRows;
+
         const innerHtml = `
-            <div dir="rtl" style="font-family: 'Cairo', 'Tajawal', sans-serif; color: #0f172a; background: #fff;">
+            <div dir="rtl" class="cal-print-monthly-sheet" style="font-family: 'Cairo', 'Tajawal', sans-serif; color: #0f172a; background: #fff;">
                 ${buildCalendarOfficialHeaderHtml(`التقويم الشهري والأجندة البيداغوجية — شهر ${monthTitle}`, 'جدول المواعيد التربوية، فروض المراقبة المستمرة، المحطات الوزارية والعطل المدرسية', '#0284c7')}
+
+                <!-- مؤشرات الشهر المختصر -->
+                <div class="cal-print-kpi-row" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px;">
+                    <div style="border: 1px solid #cbd5e1; border-right: 4px solid #0284c7; border-radius: 6px; padding: 5px 10px; background: #f8fafc;">
+                        <div style="font-size: 9px; color: #64748b; font-weight: 800;">أيام الشهر / الدراسة الفعلية</div>
+                        <div style="font-size: 13px; font-weight: 900; color: #0369a1;">${studyDaysCount} / ${daysInMonth} يوماً</div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; border-right: 4px solid #dc2626; border-radius: 6px; padding: 5px 10px; background: #f8fafc;">
+                        <div style="font-size: 9px; color: #64748b; font-weight: 800;">عناصر الأجندة والمحطات</div>
+                        <div style="font-size: 13px; font-weight: 900; color: #b91c1c;">${monthAgendaItems.length} عنصر</div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; border-right: 4px solid #10b981; border-radius: 6px; padding: 5px 10px; background: #f8fafc;">
+                        <div style="font-size: 9px; color: #64748b; font-weight: 800;">العطل الرسمية ورخص الأستاذ</div>
+                        <div style="font-size: 13px; font-weight: 900; color: #047857;">${holidayLeaveDaysCount} يوم</div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; border-right: 4px solid #7c3aed; border-radius: 6px; padding: 5px 10px; background: #f8fafc;">
+                        <div style="font-size: 9px; color: #64748b; font-weight: 800;">حصص استعمال الزمن بالشهر</div>
+                        <div style="font-size: 13px; font-weight: 900; color: #6d28d9;">${totalSessionsCount > 0 ? totalSessionsCount + ' حصة' : 'غير محددة'}</div>
+                    </div>
+                </div>
 
                 <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 12px;">
                     <thead>
@@ -3830,31 +4166,82 @@
                     </tbody>
                 </table>
 
-                ${monthAgendaItems.length > 0 ? `
-                    <div style="margin-bottom: 10px; page-break-inside: avoid;">
-                        <div style="font-size: 11px; font-weight: 900; color: #0f172a; margin-bottom: 5px; border-right: 4px solid #0284c7; padding-right: 8px;">
-                            تفاصيل الأجندة التربوية والفروض والمناسبات المسجلة خلال شهر ${escapeHtml(monthTitle)} (${monthAgendaItems.length} عنصر)
+                <div style="margin-bottom: 12px;">
+                    <div style="font-size: 11px; font-weight: 900; color: #0f172a; margin-bottom: 5px; border-right: 4px solid #0284c7; padding-right: 8px;">
+                        تفاصيل الأجندة التربوية والفروض والمناسبات المسجلة خلال شهر ${escapeHtml(monthTitle)} (${monthAgendaItems.length} عنصر)
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 9.5px; page-break-inside: auto;">
+                        <thead style="display: table-header-group;">
+                            <tr style="background: #f1f5f9; color: #1e293b;">
+                                <th style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; width: 5%;">#</th>
+                                <th style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; width: 20%;">التاريخ / الفترة</th>
+                                <th style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: right; width: 32%;">الحدث / الفرض / المناسبة</th>
+                                <th style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; width: 15%;">التصنيف</th>
+                                <th style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: right; width: 20%;">القسم المستهدف / ملاحظات</th>
+                                <th style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; width: 8%;">الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${monthAgendaItems.length === 0 ? `
+                                <tr>
+                                    <td colspan="6" style="border: 1px solid #cbd5e1; padding: 12px; text-align: center; font-weight: 800; color: #64748b; background: #f8fafc;">
+                                        لا توجد فروض أو محطات تربوية أو عطل مسجلة في أجندة شهر ${escapeHtml(monthTitle)} حتى الآن.
+                                    </td>
+                                </tr>
+                            ` : monthAgendaItems.map((item, idx) => `
+                                <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'}; page-break-inside: avoid; break-inside: avoid;">
+                                    <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-weight: 800;">${idx + 1}</td>
+                                    <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-family: monospace; font-weight: 800;" dir="ltr">${escapeHtml(item.date)}</td>
+                                    <td style="border: 1px solid #cbd5e1; padding: 4px 6px; font-weight: 800; color: #0f172a;">${escapeHtml(item.title)}</td>
+                                    <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-weight: 700;">${escapeHtml(item.category)}</td>
+                                    <td style="border: 1px solid #cbd5e1; padding: 4px 6px; font-weight: 700; color: #334155;">${escapeHtml(item.target)}</td>
+                                    <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-weight: 800; color: #0369a1;">${escapeHtml(item.status)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                ${includeDetailedDays ? `
+                    <div style="margin-top: 12px; margin-bottom: 12px; page-break-before: auto;">
+                        <div style="font-size: 11px; font-weight: 900; color: #0f172a; margin-bottom: 5px; border-right: 4px solid #1e3a8a; padding-right: 8px;">
+                            جدول أيام وحصص شهر ${escapeHtml(monthTitle)} التفصيلي (${filteredDetailedRows.length} يوم)
                         </div>
-                        <table style="width: 100%; border-collapse: collapse; font-size: 9.5px;">
-                            <thead>
-                                <tr style="background: #f1f5f9; color: #1e293b;">
-                                    <th style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; width: 5%;">#</th>
-                                    <th style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; width: 20%;">التاريخ / الفترة</th>
-                                    <th style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: right; width: 35%;">الحدث / الفرض / المناسبة</th>
-                                    <th style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; width: 16%;">التصنيف</th>
-                                    <th style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: right; width: 24%;">القسم المستهدف / ملاحظات</th>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 9px; page-break-inside: auto;">
+                            <thead style="display: table-header-group;">
+                                <tr style="background: #0f172a; color: #ffffff;">
+                                    <th style="border: 1px solid #334155; padding: 4px 6px; text-align: center; width: 6%;">اليوم</th>
+                                    <th style="border: 1px solid #334155; padding: 4px 6px; text-align: center; width: 16%;">الأسبوع / التاريخ</th>
+                                    <th style="border: 1px solid #334155; padding: 4px 6px; text-align: center; width: 14%;">الحالة التربوية</th>
+                                    <th style="border: 1px solid #334155; padding: 4px 6px; text-align: right; width: 32%;">الحصص الدراسية المبرمجة</th>
+                                    <th style="border: 1px solid #334155; padding: 4px 6px; text-align: right; width: 32%;">الفروض والمحطات والأجندة</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${monthAgendaItems.map((item, idx) => `
-                                    <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-weight: 800;">${idx + 1}</td>
-                                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-family: monospace; font-weight: 800;" dir="ltr">${escapeHtml(item.date)}</td>
-                                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; font-weight: 800; color: #0f172a;">${escapeHtml(item.title)}</td>
-                                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center; font-weight: 700;">${escapeHtml(item.category)}</td>
-                                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; font-weight: 700; color: #334155;">${escapeHtml(item.target)}</td>
+                                ${filteredDetailedRows.length === 0 ? `
+                                    <tr>
+                                        <td colspan="5" style="border: 1px solid #cbd5e1; padding: 12px; text-align: center; font-weight: 800; color: #64748b;">لا توجد أيام مطابقة للفلتر المحدد.</td>
                                     </tr>
-                                `).join('')}
+                                ` : filteredDetailedRows.map((r, i) => {
+                                    const statusText = r.hol ? '🏖️ عطلة رسمية' : r.leave ? '🛡️ رخصة أستاذ' : r.isSunday ? 'عطلة أسبوعية' : '📚 يوم دراسي';
+                                    const sessionsStr = (r.hol || r.leave)
+                                        ? 'معفى تلقائياً من الحصص والغياب'
+                                        : (!r.isSunday && r.daySessions.length > 0)
+                                            ? r.daySessions.map(s => `${s.startTime} ${s.className}${s.room ? ' (' + s.room + ')' : ''}`).join(' | ')
+                                            : '—';
+                                    const eventsStr = r.badges.length > 0
+                                        ? r.badges.map(b => b.label).join(' • ')
+                                        : '—';
+                                    return `
+                                        <tr style="background: ${r.hol ? '#f0fdf4' : r.leave ? '#f0f9ff' : r.isSunday ? '#f8fafc' : (i % 2 === 0 ? '#ffffff' : '#f8fafc')}; page-break-inside: avoid; break-inside: avoid;">
+                                            <td style="border: 1px solid #cbd5e1; padding: 3px 5px; text-align: center; font-weight: 900;">${r.dayNum}</td>
+                                            <td style="border: 1px solid #cbd5e1; padding: 3px 5px; text-align: center; font-weight: 800;">${escapeHtml(r.dayName)} <span dir="ltr" style="font-family: monospace; color: #475569;">(${escapeHtml(r.dateStr)})</span></td>
+                                            <td style="border: 1px solid #cbd5e1; padding: 3px 5px; text-align: center; font-weight: 800;">${statusText}</td>
+                                            <td style="border: 1px solid #cbd5e1; padding: 3px 6px; font-weight: 700; color: #0369a1;">${escapeHtml(sessionsStr)}</td>
+                                            <td style="border: 1px solid #cbd5e1; padding: 3px 6px; font-weight: 700; color: #1e293b;">${escapeHtml(eventsStr)}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -3883,9 +4270,787 @@
 </html>`;
     }
 
-    function printMonthlyCalendarSheet() {
-        const docHtml = buildMonthlyCalendarPrintHtml();
-        openOrPrintCalendarDocument(docHtml, 'التقويم الشهري والأجندة التفاعلية', 'landscape');
+    function printMonthlyCalendarSheet(options = {}) {
+        const docHtml = buildMonthlyCalendarPrintHtml(options);
+        const { year, month } = resolveMonthlyCalendarPrintTarget(options);
+        const arabicMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'];
+        const titleSuffix = `${arabicMonths[month] || ''} ${year}`;
+        const docTitle = options.includeDetailedDaysTable
+            ? `جدول أيام وشبكة شهر ${titleSuffix}`
+            : `التقويم الشهري والأجندة — ${titleSuffix}`;
+        openOrPrintCalendarDocument(docHtml, docTitle, options.orientation || 'landscape');
+    }
+
+    /**
+     * 4أ. بناء وطباعة وثيقة "جدول أيام ومواعيد شهر" التفصيلية المستقلة (A4 احترافية)
+     * تعرض كل يوم من أيام الشهر مجمعاً حسب الأسابيع التربوية مع الحصص الدراسية، الفروض، المحطات، العطل والرخص، وخانة تتبع الإنجاز.
+     */
+    function buildMonthlyDetailedSchedulePrintHtml(options = {}) {
+        const meta = getCalendarPrintHeaderMetadata();
+        const { year, month } = resolveMonthlyCalendarPrintTarget(options);
+
+        const arabicMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'];
+        const daysAr = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+        const monthTitle = `${arabicMonths[month] || ''} ${year}`;
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const sources = collectUnifiedCalendarSources();
+
+        const rawFilterMode = options.detailedDaysMode || options.filterMode || 'all';
+        const filterMode = ['events_only', 'sessions_only'].includes(rawFilterMode) ? rawFilterMode : 'all';
+        const includeNotesColumn = options.includeNotesColumn !== false;
+        const includeMiniGrid = Boolean(options.includeMiniGrid);
+        const orientation = options.orientation === 'portrait' ? 'portrait' : 'landscape';
+
+        const todayObj = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+        const todayIso = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+
+        const computeSessionHours = (sess) => {
+            const explicit = Number(sess && (sess.hours ?? sess.duration));
+            if (Number.isFinite(explicit) && explicit > 0) return explicit;
+            if (sess && sess.startTime && sess.endTime) {
+                const [sh, sm] = String(sess.startTime).split(':').map(Number);
+                const [eh, em] = String(sess.endTime).split(':').map(Number);
+                if (Number.isFinite(sh) && Number.isFinite(eh)) {
+                    const diff = ((eh * 60 + (em || 0)) - (sh * 60 + (sm || 0))) / 60;
+                    if (diff > 0) return Math.round(diff * 10) / 10;
+                }
+            }
+            return 1;
+        };
+
+        const formatHoursLabel = (val) => {
+            const rounded = Math.round(val * 10) / 10;
+            return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+        };
+
+        let studyDaysCount = 0;
+        let holidayLeaveDaysCount = 0;
+        let examMilestoneDaysCount = 0;
+        let totalSessionsCount = 0;
+        let totalHours = 0;
+        const classHoursMap = {};
+        const dayRecords = [];
+
+        let currentWeek = 1;
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const dow = new Date(year, month, d).getDay();
+            if (d > 1 && dow === 1) currentWeek++;
+
+            const isSunday = dow === 0;
+            const isToday = dateStr === todayIso;
+            const hol = getOfficialHolidayForDate(dateStr);
+            const leave = getTeacherLeaveForDate(dateStr);
+            const dayMilestones = sources.milestones.filter(ms => ms && ms.startDate && dateStr >= ms.startDate && dateStr <= (ms.endDate || ms.startDate));
+
+            const dayExams = [];
+            const seenExamNorms = new Set();
+            const addExam = (ex) => {
+                if (!ex) return;
+                const exStart = ex.date || '';
+                const isMainDate = exStart === dateStr;
+                const isCorrectionDate = !isMainDate && ex.correctionDate === dateStr;
+                if (!isMainDate && !isCorrectionDate) return;
+                if (ex.milestoneId && dayMilestones.some(m => m.id === ex.milestoneId)) return;
+                const rawTitle = isCorrectionDate
+                    ? (ex.isHomework ? `تصحيح الفرض المنزلي: ${ex.title || ''}` : `تصحيح الفرض: ${ex.title || ''}`)
+                    : (ex.title || 'فرض مراقبة مستمرة');
+                const norm = normalizeCalendarItemTitle(rawTitle).toLowerCase();
+                if (seenExamNorms.has(norm) || dayMilestones.some(m => normalizeCalendarItemTitle(m.title).toLowerCase() === norm)) return;
+                seenExamNorms.add(norm);
+                dayExams.push({ ...ex, _displayTitle: rawTitle, _isCorrection: isCorrectionDate });
+            };
+            sources.upcomingExams.forEach(addExam);
+            sources.legacyExams.forEach(addExam);
+
+            const dayAgenda = [];
+            sources.agendaItems.forEach(ag => {
+                if (!ag || !ag.date) return;
+                const agEnd = ag.endDate || ag.date;
+                if (dateStr < ag.date || dateStr > agEnd) return;
+                if (ag.milestoneId && dayMilestones.some(m => m.id === ag.milestoneId)) return;
+                const norm = normalizeCalendarItemTitle(ag.text || ag.title).toLowerCase();
+                if (seenExamNorms.has(norm) || dayMilestones.some(m => normalizeCalendarItemTitle(m.title).toLowerCase() === norm)) return;
+                dayAgenda.push(ag);
+            });
+
+            const dayHomeworks = [];
+            sources.homeworks.forEach(hw => {
+                if (hw.dueDate !== dateStr) return;
+                const norm = normalizeCalendarItemTitle(hw.title).toLowerCase();
+                if (dayAgenda.some(ag => normalizeCalendarItemTitle(ag.text).toLowerCase().includes(norm))) return;
+                dayHomeworks.push(hw);
+            });
+
+            const dayEvents = [];
+            const seenEvNorms = new Set();
+            sources.calEvents.concat(sources.legacyEvents).forEach(ev => {
+                if (!ev || !ev.date) return;
+                const evEnd = ev.endDate || ev.date;
+                if (dateStr < ev.date || dateStr > evEnd) return;
+                if (ev.isOfficial || ev.holidayId || ev.type === 'holiday') return;
+                if (ev.isTeacherLeave || ev.leaveId || ev.type === 'teacher_leave') return;
+                if (ev.isMilestone || ev.milestoneId || ev.isHomeworkAgendaSync || ev.hwId) return;
+                const idStr = String(ev.id || '');
+                if (idStr.startsWith('ms_') || idStr.startsWith('milestone_') || idStr.startsWith('ev_ms_') || idStr.startsWith('hol_') || idStr.startsWith('leave_') || idStr.startsWith('hw_sync_') || idStr.startsWith('cal_ag_')) return;
+                const norm = normalizeCalendarItemTitle(ev.cleanTitle || ev.title).toLowerCase();
+                if (!norm || seenEvNorms.has(norm)) return;
+                if (dayMilestones.some(m => normalizeCalendarItemTitle(m.title).toLowerCase() === norm)) return;
+                if (dayExams.some(ex => normalizeCalendarItemTitle(ex._displayTitle).toLowerCase() === norm)) return;
+                if (dayAgenda.some(ag => normalizeCalendarItemTitle(ag.text).toLowerCase() === norm)) return;
+                seenEvNorms.add(norm);
+                dayEvents.push(ev);
+            });
+
+            let daySessions = [];
+            if (typeof window.getTimetableSessionsForDate === 'function' && !isSunday && !hol && !leave) {
+                try {
+                    const ttInfo = window.getTimetableSessionsForDate(dateStr);
+                    if (ttInfo && Array.isArray(ttInfo.sessions)) {
+                        daySessions = ttInfo.sessions;
+                    }
+                } catch (e) {}
+            }
+
+            let dayHours = 0;
+            if (!isSunday && !hol && !leave) {
+                daySessions.forEach(s => {
+                    const hrs = computeSessionHours(s);
+                    dayHours += hrs;
+                    const clsKey = String(s.className || 'قسم').trim();
+                    classHoursMap[clsKey] = (classHoursMap[clsKey] || 0) + hrs;
+                });
+            }
+
+            if (hol || leave) {
+                holidayLeaveDaysCount++;
+            } else if (!isSunday) {
+                studyDaysCount++;
+                totalSessionsCount += daySessions.length;
+                totalHours += dayHours;
+            }
+
+            const hasEvalOrMilestone = dayMilestones.length > 0 || dayExams.length > 0 || dayAgenda.length > 0 || dayHomeworks.length > 0 || dayEvents.length > 0;
+            if (hasEvalOrMilestone) examMilestoneDaysCount++;
+
+            const eventChips = [];
+            if (hol) {
+                eventChips.push({
+                    icon: '🏖️',
+                    text: `${hol.title}${hol.categoryLabel ? ' (' + hol.categoryLabel + ')' : ''}`,
+                    bg: '#dcfce7',
+                    col: '#166534',
+                    bdr: '#86efac'
+                });
+            }
+            if (leave) {
+                eventChips.push({
+                    icon: '🛡️',
+                    text: `رخصة أستاذ: ${leave.title || leave.typeLabel || 'إدارية'}`,
+                    bg: '#e0f2fe',
+                    col: '#0369a1',
+                    bdr: '#7dd3fc'
+                });
+            }
+            dayMilestones.forEach(ms => {
+                const isEx = ms.category === 'exam' || ms.category === 'certification' || ms.isUnifiedExam;
+                const extra = [ms.targetLevels, ms.timeSlot].filter(Boolean).join(' • ');
+                eventChips.push({
+                    icon: isEx ? '📝' : '🎯',
+                    text: `${ms.title}${extra ? ' (' + extra + ')' : ''}`,
+                    bg: isEx ? '#fef2f2' : '#eff6ff',
+                    col: isEx ? '#b91c1c' : '#1d4ed8',
+                    bdr: isEx ? '#fecaca' : '#bfdbfe'
+                });
+            });
+            dayExams.forEach(ex => {
+                const extra = [ex.className || ex.level, ex.timeSlot].filter(Boolean).join(' • ');
+                eventChips.push({
+                    icon: ex._isCorrection ? '✍️' : '📝',
+                    text: `${ex._displayTitle}${extra ? ' (' + extra + ')' : ''}`,
+                    bg: '#fef2f2',
+                    col: '#dc2626',
+                    bdr: '#fca5a5'
+                });
+            });
+            dayAgenda.forEach(ag => {
+                const isHw = ag.type === 'فرض منزلي' || ag.isHomework;
+                const isEx = ag.type === 'فرض محروس' || ag.type === 'امتحان موحد';
+                const extra = [ag.className, ag.timeSlot].filter(Boolean).join(' • ');
+                eventChips.push({
+                    icon: isHw ? '🏠' : isEx ? '📝' : '📌',
+                    text: `${ag.text || ag.title || 'موعد'}${extra ? ' (' + extra + ')' : ''}`,
+                    bg: isHw ? '#fffbeb' : isEx ? '#fef2f2' : '#f5f3ff',
+                    col: isHw ? '#92400e' : isEx ? '#b91c1c' : '#5b21b6',
+                    bdr: isHw ? '#fde68a' : isEx ? '#fecaca' : '#ddd6fe'
+                });
+            });
+            dayHomeworks.forEach(hw => {
+                eventChips.push({
+                    icon: '📚',
+                    text: `واجب منزلي (${hw.className}): ${hw.title}${hw.topic ? ' • ' + hw.topic : ''}`,
+                    bg: '#f5f3ff',
+                    col: '#6b21a8',
+                    bdr: '#ddd6fe'
+                });
+            });
+            dayEvents.forEach(ev => {
+                const cls = ev.className || ev.targetClass || '';
+                eventChips.push({
+                    icon: '📌',
+                    text: `${ev.cleanTitle || ev.title || 'حدث'}${cls ? ' (' + cls + ')' : ''}`,
+                    bg: '#fef9c3',
+                    col: '#854d0e',
+                    bdr: '#fde047'
+                });
+            });
+
+            const hasSessions = !isSunday && !hol && !leave && daySessions.length > 0;
+            const hasActivity = Boolean(hol || leave || hasEvalOrMilestone || hasSessions);
+
+            dayRecords.push({
+                dayNum: d,
+                dateStr,
+                dow,
+                weekNum: currentWeek,
+                dayName: daysAr[dow] || '',
+                isSunday,
+                isToday,
+                hol,
+                leave,
+                daySessions,
+                dayHours,
+                eventChips,
+                hasSessions,
+                hasActivity,
+                hasEvalOrMilestone
+            });
+        }
+
+        const filteredRows = filterMode === 'events_only'
+            ? dayRecords.filter(r => r.hasActivity)
+            : filterMode === 'sessions_only'
+                ? dayRecords.filter(r => r.hasSessions)
+                : dayRecords;
+
+        // تجميع إحصائيات كل أسبوع في الصفوف المعروضة
+        const weekStatsMap = {};
+        filteredRows.forEach(r => {
+            if (!weekStatsMap[r.weekNum]) {
+                weekStatsMap[r.weekNum] = {
+                    startDate: r.dateStr,
+                    endDate: r.dateStr,
+                    sessionsCount: 0,
+                    hoursCount: 0,
+                    eventsCount: 0
+                };
+            }
+            const ws = weekStatsMap[r.weekNum];
+            ws.endDate = r.dateStr;
+            ws.sessionsCount += r.daySessions.length;
+            ws.hoursCount += r.dayHours;
+            ws.eventsCount += r.eventChips.length;
+        });
+
+        const colSpan = includeNotesColumn ? 6 : 5;
+        let lastRenderedWeek = null;
+        const tableRowsHtml = filteredRows.length === 0
+            ? `<tr><td colspan="${colSpan}" style="border: 1px solid #cbd5e1; padding: 18px; text-align: center; font-weight: 800; color: #64748b; background: #f8fafc;">لا توجد أيام مطابقة للفلتر المحدد في شهر ${escapeHtml(monthTitle)}.</td></tr>`
+            : filteredRows.map((r, idx) => {
+                let weekHeaderRow = '';
+                if (r.weekNum !== lastRenderedWeek) {
+                    lastRenderedWeek = r.weekNum;
+                    const ws = weekStatsMap[r.weekNum];
+                    weekHeaderRow = `
+                        <tr class="cal-week-divider-row" style="background: #e2e8f0; color: #0f172a; page-break-inside: avoid; break-inside: avoid;">
+                            <td colspan="${colSpan}" style="border: 1px solid #94a3b8; padding: 4px 8px; font-weight: 900; font-size: 9px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                                    <span>🗓️ الأسبوع التربوي ${r.weekNum} (<span dir="ltr" style="font-family: monospace;">${escapeHtml(ws.startDate)} ⬅ ${escapeHtml(ws.endDate)}</span>)</span>
+                                    <span style="color: #1e3a8a; font-size: 8.5px;">🏫 ${ws.sessionsCount} حصة (${formatHoursLabel(ws.hoursCount)} س) • 🎯 ${ws.eventsCount} موعد/حدث</span>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
+
+                const statusHtml = r.hol
+                    ? `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:8.2px;font-weight:900;background:#dcfce7;color:#166534;border:1px solid #86efac;">🏖️ عطلة رسمية</span>`
+                    : r.leave
+                        ? `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:8.2px;font-weight:900;background:#e0f2fe;color:#0369a1;border:1px solid #7dd3fc;">🛡️ رخصة أستاذ</span>`
+                        : r.isSunday
+                            ? `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:8.2px;font-weight:800;background:#f1f5f9;color:#dc2626;border:1px solid #cbd5e1;">عطلة أسبوعية</span>`
+                            : r.hasEvalOrMilestone
+                                ? `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:8.2px;font-weight:900;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;">📝 يوم تقويم/محطة</span>`
+                                : `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:8.2px;font-weight:800;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;">📚 يوم دراسي</span>`;
+
+                let sessionsCellHtml = '';
+                if (r.hol || r.leave) {
+                    sessionsCellHtml = `<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:8.2px;font-weight:800;background:#dcfce7;color:#166534;border:1px solid #bbf7d0;">🛡️ معفى تلقائياً من الحصص والغياب</span>`;
+                } else if (r.isSunday) {
+                    sessionsCellHtml = `<span style="color:#94a3b8;font-size:8.5px;font-weight:700;">—</span>`;
+                } else if (r.daySessions.length > 0) {
+                    sessionsCellHtml = `<div style="display:flex;flex-wrap:wrap;gap:3px;">${r.daySessions.map(s => {
+                        const timeRange = s.endTime ? `${s.startTime}–${s.endTime}` : (s.startTime || '');
+                        const roomStr = s.room ? ` (${s.room})` : '';
+                        const hwTag = s.hasHomework ? ' 📚 واجب' : '';
+                        return `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:8.2px;font-weight:800;background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;">⏰ <span dir="ltr" style="font-family:monospace;">${escapeHtml(timeRange)}</span> • ${escapeHtml(s.className || '')}${escapeHtml(roomStr)}${hwTag}</span>`;
+                    }).join('')}</div>`;
+                } else {
+                    sessionsCellHtml = `<span style="color:#94a3b8;font-size:8.2px;">بدون حصص مبرمجة</span>`;
+                }
+
+                const eventsCellHtml = r.eventChips.length > 0
+                    ? `<div style="display:flex;flex-wrap:wrap;gap:3px;">${r.eventChips.map(ch => `<span style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:8.2px;font-weight:800;background:${ch.bg};color:${ch.col};border:1px solid ${ch.bdr};">${ch.icon} ${escapeHtml(ch.text)}</span>`).join('')}</div>`
+                    : `<span style="color:#94a3b8;font-size:8.2px;">—</span>`;
+
+                const rowBg = r.hol ? '#f0fdf4' : r.leave ? '#f0f9ff' : r.isToday ? '#fefce8' : r.isSunday ? '#f8fafc' : (idx % 2 === 0 ? '#ffffff' : '#f8fafc');
+                const dayBadgeBg = r.hol ? '#16a34a' : r.leave ? '#0284c7' : r.isToday ? '#ca8a04' : r.isSunday ? '#dc2626' : '#1e3a8a';
+
+                return `${weekHeaderRow}
+                    <tr style="background: ${rowBg}; page-break-inside: avoid; break-inside: avoid;">
+                        <td style="border: 1px solid #cbd5e1; padding: 4px; text-align: center; vertical-align: middle;">
+                            <span style="display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;border-radius:50%;background:${dayBadgeBg};color:#ffffff;font-size:9px;font-weight:900;">${r.dayNum}</span>
+                        </td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; vertical-align: middle;">
+                            <div style="font-weight: 900; font-size: 9px; color: ${r.isSunday ? '#dc2626' : '#0f172a'};">
+                                ${escapeHtml(r.dayName)} ${r.isToday ? '<span style="font-size:7.5px;background:#fef08a;color:#854d0e;padding:0 4px;border-radius:3px;">اليوم</span>' : ''}
+                            </div>
+                            <div dir="ltr" style="font-family: monospace; font-size: 8.2px; font-weight: 700; color: #475569;">${escapeHtml(r.dateStr)}</div>
+                        </td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px; text-align: center; vertical-align: middle;">${statusHtml}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; vertical-align: middle;">${sessionsCellHtml}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px 6px; vertical-align: middle;">${eventsCellHtml}</td>
+                        ${includeNotesColumn ? `<td style="border: 1px solid #cbd5e1; padding: 4px 6px; vertical-align: middle; font-size: 8px; color: #64748b;">${r.hol ? escapeHtml(r.hol.notes || 'عطلة') : r.leave ? escapeHtml(r.leave.reason || 'رخصة') : '<div style="border-bottom: 1px dashed #cbd5e1; height: 13px;"></div>'}</td>` : ''}
+                    </tr>
+                `;
+            }).join('');
+
+        const classEntries = Object.entries(classHoursMap);
+        const classBreakdownHtml = classEntries.length > 0
+            ? `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:7px;padding:5px 10px;margin-bottom:9px;font-size:8.8px;font-weight:800;page-break-inside:avoid;">
+                    <span style="color:#0f172a;">📊 توزيع الحصص الشهرية حسب الأقسام:</span>
+                    ${classEntries.map(([cls, hrs]) => `<span style="background:#ffffff;border:1px solid #bae6fd;color:#0369a1;padding:1px 7px;border-radius:5px;">${escapeHtml(cls)}: ${formatHoursLabel(hrs)} س</span>`).join('')}
+               </div>`
+            : '';
+
+        let miniGridHtml = '';
+        if (includeMiniGrid) {
+            const firstDow = new Date(year, month, 1).getDay();
+            let miniCells = '';
+            for (let i = 0; i < firstDow; i++) {
+                miniCells += `<div style="padding:2px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:3px;"></div>`;
+            }
+            dayRecords.forEach(r => {
+                const bg = r.hol ? '#dcfce7' : r.leave ? '#e0f2fe' : r.hasEvalOrMilestone ? '#fef2f2' : r.isSunday ? '#f1f5f9' : '#ffffff';
+                const col = r.hol ? '#166534' : r.leave ? '#0369a1' : r.hasEvalOrMilestone ? '#b91c1c' : r.isSunday ? '#dc2626' : '#0f172a';
+                miniCells += `<div style="padding:2px 3px;text-align:center;font-size:8px;font-weight:900;background:${bg};color:${col};border:1px solid #cbd5e1;border-radius:3px;">${r.dayNum}${r.hasSessions ? `<span style="font-size:6.5px;color:#0284c7;"> (${r.daySessions.length})</span>` : ''}</div>`;
+            });
+            miniGridHtml = `
+                <div style="margin-bottom:9px;border:1px solid #cbd5e1;border-radius:7px;padding:6px;background:#fff;page-break-inside:avoid;">
+                    <div style="font-size:9px;font-weight:900;color:#1e3a8a;margin-bottom:4px;">🗓️ نظرة شاملة على شبكة شهر ${escapeHtml(monthTitle)}</div>
+                    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;font-size:7.5px;font-weight:900;color:#475569;margin-bottom:3px;">
+                        <div style="color:#dc2626;">الأحد</div><div>الاثنين</div><div>الثلاثاء</div><div>الأربعاء</div><div>الخميس</div><div style="color:#059669;">الجمعة</div><div>السبت</div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">${miniCells}</div>
+                </div>
+            `;
+        }
+
+        const filterLabel = filterMode === 'events_only'
+            ? 'أيام الحصص والأحداث فقط'
+            : filterMode === 'sessions_only'
+                ? 'أيام الحصص الدراسية فقط'
+                : 'جميع أيام الشهر';
+
+        const innerHtml = `
+            <div dir="rtl" class="cal-print-detailed-schedule-sheet" style="font-family: 'Cairo', 'Tajawal', sans-serif; color: #0f172a; background: #fff;">
+                ${buildCalendarOfficialHeaderHtml(`جدول أيام ومواعيد شهر ${monthTitle} التفصيلي`, `سجل التتبع اليومي للحصص الدراسية، الفروض، المحطات الوزارية والعطل (${filterLabel})`, '#1e3a8a')}
+
+                <div class="cal-print-kpi-row" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; margin-bottom: 9px;">
+                    <div style="border: 1px solid #cbd5e1; border-right: 4px solid #1e3a8a; border-radius: 6px; padding: 5px 8px; background: #f8fafc;">
+                        <div style="font-size: 8.5px; color: #64748b; font-weight: 800;">إجمالي أيام الشهر</div>
+                        <div style="font-size: 12.5px; font-weight: 900; color: #0f172a;">${daysInMonth} يوماً</div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; border-right: 4px solid #16a34a; border-radius: 6px; padding: 5px 8px; background: #f8fafc;">
+                        <div style="font-size: 8.5px; color: #64748b; font-weight: 800;">أيام الدراسة الفعلية</div>
+                        <div style="font-size: 12.5px; font-weight: 900; color: #15803d;">${studyDaysCount} يوماً</div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; border-right: 4px solid #0284c7; border-radius: 6px; padding: 5px 8px; background: #f8fafc;">
+                        <div style="font-size: 8.5px; color: #64748b; font-weight: 800;">الحصص والحجم الساعي</div>
+                        <div style="font-size: 12px; font-weight: 900; color: #0369a1;">${totalSessionsCount} حصة (${formatHoursLabel(totalHours)} س)</div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; border-right: 4px solid #dc2626; border-radius: 6px; padding: 5px 8px; background: #f8fafc;">
+                        <div style="font-size: 8.5px; color: #64748b; font-weight: 800;">أيام الفروض والمحطات</div>
+                        <div style="font-size: 12.5px; font-weight: 900; color: #b91c1c;">${examMilestoneDaysCount} يوم</div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; border-right: 4px solid #7c3aed; border-radius: 6px; padding: 5px 8px; background: #f8fafc;">
+                        <div style="font-size: 8.5px; color: #64748b; font-weight: 800;">العطل الرسمية والرخص</div>
+                        <div style="font-size: 12.5px; font-weight: 900; color: #6d28d9;">${holidayLeaveDaysCount} يوم</div>
+                    </div>
+                </div>
+
+                ${classBreakdownHtml}
+                ${miniGridHtml}
+
+                <table style="width: 100%; border-collapse: collapse; font-size: 8.8px; margin-bottom: 10px; page-break-inside: auto;">
+                    <thead style="display: table-header-group;">
+                        <tr style="background: #0f172a; color: #ffffff;">
+                            <th style="border: 1px solid #334155; padding: 5px 4px; text-align: center; width: 5%;">اليوم</th>
+                            <th style="border: 1px solid #334155; padding: 5px 6px; text-align: right; width: 13%;">اليوم والتاريخ</th>
+                            <th style="border: 1px solid #334155; padding: 5px 4px; text-align: center; width: 12%;">الحالة التربوية</th>
+                            <th style="border: 1px solid #334155; padding: 5px 6px; text-align: right; width: ${includeNotesColumn ? '30%' : '36%'};">الحصص الدراسية المبرمجة</th>
+                            <th style="border: 1px solid #334155; padding: 5px 6px; text-align: right; width: ${includeNotesColumn ? '27%' : '34%'};">المواعيد والفروض والمحطات والأجندة</th>
+                            ${includeNotesColumn ? '<th style="border: 1px solid #334155; padding: 5px 6px; text-align: center; width: 13%;">ملاحظات الإنجاز</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRowsHtml}
+                    </tbody>
+                </table>
+
+                ${buildCalendarOfficialSignaturesHtml(meta.teacherName)}
+            </div>
+        `;
+
+        if (options.returnInnerOnly) return innerHtml;
+
+        return `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>جدول أيام ومواعيد شهر ${escapeHtml(monthTitle)}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        @page { size: A4 ${orientation}; margin: 8mm; }
+        * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        body { margin: 0; padding: 6mm; font-family: 'Cairo', sans-serif; direction: rtl; background: #fff; color: #0f172a; }
+        @media print { body { padding: 0; } }
+    </style>
+</head>
+<body>${innerHtml}</body>
+</html>`;
+    }
+
+    function printMonthlyDetailedScheduleSheet(options = {}) {
+        const docHtml = buildMonthlyDetailedSchedulePrintHtml(options);
+        const { year, month } = resolveMonthlyCalendarPrintTarget(options);
+        const arabicMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'];
+        const titleSuffix = `${arabicMonths[month] || ''} ${year}`;
+        openOrPrintCalendarDocument(docHtml, `جدول أيام ومواعيد شهر ${titleSuffix}`, options.orientation || 'landscape');
+    }
+
+    /**
+     * 4ب. بناء وطباعة الأجندة البيداغوجية الشاملة (المواعيد، الفروض، الواجبات المنزلية، والمحطات) — A4
+     */
+    function buildPedagogicalAgendaPrintHtml(options = {}) {
+        const meta = getCalendarPrintHeaderMetadata();
+        const scope = ['month', 'upcoming', 'year'].includes(options.scope) ? options.scope : 'month';
+        const categoryFilter = options.category || 'all';
+        const classFilter = options.className || 'all';
+        const { year, month } = resolveMonthlyCalendarPrintTarget(options);
+        const arabicMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'];
+        const monthTitle = `${arabicMonths[month] || ''} ${year}`;
+        const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+        const todayObj = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
+        const todayIso = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+
+        const sources = collectUnifiedCalendarSources();
+        const holidays = getOfficialHolidays();
+        const leaves = getTeacherLeaves();
+
+        const entries = [];
+        const seenKeys = new Set();
+
+        const pushEntry = (entry) => {
+            const start = String(entry.startDate || '').slice(0, 10);
+            if (!start) return;
+            const end = String(entry.endDate || start).slice(0, 10);
+
+            if (scope === 'month') {
+                const inMonth = start.startsWith(monthPrefix) || end.startsWith(monthPrefix) || (start < `${monthPrefix}-01` && end >= `${monthPrefix}-01`);
+                if (!inMonth) return;
+            } else if (scope === 'upcoming') {
+                if (end < todayIso) return;
+            }
+
+            if (categoryFilter !== 'all') {
+                if (categoryFilter === 'exams' && entry.bucket !== 'exam') return;
+                if (categoryFilter === 'homework' && entry.bucket !== 'homework') return;
+                if (categoryFilter === 'milestones' && entry.bucket !== 'milestone') return;
+                if (categoryFilter === 'holidays' && entry.bucket !== 'holiday') return;
+            }
+
+            if (classFilter && classFilter !== 'all') {
+                const targetHay = `${entry.target || ''} ${entry.title || ''}`;
+                if (!targetHay.includes(classFilter) && !targetHay.includes('جميع')) return;
+            }
+
+            const normTitle = normalizeCalendarItemTitle(entry.title).toLowerCase();
+            const dedupeFp = `${start}::${normTitle}`;
+            if (normTitle && seenKeys.has(dedupeFp)) return;
+            if (normTitle) seenKeys.add(dedupeFp);
+
+            entries.push({
+                ...entry,
+                startDate: start,
+                endDate: end
+            });
+        };
+
+        // 1. بنود الأجندة التفاعلية المباشرة (db.agenda)
+        sources.agendaItems.forEach(ag => {
+            if (!ag || !ag.date) return;
+            const isHw = ag.type === 'فرض منزلي' || ag.isHomework;
+            const isEx = ag.type === 'فرض محروس' || ag.type === 'امتحان موحد' || ag.type === 'تصحيح فرض';
+            const end = ag.endDate || ag.date;
+            pushEntry({
+                bucket: isHw ? 'homework' : isEx ? 'exam' : 'milestone',
+                priority: isEx ? 2 : isHw ? 3 : 4,
+                startDate: ag.date,
+                endDate: end,
+                timeSlot: ag.timeSlot || (isHw ? 'تسليم وتصحيح بالقسم' : ''),
+                title: ag.text || ag.title || 'موعد في الأجندة',
+                typeLabel: ag.type || 'محطة بيداغوجية',
+                badgeColor: isHw ? '#b45309' : isEx ? '#dc2626' : '#2563eb',
+                badgeBg: isHw ? '#fffbeb' : isEx ? '#fef2f2' : '#eff6ff',
+                target: ag.className || 'جميع الأقسام',
+                notes: isHw ? 'تقويم تكويني — لا يُمسك في مسار' : (ag.notes || 'متزامن مع الأجندة والتقويم'),
+                status: end < todayIso ? 'منقضية' : (ag.date <= todayIso && end >= todayIso ? 'جارية' : 'مبرمجة')
+            });
+        });
+
+        // 2. الواجبات المنزلية المسندة (db.homeworkAgenda)
+        sources.homeworks.forEach(hw => {
+            pushEntry({
+                bucket: 'homework',
+                priority: 3,
+                startDate: hw.dueDate,
+                endDate: hw.dueDate,
+                timeSlot: 'موعد الاستحقاق والتصحيح',
+                title: hw.title,
+                typeLabel: 'واجب منزلي (أجندة)',
+                badgeColor: '#6d28d9',
+                badgeBg: '#f5f3ff',
+                target: hw.className || 'القسم',
+                notes: `${hw.topic ? 'المحور: ' + hw.topic + ' • ' : ''}لا يُمسك في مسار`,
+                status: hw.dueDate < todayIso ? 'منتهي الأجل' : 'قيد الإنجاز'
+            });
+        });
+
+        // 3. الفروض القادمة (db.upcomingExams + db.exams)
+        sources.upcomingExams.concat(sources.legacyExams).forEach(ex => {
+            if (!ex || !ex.date) return;
+            const isHw = Boolean(ex.isHomework);
+            pushEntry({
+                bucket: isHw ? 'homework' : 'exam',
+                priority: isHw ? 3 : 2,
+                startDate: ex.date,
+                endDate: ex.correctionDate || ex.date,
+                timeSlot: ex.timeSlot || ex.duration || '',
+                title: ex.title || 'فرض مراقبة مستمرة',
+                typeLabel: isHw ? 'فرض منزلي' : (ex.isUnifiedExam ? 'امتحان موحد' : (ex.type || 'فرض محروس')),
+                badgeColor: isHw ? '#b45309' : '#dc2626',
+                badgeBg: isHw ? '#fffbeb' : '#fef2f2',
+                target: ex.className || ex.level || 'جميع الأقسام',
+                notes: ex.topics || ex.description || (ex.venue ? `القاعة: ${ex.venue}` : '—'),
+                status: ex.status === 'completed' ? 'منجز' : (ex.date < todayIso ? 'منقضي' : 'مبرمج')
+            });
+        });
+
+        // 4. المحطات البيداغوجية الوزارية والمضافة (academicMilestones)
+        sources.milestones.forEach(ms => {
+            if (!ms || !ms.startDate) return;
+            const isEx = ms.category === 'exam' || ms.category === 'certification' || ms.isUnifiedExam;
+            const isHw = Boolean(ms.isHomework);
+            const end = ms.endDate || ms.startDate;
+            pushEntry({
+                bucket: isHw ? 'homework' : isEx ? 'exam' : 'milestone',
+                priority: isEx ? 2 : 4,
+                startDate: ms.startDate,
+                endDate: end,
+                timeSlot: ms.timeSlot || '',
+                title: ms.title,
+                typeLabel: ms.categoryLabel || (isEx ? 'محطة تقويمية' : 'محطة بيداغوجية'),
+                badgeColor: ms.color || (isEx ? '#dc2626' : '#2563eb'),
+                badgeBg: isEx ? '#fef2f2' : '#eff6ff',
+                target: ms.targetLevels || 'جميع المستويات',
+                notes: ms.deliverables || ms.topics || ms.description || '—',
+                status: (ms.status === 'completed' || ms.isCompleted || end < todayIso) ? 'منجزة' : (ms.startDate <= todayIso && end >= todayIso ? 'جارية' : 'مبرمجة')
+            });
+        });
+
+        // 5. أحداث التقويم المخصصة (db.calendarEvents + db.events)
+        sources.calEvents.concat(sources.legacyEvents).forEach(ev => {
+            if (!ev || !ev.date) return;
+            if (ev.isOfficial || ev.holidayId || ev.type === 'holiday' || ev.isTeacherLeave || ev.leaveId || ev.type === 'teacher_leave' || ev.isMilestone || ev.milestoneId || ev.isHomeworkAgendaSync || ev.hwId) return;
+            const end = ev.endDate || ev.date;
+            const isEx = ev.type === 'exam';
+            pushEntry({
+                bucket: isEx ? 'exam' : 'milestone',
+                priority: isEx ? 2 : 5,
+                startDate: ev.date,
+                endDate: end,
+                timeSlot: ev.time || ev.timeSlot || '',
+                title: ev.cleanTitle || ev.title || 'موعد بالتقويم',
+                typeLabel: isEx ? 'فرض / اختبار' : (ev.type === 'meeting' ? 'اجتماع / مجلس' : 'حدث / التزام'),
+                badgeColor: isEx ? '#dc2626' : '#0284c7',
+                badgeBg: isEx ? '#fef2f2' : '#f0f9ff',
+                target: ev.className || ev.targetClass || ev.targetLevels || 'عام',
+                notes: ev.details || ev.notes || ev.description || '—',
+                status: end < todayIso ? 'منقضي' : 'مبرمج'
+            });
+        });
+
+        // 6. العطل الرسمية ورخص الأستاذ
+        holidays.forEach(h => {
+            if (!h || !h.startDate) return;
+            const end = h.endDate || h.startDate;
+            pushEntry({
+                bucket: 'holiday',
+                priority: 1,
+                startDate: h.startDate,
+                endDate: end,
+                timeSlot: `${h.daysCount || 1} يوم`,
+                title: h.title,
+                typeLabel: h.categoryLabel || 'عطلة رسمية',
+                badgeColor: '#15803d',
+                badgeBg: '#dcfce7',
+                target: 'جميع الأقسام (معفى من الغياب)',
+                notes: h.notes || 'تعطيل الغياب تلقائياً',
+                status: end < todayIso ? 'منقضية' : (h.startDate <= todayIso && end >= todayIso ? 'جارية' : 'مبرمجة')
+            });
+        });
+
+        leaves.forEach(lv => {
+            if (!lv || !lv.startDate) return;
+            const end = lv.endDate || lv.startDate;
+            const typeObj = TEACHER_LEAVE_TYPES[lv.type] || TEACHER_LEAVE_TYPES.other;
+            pushEntry({
+                bucket: 'holiday',
+                priority: 1,
+                startDate: lv.startDate,
+                endDate: end,
+                timeSlot: `${lv.daysCount || 1} يوم`,
+                title: `رخصة أستاذ: ${lv.title || typeObj.label}`,
+                typeLabel: typeObj.label,
+                badgeColor: '#0369a1',
+                badgeBg: '#e0f2fe',
+                target: 'الأستاذ (غياب التلاميذ معفى)',
+                notes: lv.reason || lv.docRef || 'رخصة قانونية',
+                status: 'معتمدة'
+            });
+        });
+
+        entries.sort((a, b) => {
+            const cmp = String(a.startDate).localeCompare(String(b.startDate));
+            return cmp !== 0 ? cmp : (a.priority || 5) - (b.priority || 5);
+        });
+
+        const examsCount = entries.filter(e => e.bucket === 'exam').length;
+        const hwCount = entries.filter(e => e.bucket === 'homework').length;
+        const milestonesCount = entries.filter(e => e.bucket === 'milestone').length;
+        const holidaysCount = entries.filter(e => e.bucket === 'holiday').length;
+
+        const scopeSubtitle = scope === 'month'
+            ? `الأجندة التفصيلية لشهر ${monthTitle}`
+            : (scope === 'upcoming' ? `الأجندة التربوية للمواعيد القادمة ابتداءً من ${todayIso}` : `الأجندة البيداغوجية الكاملة للموسم الدراسي ${meta.schoolYear}`);
+
+        const innerHtml = `
+            <div dir="rtl" class="cal-print-agenda-sheet" style="font-family: 'Cairo', 'Tajawal', sans-serif; color: #0f172a; background: #fff;">
+                ${buildCalendarOfficialHeaderHtml('الأجندة البيداغوجية الشاملة وسجل المواعيد والفروض والواجبات', scopeSubtitle, '#4f46e5')}
+
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px;">
+                    <div style="border: 1px solid #cbd5e1; border-right: 4px solid #4f46e5; border-radius: 6px; padding: 6px 10px; background: #f8fafc;">
+                        <div style="font-size: 9.5px; color: #64748b; font-weight: 800;">إجمالي بنود الأجندة</div>
+                        <div style="font-size: 14px; font-weight: 900; color: #3730a3;">${entries.length} بند</div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; border-right: 4px solid #dc2626; border-radius: 6px; padding: 6px 10px; background: #f8fafc;">
+                        <div style="font-size: 9.5px; color: #64748b; font-weight: 800;">الفروض والامتحانات</div>
+                        <div style="font-size: 14px; font-weight: 900; color: #b91c1c;">${examsCount} فرض/امتحان</div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; border-right: 4px solid #7c3aed; border-radius: 6px; padding: 6px 10px; background: #f8fafc;">
+                        <div style="font-size: 9.5px; color: #64748b; font-weight: 800;">الواجبات المنزلية (تكوينية)</div>
+                        <div style="font-size: 14px; font-weight: 900; color: #6d28d9;">${hwCount} واجب</div>
+                    </div>
+                    <div style="border: 1px solid #cbd5e1; border-right: 4px solid #10b981; border-radius: 6px; padding: 6px 10px; background: #f8fafc;">
+                        <div style="font-size: 9.5px; color: #64748b; font-weight: 800;">المحطات والعطل</div>
+                        <div style="font-size: 14px; font-weight: 900; color: #047857;">${milestonesCount} محطة | ${holidaysCount} عطلة</div>
+                    </div>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; font-size: 9.8px; margin-bottom: 12px; page-break-inside: auto;">
+                    <thead style="display: table-header-group;">
+                        <tr style="background: #1e293b; color: #ffffff;">
+                            <th style="border: 1px solid #334155; padding: 6px 5px; text-align: center; width: 4%;">#</th>
+                            <th style="border: 1px solid #334155; padding: 6px 6px; text-align: center; width: 17%;">التاريخ / الفترة</th>
+                            <th style="border: 1px solid #334155; padding: 6px 6px; text-align: center; width: 13%;">الصنف</th>
+                            <th style="border: 1px solid #334155; padding: 6px 8px; text-align: right; width: 27%;">موضوع الموعد / الفرض / الواجب</th>
+                            <th style="border: 1px solid #334155; padding: 6px 6px; text-align: right; width: 15%;">القسم / المستهدف</th>
+                            <th style="border: 1px solid #334155; padding: 6px 6px; text-align: right; width: 16%;">ملاحظات وتوقيت</th>
+                            <th style="border: 1px solid #334155; padding: 6px 5px; text-align: center; width: 8%;">الحالة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${entries.length === 0 ? `
+                            <tr>
+                                <td colspan="7" style="border: 1px solid #cbd5e1; padding: 18px; text-align: center; font-weight: 800; color: #64748b; background: #f8fafc;">
+                                    لا توجد مواعيد أو فروض أو واجبات مسجلة في الأجندة ضمن النطاق المختار.
+                                </td>
+                            </tr>
+                        ` : entries.map((item, idx) => `
+                            <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'}; page-break-inside: avoid; break-inside: avoid;">
+                                <td style="border: 1px solid #cbd5e1; padding: 5px; text-align: center; font-weight: 800;">${idx + 1}</td>
+                                <td style="border: 1px solid #cbd5e1; padding: 5px; text-align: center; font-family: monospace; font-weight: 800;" dir="ltr">
+                                    ${escapeHtml(item.startDate)}${item.endDate && item.endDate !== item.startDate ? ` ⬅ ${escapeHtml(item.endDate)}` : ''}
+                                </td>
+                                <td style="border: 1px solid #cbd5e1; padding: 5px; text-align: center;">
+                                    <span style="display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 8.5px; font-weight: 800; background: ${item.badgeBg}; color: ${item.badgeColor};">
+                                        ${escapeHtml(item.typeLabel)}
+                                    </span>
+                                </td>
+                                <td style="border: 1px solid #cbd5e1; padding: 5px 7px; font-weight: 800; color: #0f172a;">${escapeHtml(item.title)}</td>
+                                <td style="border: 1px solid #cbd5e1; padding: 5px 6px; font-weight: 700; color: #0369a1;">${escapeHtml(item.target)}</td>
+                                <td style="border: 1px solid #cbd5e1; padding: 5px 6px; font-size: 9px; color: #334155;">
+                                    ${item.timeSlot ? `<div style="font-weight: 800; color: #4f46e5;">⏰ ${escapeHtml(item.timeSlot)}</div>` : ''}
+                                    <div>${escapeHtml(item.notes || '—')}</div>
+                                </td>
+                                <td style="border: 1px solid #cbd5e1; padding: 5px; text-align: center; font-weight: 800; color: #334155;">${escapeHtml(item.status)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                ${buildCalendarOfficialSignaturesHtml(meta.teacherName)}
+            </div>
+        `;
+
+        if (options.returnInnerOnly) return innerHtml;
+
+        return `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>الأجندة البيداغوجية الشاملة — ${escapeHtml(scopeSubtitle)}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        @page { size: A4 landscape; margin: 9mm; }
+        * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        body { margin: 0; padding: 6mm; font-family: 'Cairo', sans-serif; direction: rtl; background: #fff; color: #0f172a; }
+        @media print { body { padding: 0; } }
+    </style>
+</head>
+<body>${innerHtml}</body>
+</html>`;
+    }
+
+    function printPedagogicalAgendaSheet(options = {}) {
+        const docHtml = buildPedagogicalAgendaPrintHtml(options);
+        const scope = options.scope || 'month';
+        const title = scope === 'upcoming'
+            ? 'الأجندة البيداغوجية للمواعيد القادمة'
+            : (scope === 'year' ? 'الأجندة البيداغوجية الشاملة للموسم الدراسي' : 'الأجندة البيداغوجية للشهر المختار');
+        openOrPrintCalendarDocument(docHtml, title, options.orientation || 'landscape');
     }
 
     /**
@@ -3992,9 +5157,15 @@
      * دالة موحدة لبناء محتوى المعاينة في نافذة الطباعة الشاملة (Universal PDF Preview Modal)
      */
     function buildActiveCalendarUniversalPdfHTML(options = {}) {
+        if (options && options.calendarDocKind === 'monthly_schedule') {
+            return buildMonthlyDetailedSchedulePrintHtml({ ...options, returnInnerOnly: true });
+        }
+        if (options && options.calendarDocKind === 'agenda') {
+            return buildPedagogicalAgendaPrintHtml({ ...options, returnInnerOnly: true });
+        }
         const activeSub = currentCalendarSubView || window.currentCalendarSubView || 'annual';
         if (activeSub === 'monthly') {
-            return buildMonthlyCalendarPrintHtml({ returnInnerOnly: true });
+            return buildMonthlyCalendarPrintHtml({ ...options, returnInnerOnly: true });
         }
         if (activeSub === 'leaves') {
             return buildTeacherLeavesLedgerPrintHtml({ returnInnerOnly: true });
@@ -4010,41 +5181,80 @@
 
     /**
      * 6. مركز طباعة التقويم الموحد (Calendar Print Hub Modal)
-     * يتيح للأستاذ اختيار أي قسم من أقسام التقويم الستة لمعاينته وطباعته بصيغة A4 أو تصديره PDF
+     * يتيح للأستاذ اختيار أي قسم من أقسام التقويم والأجندة والشهر المحدد لمعاينته وطباعته بصيغة A4 أو تصديره PDF
      */
     function openCalendarPrintHubModal() {
         const existing = document.getElementById('calendarPrintHubModal');
         if (existing) existing.remove();
 
+        const { year: activeYear, month: activeMonth } = resolveMonthlyCalendarPrintTarget();
+        const arabicMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'];
+        const academicMonthOrder = [8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7];
+        const minYr = Math.min(2024, activeYear - 1);
+        const maxYr = Math.max(2029, activeYear + 1);
+        const yearOptions = [];
+        for (let y = minYr; y <= maxYr; y++) yearOptions.push(y);
+
         const modal = document.createElement('div');
         modal.id = 'calendarPrintHubModal';
         modal.className = 'modal-overlay';
-        modal.style.cssText = 'display: flex; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center; padding: 16px; direction: rtl;';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.style.cssText = 'display: flex; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center; padding: 14px; direction: rtl;';
+
+        const closeHub = () => {
+            document.removeEventListener('keydown', onHubKeyDown);
+            const el = document.getElementById('calendarPrintHubModal');
+            if (el) el.remove();
+        };
+        const onHubKeyDown = (e) => {
+            if (e.key === 'Escape') closeHub();
+        };
+        document.addEventListener('keydown', onHubKeyDown);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeHub();
+        });
 
         modal.innerHTML = `
-            <div style="background: #ffffff; width: 100%; max-width: 780px; border-radius: 18px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); border: 1px solid #e2e8f0; overflow: hidden; font-family: 'Cairo', sans-serif; animation: fadeIn 0.2s ease-out;">
-                <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; padding: 18px 22px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="background: #ffffff; width: 100%; max-width: 900px; max-height: 92vh; overflow-y: auto; border-radius: 18px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); border: 1px solid #e2e8f0; font-family: 'Cairo', sans-serif; color: #0f172a;">
+                <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; padding: 16px 22px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 5;">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #2563eb, #1d4ed8); display: flex; align-items: center; justify-content: center; font-size: 1.35rem; box-shadow: 0 4px 12px rgba(37,99,235,0.4);">
+                        <div style="width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #2563eb, #1d4ed8); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; box-shadow: 0 4px 12px rgba(37,99,235,0.4); flex-shrink: 0;">
                             🖨️
                         </div>
                         <div>
-                            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 900; color: #fff;">مركز طباعة وتصدير وثائق التقويم المدرسي (A4 / PDF)</h3>
-                            <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: #cbd5e1;">اختر الوثيقة الرسمية لمعاينتها بدقة A4 أو طباعتها مباشرة أو حفظها بصيغة PDF</p>
+                            <h3 style="margin: 0; font-size: 1.1rem; font-weight: 900; color: #fff;">مركز طباعة وتصدير وثائق التقويم المدرسي والأجندة (A4 / PDF)</h3>
+                            <p style="margin: 2px 0 0 0; font-size: 0.78rem; color: #cbd5e1;">اختر الشهر أو نطاق الأجندة والوثيقة الرسمية لمعاينتها بدقة A4 أو طباعتها وحفظها PDF</p>
                         </div>
                     </div>
-                    <button type="button" onclick="document.getElementById('calendarPrintHubModal').remove()" style="background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #fff; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-weight: 900; font-size: 1rem;">✕</button>
+                    <button type="button" id="btnCloseCalendarPrintHubTop" style="background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #fff; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-weight: 900; font-size: 1rem;">✕</button>
                 </div>
 
-                <div style="padding: 20px 22px;">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(225px, 1fr)); gap: 12px;">
+                <!-- شريط ضبط الشهر والسنة المستهدفة للطباعة -->
+                <div style="background: #f1f5f9; border-bottom: 1px solid #e2e8f0; padding: 10px 22px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span style="font-size: 0.8rem; font-weight: 900; color: #1e293b;">📅 الشهر المحدد للطباعة والأجندة:</span>
+                        <select id="calPrintHubMonthSelect" style="padding: 5px 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; font-family: 'Cairo', sans-serif; font-size: 0.8rem; font-weight: 800; cursor: pointer;">
+                            ${academicMonthOrder.map(mIdx => `<option value="${mIdx}" ${mIdx === activeMonth ? 'selected' : ''}>${arabicMonths[mIdx]} (${String(mIdx + 1).padStart(2, '0')})</option>`).join('')}
+                        </select>
+                        <select id="calPrintHubYearSelect" style="padding: 5px 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; font-family: 'Cairo', sans-serif; font-size: 0.8rem; font-weight: 800; cursor: pointer;">
+                            ${yearOptions.map(y => `<option value="${y}" ${y === activeYear ? 'selected' : ''}>${y}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div id="calPrintHubActiveLabel" style="font-size: 0.76rem; font-weight: 800; color: #0369a1; background: #e0f2fe; border: 1px solid #bae6fd; padding: 3px 10px; border-radius: 8px;">
+                        الشهر النشط: ${arabicMonths[activeMonth]} ${activeYear}
+                    </div>
+                </div>
+
+                <div style="padding: 18px 22px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;">
                         <!-- 1. التقويم السنوي الشامل وشبكة الشهور الـ 12 -->
                         <div style="border: 1.5px solid #e2e8f0; border-right: 5px solid #4f46e5; border-radius: 12px; padding: 14px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
                             <div>
-                                <div style="font-size: 0.95rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">🗓️ التقويم السنوي الشامل (12 شهراً)</div>
-                                <div style="font-size: 0.77rem; color: #475569; line-height: 1.45;">شبكة الشهور الـ 12 ملونة بالعطل والمحطات والفروض + ملخص العطل الرسمية في صفحة A4 أفقية.</div>
+                                <div style="font-size: 0.94rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">🗓️ التقويم السنوي الشامل (12 شهراً)</div>
+                                <div style="font-size: 0.76rem; color: #475569; line-height: 1.45;">شبكة الشهور الـ 12 ملونة بالعطل والمحطات والفروض + ملخص العطل الرسمية في صفحة A4 أفقية.</div>
                             </div>
-                            <button type="button" onclick="document.getElementById('calendarPrintHubModal').remove(); window.openOrPrintCalendarDocument(window.buildAnnualSchoolCalendarPrintHtml(), 'التقويم السنوي الشامل وشبكة الشهور الـ 12', 'landscape');" style="background: #4f46e5; color: #fff; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; width: 100%;">
+                            <button type="button" id="btnPrintHubAnnual" style="background: #4f46e5; color: #fff; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.81rem; cursor: pointer; width: 100%; font-family: 'Cairo', sans-serif;">
                                 🖨️ معاينة وطباعة التقويم السنوي
                             </button>
                         </div>
@@ -4052,10 +5262,10 @@
                         <!-- 2. لائحة العطل المدرسية الرسمية -->
                         <div style="border: 1.5px solid #e2e8f0; border-right: 5px solid #10b981; border-radius: 12px; padding: 14px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
                             <div>
-                                <div style="font-size: 0.95rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">🌴 لائحة العطل المدرسية الرسمية</div>
-                                <div style="font-size: 0.77rem; color: #475569; line-height: 1.45;">جدول رسمي مفصل بجميع فترات العطل المدرسية وأصنافها ومدتها وحالة حماية الغياب (A4 عمودي).</div>
+                                <div style="font-size: 0.94rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">🌴 لائحة العطل المدرسية الرسمية</div>
+                                <div style="font-size: 0.76rem; color: #475569; line-height: 1.45;">جدول رسمي مفصل بجميع فترات العطل المدرسية وأصنافها ومدتها وحالة حماية الغياب (A4 عمودي).</div>
                             </div>
-                            <button type="button" onclick="document.getElementById('calendarPrintHubModal').remove(); window.printOfficialHolidaysTable();" style="background: #10b981; color: #fff; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; width: 100%;">
+                            <button type="button" id="btnPrintHubHolidays" style="background: #10b981; color: #fff; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.81rem; cursor: pointer; width: 100%; font-family: 'Cairo', sans-serif;">
                                 🖨️ معاينة وطباعة لائحة العطل
                             </button>
                         </div>
@@ -4063,43 +5273,72 @@
                         <!-- 3. جدول المحطات التربوية وفروض المراقبة -->
                         <div style="border: 1.5px solid #e2e8f0; border-right: 5px solid #2563eb; border-radius: 12px; padding: 14px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
                             <div>
-                                <div style="font-size: 0.95rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">🎯 جدول المحطات وفروض المراقبة</div>
-                                <div style="font-size: 0.77rem; color: #475569; line-height: 1.45;">الروزنامة الوزارية الكاملة لفروض المراقبة المستمرة، مسك النقط، الامتحانات الموحدة ومجالس الأقسام.</div>
+                                <div style="font-size: 0.94rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">🎯 جدول المحطات وفروض المراقبة</div>
+                                <div style="font-size: 0.76rem; color: #475569; line-height: 1.45;">الروزنامة الوزارية الكاملة لفروض المراقبة المستمرة، مسك النقط، الامتحانات الموحدة ومجالس الأقسام.</div>
                             </div>
-                            <button type="button" onclick="document.getElementById('calendarPrintHubModal').remove(); window.printAcademicMilestonesSchedule();" style="background: #2563eb; color: #fff; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; width: 100%;">
+                            <button type="button" id="btnPrintHubMilestones" style="background: #2563eb; color: #fff; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.81rem; cursor: pointer; width: 100%; font-family: 'Cairo', sans-serif;">
                                 🖨️ معاينة وطباعة جدول المحطات
                             </button>
                         </div>
 
-                        <!-- 4. التقويم الشهري والأجندة التفاعلية -->
-                        <div style="border: 1.5px solid #e2e8f0; border-right: 5px solid #0284c7; border-radius: 12px; padding: 14px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
+                        <!-- 4. التقويم الشهري وجدول أيام ومواعيد الشهر التفصيلي -->
+                        <div style="border: 1.5px solid #bae6fd; border-right: 5px solid #0284c7; border-radius: 12px; padding: 14px; background: #f0f9ff; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
                             <div>
-                                <div style="font-size: 0.95rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">📅 التقويم الشهري والأجندة</div>
-                                <div style="font-size: 0.77rem; color: #475569; line-height: 1.45;">شبكة الشهر الحالي مع كافة الفروض والمواعيد والعطل + جدول الأجندة التفصيلي أسفلها.</div>
+                                <div style="font-size: 0.94rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">📅 طباعة الشهر (<span id="calPrintHubMonthCardTitle">${arabicMonths[activeMonth]} ${activeYear}</span>)</div>
+                                <div style="font-size: 0.76rem; color: #334155; line-height: 1.45; margin-bottom: 6px;">شبكة الشهر المحدد + جدول أيام ومواعيد الشهر التفصيلي بالحصص والفروض والعطل:</div>
+                                <select id="calPrintHubScheduleMode" style="width: 100%; padding: 4px 8px; border-radius: 7px; border: 1px solid #7dd3fc; background: #ffffff; color: #0c4a6e; font-family: 'Cairo', sans-serif; font-size: 0.76rem; font-weight: 800; cursor: pointer;">
+                                    <option value="all">📅 جميع أيام الشهر (كامل)</option>
+                                    <option value="events_only">🎯 أيام الحصص والأحداث فقط</option>
+                                    <option value="sessions_only">🏫 أيام الحصص الدراسية فقط</option>
+                                </select>
                             </div>
-                            <button type="button" onclick="document.getElementById('calendarPrintHubModal').remove(); window.printMonthlyCalendarSheet();" style="background: #0284c7; color: #fff; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; width: 100%;">
-                                🖨️ معاينة وطباعة الشهر الحالي
+                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                <button type="button" id="btnPrintHubMonthlyGrid" style="background: #0284c7; color: #fff; border: none; padding: 7px 12px; border-radius: 8px; font-weight: 800; font-size: 0.8rem; cursor: pointer; width: 100%; font-family: 'Cairo', sans-serif;">
+                                    🖨️ طباعة شبكة الشهر والأجندة
+                                </button>
+                                <button type="button" id="btnPrintHubMonthlySchedule" style="background: #1e3a8a; color: #fff; border: none; padding: 7px 12px; border-radius: 8px; font-weight: 800; font-size: 0.78rem; cursor: pointer; width: 100%; font-family: 'Cairo', sans-serif;">
+                                    📆 جدول أيام ومواعيد الشهر التفصيلي (A4)
+                                </button>
+                                <button type="button" id="btnPrintHubMonthlyDetailed" style="background: #ffffff; color: #0369a1; border: 1.5px solid #7dd3fc; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 0.76rem; cursor: pointer; width: 100%; font-family: 'Cairo', sans-serif;">
+                                    📋 الشبكة + جدول الأيام والحصص التفصيلي
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 5. طباعة الأجندة البيداغوجية والمواعيد والواجبات -->
+                        <div style="border: 1.5px solid #ddd6fe; border-right: 5px solid #6d28d9; border-radius: 12px; padding: 14px; background: #f5f3ff; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
+                            <div>
+                                <div style="font-size: 0.94rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">📒 طباعة الأجندة البيداغوجية الشاملة</div>
+                                <div style="font-size: 0.76rem; color: #334155; line-height: 1.45; margin-bottom: 8px;">تجميع موحد ومرتب زمنياً لكل بنود الأجندة، الفروض، الواجبات المنزلية، والمجالس حسب النطاق المختار:</div>
+                                <select id="calPrintHubAgendaScope" style="width: 100%; padding: 5px 8px; border-radius: 8px; border: 1px solid #c4b5fd; background: #ffffff; color: #1e1b4b; font-family: 'Cairo', sans-serif; font-size: 0.78rem; font-weight: 800; cursor: pointer;">
+                                    <option value="month">📅 أجندة الشهر المحدد (${arabicMonths[activeMonth]} ${activeYear})</option>
+                                    <option value="upcoming">⏳ المواعيد والفروض القادمة فقط</option>
+                                    <option value="year">🗓️ الأجندة الكاملة للموسم الدراسي</option>
+                                </select>
+                            </div>
+                            <button type="button" id="btnPrintHubAgenda" style="background: #6d28d9; color: #fff; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.81rem; cursor: pointer; width: 100%; font-family: 'Cairo', sans-serif;">
+                                🖨️ معاينة وطباعة الأجندة (A4)
                             </button>
                         </div>
 
-                        <!-- 5. السجل الرسمي لرخص وإجازات الأستاذ -->
+                        <!-- 6. السجل الرسمي لرخص وإجازات الأستاذ -->
                         <div style="border: 1.5px solid #e2e8f0; border-right: 5px solid #0d9488; border-radius: 12px; padding: 14px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
                             <div>
-                                <div style="font-size: 0.95rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">🛡️ سجل رخص وإجازات الأستاذ</div>
-                                <div style="font-size: 0.77rem; color: #475569; line-height: 1.45;">البيان الإجمالي للرخص الإدارية والمرضية والمهام الرسمية مع إحصائيات الأيام المحمية.</div>
+                                <div style="font-size: 0.94rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">🛡️ سجل رخص وإجازات الأستاذ</div>
+                                <div style="font-size: 0.76rem; color: #475569; line-height: 1.45;">البيان الإجمالي للرخص الإدارية والمرضية والمهام الرسمية مع إحصائيات الأيام المحمية.</div>
                             </div>
-                            <button type="button" onclick="document.getElementById('calendarPrintHubModal').remove(); window.printTeacherLeavesFullLedger();" style="background: #0d9488; color: #fff; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; width: 100%;">
+                            <button type="button" id="btnPrintHubLeaves" style="background: #0d9488; color: #fff; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.81rem; cursor: pointer; width: 100%; font-family: 'Cairo', sans-serif;">
                                 🖨️ معاينة وطباعة سجل الرخص
                             </button>
                         </div>
 
-                        <!-- 6. المسار البيداغوجي السنوي الشامل -->
+                        <!-- 7. المسار البيداغوجي السنوي الشامل -->
                         <div style="border: 1.5px solid #e2e8f0; border-right: 5px solid #7c3aed; border-radius: 12px; padding: 14px; background: #f8fafc; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
                             <div>
-                                <div style="font-size: 0.95rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">🧭 المسار البيداغوجي السنوي</div>
-                                <div style="font-size: 0.77rem; color: #475569; line-height: 1.45;">الخريطة البانورامية للمحطات البيداغوجية والفروض ومجالس الأقسام ومؤشرات التقدم السنوي.</div>
+                                <div style="font-size: 0.94rem; font-weight: 900; color: #0f172a; margin-bottom: 4px;">🧭 المسار البيداغوجي السنوي</div>
+                                <div style="font-size: 0.76rem; color: #475569; line-height: 1.45;">الخريطة البانورامية للمحطات البيداغوجية والفروض ومجالس الأقسام ومؤشرات التقدم السنوي.</div>
                             </div>
-                            <button type="button" onclick="document.getElementById('calendarPrintHubModal').remove(); if(typeof window.printPedagogicalRoadmap==='function') window.printPedagogicalRoadmap();" style="background: #7c3aed; color: #fff; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; width: 100%;">
+                            <button type="button" id="btnPrintHubRoadmap" style="background: #7c3aed; color: #fff; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 0.81rem; cursor: pointer; width: 100%; font-family: 'Cairo', sans-serif;">
                                 🖨️ معاينة وطباعة المسار البيداغوجي
                             </button>
                         </div>
@@ -4107,13 +5346,87 @@
                 </div>
 
                 <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 12px 22px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <span style="font-size: 0.78rem; color: #64748b; font-weight: 700;">💡 جميع الوثائق تفتح في نافذة معاينة A4 تتيح التبديل بين العمودي والأفقي وتحميل PDF مباشر.</span>
-                    <button type="button" onclick="document.getElementById('calendarPrintHubModal').remove()" style="background: #e2e8f0; color: #334155; border: none; padding: 6px 16px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer;">إغلاق</button>
+                    <span style="font-size: 0.77rem; color: #64748b; font-weight: 700;">💡 جميع الوثائق تفتح في نافذة معاينة A4 تتيح التبديل بين العمودي والأفقي وضبط الهوامش وتحميل PDF مباشر.</span>
+                    <button type="button" id="btnCloseCalendarPrintHubFooter" style="background: #e2e8f0; color: #334155; border: none; padding: 6px 16px; border-radius: 8px; font-weight: 800; font-size: 0.82rem; cursor: pointer; font-family: 'Cairo', sans-serif;">إغلاق</button>
                 </div>
             </div>
         `;
 
         document.body.appendChild(modal);
+
+        const getSelectedMonthYear = () => {
+            const mEl = document.getElementById('calPrintHubMonthSelect');
+            const yEl = document.getElementById('calPrintHubYearSelect');
+            return {
+                month: mEl ? parseInt(mEl.value, 10) : activeMonth,
+                year: yEl ? parseInt(yEl.value, 10) : activeYear
+            };
+        };
+
+        const syncHubMonthLabels = () => {
+            const { month, year } = getSelectedMonthYear();
+            const label = `${arabicMonths[month] || ''} ${year}`;
+            const badgeEl = document.getElementById('calPrintHubActiveLabel');
+            const cardTitleEl = document.getElementById('calPrintHubMonthCardTitle');
+            const scopeSel = document.getElementById('calPrintHubAgendaScope');
+            if (badgeEl) badgeEl.textContent = `الشهر النشط: ${label}`;
+            if (cardTitleEl) cardTitleEl.textContent = label;
+            if (scopeSel && scopeSel.options[0]) {
+                scopeSel.options[0].textContent = `📅 أجندة الشهر المحدد (${label})`;
+            }
+        };
+
+        document.getElementById('calPrintHubMonthSelect').onchange = syncHubMonthLabels;
+        document.getElementById('calPrintHubYearSelect').onchange = syncHubMonthLabels;
+        document.getElementById('btnCloseCalendarPrintHubTop').onclick = closeHub;
+        document.getElementById('btnCloseCalendarPrintHubFooter').onclick = closeHub;
+
+        document.getElementById('btnPrintHubAnnual').onclick = () => {
+            closeHub();
+            openOrPrintCalendarDocument(buildAnnualSchoolCalendarPrintHtml(), 'التقويم السنوي الشامل وشبكة الشهور الـ 12', 'landscape');
+        };
+        document.getElementById('btnPrintHubHolidays').onclick = () => {
+            closeHub();
+            printOfficialHolidaysTable();
+        };
+        document.getElementById('btnPrintHubMilestones').onclick = () => {
+            closeHub();
+            printAcademicMilestonesSchedule();
+        };
+        document.getElementById('btnPrintHubMonthlyGrid').onclick = () => {
+            const sel = getSelectedMonthYear();
+            closeHub();
+            printMonthlyCalendarSheet({ year: sel.year, month: sel.month, includeDetailedDaysTable: false });
+        };
+        document.getElementById('btnPrintHubMonthlySchedule').onclick = () => {
+            const sel = getSelectedMonthYear();
+            const modeEl = document.getElementById('calPrintHubScheduleMode');
+            const detailedDaysMode = modeEl ? modeEl.value : 'all';
+            closeHub();
+            printMonthlyDetailedScheduleSheet({ year: sel.year, month: sel.month, detailedDaysMode });
+        };
+        document.getElementById('btnPrintHubMonthlyDetailed').onclick = () => {
+            const sel = getSelectedMonthYear();
+            closeHub();
+            printMonthlyCalendarSheet({ year: sel.year, month: sel.month, includeDetailedDaysTable: true });
+        };
+        document.getElementById('btnPrintHubAgenda').onclick = () => {
+            const sel = getSelectedMonthYear();
+            const scopeEl = document.getElementById('calPrintHubAgendaScope');
+            const scope = scopeEl ? scopeEl.value : 'month';
+            closeHub();
+            printPedagogicalAgendaSheet({ scope, year: sel.year, month: sel.month });
+        };
+        document.getElementById('btnPrintHubLeaves').onclick = () => {
+            closeHub();
+            printTeacherLeavesFullLedger();
+        };
+        document.getElementById('btnPrintHubRoadmap').onclick = () => {
+            closeHub();
+            if (typeof window.printPedagogicalRoadmap === 'function') {
+                window.printPedagogicalRoadmap();
+            }
+        };
     }
 
     /**
@@ -8523,6 +9836,7 @@
     window.updateTeacherLeavesBadgeCount = updateTeacherLeavesBadgeCount;
 
     // دوال الطباعة الرسمية الموحدة والشاملة لكافة أقسام تبويب التقويم (A4 / PDF)
+    window.stripGlobalBodyAndPageCssForPreview = stripGlobalBodyAndPageCssForPreview;
     window.openOrPrintCalendarDocument = openOrPrintCalendarDocument;
     window.buildAnnualSchoolCalendarPrintHtml = buildAnnualSchoolCalendarPrintHtml;
     window.buildOfficialHolidaysTablePrintHtml = buildOfficialHolidaysTablePrintHtml;
@@ -8531,10 +9845,47 @@
     window.printAcademicMilestonesSchedule = printAcademicMilestonesSchedule;
     window.buildMonthlyCalendarPrintHtml = buildMonthlyCalendarPrintHtml;
     window.printMonthlyCalendarSheet = printMonthlyCalendarSheet;
+    window.buildMonthlyDetailedSchedulePrintHtml = buildMonthlyDetailedSchedulePrintHtml;
+    window.printMonthlyDetailedScheduleSheet = printMonthlyDetailedScheduleSheet;
+    window.buildPedagogicalAgendaPrintHtml = buildPedagogicalAgendaPrintHtml;
+    window.printPedagogicalAgendaSheet = printPedagogicalAgendaSheet;
     window.buildTeacherLeavesLedgerPrintHtml = buildTeacherLeavesLedgerPrintHtml;
     window.printTeacherLeavesFullLedger = printTeacherLeavesFullLedger;
     window.buildActiveCalendarUniversalPdfHTML = buildActiveCalendarUniversalPdfHTML;
     window.openCalendarPrintHubModal = openCalendarPrintHubModal;
+
+    if (!window.__calPrintLifecycleBound && typeof window.addEventListener === 'function') {
+        window.__calPrintLifecycleBound = true;
+        window.addEventListener('beforeprint', () => {
+            try {
+                const body = document.body;
+                if (!body) return;
+                const modalPrintClasses = [
+                    'printing-custom-preview',
+                    'printing-universal-doc',
+                    'printing-full-report',
+                    'printing-admin-report',
+                    'printing-portfolio',
+                    'printing-cahier',
+                    'printing-preventative-plan'
+                ];
+                if (modalPrintClasses.some(cls => body.classList.contains(cls))) return;
+                const calView = document.getElementById('calendarView');
+                if (calView && window.getComputedStyle(calView).display !== 'none') {
+                    body.classList.add('printing-calendar-view');
+                    body.dataset.autoCalPrint = '1';
+                }
+            } catch (e) {}
+        });
+        window.addEventListener('afterprint', () => {
+            try {
+                if (document.body && document.body.dataset.autoCalPrint === '1') {
+                    document.body.classList.remove('printing-calendar-view');
+                    delete document.body.dataset.autoCalPrint;
+                }
+            } catch (e) {}
+        });
+    }
 
     // تهيئة المزامنة عند بدء التشغيل وتجهيز شبكة وجدول الأيام في التقويم الشهري مسبقاً
     setTimeout(() => {

@@ -7424,30 +7424,25 @@
             <${'/body'}>
             <${'/html'}>`;
 
-            // Print via iframe
+            // Print via off-screen full-layout iframe (never 0x0 or visibility:hidden)
             let iframe = document.getElementById('ttPrintFrame');
             if (!iframe) {
                 iframe = document.createElement('iframe');
                 iframe.id = 'ttPrintFrame';
-                iframe.style.position = 'fixed';
-                iframe.style.right = '0';
-                iframe.style.bottom = '0';
-                iframe.style.width = '0';
-                iframe.style.height = '0';
-                iframe.style.border = '0';
                 document.body.appendChild(iframe);
             }
+            iframe.style.cssText = 'position:fixed; left:-12000px; top:0; width:297mm; height:210mm; border:0; opacity:1; visibility:visible; pointer-events:none; background:#ffffff; z-index:-9999;';
             const doc = iframe.contentWindow.document;
             doc.open();
             doc.write(printHtml);
             doc.close();
-            iframe.contentWindow.focus();
-            setTimeout(() => {
+            const triggerTtPrint = () => {
                 try {
                     const iWin = iframe.contentWindow;
                     iWin.onafterprint = () => {
                         try { doc.body.innerHTML = ''; } catch (err) {}
                     };
+                    iWin.focus();
                     iWin.print();
                     setTimeout(() => {
                         try { if (doc && doc.body) doc.body.innerHTML = ''; } catch (err) {}
@@ -7455,7 +7450,11 @@
                 } catch(e) {
                     window.print();
                 }
-            }, 500);
+            };
+            const ttFontsReady = (doc.fonts && doc.fonts.ready)
+                ? Promise.race([doc.fonts.ready, new Promise(r => setTimeout(r, 450))])
+                : new Promise(r => setTimeout(r, 250));
+            Promise.resolve(ttFontsReady).then(() => setTimeout(triggerTtPrint, 80));
         }
 
         function getPrintCellHtml(day, slotKey) {
@@ -32697,7 +32696,7 @@ window.printFullUnifiedReport = printFullUnifiedReport;
         }
 
         function setMonthlyScheduleTableFilter(mode) {
-            monthlyScheduleTableFilterMode = (mode === 'events_only') ? 'events_only' : 'all';
+            monthlyScheduleTableFilterMode = (mode === 'events_only' || mode === 'sessions_only') ? mode : 'all';
             ensureValidCalendarDate();
             renderMonthlyDaysScheduleTable(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth());
         }
@@ -32730,8 +32729,10 @@ window.printFullUnifiedReport = printFullUnifiedReport;
                 const isToday = (dateStr === todayIso);
 
                 const dayEvents = allCalendarEvents.filter(ev => ev && ev.date === dateStr);
-                const holidayEv = dayEvents.find(ev => ev.type === 'holiday' || ev.isOfficial);
-                const leaveEv = dayEvents.find(ev => ev.type === 'teacher_leave' || ev.isTeacherLeave);
+                const holidayEv = dayEvents.find(ev => ev.type === 'holiday' || ev.isOfficial)
+                    || (typeof window.getOfficialHolidayForDate === 'function' ? window.getOfficialHolidayForDate(dateStr) : null);
+                const leaveEv = dayEvents.find(ev => ev.type === 'teacher_leave' || ev.isTeacherLeave)
+                    || (typeof window.getTeacherLeaveForDate === 'function' ? window.getTeacherLeaveForDate(dateStr) : null);
                 const milestoneEvs = dayEvents.filter(ev => ev.type !== 'holiday' && !ev.isOfficial && ev.type !== 'teacher_leave' && !ev.isTeacherLeave);
 
                 let sessions = [];
@@ -32755,6 +32756,7 @@ window.printFullUnifiedReport = printFullUnifiedReport;
                 }
 
                 const hasActivity = !!(holidayEv || leaveEv || milestoneEvs.length > 0 || (!isSunday && sessions.length > 0));
+                const hasSessions = (!isSunday && !holidayEv && !leaveEv && sessions.length > 0);
                 rowsData.push({
                     dayNum: d,
                     dateStr,
@@ -32765,13 +32767,16 @@ window.printFullUnifiedReport = printFullUnifiedReport;
                     leaveEv,
                     milestoneEvs,
                     sessions,
-                    hasActivity
+                    hasActivity,
+                    hasSessions
                 });
             }
 
             const filteredRows = (monthlyScheduleTableFilterMode === 'events_only')
-                ? rowsData.filter(r => r.holidayEv || r.leaveEv || r.milestoneEvs.length > 0 || (!r.isSunday && r.sessions.length > 0))
-                : rowsData;
+                ? rowsData.filter(r => r.holidayEv || r.leaveEv || r.milestoneEvs.length > 0 || r.hasSessions)
+                : (monthlyScheduleTableFilterMode === 'sessions_only')
+                    ? rowsData.filter(r => r.hasSessions)
+                    : rowsData;
 
             let html = `
                 <div class="monthly-schedule-table-card" style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 14px; padding: 18px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);">
@@ -32791,16 +32796,22 @@ window.printFullUnifiedReport = printFullUnifiedReport;
                             </div>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                            <div style="display: inline-flex; background: #f1f5f9; padding: 3px; border-radius: 9px; border: 1px solid #cbd5e1;">
-                                <button type="button" onclick="window.setMonthlyScheduleTableFilter('all')" style="border: none; padding: 5px 11px; border-radius: 7px; font-size: 0.76rem; font-weight: 800; cursor: pointer; font-family: 'Cairo', sans-serif; background: ${monthlyScheduleTableFilterMode === 'all' ? '#1e3a8a' : 'transparent'}; color: ${monthlyScheduleTableFilterMode === 'all' ? '#ffffff' : '#475569'};">
-                                    📅 جميع أيام الشهر (${rowsData.length})
+                            <div style="display: inline-flex; background: #f1f5f9; padding: 3px; border-radius: 9px; border: 1px solid #cbd5e1; flex-wrap: wrap; gap: 2px;">
+                                <button type="button" onclick="window.setMonthlyScheduleTableFilter('all')" style="border: none; padding: 5px 10px; border-radius: 7px; font-size: 0.75rem; font-weight: 800; cursor: pointer; font-family: 'Cairo', sans-serif; background: ${monthlyScheduleTableFilterMode === 'all' ? '#1e3a8a' : 'transparent'}; color: ${monthlyScheduleTableFilterMode === 'all' ? '#ffffff' : '#475569'};">
+                                    📅 جميع الأيام (${rowsData.length})
                                 </button>
-                                <button type="button" onclick="window.setMonthlyScheduleTableFilter('events_only')" style="border: none; padding: 5px 11px; border-radius: 7px; font-size: 0.76rem; font-weight: 800; cursor: pointer; font-family: 'Cairo', sans-serif; background: ${monthlyScheduleTableFilterMode === 'events_only' ? '#1e3a8a' : 'transparent'}; color: ${monthlyScheduleTableFilterMode === 'events_only' ? '#ffffff' : '#475569'};">
-                                    🎯 أيام الحصص والأحداث والعطل (${rowsData.filter(r => r.hasActivity).length})
+                                <button type="button" onclick="window.setMonthlyScheduleTableFilter('events_only')" style="border: none; padding: 5px 10px; border-radius: 7px; font-size: 0.75rem; font-weight: 800; cursor: pointer; font-family: 'Cairo', sans-serif; background: ${monthlyScheduleTableFilterMode === 'events_only' ? '#1e3a8a' : 'transparent'}; color: ${monthlyScheduleTableFilterMode === 'events_only' ? '#ffffff' : '#475569'};">
+                                    🎯 الحصص والأحداث (${rowsData.filter(r => r.hasActivity).length})
+                                </button>
+                                <button type="button" onclick="window.setMonthlyScheduleTableFilter('sessions_only')" style="border: none; padding: 5px 10px; border-radius: 7px; font-size: 0.75rem; font-weight: 800; cursor: pointer; font-family: 'Cairo', sans-serif; background: ${monthlyScheduleTableFilterMode === 'sessions_only' ? '#1e3a8a' : 'transparent'}; color: ${monthlyScheduleTableFilterMode === 'sessions_only' ? '#ffffff' : '#475569'};">
+                                    🏫 أيام الحصص (${rowsData.filter(r => r.hasSessions).length})
                                 </button>
                             </div>
-                            <button type="button" onclick="if(window.printMonthlyCalendarSheet) window.printMonthlyCalendarSheet();" style="background: #f8fafc; color: #1e3a8a; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 8px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
-                                🖨️ طباعة جدول الشهر
+                            <button type="button" onclick="if(window.printMonthlyDetailedScheduleSheet) { window.printMonthlyDetailedScheduleSheet({ year: ${year}, month: ${month}, detailedDaysMode: '${monthlyScheduleTableFilterMode}' }); } else if(window.printMonthlyCalendarSheet) { window.printMonthlyCalendarSheet({ year: ${year}, month: ${month}, includeDetailedDaysTable: true, detailedDaysMode: '${monthlyScheduleTableFilterMode}' }); }" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #ffffff; border: none; padding: 6px 12px; border-radius: 8px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(37, 99, 235, 0.22);" title="معاينة وطباعة جدول أيام ومواعيد الشهر التفصيلي بصيغة A4 احترافية">
+                                🖨️ طباعة جدول أيام الشهر (A4)
+                            </button>
+                            <button type="button" onclick="if(window.printMonthlyCalendarSheet) window.printMonthlyCalendarSheet({ year: ${year}, month: ${month}, includeDetailedDaysTable: true, detailedDaysMode: '${monthlyScheduleTableFilterMode === 'sessions_only' ? 'events_only' : monthlyScheduleTableFilterMode}' });" style="background: #f8fafc; color: #1e3a8a; border: 1px solid #cbd5e1; padding: 6px 11px; border-radius: 8px; font-size: 0.75rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="طباعة الشبكة الشهرية مرفقة بالجدول التفصيلي">
+                                🗓️ الشبكة + الجدول
                             </button>
                         </div>
                     </div>
@@ -44039,7 +44050,7 @@ ${log.notes || 'سير الحصة عادي'}
             }
         }
 
-        function openUniversalPdfPreviewModal(defaultDocType) {
+        function openUniversalPdfPreviewModal(defaultDocType, defaultClass) {
             const modal = document.getElementById('universalPdfPreviewModal');
             if (!modal) return;
 
@@ -44061,7 +44072,9 @@ ${log.notes || 'سير الحصة عادي'}
                     classSelect.appendChild(opt);
                 });
 
-                const activeClass = document.getElementById('classSelect')?.value || document.getElementById('lessonLogClassSelect')?.value;
+                const activeClass = (defaultClass && sorted.includes(defaultClass))
+                    ? defaultClass
+                    : (document.getElementById('classSelect')?.value || document.getElementById('lessonLogClassSelect')?.value);
                 if (activeClass && sorted.includes(activeClass)) {
                     classSelect.value = activeClass;
                 } else if (sorted.length > 0) {
@@ -44259,25 +44272,37 @@ ${log.notes || 'سير الحصة عادي'}
         setTimeout(applyTypographySettings, 50);
 
         function printDocumentDirectly(elementOrHtml, title = 'وثيقة رسمية', orientation = 'portrait') {
+            const isOptsObj = (orientation && typeof orientation === 'object');
+            const resolvedOrient = isOptsObj ? (orientation.orientation || 'portrait') : orientation;
+            const resolvedPageSize = isOptsObj && String(orientation.pageSize || '').toUpperCase() === 'A5' ? 'A5' : 'A4';
+            const resolvedMargins = isOptsObj && orientation.margins ? orientation.margins : null;
+            const isLandscape = resolvedOrient === 'landscape';
+            const frameWidthCss = resolvedPageSize === 'A5' ? (isLandscape ? '210mm' : '148mm') : (isLandscape ? '297mm' : '210mm');
+            const frameHeightCss = resolvedPageSize === 'A5' ? (isLandscape ? '148mm' : '210mm') : (isLandscape ? '210mm' : '297mm');
+
             let iframe = document.getElementById('globalAppPrintIframe');
             if (!iframe) {
                 iframe = document.createElement('iframe');
                 iframe.id = 'globalAppPrintIframe';
-                iframe.style.position = 'fixed';
-                iframe.style.right = '0';
-                iframe.style.bottom = '0';
-                iframe.style.width = '0';
-                iframe.style.height = '0';
-                iframe.style.border = '0';
-                iframe.style.visibility = 'hidden';
                 document.body.appendChild(iframe);
             }
+            // Off-screen real page-sized box with visibility:visible prevents blank-page output in Chromium iframes
+            iframe.style.cssText = `position:fixed; left:-12000px; top:0; width:${frameWidthCss}; height:${frameHeightCss}; border:0; opacity:1; visibility:visible; pointer-events:none; background:#ffffff; z-index:-9999;`;
 
             let htmlContent = (typeof elementOrHtml === 'string') ? elementOrHtml : (elementOrHtml.outerHTML || elementOrHtml.innerHTML || '');
             let extractedStyles = '';
             const styleMatches = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
             if (styleMatches) {
-                extractedStyles = styleMatches.join('\n');
+                extractedStyles = styleMatches.map(block => {
+                    let inner = block
+                        .replace(/^<style[^>]*>|<\/style>$/gi, '')
+                        .replace(/@media\s+print\s*\{(?:[^{}]*|\{[^{}]*\})*\}/gi, '')
+                        .replace(/@page\s*(?:[^{]*)?\{[^}]*\}/gi, '')
+                        .replace(/(?:^|[}\r\n])\s*(?:\*+|html|body)(?:\s*,\s*(?:\*+|html|body))*\s*\{[^}]*\}/gi, (m) => (m.startsWith('}') ? '}' : ''));
+                    inner = inner.trim();
+                    return inner ? `<style>${inner}</style>` : '';
+                }).filter(Boolean).join('\n');
+                htmlContent = htmlContent.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
             }
             const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
             if (bodyMatch) {
@@ -44291,11 +44316,6 @@ ${log.notes || 'سير الحصة عادي'}
                 || htmlContent.includes('official-universal-bottom-bar')
                 || htmlContent.includes('print-system-footer-fixed')
                 || htmlContent.includes('print-official-footer-bar');
-            const isOptsObj = (orientation && typeof orientation === 'object');
-            const resolvedOrient = isOptsObj ? (orientation.orientation || 'portrait') : orientation;
-            const resolvedPageSize = isOptsObj && String(orientation.pageSize || '').toUpperCase() === 'A5' ? 'A5' : 'A4';
-            const resolvedMargins = isOptsObj && orientation.margins ? orientation.margins : null;
-            const isLandscape = resolvedOrient === 'landscape';
             const hasCustomMargins = !!(resolvedMargins && Number.isFinite(Number(resolvedMargins.top)) && Number.isFinite(Number(resolvedMargins.right)) && Number.isFinite(Number(resolvedMargins.bottom)) && Number.isFinite(Number(resolvedMargins.left)));
             const pageMarginCss = hasCustomMargins
                 ? `${resolvedMargins.top}mm ${resolvedMargins.right}mm ${resolvedMargins.bottom}mm ${resolvedMargins.left}mm`
@@ -44432,15 +44452,25 @@ ${log.notes || 'سير الحصة عادي'}
                 doc.open();
                 doc.write(docHtml);
                 doc.close();
-                setTimeout(() => {
+                const triggerIframePrint = () => {
                     try {
-                        iframe.contentWindow.focus();
-                        iframe.contentWindow.print();
+                        const iWin = iframe.contentWindow;
+                        iWin.focus();
+                        iWin.print();
                     } catch (err) {
                         console.warn('Iframe print error:', err);
                         window.print();
                     }
-                }, 420);
+                };
+                const fontsPromise = (doc.fonts && doc.fonts.ready)
+                    ? Promise.race([doc.fonts.ready, new Promise(r => setTimeout(r, 450))])
+                    : new Promise(r => setTimeout(r, 250));
+                Promise.resolve(fontsPromise).then(() => {
+                    const rAF = iframe.contentWindow && iframe.contentWindow.requestAnimationFrame
+                        ? iframe.contentWindow.requestAnimationFrame.bind(iframe.contentWindow)
+                        : (cb => setTimeout(cb, 16));
+                    rAF(() => rAF(() => setTimeout(triggerIframePrint, 60)));
+                });
             } catch (e) {
                 console.error('Print direct error:', e);
                 window.print();
@@ -44491,7 +44521,16 @@ ${log.notes || 'سير الحصة عادي'}
             let extractedStyles = '';
             const styleMatches = bodyHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
             if (styleMatches) {
-                extractedStyles = styleMatches.join('\n');
+                extractedStyles = styleMatches.map(block => {
+                    let inner = block
+                        .replace(/^<style[^>]*>|<\/style>$/gi, '')
+                        .replace(/@media\s+print\s*\{(?:[^{}]*|\{[^{}]*\})*\}/gi, '')
+                        .replace(/@page\s*(?:[^{]*)?\{[^}]*\}/gi, '')
+                        .replace(/(?:^|[}\r\n])\s*(?:\*+|html|body)(?:\s*,\s*(?:\*+|html|body))*\s*\{[^}]*\}/gi, (m) => (m.startsWith('}') ? '}' : ''));
+                    inner = inner.trim();
+                    return inner ? `<style>${inner}</style>` : '';
+                }).filter(Boolean).join('\n');
+                bodyHtml = bodyHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
             }
             const bodyMatch = bodyHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
             if (bodyMatch) {
@@ -44898,21 +44937,35 @@ ${log.notes || 'سير الحصة عادي'}
                 }
                 if (typeof window.html2pdf === 'function' && sheetEl) {
                     const activeMargins = resolveCurrentPreviewMargins();
-                    const prevZoom = sheetEl.style.zoom;
-                    const prevPadding = sheetEl.style.padding;
-                    sheetEl.style.zoom = '100%';
-                    if (!isReportDoc) sheetEl.style.padding = '0';
-                    const reportPageEls = isReportDoc ? Array.from(sheetEl.querySelectorAll('.report-page')) : [];
-                    const savedPageStyles = reportPageEls.map(el => ({
-                        el,
-                        minHeight: el.style.minHeight,
-                        marginBottom: el.style.marginBottom,
-                        border: el.style.border,
-                        boxShadow: el.style.boxShadow,
-                        padding: el.style.padding
-                    }));
+                    if (modal) modal.scrollTop = 0;
+                    window.scrollTo(0, 0);
+
+                    const exportClone = sheetEl.cloneNode(true);
+                    exportClone.id = 'customReportPdfExportClone';
+                    exportClone.style.zoom = '100%';
+                    exportClone.style.margin = '0';
+                    exportClone.style.padding = '0';
+                    exportClone.style.boxShadow = 'none';
+                    exportClone.style.border = 'none';
+                    exportClone.style.outline = 'none';
+                    exportClone.style.width = '100%';
+                    exportClone.style.maxWidth = '100%';
+                    exportClone.style.minHeight = 'auto';
+                    exportClone.style.background = '#ffffff';
+                    exportClone.removeAttribute('contenteditable');
+                    exportClone.querySelectorAll('.no-print').forEach(el => el.remove());
+
+                    if (hasInlineCharts && !currentIncludeCharts) {
+                        exportClone.querySelectorAll('.student-print-inline-chart-box').forEach(el => el.remove());
+                    }
+                    if (hasOfficialHeader && !currentIncludeHeader) {
+                        exportClone.querySelectorAll('.student-print-official-header').forEach(el => el.remove());
+                    }
+                    if (hasOfficialVisas && !currentIncludeVisas) {
+                        exportClone.querySelectorAll('.student-print-visas-section').forEach(el => el.remove());
+                    }
                     if (isReportDoc) {
-                        reportPageEls.forEach(el => {
+                        exportClone.querySelectorAll('.report-page').forEach(el => {
                             el.style.minHeight = '0';
                             el.style.marginBottom = '0';
                             el.style.border = 'none';
@@ -44920,34 +44973,30 @@ ${log.notes || 'سير الحصة عادي'}
                             el.style.padding = '2mm 3mm';
                         });
                     }
-                    const restoreReportPageStyles = () => {
-                        sheetEl.style.zoom = prevZoom;
-                        sheetEl.style.padding = prevPadding;
-                        savedPageStyles.forEach(s => {
-                            s.el.style.minHeight = s.minHeight;
-                            s.el.style.marginBottom = s.marginBottom;
-                            s.el.style.border = s.border;
-                            s.el.style.boxShadow = s.boxShadow;
-                            s.el.style.padding = s.padding;
-                        });
-                    };
+                    if (exportClone.lastElementChild) {
+                        exportClone.lastElementChild.style.pageBreakAfter = 'auto';
+                        exportClone.lastElementChild.style.breakAfter = 'auto';
+                        exportClone.lastElementChild.style.marginBottom = '0';
+                    }
+
+                    const pdfMarginArr = isReportDoc
+                        ? [4, 5, 4, 5]
+                        : [activeMargins.top, activeMargins.left, activeMargins.bottom, activeMargins.right];
                     const opt = {
-                        margin: isReportDoc ? [4, 5, 4, 5] : activeMargins.array,
+                        margin: pdfMarginArr,
                         filename: `${docTitle.replace(/\s+/g, '_')}.pdf`,
                         image: { type: 'jpeg', quality: 0.98 },
-                        html2canvas: { scale: 2, useCORS: true, logging: false },
+                        html2canvas: { scale: 2, useCORS: true, letterRendering: true, logging: false, scrollX: 0, scrollY: 0, backgroundColor: '#ffffff' },
                         jsPDF: { unit: 'mm', format: currentPageSize.toLowerCase(), orientation: currentOrientation },
                         pagebreak: isReportDoc
                             ? { mode: ['css', 'legacy'], after: ['.report-page-1'] }
-                            : { mode: ['avoid-all', 'css', 'legacy'] }
+                            : { mode: ['css', 'legacy'], avoid: ['tr', '.cal-print-kpi-row', '.cal-week-divider-row', '.page-break-avoid', '.no-break', '.signature-row'] }
                     };
-                    window.html2pdf().set(opt).from(sheetEl).save().then(() => {
-                        restoreReportPageStyles();
+                    window.html2pdf().set(opt).from(exportClone).save().then(() => {
                         btn.disabled = false;
                         btn.innerHTML = origText;
                         if (typeof showToast === 'function') showToast('✅ تم تحميل التقرير بصيغة PDF بنجاح', 'success');
                     }).catch(() => {
-                        restoreReportPageStyles();
                         btn.disabled = false;
                         btn.innerHTML = origText;
                         triggerModalDirectPrint();
@@ -48118,14 +48167,11 @@ ${log.notes || 'سير الحصة عادي'}
             if (!iframe) {
                 iframe = document.createElement('iframe');
                 iframe.id = 'universalDocPrintIframe';
-                iframe.style.position = 'fixed';
-                iframe.style.right = '0';
-                iframe.style.bottom = '0';
-                iframe.style.width = '0';
-                iframe.style.height = '0';
-                iframe.style.border = '0';
                 document.body.appendChild(iframe);
             }
+            const uWidthCss = isLandscape ? '297mm' : '210mm';
+            const uHeightCss = isLandscape ? '210mm' : '297mm';
+            iframe.style.cssText = `position:fixed; left:-12000px; top:0; width:${uWidthCss}; height:${uHeightCss}; border:0; opacity:1; visibility:visible; pointer-events:none; background:#ffffff; z-index:-9999;`;
 
             const docHtml = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -48237,7 +48283,7 @@ ${log.notes || 'سير الحصة عادي'}
                 doc.write(docHtml);
                 doc.close();
 
-                setTimeout(() => {
+                const runUniversalPrint = () => {
                     try {
                         iframe.contentWindow.focus();
                         iframe.contentWindow.print();
@@ -48247,7 +48293,11 @@ ${log.notes || 'سير الحصة عادي'}
                             iframe.parentNode.removeChild(iframe);
                         }
                     }, 4000);
-                }, 380);
+                };
+                const uFontsPromise = (doc.fonts && doc.fonts.ready)
+                    ? Promise.race([doc.fonts.ready, new Promise(r => setTimeout(r, 450))])
+                    : new Promise(r => setTimeout(r, 250));
+                Promise.resolve(uFontsPromise).then(() => setTimeout(runUniversalPrint, 80));
             } catch (err) {
                 document.body.classList.add('printing-universal-doc');
                 window.print();
