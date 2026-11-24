@@ -45,31 +45,32 @@ service cloud.firestore {
       return hasVerifiedEmail() && isValidId(userId) && request.auth.uid == userId;
     }
 
-    // The caller owns an existing gmail_* slot: if signed in via Firebase Auth,
-    // token email must match; in Direct Gmail Cloud Sync mode (preview domains),
-    // the slot is deterministic and userEmail cannot be altered once created.
+    // The caller owns an existing gmail_* slot only when signed in with a verified
+    // email matching the document's userEmail.
     function ownsGmailSlot(userId) {
-      return isGmailSlot(userId) && (
-        !isSignedIn() || (hasVerifiedEmail() && resource.data.userEmail == request.auth.token.email)
-      );
+      return isGmailSlot(userId)
+        && hasVerifiedEmail()
+        && resource.data.userEmail == request.auth.token.email;
     }
 
     // The caller owns the gmail_* slot they are creating.
     function claimsGmailSlot(userId) {
       return isGmailSlot(userId)
+        && hasVerifiedEmail()
         && isValidEmailString(request.resource.data.userEmail)
-        && (!isSignedIn() || (hasVerifiedEmail() && request.resource.data.userEmail == request.auth.token.email));
+        && request.resource.data.userEmail == request.auth.token.email;
     }
 
-    // Writes must always carry a valid owner email (and match token email when signed in).
+    // Writes must always carry a verified owner email matching the auth token.
     function claimsOwnEmail(userId) {
-      return (isUidOwner(userId) && request.resource.data.userEmail == request.auth.token.email)
-        || (isGmailSlot(userId) && isValidEmailString(request.resource.data.userEmail)
-            && (!isSignedIn() || request.resource.data.userEmail == request.auth.token.email));
+      return (isUidOwner(userId) || isGmailSlot(userId))
+        && hasVerifiedEmail()
+        && isValidEmailString(request.resource.data.userEmail)
+        && request.resource.data.userEmail == request.auth.token.email;
     }
 
     function canReadSlot(userId) {
-      return isUidOwner(userId) || isGmailSlot(userId);
+      return isUidOwner(userId) || ownsGmailSlot(userId);
     }
 
     function parentSlotData(userId) {
@@ -80,7 +81,8 @@ service cloud.firestore {
     function canAccessChunks(userId) {
       return isUidOwner(userId)
         || (isGmailSlot(userId)
-            && (!isSignedIn() || (hasVerifiedEmail() && parentSlotData(userId).userEmail == request.auth.token.email)));
+            && hasVerifiedEmail()
+            && parentSlotData(userId).userEmail == request.auth.token.email);
     }
 
     function incoming() {
@@ -152,7 +154,8 @@ service cloud.firestore {
         && data.lastUpdated is string && data.lastUpdated.size() <= 64
         && data.lastSavedTimestamp is number && data.lastSavedTimestamp >= 0
         && isValidEmailString(data.userEmail)
-        && (!isSignedIn() || data.userEmail == request.auth.token.email);
+        && hasVerifiedEmail()
+        && data.userEmail == request.auth.token.email;
     }
 
     match /users/{userId} {
@@ -166,7 +169,7 @@ service cloud.firestore {
         && claimsOwnEmail(userId)
         && isValidUserBackup(incoming());
 
-      allow delete: if canReadSlot(userId);
+      allow delete: if isUidOwner(userId) || ownsGmailSlot(userId);
 
       match /chunks/{chunkId} {
         allow get: if canAccessChunks(userId) && isValidId(chunkId);

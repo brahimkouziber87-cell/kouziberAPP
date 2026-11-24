@@ -96,7 +96,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700;800;900&family=Harmattan:wght@400;700&family=Lemonada:wght@400;600;700&family=Marhey:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Readex+Pro:wght@400;600;700&family=Reem+Kufi:wght@400;700&family=Scheherazade+New:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css?v=3.9">
+    <link rel="stylesheet" href="/style.css?v=4.8.2">
 
     <script type="module" src="/firebase-setup.js?v=4.6"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -119,8 +119,8 @@
           } catch (err) {}
         });
 
-        var BASE_VERSION_NUM = 4.6;
-        var BASE_BUILD_VERSION = '2026.11.20.v4.6';
+        var BASE_VERSION_NUM = 4.91;
+        var BASE_BUILD_VERSION = '2026.11.23.v4.9.1';
         var savedBuildVersion = null;
         var savedAppVersion = null;
         try {
@@ -141,7 +141,7 @@
           if ('caches' in window) {
             caches.keys().then(function(keys) {
               return Promise.all(keys.map(function(key) {
-                if (key !== 'prof-digital-v4.6.0') {
+                if (key !== 'prof-digital-v4.8.2') {
                   return caches.delete(key);
                 }
               }));
@@ -153,7 +153,7 @@
         if ('serviceWorker' in navigator) {
           if (window.self === window.top) {
             window.addEventListener('load', function() {
-              navigator.serviceWorker.register('/sw.js?v=4.6', { scope: '/', updateViaCache: 'none' }).then(function(reg) {
+              navigator.serviceWorker.register('/sw.js?v=4.8.0', { scope: '/', updateViaCache: 'none' }).then(function(reg) {
                 reg.update().catch(function() {});
                 if (isOlderThanBase && reg.active) {
                   try { reg.active.postMessage({ type: 'CLEAR_ALL_CACHES' }); } catch (e) {}
@@ -305,7 +305,7 @@
             </button>
         </div>
     </div>
-    <div id="loginScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; overflow-y: auto; padding: 16px; box-sizing: border-box;">
+    <div id="loginScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 9999; display: flex; align-items: center; justify-content: flex-start; flex-direction: column; overflow-y: auto; overflow-x: hidden; padding: 16px; box-sizing: border-box;">
         <div class="card" style="width: 100%; max-width: 490px; text-align: center; padding: 32px 26px; box-shadow: var(--shadow-lg), 0 20px 45px -10px rgba(0,0,0,0.2); border-radius: var(--radius-lg); background: var(--card-bg); border: 1.5px solid rgba(212, 175, 55, 0.4); box-sizing: border-box; margin: auto;">
             <div style="margin-bottom: 20px; display: flex; justify-content: center; align-items: center;">
                 <img id="loginTeacherLogoImg" src="/logo.svg" onerror="this.onerror=null; this.src='/logo.png';" alt="" style="width: 135px; height: 135px; border-radius: 50%; box-shadow: 0 10px 30px rgba(212, 175, 55, 0.45), 0 4px 16px rgba(0,0,0,0.35); border: 3.5px solid #d4af37; display: block; object-fit: cover; transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'" />
@@ -320,7 +320,7 @@
                         <span class="ui-icon" style="color: white; margin: 0;"><span data-lucide="shield-check" data-size="16"></span></span>
                     </div>
                     <div>
-                        <div style="font-weight: 800; font-size: 0.88rem; color: #065f46;">الربط الآمن بالبريد الإلكتروني الموثّق (Google Drive & Firestore)</div>
+                        <div style="font-weight: 800; font-size: 0.88rem; color: #065f46;">الربط الآمن بالبريد الإلكتروني الموثّق <span dir="ltr" style="display: inline-block;">(Google Drive &amp; Firestore)</span></div>
                         <div style="font-size: 0.72rem; color: #475569;">حماية مشدّدة: ربط بمعرّف البريد الموثّق (Verified Email + UID) بدل المعرّف المفتوح</div>
                     </div>
                 </div>
@@ -345,9 +345,12 @@
                         <span style="flex: 1; height: 1px; background: #cbd5e1;"></span>
                     </div>
 
-                    <div style="position: relative;">
-                        <input type="email" id="loginDriveEmailInput" placeholder="أدخل بريد Gmail للربط والمزامنة (مثال: teacher@gmail.com)..." dir="ltr" onkeydown="if(event.key==='Enter'){event.preventDefault(); handleLoginScreenDirectGmail({ directLinkOnly: true });}" style="width: 100%; padding: 10px 38px 10px 12px; border: 1.5px solid #059669; border-radius: 8px; font-size: 0.88rem; font-weight: 700; box-sizing: border-box; text-align: left; background: #ffffff; color: #0f172a;" />
-                        <button type="button" onclick="document.getElementById('loginDriveEmailInput').value=''; document.getElementById('loginDriveEmailInput').focus();" title="مسح الحقل لإدخال بريد آخر" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 1.2rem; color: #94a3b8; cursor: pointer; padding: 2px 6px;">&times;</button>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <label for="loginDriveEmailInput" style="font-size: 0.74rem; font-weight: 700; color: #065f46;">بريد Gmail للربط والمزامنة:</label>
+                        <div style="position: relative;">
+                            <input type="email" id="loginDriveEmailInput" placeholder="teacher@gmail.com" dir="ltr" onkeydown="if(event.key==='Enter'){event.preventDefault(); handleLoginScreenDirectGmail({ directLinkOnly: true });}" style="width: 100%; padding: 10px 38px 10px 12px; border: 1.5px solid #059669; border-radius: 8px; font-size: 0.88rem; font-weight: 700; box-sizing: border-box; text-align: left; background: #ffffff; color: #0f172a;" />
+                            <button type="button" onclick="document.getElementById('loginDriveEmailInput').value=''; document.getElementById('loginDriveEmailInput').focus();" title="مسح الحقل لإدخال بريد آخر" aria-label="مسح البريد الإلكتروني" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 1.2rem; color: #94a3b8; cursor: pointer; padding: 2px 6px;">&times;</button>
+                        </div>
                     </div>
 
                     <!-- الزر الثانوي: ربط وتوثيق البريد المدخل عبر Gmail -->
@@ -659,9 +662,20 @@
         <button type="button" class="nav-tab nav-tab-presentation" id="headerPresentationBtn" onclick="togglePresentationModeQuick()" title="تبديل وضع العرض: إخفاء أدوات التعديل لحماية البيانات عند العرض أمام التلاميذ أو على شاشة العرض (Data Show)">
             <span class="nav-tab-icon">
                 <span id="headerPresentationIcon"><span data-lucide="eye" data-size="14"></span></span>
-                <span id="headerPresentationStatusPill" class="nav-tab-badge presentation-badge-pill" style="display: inline-flex; font-size: 0.60rem; background: #64748b; color: #fff; padding: 0 3px;">معطل</span>
             </span>
-            <span class="nav-tab-title">وضع العرض</span>
+            <span class="nav-tab-title" style="display: inline-flex; align-items: center; gap: 4px;">
+                <span>وضع العرض</span>
+                <span id="headerPresentationStatusPill" class="nav-tab-badge presentation-badge-pill" style="display: inline-flex; font-size: 0.58rem; background: #64748b; color: #fff; padding: 1px 5px;">معطل</span>
+            </span>
+        </button>
+        <button type="button" class="nav-tab" id="headerCndpPrivacyBtn" onclick="window.toggleCndpPrivacyQuick && window.toggleCndpPrivacyQuick()" title="تفعيل/تعطيل وضع الخصوصية وحماية المعطيات الشخصية (القانون 09-08 / CNDP) عند العرض على السبورة">
+            <span class="nav-tab-icon">
+                <span data-lucide="shield" data-size="14"></span>
+            </span>
+            <span class="nav-tab-title" style="display: inline-flex; align-items: center; gap: 4px;">
+                <span>خصوصية 09-08</span>
+                <span id="headerCndpPrivacyPill" class="nav-tab-badge presentation-badge-pill" style="display: inline-flex; font-size: 0.58rem; background: #64748b; color: #fff; padding: 1px 5px;">معطل</span>
+            </span>
         </button>
         <button class="nav-tab" id="tabDistanceTeaching" onclick="switchTab('distanceTeaching')" title="السبورة التفاعلية والتدريس عن بعد: معاينة ملفات PDF والاشتغال عليها مباشرة مع الرسم الحي وتخصيص الألوان">
             <span class="nav-tab-icon"><span data-lucide="presentation" data-size="14"></span></span>
@@ -676,9 +690,9 @@
             <span class="nav-tab-title" id="btnMemoryOptimizeTitle">الذاكرة</span>
             <span id="memoryOptBadgePill" class="memory-opt-mini-badge" style="display: none;">✓</span>
         </button>
-        <button class="nav-tab" id="tabTutoring" onclick="switchTab('tutoring')" title="إدارة الدعم والدروس الخصوصية">
-            <span class="nav-tab-icon"><span data-lucide="graduation-cap" data-size="14"></span></span>
-            <span class="nav-tab-title">الدعم والتقوية</span>
+        <button class="nav-tab" id="tabTutoring" onclick="switchTab('tutoring')" title="إدارة الدعم والدروس الخصوصية" style="border: 1px dashed rgba(148, 163, 184, 0.2) !important; background: transparent !important; color: transparent !important; opacity: 0.10 !important; filter: grayscale(100%) !important; box-shadow: none !important;">
+            <span class="nav-tab-icon" style="color: rgba(148, 163, 184, 0.18) !important; opacity: 0.18 !important;"><span data-lucide="graduation-cap" data-size="14"></span></span>
+            <span class="nav-tab-title" style="color: rgba(100, 116, 139, 0.15) !important; opacity: 0.15 !important;">الدعم والتقوية</span>
         </button>
         <button class="nav-tab" id="tabTeacherProfile" onclick="switchTab('profile')" title="الملف المهني الشخصي للأستاذ، المسار الوظيفي، والإنجازات والشواهد التربوية">
             <span class="nav-tab-icon"><span data-lucide="user-check" data-size="14"></span></span>
@@ -2860,9 +2874,9 @@
                             <button type="button" id="btnPeriodChip_current_month" onclick="setReportQuickPeriod('current_month')" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer;">🗓️ الشهر الحالي</button>
                             <button type="button" id="btnPeriodChip_term1" onclick="setReportQuickPeriod('term1')" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer;">🍂 الدورة الأولى</button>
                             <button type="button" id="btnPeriodChip_term2" onclick="setReportQuickPeriod('term2')" style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer;">🌱 الدورة الثانية</button>
-                            <button type="button" class="btn-primary" onclick="renderReport()" style="width: 50px; height: 50px; min-width: 50px; min-height: 50px; padding: 4px; border-radius: 50%; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 55%, #1e3a8a 100%); color: #ffffff; border: 2px solid #bae6fd; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.4); display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; transition: transform 0.25s ease, box-shadow 0.25s ease; flex-shrink: 0;" onmouseover="this.style.transform='scale(1.07)'; this.style.boxShadow='0 6px 16px rgba(2, 132, 199, 0.5)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 12px rgba(2, 132, 199, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.4)';" title="تحديث بيانات وإحصائيات التقارير">
-                                <span style="font-size: 0.95rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center;">🔄</span>
-                                <span style="font-size: 0.56rem; font-weight: 800; line-height: 1.05; text-align: center; white-space: normal; max-width: 42px; color: #f0f9ff;">تحديث التقرير</span>
+                            <button type="button" class="btn-primary" onclick="renderReport()" style="width: auto; height: 34px; padding: 6px 14px; border-radius: 999px; background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 55%, #1e3a8a 100%); color: #ffffff; border: 1.5px solid #bae6fd; box-shadow: 0 3px 10px rgba(2, 132, 199, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.4); display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; transition: transform 0.25s ease, box-shadow 0.25s ease; flex-shrink: 0; white-space: nowrap;" onmouseover="this.style.transform='scale(1.04)'; this.style.boxShadow='0 5px 14px rgba(2, 132, 199, 0.45)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 3px 10px rgba(2, 132, 199, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.4)';" title="تحديث بيانات وإحصائيات التقارير">
+                                <span style="font-size: 0.9rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center;">🔄</span>
+                                <span style="font-size: 0.74rem; font-weight: 800; line-height: 1; color: #f0f9ff;">تحديث التقرير</span>
                             </button>
                         </div>
                     </div>
@@ -2975,54 +2989,54 @@
                     </span>
                     <span style="font-size: 0.72rem; font-weight: 700; color: #475569; background: #f1f5f9; padding: 2px 10px; border-radius: 999px; border: 1px solid #e2e8f0;">انتقال سريع ومنظم بين المحاور التحليلية (12 محوراً في سطرين)</span>
                 </div>
-                <div class="reports-axes-grid" style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-template-rows: auto; gap: 8px; width: 100%; align-items: stretch;">
-                    <button type="button" onclick="if(window.openReportsRechartsSection) window.openReportsRechartsSection('exam_levels_evolution');" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #ffffff; border: 1.5px solid #1d4ed8; padding: 6px 8px; min-height: 38px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 2px 5px rgba(37, 99, 235, 0.2);" title="منحنى بياني تفاعلي (Recharts) يوضح تطور مستويات التلاميذ في الفروض المحروسة لكل قسم على حدة">
+                <div class="reports-axes-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(195px, 1fr)); grid-template-rows: auto; gap: 8px; width: 100%; align-items: stretch;">
+                    <button type="button" onclick="if(window.openReportsRechartsSection) window.openReportsRechartsSection('exam_levels_evolution');" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #ffffff; border: 1.5px solid #1d4ed8; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 2px 5px rgba(37, 99, 235, 0.2);" title="منحنى بياني تفاعلي (Recharts) يوضح تطور مستويات التلاميذ في الفروض المحروسة لكل قسم على حدة">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">📈</span>
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">منحنى تطور الفروض المحروسة</span>
+                        <span>منحنى تطور الفروض المحروسة</span>
                     </button>
-                    <button type="button" onclick="if(window.openReportsRechartsSection) window.openReportsRechartsSection('bac_readiness');" style="background: linear-gradient(135deg, #065f46, #059669); color: #ffffff; border: 1.5px solid #047857; padding: 6px 8px; min-height: 38px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 2px 5px rgba(5, 150, 105, 0.2);" title="مؤشر الجاهزية للامتحان الوطني والجهوي (Bac Readiness Index)">
+                    <button type="button" onclick="if(window.openReportsRechartsSection) window.openReportsRechartsSection('bac_readiness');" style="background: linear-gradient(135deg, #065f46, #059669); color: #ffffff; border: 1.5px solid #047857; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 2px 5px rgba(5, 150, 105, 0.2);" title="مؤشر الجاهزية للامتحان الوطني والجهوي (Bac Readiness Index)">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">🎓</span>
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">مؤشر الجاهزية للامتحان الإشهادي</span>
+                        <span>مؤشر الجاهزية للامتحان الإشهادي</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('examReportCard')" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #1d4ed8; border: 1.5px solid #93c5fd; padding: 6px 8px; min-height: 38px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);" title="تقرير الفرض المحروس البيداغوجي (تاريخ التمرير، التصحيح، المحتوى، الإحصائيات، وخطة الدعم)">
+                    <button type="button" onclick="jumpToReportSection('examReportCard')" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #1d4ed8; border: 1.5px solid #93c5fd; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);" title="تقرير الفرض المحروس البيداغوجي (تاريخ التمرير، التصحيح، المحتوى، الإحصائيات، وخطة الدعم)">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">📝</span>
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">تقرير فرض محروس</span>
+                        <span>تقرير فرض محروس</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('react-weekday-absence-root')" style="background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #dc2626; border: 1.5px solid #fca5a5; padding: 6px 8px; min-height: 38px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(220, 38, 38, 0.1);" title="بطاقة ومبيان تفاعلي لتوزيع الغياب بحسب أيام الأسبوع وتحديد أيام الذروة">
+                    <button type="button" onclick="jumpToReportSection('react-weekday-absence-root')" style="background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #dc2626; border: 1.5px solid #fca5a5; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(220, 38, 38, 0.1);" title="بطاقة ومبيان تفاعلي لتوزيع الغياب بحسب أيام الأسبوع وتحديد أيام الذروة">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">📅</span>
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">توزيع الغياب حسب أيام الأسبوع</span>
+                        <span>توزيع الغياب حسب أيام الأسبوع</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('react-strategic-roadmap-root')" style="background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #3730a3; border: 1.5px solid #a5b4fc; padding: 6px 8px; min-height: 38px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(55, 48, 163, 0.1);" title="مؤشر الإنذار المبكر، المدقق القبلي لمسار، وسجل التدقيق والأمان (09-08)">
+                    <button type="button" onclick="jumpToReportSection('react-strategic-roadmap-root')" style="background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #3730a3; border: 1.5px solid #a5b4fc; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(55, 48, 163, 0.1);" title="مؤشر الإنذار المبكر، المدقق القبلي لمسار، وسجل التدقيق والأمان (09-08)">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">🛡️</span>
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">اليقظة التربوية ومدقق مسار</span>
+                        <span>اليقظة التربوية ومدقق مسار</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('reportTableCard')" style="background: #f8fafc; color: #1e293b; border: 1.5px solid #cbd5e1; padding: 6px 8px; min-height: 38px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);">
+                    <button type="button" onclick="jumpToReportSection('reportTableCard')" style="background: #f8fafc; color: #1e293b; border: 1.5px solid #cbd5e1; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">📋</span>
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">كشف نقط ومواظبة التلاميذ</span>
+                        <span>كشف نقط ومواظبة التلاميذ</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('upcomingExamsCard')" style="background: linear-gradient(135deg, #fdf4ff, #fae8ff); color: #86198f; border: 1.5px solid #d8b4fe; padding: 6px 8px; min-height: 38px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(134, 25, 143, 0.1);">
+                    <button type="button" onclick="jumpToReportSection('upcomingExamsCard')" style="background: linear-gradient(135deg, #fdf4ff, #fae8ff); color: #86198f; border: 1.5px solid #d8b4fe; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(134, 25, 143, 0.1);">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">🗓️</span>
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">الفروض والخط الزمني</span>
+                        <span>الفروض والخط الزمني</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('gradesAbsenceImpactCard')" style="background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #3730a3; border: 1.5px solid #a5b4fc; padding: 6px 8px; min-height: 38px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(79, 70, 229, 0.1);" title="النموذج البياني لأثر الغياب اليومي على تطور نقط ومعدل التلاميذ">
+                    <button type="button" onclick="jumpToReportSection('gradesAbsenceImpactCard')" style="background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #3730a3; border: 1.5px solid #a5b4fc; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(79, 70, 229, 0.1);" title="النموذج البياني لأثر الغياب اليومي على تطور نقط ومعدل التلاميذ">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">📉</span>
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">أثر الغياب على النقط (بياني)</span>
+                        <span>أثر الغياب على النقط (بياني)</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('diagnosticReportCard')" style="background: #f0f9ff; color: #0369a1; border: 1.5px solid #bae6fd; padding: 6px 8px; min-height: 38px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(2, 132, 199, 0.08);">
+                    <button type="button" onclick="jumpToReportSection('diagnosticReportCard')" style="background: #f0f9ff; color: #0369a1; border: 1.5px solid #bae6fd; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(2, 132, 199, 0.08);">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">🎯</span>
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">التقويم التشخيصي</span>
+                        <span>التقويم التشخيصي</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('atRiskStudentsCard')" style="background: #fef2f2; color: #b91c1c; border: 1.5px solid #fecaca; padding: 6px 8px; min-height: 38px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(185, 28, 28, 0.08);">
+                    <button type="button" onclick="jumpToReportSection('atRiskStudentsCard')" style="background: #fef2f2; color: #b91c1c; border: 1.5px solid #fecaca; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(185, 28, 28, 0.08);">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">⚠️</span>
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">المتعثرون ودعم AI</span>
+                        <span>المتعثرون ودعم AI</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('monthlyAbsenceEvolutionCard')" style="background: #eef2ff; color: #4338ca; border: 1.5px solid #c7d2fe; padding: 6px 8px; min-height: 38px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(67, 56, 202, 0.08);">
+                    <button type="button" onclick="jumpToReportSection('monthlyAbsenceEvolutionCard')" style="background: #eef2ff; color: #4338ca; border: 1.5px solid #c7d2fe; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(67, 56, 202, 0.08);">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">📊</span>
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">الرسوم البيانية</span>
+                        <span>الرسوم البيانية</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('studentProgressCard')" style="background: #faf5ff; color: #7c3aed; border: 1.5px solid #e9d5ff; padding: 6px 8px; min-height: 38px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(124, 58, 237, 0.08);">
+                    <button type="button" onclick="jumpToReportSection('studentProgressCard')" style="background: #faf5ff; color: #7c3aed; border: 1.5px solid #e9d5ff; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(124, 58, 237, 0.08);">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">👤</span>
-                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">تقرير التلميذ الفردي</span>
+                        <span>تقرير التلميذ الفردي</span>
                     </button>
                 </div>
             </div>
@@ -8649,7 +8663,7 @@ f(x) = x - 1 + ln(x) / x
 
             <div class="stats-bar" id="statsBarView">
                 <div class="stat-item stat-present"><span class="math-symbol-accent">∈</span> حاضر: <span id="countPresent">0</span></div>
-                <div class="stat-item stat-absent"><span class="math-symbol-accent">∉</span> غائب: <span id="countAbsent">0</span> (<span id="absentHoursSum">0</span> س)</div>
+                <div class="stat-item stat-absent" style="white-space: nowrap;"><span style="font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;"><span class="math-symbol-accent" style="font-size: 0.9rem;">∉</span> غائب:</span><span style="display: inline-flex; align-items: baseline; gap: 4px;"><span id="countAbsent">0</span><small style="font-size: 0.76rem; font-weight: 700; opacity: 0.92;">(<span id="absentHoursSum" style="font-size: inherit; font-weight: inherit;">0</span> س)</small></span></div>
                 <div class="stat-item stat-late"><span class="math-symbol-accent">Δt</span> متأخر: <span id="countLate">0</span></div>
                 <div class="stat-item stat-hw"><span class="math-symbol-accent">∅</span> بدون واجب: <span id="countHwMissed">0</span></div>
             </div>
@@ -9049,22 +9063,22 @@ f(x) = x - 1 + ln(x) / x
 
     <!-- حاوية النوافذ المنبثقة المعزولة (تُحقن فوراً من public/modals-templates.js لتقليص حجم index.html) -->
     <div id="appExtractedModalsHost"></div>
-    <script src="/modals-templates.js?v=4.6"></script>
+    <script src="/modals-templates.js?v=4.8.0"></script>
 
     <!-- المحركات البيداغوجية الأساسية المعزولة (Phase 1 - Phase 3 Core Modular Engines) -->
-    <script defer src="/core/grades-calculator.js?v=4.6"></script>
-    <script defer src="/core/massar-io.js?v=4.6"></script>
-    <script defer src="/core/absence-manager.js?v=4.6"></script>
-    <script defer src="/core/lesson-log-engine.js?v=4.6"></script>
-    <script defer src="/core/print-preview-engine.js?v=4.6"></script>
-    <script defer src="/core/timetable-engine.js?v=4.6"></script>
-    <script defer src="/core/behavior-homework-engine.js?v=4.6"></script>
-    <script defer src="/core/archive-dedup-engine.js?v=4.6"></script>
-    <script defer src="/core/inspection-dossier-engine.js?v=4.6"></script>
+    <script defer src="/core/grades-calculator.js?v=4.8.0"></script>
+    <script defer src="/core/massar-io.js?v=4.8.0"></script>
+    <script defer src="/core/absence-manager.js?v=4.8.0"></script>
+    <script defer src="/core/lesson-log-engine.js?v=4.8.0"></script>
+    <script defer src="/core/print-preview-engine.js?v=4.8.0"></script>
+    <script defer src="/core/timetable-engine.js?v=4.8.0"></script>
+    <script defer src="/core/behavior-homework-engine.js?v=4.8.0"></script>
+    <script defer src="/core/archive-dedup-engine.js?v=4.8.0"></script>
+    <script defer src="/core/inspection-dossier-engine.js?v=4.8.0"></script>
 
-    <script defer src="/secondary-math-curriculum.js?v=3.9"></script>
-    <script defer src="/latex-math-engine.js?v=3.9"></script>
-    <script defer src="/app.js?v=4.6"></script>
+    <script defer src="/secondary-math-curriculum.js?v=4.8.0"></script>
+    <script defer src="/latex-math-engine.js?v=4.8.0"></script>
+    <script defer src="/app.js?v=4.8.0"></script>
     <div id="root-pwa-install"></div>
     <script defer src="/resources.js?v=4.6"></script>
     <script defer src="/tutoring-advanced.js?v=3.9"></script>

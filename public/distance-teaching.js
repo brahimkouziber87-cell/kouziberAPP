@@ -841,8 +841,8 @@
         const width = Math.max(320, Math.floor(rect.width));
         const height = Math.max(420, Math.floor(rect.height || 600));
 
-        // If dimensions haven't changed and canvas is already initialized, just redraw background and keep ink
-        if (lastValidWidth === width && lastValidHeight === height && canvas.width === Math.floor(width * dpr)) {
+        // If dimensions haven't changed and all canvas layers are already initialized, just redraw background and keep ink
+        if (lastValidWidth === width && lastValidHeight === height && canvas.width === Math.floor(width * dpr) && (!bgCanvas || bgCanvas.width === Math.floor(width * dpr))) {
             if (isPdfOrWorksheetActive()) {
                 renderActiveDocumentPage(currentPdfPageNum, false);
             } else {
@@ -7044,12 +7044,15 @@
 
             const w = lastValidWidth || parseFloat(canvas.style.width) || 800;
             const h = lastValidHeight || parseFloat(canvas.style.height) || 600;
+            const activeVec = typeof getActiveVectorArray === 'function' ? getActiveVectorArray() : [];
+            const headerObj = Array.isArray(activeVec) ? activeVec.find(o => o && o.t === 'lesson_header') : null;
+            const topReserve = headerObj ? Math.min(140, Math.max(105, Math.round((headerObj.y || 10) + (headerObj.h || 95) + 12))) : 0;
             const obj = {
                 t: 'math_curve',
                 x: 0,
-                y: 0,
+                y: topReserve,
                 w,
-                h,
+                h: Math.max(280, h - topReserve),
                 scale: 40,
                 expr,
                 label: `(Cf): f(x) = ${expr}`,

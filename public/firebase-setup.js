@@ -1569,7 +1569,7 @@ window.openDriveSyncCenterModal = async () => {
         </div>
 
         <!-- شريط الانتقال السريع بين أقسام النافذة -->
-        <div style="display: flex; align-items: center; gap: 5px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none;">
+        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 5px; padding-bottom: 2px;">
           <button type="button" onclick="window.scrollDriveSyncContainer('driveSyncCenterScrollBody', 'section', 'syncSecAccount')" style="background: #f0f9ff; border: 1px solid #bae6fd; color: #0369a1; font-size: 0.7rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap;">
             👤 حساب Gmail
           </button>

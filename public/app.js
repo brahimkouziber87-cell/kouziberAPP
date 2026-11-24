@@ -2071,6 +2071,49 @@
         }
         window.togglePresentationModeQuick = togglePresentationModeQuick;
 
+        function syncCndpPrivacyBadgeUI(enabled) {
+            const pill = document.getElementById('headerCndpPrivacyPill');
+            const btn = document.getElementById('headerCndpPrivacyBtn');
+            if (pill) {
+                pill.textContent = enabled ? 'مفعل ✓' : 'معطل';
+                pill.style.background = enabled ? '#059669' : '#64748b';
+            }
+            if (btn) {
+                btn.classList.toggle('active', !!enabled);
+            }
+        }
+        function toggleCndpPrivacyQuick() {
+            const api = window.EduIndexedDB;
+            const current = (api && typeof api.isPrivacyModeEnabled === 'function')
+                ? api.isPrivacyModeEnabled()
+                : document.body.classList.contains('cndp-privacy-mode-active');
+            const next = !current;
+            if (api && typeof api.setPrivacyModeEnabled === 'function') {
+                api.setPrivacyModeEnabled(next);
+            } else {
+                document.body.classList.toggle('cndp-privacy-mode-active', next);
+            }
+            syncCndpPrivacyBadgeUI(next);
+            if (typeof showNotification === 'function') {
+                showNotification(
+                    next
+                        ? '🛡️ تم تفعيل وضع الخصوصية (القانون 09-08 CNDP): تمويه أسماء وأرقام مسار التلاميذ للعرض'
+                        : '🔓 تم إيقاف وضع الخصوصية (القانون 09-08) والعودة للعرض الاعتيادي',
+                    next ? 'success' : 'info'
+                );
+            }
+        }
+        window.toggleCndpPrivacyQuick = toggleCndpPrivacyQuick;
+        window.addEventListener('privacyModeChanged', (e) => {
+            syncCndpPrivacyBadgeUI(Boolean(e && e.detail && e.detail.enabled));
+        });
+        document.addEventListener('DOMContentLoaded', () => {
+            const enabled = (window.EduIndexedDB && typeof window.EduIndexedDB.isPrivacyModeEnabled === 'function')
+                ? window.EduIndexedDB.isPrivacyModeEnabled()
+                : document.body.classList.contains('cndp-privacy-mode-active');
+            syncCndpPrivacyBadgeUI(enabled);
+        });
+
         function syncPresentationModeUIStateInSettings(enabled) {
             const toggle = document.getElementById('settingsPresentationModeToggle');
             const badge = document.getElementById('presentationToggleStatusBadge');
@@ -5895,7 +5938,7 @@
                 };
             }
 
-            // 5. شعبة العلوم والتكنولوجيات الكهربائية والميكانيكية (STE / STM) - المذكرة 142-08: 5 ساعات أسبوعياً، المعامل 6، 3 فروض محروسة (2h) + 3 فروض منزلية
+            // 5. شعبة العلوم والتكنولوجيات الكهربائية والميكانيكية (STE / STM) - المذكرة 142-08: 5 ساعات أسبوعياً، المعامل 7، 3 فروض محروسة (2h) + 3 فروض منزلية
             if (
                 /\bSTE\b|\bSTM\b|\b1B?STE\b|\b2B?STE\b|\b1B?STM\b|\b2B?STM\b/i.test(upper) ||
                 upper.startsWith('STE') || upper.startsWith('STM') || upper.startsWith('1STE') || upper.startsWith('2STE') ||
@@ -5911,7 +5954,7 @@
                     examsCount: 3,
                     examDuration: 'ساعتان (2h)',
                     homeworkPerSemester: 3,
-                    coef: 6, // تصحيح تربوي رسمي: معامل المراقبة المستمرة لمادة الرياضيات بشعبتي العلوم والتكنولوجيات هو 6
+                    coef: 7, // الدليل المرجعي الرسمي: معامل المراقبة المستمرة لمادة الرياضيات بشعبتي العلوم والتكنولوجيات هو 7
                     isAutoRecognized: true
                 };
             }
@@ -5936,18 +5979,18 @@
                 };
             }
 
-            // 7. شعبة الفنون التطبيقية (Arts Appliqués) - ساعتان أسبوعياً، المعامل 2، فرضان محروسان (1h)
+            // 7. شعبة الفنون التطبيقية (Arts Appliqués) - 3 ساعات أسبوعياً، المعامل 4، 3 فروض محروسة (1h)
             if (/\bART/i.test(upper) || raw.includes('فنون تطبيقية')) {
                 const is2Bac = upper.includes('2') || raw.includes('ثانية');
                 return {
                     branchCode: 'ARTS',
                     levelLabel: is2Bac ? 'الثانية باكالوريا' : 'الأولى باكالوريا',
                     branchLabel: 'الفنون التطبيقية (Arts Appliqués)',
-                    weeklyHours: 2,
-                    examsCount: 2,
+                    weeklyHours: 3,
+                    examsCount: 3,
                     examDuration: 'ساعة واحدة (1h)',
-                    homeworkPerSemester: 2,
-                    coef: 2,
+                    homeworkPerSemester: 3,
+                    coef: 4,
                     isAutoRecognized: true
                 };
             }
@@ -10429,6 +10472,8 @@
             const isDashboard = (tab === 'dashboard');
             const isDistanceTeaching = (tab === 'distanceTeaching' || tab === 'whiteboard');
             const isProfile = (tab === 'profile');
+
+            document.querySelectorAll('.nav-tabs .nav-tab.active').forEach(el => el.classList.remove('active'));
 
             if(document.getElementById('tabHome')) document.getElementById('tabHome').classList.toggle('active', isHome);
             if(document.getElementById('tabAbsence')) document.getElementById('tabAbsence').classList.toggle('active', isAbsence);
@@ -31129,7 +31174,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 if (Notification.permission === "granted") {
                     checkUpcomingEventsNotifications();
                     if (_pushNotificationsInterval) clearInterval(_pushNotificationsInterval);
-                    _pushNotificationsInterval = setInterval(checkPushNotifications, 3600000); // Check every hour
+                    _pushNotificationsInterval = setInterval(checkUpcomingEventsNotifications, 3600000); // Check every hour
                 }
             }
         }
@@ -31228,7 +31273,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     if (btn) btn.style.display = 'none';
                     checkUpcomingEventsNotifications();
                     if (_pushNotificationsInterval) clearInterval(_pushNotificationsInterval);
-                    _pushNotificationsInterval = setInterval(checkPushNotifications, 3600000);
+                    _pushNotificationsInterval = setInterval(checkUpcomingEventsNotifications, 3600000);
                 }
             });
         }
@@ -33914,6 +33959,9 @@ window.isPresentationMode = isPresentationMode;
         var calendarWhatsappSchedulerInterval = null;
 
         function checkCalendarWhatsappScheduler() {
+            const loginScreen = document.getElementById('loginScreen');
+            if (loginScreen && window.getComputedStyle(loginScreen).display !== 'none') return;
+
             const cfg = getCalendarWhatsappConfig();
             if (!cfg || cfg.enabled === false) return;
 
@@ -44520,9 +44568,9 @@ ${log.notes || 'سير الحصة عادي'}
                             📐 <span id="lblCustomPreviewOrient">${currentOrientation === 'landscape' ? 'أفقي (Landscape)' : 'عمودي (Portrait)'}</span>
                         </button>
                         <div style="display:inline-flex; align-items:center; gap:3px; background:#1e293b; border:1px solid #475569; padding:3px 6px; border-radius:8px;">
-                            <button type="button" id="btnCustomPreviewZoomOut" style="background:#334155; color:#fff; border:none; width:22px; height:22px; border-radius:5px; font-weight:900; cursor:pointer;" title="تصغير">−</button>
+                            <button type="button" id="btnCustomPreviewZoomOut" style="background:#334155; color:#fff; border:none; width:24px; height:24px; border-radius:5px; font-weight:900; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; line-height:1;" title="تصغير">−</button>
                             <span id="lblCustomPreviewZoom" style="color:#e2e8f0; font-size:0.73rem; font-weight:800; min-width:36px; text-align:center;">100%</span>
-                            <button type="button" id="btnCustomPreviewZoomIn" style="background:#334155; color:#fff; border:none; width:22px; height:22px; border-radius:5px; font-weight:900; cursor:pointer;" title="تكبير">+</button>
+                            <button type="button" id="btnCustomPreviewZoomIn" style="background:#334155; color:#fff; border:none; width:24px; height:24px; border-radius:5px; font-weight:900; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; line-height:1;" title="تكبير">+</button>
                         </div>
                         <button type="button" id="btnCustomPreviewEcoBw" style="background:#334155; color:#e2e8f0; border:1px solid #475569; padding:6px 10px; border-radius:8px; font-weight:800; font-size:0.76rem; cursor:pointer; font-family:'Cairo',sans-serif;" title="تفعيل وضع توفير الحبر (أبيض وأسود عالي التباين)">
                             ◑ توفير الحبر
@@ -44536,8 +44584,8 @@ ${log.notes || 'سير الحصة عادي'}
                         <button type="button" id="btnDownloadPdfCustomPreview" style="background:linear-gradient(135deg,#059669,#047857); color:#fff; border:none; padding:7px 14px; border-radius:9px; font-weight:800; font-size:0.8rem; cursor:pointer; font-family:'Cairo',sans-serif; display:inline-flex; align-items:center; gap:5px; box-shadow:0 4px 12px rgba(5,150,105,0.35);">
                             📥 تحميل PDF
                         </button>
-                        <div style="display:inline-flex; align-items:center; gap:4px; background:#0f172a; border:1px solid #0284c7; padding:3px 6px; border-radius:9px;">
-                            <button type="button" id="btnDownloadPngCustomPreview" style="background:linear-gradient(135deg,#0284c7,#0369a1); color:#fff; border:none; padding:4px 10px; border-radius:6px; font-weight:800; font-size:0.78rem; cursor:pointer; font-family:'Cairo',sans-serif; display:inline-flex; align-items:center; gap:4px;">
+                        <div style="display:inline-flex; align-items:center; gap:4px; background:#0f172a; border:1px solid #0284c7; padding:3px 6px; border-radius:9px; flex-shrink:0;">
+                            <button type="button" id="btnDownloadPngCustomPreview" style="background:linear-gradient(135deg,#0284c7,#0369a1); color:#fff; border:none; padding:5px 10px; border-radius:6px; font-weight:800; font-size:0.78rem; cursor:pointer; font-family:'Cairo',sans-serif; display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">
                                 🖼️ تحميل PNG
                             </button>
                             <select id="selCustomPreviewPngDpi" title="تحديد دقة تصدير الصورة (DPI)" style="background:#1e293b; color:#bae6fd; border:1px solid #0369a1; border-radius:6px; padding:3px 5px; font-size:0.73rem; font-weight:800; font-family:'Cairo',sans-serif; cursor:pointer;">
@@ -44552,12 +44600,14 @@ ${log.notes || 'سير الحصة عادي'}
                         </button>
                     </div>
                 </div>
-                <div id="customReportPrintableSheet" class="print-live-editable-sheet" style="background:${isReportDoc ? 'transparent' : '#ffffff'}; color:#0f172a; padding:${isReportDoc ? '0' : initialResolvedMargins.cssPadding}; border-radius:6px; box-shadow:${isReportDoc ? 'none' : '0 20px 50px rgba(0,0,0,0.5)'}; box-sizing:border-box; margin:0 auto 30px auto; direction:rtl; transition:width 0.2s ease, padding 0.2s ease; font-family:${curPrintFont}; position:relative;">
+                <div id="customReportPreviewScrollStage" style="width:100%; overflow-x:auto; display:flex; justify-content:safe center; padding-bottom:24px;">
+                <div id="customReportPrintableSheet" class="print-live-editable-sheet" style="background:${isReportDoc ? 'transparent' : '#ffffff'}; color:#0f172a; padding:${isReportDoc ? '0' : initialResolvedMargins.cssPadding}; border-radius:6px; box-shadow:${isReportDoc ? 'none' : '0 20px 50px rgba(0,0,0,0.5)'}; box-sizing:border-box; margin:0 auto 30px auto; direction:rtl; transition:width 0.2s ease, padding 0.2s ease; font-family:${curPrintFont}; position:relative; flex-shrink:0;">
                     ${extractedStyles}
                     ${bodyHtml}
                     ${hasExistingPreviewFooter ? '' : `<div class="print-system-footer-fixed" style="margin-top:24px; padding-top:8px; border-top:1.5px solid #cbd5e1; text-align:center; font-size:0.8rem; font-weight:800; color:#1e3a8a; font-family:'Cairo',sans-serif;">
                         منظومة التدبير التربوي - مادة الرياضيات - السلك الثانوي التأهيلي
                     </div>`}
+                </div>
                 </div>
             `;
 
@@ -48581,18 +48631,18 @@ ${log.notes || 'سير الحصة عادي'}
             const f3Val = parseFloat(document.getElementById('massarCalcF3')?.value);
             const f4Val = parseFloat(document.getElementById('massarCalcF4')?.value);
 
-            const is2Exams = (level === 'tc_lit' || level === '1bac_lit' || level === '2bac_lit' || level === '1bac_art' || level === '2bac_art');
+            const is2Exams = (level === 'tc_lit' || level === '1bac_lit' || level === '2bac_lit');
             const isSmLevel = (level === '1bac_sm' || level === '2bac_sm');
             const f3Wrapper = document.getElementById('massarCalcF3Wrapper');
             if (f3Wrapper) f3Wrapper.style.display = is2Exams ? 'none' : 'block';
             const f4Wrapper = document.getElementById('massarCalcF4Wrapper');
             if (f4Wrapper) f4Wrapper.style.display = isSmLevel ? 'block' : 'none';
 
-            // معاملات المادة حسب السلك الثانوي التأهيلي والمذكرة الوزارية 142-08
+            // معاملات المادة حسب السلك الثانوي التأهيلي والمذكرة الوزارية 142-08 (والدليل المرجعي الرسمي)
             const coefMap = {
                 'tc_sci': 4, 'tc_lit': 2,
-                '1bac_sm': 9, '1bac_exp': 7, '1bac_tech': 6, '1bac_eco': 4, '1bac_art': 2, '1bac_lit': 1,
-                '2bac_sm': 9, '2bac_exp': 7, '2bac_pc': 7, '2bac_svt': 7, '2bac_tech': 6, '2bac_eco': 4, '2bac_art': 2, '2bac_lit': 1
+                '1bac_sm': 9, '1bac_exp': 7, '1bac_tech': 7, '1bac_eco': 4, '1bac_art': 4, '1bac_lit': 1,
+                '2bac_sm': 9, '2bac_exp': 7, '2bac_pc': 7, '2bac_svt': 7, '2bac_tech': 7, '2bac_eco': 4, '2bac_art': 4, '2bac_lit': 1
             };
             const currentCoef = coefMap[level] || 4;
 

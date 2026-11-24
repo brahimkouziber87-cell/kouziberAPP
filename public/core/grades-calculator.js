@@ -22,11 +22,11 @@
         { pattern: /علوم الحياة والأرض|ح\.أ|svt/i, code: 'SVT', label: 'مسلك علوم الحياة والأرض (عام ودولي)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
         { pattern: /علوم تجريبية|س\.ت|se|sc\.?\s*exp|1bac\s*sc/i, code: 'SE', label: 'شعبة العلوم التجريبية (الأولى بكالوريا)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
         { pattern: /علوم زراعية|agro/i, code: 'AGRO', label: 'مسلك العلوم الزراعية', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /تكنولوجي|كهرباء|ميكانيك|ste|stm/i, code: 'TECH', label: 'شعبة العلوم والتكنولوجيات (الكهربائية / الميكانيكية)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 4, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /تكنولوجي|كهرباء|ميكانيك|ste|stm/i, code: 'TECH', label: 'شعبة العلوم والتكنولوجيات (الكهربائية / الميكانيكية)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
         { pattern: /اقتصاد|تدبير|eco|gest|sgec|sgc/i, code: 'ECO', label: 'شعبة العلوم الاقتصادية والتدبير', coefficient: 4, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 4, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /فنون تطبيقية|فنون|arts/i, code: 'ART', label: 'شعبة الفنون التطبيقية', coefficient: 4, examsPerSemester: 3, examDurationHours: 1, weeklyHours: 3, homeworkPerSemester: 3, continuousWeight: 0.25 },
         { pattern: /جذع مشترك علمي|جذع مشترك تكنولوجي|ج\.م\.ع|tcs|tct|tc\s*sc/i, code: 'TCS', label: 'الجذع المشترك العلمي والتكنولوجي (عام ودولي)', coefficient: 4, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
         { pattern: /[12]\s*(?:ème|eme|ère|ere)?\s*bac.*(?:آداب|اداب|إنسانية|انسانية|أصيل|اصيل|lsh|lettres|sh)|(?:أولى|اولى|ثانية|الأولى|الثانية)\s*(?:باك|بكالوريا).*(?:آداب|اداب|إنسانية|انسانية|أصيل|اصيل)/i, code: 'BAC_LSH', label: 'الأولى والثانية بكالوريا آداب وعلوم إنسانية وتعليم أصيل', coefficient: 1, examsPerSemester: 2, examDurationHours: 1, weeklyHours: 2, homeworkPerSemester: 2, continuousWeight: 0.25 },
-        { pattern: /فنون تطبيقية|فنون|arts/i, code: 'ART', label: 'شعبة الفنون التطبيقية', coefficient: 2, examsPerSemester: 2, examDurationHours: 1, weeklyHours: 2, homeworkPerSemester: 2, continuousWeight: 0.25 },
         { pattern: /آداب|اداب|علوم إنسانية|أصيل|اصيل|جذع مشترك أدبي|lsh|tcl|tco|lettres|sh/i, code: 'LIT', label: 'الجذع المشترك للآداب والعلوم الإنسانية والتعليم الأصيل', coefficient: 2, examsPerSemester: 2, examDurationHours: 1, weeklyHours: 2, homeworkPerSemester: 2, continuousWeight: 0.25 }
     ];
 
@@ -149,9 +149,11 @@
     }
 
     /**
-     * حساب معدل التلميذ في الدورة بناءً على الفروض المحروسة والأنشطة المندمجة
-     * @param {Object} gradesObj كائن النقط (مثلاً { f1: 14, f2: 12, f3: 15, act: 16 })
-     * @param {Object} options خيارات الحساب (examCount, includeActivity, activityWeight)
+     * حساب معدل التلميذ في الدورة بناءً على الفروض المحروسة (المذكرة الوزارية 142-08)
+     * بموجب المذكرة 142-08، يُحتسب معدل المراقبة المستمرة لمادة الرياضيات بالسلك الثانوي التأهيلي
+     * بنسبة 100% من المعدل الحسابي للفروض المحروسة المنجزة حضورياً داخل القسم (لا توجد أنشطة مندمجة في مسار).
+     * @param {Object} gradesObj كائن النقط (مثلاً { f1: 14, f2: 12, f3: 15, f4: 16 })
+     * @param {Object} options خيارات الحساب (examCount, examKeys, includeActivity, activityWeight)
      */
     function calculateStudentSemesterAverage(gradesObj, options) {
         if (!gradesObj || typeof gradesObj !== 'object') return null;

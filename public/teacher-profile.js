@@ -877,7 +877,7 @@
                                         </tr>
                                         <tr style="border-bottom: 1px solid #f1f5f9;">
                                             <td style="padding: 8px 0; color: #64748b; font-weight: 700;">الأقدمية في المؤسسة:</td>
-                                            <td style="padding: 8px 0; font-weight: 800; color: #0284c7;">${schoolSeniority.formatted} (${escapeHtml(tp.schoolSeniorityDate || tp.hireDate)})</td>
+                                            <td style="padding: 8px 0; font-weight: 800; color: #0284c7;">${schoolSeniority.formatted}${(tp.schoolSeniorityDate || tp.hireDate) ? ' (' + escapeHtml(tp.schoolSeniorityDate || tp.hireDate) + ')' : ''}</td>
                                         </tr>
                                         <tr style="border-bottom: 1px solid #f1f5f9;">
                                             <td style="padding: 8px 0; color: #64748b; font-weight: 700;">المديرية الإقليمية:</td>

@@ -20,10 +20,17 @@
             const hasSeenDb = (window.db && window.db.settings && window.db.settings.hideOnboardingGuide === true);
 
             if (!hasSeenLocal && !hasSeenDb) {
-                // الانتظار قليلاً حتى يكتمل تحميل الصفحة والواجهة
-                setTimeout(() => {
+                // الانتظار حتى يكتمل تسجيل الدخول وإخفاء شاشة الدخول قبل عرض دليل الاستخدام
+                const tryOpenWhenReady = () => {
+                    const loginScreen = document.getElementById('loginScreen');
+                    const isLoginVisible = loginScreen && window.getComputedStyle(loginScreen).display !== 'none';
+                    if (isLoginVisible) {
+                        setTimeout(tryOpenWhenReady, 900);
+                        return;
+                    }
                     openOnboardingGuideModal(false);
-                }, 600);
+                };
+                setTimeout(tryOpenWhenReady, 600);
             }
         } catch (e) {
             console.warn('checkAndOpenOnboardingGuide error:', e);

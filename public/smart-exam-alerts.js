@@ -558,7 +558,11 @@
                 if (!badge) {
                     badge = document.createElement('span');
                     badge.className = 'smart-exam-tab-badge';
-                    badge.style.cssText = 'background: #dc2626; color: #ffffff; font-size: 0.68rem; font-weight: 800; padding: 1px 6px; border-radius: 999px; margin-right: 6px; box-shadow: 0 2px 5px rgba(220, 38, 38, 0.4);';
+                    if (btn.classList.contains('nav-tab')) {
+                        badge.style.cssText = 'position: absolute; top: -5px; left: -5px; background: #dc2626; color: #ffffff; font-size: 0.56rem; font-weight: 800; padding: 1px 5px; border-radius: 999px; line-height: 1.2; box-shadow: 0 2px 5px rgba(220, 38, 38, 0.4); pointer-events: none; z-index: 3;';
+                    } else {
+                        badge.style.cssText = 'background: #dc2626; color: #ffffff; font-size: 0.68rem; font-weight: 800; padding: 1px 6px; border-radius: 999px; margin-right: 6px; box-shadow: 0 2px 5px rgba(220, 38, 38, 0.4);';
+                    }
                     btn.appendChild(badge);
                 }
                 badge.textContent = `🚨 ${count}`;

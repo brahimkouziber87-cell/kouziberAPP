@@ -1281,15 +1281,34 @@
                     targetCtx.beginPath(); targetCtx.arc(cx + x0 * scale, cy - y0 * scale, 4.5, 0, Math.PI * 2); targetCtx.fill();
                     const mRound = Math.round(dy * 100) / 100;
                     const pRound = Math.round((y0 - dy * x0) * 100) / 100;
+                    const tangentText = `(T): y = ${mRound}x ${pRound >= 0 ? '+ ' + pRound : pRound}`;
+                    targetCtx.direction = 'ltr';
+                    targetCtx.textAlign = 'left';
                     targetCtx.font = 'bold 12px "Cairo", sans-serif';
-                    targetCtx.fillText(`(T): y = ${mRound}x ${pRound >= 0 ? '+ ' + pRound : pRound}`, cx + x0 * scale + 10, cy - y0 * scale - 10);
+                    const tWidth = targetCtx.measureText(tangentText).width;
+                    const tx = Math.min(box.x + box.w - tWidth - 18, Math.max(box.x + 14, cx + x0 * scale + 12));
+                    const ty = Math.max(box.y + 56, cy - y0 * scale - 14);
+                    targetCtx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+                    drawRoundRectPath(targetCtx, tx - 6, ty - 14, tWidth + 12, 20, 5);
+                    targetCtx.fill();
+                    targetCtx.fillStyle = '#059669';
+                    targetCtx.fillText(tangentText, tx, ty);
                     targetCtx.restore();
                 }
             }
 
-            targetCtx.font = 'bold 13.5px "Cairo", sans-serif';
+            const curveLabel = obj.label || (obj.expr ? `(Cf): f(x) = ${obj.expr}` : 'Cf');
+            targetCtx.direction = 'ltr';
+            targetCtx.textAlign = 'left';
+            targetCtx.font = 'bold 13px "Cairo", sans-serif';
+            const cWidth = targetCtx.measureText(curveLabel).width;
+            const lx = box.x + 16;
+            const ly = box.y + 26;
+            targetCtx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+            drawRoundRectPath(targetCtx, lx - 6, ly - 15, cWidth + 14, 22, 6);
+            targetCtx.fill();
             targetCtx.fillStyle = obj.curveType === 'tangent' ? '#dc2626' : color;
-            targetCtx.fillText(obj.label || (obj.expr ? `(Cf): f(x) = ${obj.expr}` : 'Cf'), box.x + 40, box.y + 42);
+            targetCtx.fillText(curveLabel, lx, ly);
             targetCtx.restore();
             return;
         }
@@ -1314,6 +1333,8 @@
             targetCtx.lineTo(cx + 6 * scale, cy - 6 * scale);
             targetCtx.stroke();
             targetCtx.setLineDash([]);
+            targetCtx.direction = 'ltr';
+            targetCtx.textAlign = 'left';
             targetCtx.fillStyle = '#475569';
             targetCtx.font = 'bold 12px "Cairo", sans-serif';
             targetCtx.fillText('(Δ): y = x', cx + 4.2 * scale, cy - 4.4 * scale);
@@ -1333,7 +1354,7 @@
             targetCtx.stroke();
             targetCtx.fillStyle = '#1d4ed8';
             targetCtx.font = 'bold 13px "Cairo", sans-serif';
-            targetCtx.fillText(`(Cf): f(x) = ${expr}`, box.x + 40, box.y + 42);
+            targetCtx.fillText(`(Cf): f(x) = ${expr}`, box.x + 16, box.y + 26);
 
             let currU = u0;
             for (let i = 0; i < steps; i++) {

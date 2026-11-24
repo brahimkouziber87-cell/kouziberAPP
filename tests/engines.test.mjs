@@ -298,10 +298,22 @@ test('Core Engine 1 — GradesCalculator: conditional formatting, Moroccan strea
     assert.equal(G.getStreamOfficialConfig('1BAC آداب وعلوم إنسانية').coefficient, 1);
     assert.equal(G.getStreamOfficialConfig('1BAC آداب وعلوم إنسانية').weeklyHours, 2);
     assert.equal(G.getStreamOfficialConfig('1BAC آداب وعلوم إنسانية').examDurationHours, 1);
-    assert.equal(G.getStreamOfficialConfig('2BAC علوم وتكنولوجيات كهربائية STE').weeklyHours, 4);
+    assert.equal(G.getStreamOfficialConfig('2BAC علوم وتكنولوجيات كهربائية STE').weeklyHours, 5);
+    assert.equal(G.getStreamOfficialConfig('1BAC علوم وتكنولوجيات ميكانيكية STM').coefficient, 7);
+    assert.equal(G.getStreamOfficialConfig('1BAC علوم وتكنولوجيات ميكانيكية STM').weeklyHours, 5);
+    assert.equal(G.getStreamOfficialConfig('1BAC شعبة الفنون التطبيقية').coefficient, 4);
+    assert.equal(G.getStreamOfficialConfig('1BAC شعبة الفنون التطبيقية').weeklyHours, 3);
+    assert.equal(G.getStreamOfficialConfig('1BAC شعبة الفنون التطبيقية').examsPerSemester, 3);
+    assert.equal(G.getStreamOfficialConfig('1BAC شعبة الفنون التطبيقية').examDurationHours, 1);
+    assert.equal(G.getStreamOfficialConfig('1BAC علوم تجريبية خيار فرنسية').coefficient, 7);
+    assert.equal(G.getStreamOfficialConfig('1BAC علوم تجريبية خيار فرنسية').weeklyHours, 5);
 
     const semAvg = G.calculateStudentSemesterAverage({ f1: 14, f2: 16, f3: 15, act: 18 }, { includeActivity: true, activityWeight: 0.25 });
     assert.equal(semAvg, 15.75);
+
+    // المذكرة الوزارية 142-08 ومسار: الاعتماد الحصري على الفروض المحروسة بدون أنشطة مندمجة
+    const pureNote142Avg = G.calculateStudentSemesterAverage({ f1: 14, f2: 16, f3: 15, act: 18 });
+    assert.equal(pureNote142Avg, 15); // (14 + 16 + 15) / 3 = 15.00
 
     const stats = G.calculateClassStatisticalMetrics([6, 9, 10, 12, 14, 15]);
     assert.equal(stats.count, 6);
@@ -1328,6 +1340,7 @@ test('Security & Gmail Hardening: PBKDF2 password hashing, URL protocol guard, q
     const rulesCode = fs.readFileSync(path.join(ROOT, 'firestore.rules'), 'utf8');
     assert.ok(rulesCode.includes('allow read, write: if false;'), 'firestore.rules must include global default-deny');
     assert.ok(rulesCode.includes('request.auth.token.email_verified == true'), 'firestore.rules must require verified email');
+    assert.ok(!rulesCode.includes('!isSignedIn()'), 'firestore.rules must never bypass auth with !isSignedIn()');
 
     // 8. Verify Electron BrowserWindow sandbox hardening
     assert.ok(/sandbox:\s*true/.test(electronMainCode), 'electron/main.cjs must enable renderer sandbox: true');
@@ -1847,6 +1860,14 @@ test('Moroccan Curriculum & Note 142-08 Audit: all 10 tracks balance hours clean
             `${trackKey}: sum of lesson hours (${s1Hours + s2Hours}) must match netLessonsHours (${track.netLessonsHours})`
         );
     }
+
+    assert.equal(curric['1BAC_EXP'].coefficient, 7);
+    assert.equal(curric['1BAC_SM'].coefficient, 9);
+    assert.equal(curric['2BAC_SM'].coefficient, 9);
+    assert.equal(curric['2BAC_SM'].weeklyHours, 7);
+    assert.equal(curric['2BAC_SM'].examsPerSemester, 4);
+    assert.equal((curric['2BAC_SM'].semesters.s1.examSchedule || []).length, 4);
+    assert.equal((curric['2BAC_SM'].semesters.s2.examSchedule || []).length, 4);
 
     assert.equal(typeof win.showHeatmapCellDetails, 'function');
     assert.equal(typeof win.onHeatmapCellClick, 'function');
