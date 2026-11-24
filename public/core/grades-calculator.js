@@ -17,18 +17,18 @@
      * جدول المعاملات الرسمية لمادة الرياضيات بسلك التعليم الثانوي التأهيلي (المذكرات الوزارية - مسالك عام ودولي BIOF)
      */
     const MOROCCAN_MATH_STREAM_CONFIGS = [
-        { pattern: /جذع مشترك علمي|مشترك علمي|جذع مشترك تكنولوجي|مشترك تكنولوجي|ج\.م\.ع|ج\.م\.ت|\btcs\b|\btcsf\b|\btct\b|\btc[\s\-_]*sc|\btc[\s\-_]*tech/i, code: 'TCS', label: 'الجذع المشترك العلمي والتكنولوجي (عام ودولي)', coefficient: 4, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /جذع مشترك آداب|جذع مشترك اداب|مشترك آداب|مشترك اداب|جذع أدبي|جذع ادبي|جذع مشترك أصيل|مشترك أصيل|ج\.م\.آ|\btcl\b|\btclsh\b|\btco\b|\btc[\s\-_]*l/i, code: 'LIT', label: 'الجذع المشترك للآداب والعلوم الإنسانية والتعليم الأصيل', coefficient: 2, examsPerSemester: 2, examDurationHours: 1, weeklyHours: 2, homeworkPerSemester: 2, continuousWeight: 0.25 },
-        { pattern: /علوم رياضية|العلوم الرياضية|ع\.?\s*رياضية|س\.ر|\b[12]?b?sm[ab]?\b|\bsm-[ab]\b|sc\.?\s*math/i, code: 'SM', label: 'شعبة العلوم الرياضية (أ / ب - عام ودولي)', coefficient: 9, examsPerSemester: 4, examDurationHours: 2, weeklyHours: 7, homeworkPerSemester: 4, continuousWeight: 0.25 },
-        { pattern: /علوم فيزيائية|العلوم الفيزيائية|فيزيائية|س\.ف|\b[12]?b?pc\b|\b[12]?b?sp\b|\bspc\b|phys/i, code: 'PC', label: 'مسلك العلوم الفيزيائية (عام ودولي)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /علوم الحياة والأرض|علوم الحياة والارض|حياة وأرض|ح\.أ|\b[12]?b?svt\b/i, code: 'SVT', label: 'مسلك علوم الحياة والأرض (عام ودولي)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /علوم تجريبية|العلوم التجريبية|ع\.?\s*تجريبية|س\.ت|\b1?b?se\b|\b1?b?exp\b|\b1?b?sx\b|sc\.?\s*exp|1bac\s*sc/i, code: 'SE', label: 'شعبة العلوم التجريبية (الأولى بكالوريا)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /علوم زراعية|زراعية|agro/i, code: 'AGRO', label: 'مسلك العلوم الزراعية', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /علوم وتكنولوجيات|تكنولوجي|كهربائية|ميكانيكية|كهرباء|ميكانيك|\b[12]?b?ste\b|\b[12]?b?stm\b/i, code: 'TECH', label: 'شعبة العلوم والتكنولوجيات (الكهربائية / الميكانيكية)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, homeworkPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /اقتصاد|إقتصاد|تدبير|محاسباتي|\b[12]?b?eco\b|\b[12]?b?seg\b|\b[12]?b?sgc\b|\b[12]?b?tgc\b|\bgct\b|\bsgec\b|\bgest/i, code: 'ECO', label: 'شعبة العلوم الاقتصادية والتدبير', coefficient: 4, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 4, homeworkPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /فنون تطبيقية|فنون|arts/i, code: 'ART', label: 'شعبة الفنون التطبيقية', coefficient: 4, examsPerSemester: 3, examDurationHours: 1, weeklyHours: 3, homeworkPerSemester: 3, continuousWeight: 0.25 },
-        { pattern: /[12]\s*(?:ème|eme|ère|ere)?\s*bac.*(?:آداب|اداب|إنسانية|انسانية|أصيل|اصيل|lsh|lettres|sh)|(?:أولى|اولى|ثانية|الأولى|الثانية)\s*(?:باك|بكالوريا)?.*(?:آداب|اداب|إنسانية|انسانية|أصيل|اصيل)|\b[12]b?(?:lsh|sh|let|lit)\b/i, code: 'BAC_LSH', label: 'الأولى والثانية بكالوريا آداب وعلوم إنسانية وتعليم أصيل', coefficient: 1, examsPerSemester: 2, examDurationHours: 1, weeklyHours: 2, homeworkPerSemester: 2, continuousWeight: 0.25 },
-        { pattern: /آداب|اداب|علوم إنسانية|أصيل|اصيل|جذع مشترك أدبي|lsh|tcl|tco|lettres|sh/i, code: 'LIT', label: 'الجذع المشترك للآداب والعلوم الإنسانية والتعليم الأصيل', coefficient: 2, examsPerSemester: 2, examDurationHours: 1, weeklyHours: 2, homeworkPerSemester: 2, continuousWeight: 0.25 }
+        { pattern: /جذع مشترك علمي|مشترك علمي|جذع مشترك تكنولوجي|مشترك تكنولوجي|ج\.م\.ع|ج\.م\.ت|\btcs\b|\btcsf\b|\btct\b|\btc[\s\-_]*sc|\btc[\s\-_]*tech/i, code: 'TCS', label: 'الجذع المشترك العلمي والتكنولوجي (عام ودولي)', coefficient: 4, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, annualHours: 170, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /جذع مشترك آداب|جذع مشترك اداب|مشترك آداب|مشترك اداب|جذع أدبي|جذع ادبي|جذع مشترك أصيل|مشترك أصيل|ج\.م\.آ|\btcl\b|\btclsh\b|\btco\b|\btc[\s\-_]*l/i, code: 'LIT', label: 'الجذع المشترك للآداب والعلوم الإنسانية والتعليم الأصيل', coefficient: 2, examsPerSemester: 2, examDurationHours: 1, weeklyHours: 2, annualHours: 68, homeworkPerSemester: 2, continuousWeight: 0.25 },
+        { pattern: /علوم رياضية|العلوم الرياضية|ع\.?\s*رياضية|س\.ر|\b[12]?b?sm[ab]?\b|\bsm-[ab]\b|sc\.?\s*math/i, code: 'SM', label: 'شعبة العلوم الرياضية (أ / ب - عام ودولي)', coefficient: 9, examsPerSemester: 4, examDurationHours: 2, weeklyHours: 7, annualHours: 238, homeworkPerSemester: 4, continuousWeight: 0.25 },
+        { pattern: /علوم فيزيائية|العلوم الفيزيائية|فيزيائية|س\.ف|\b[12]?b?pc\b|\b[12]?b?sp\b|\bspc\b|phys/i, code: 'PC', label: 'مسلك العلوم الفيزيائية (عام ودولي)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, annualHours: 170, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /علوم الحياة والأرض|علوم الحياة والارض|حياة وأرض|ح\.أ|\b[12]?b?svt\b/i, code: 'SVT', label: 'مسلك علوم الحياة والأرض (عام ودولي)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, annualHours: 170, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /علوم تجريبية|العلوم التجريبية|ع\.?\s*تجريبية|س\.ت|\b1?b?se\b|\b1?b?exp\b|\b1?b?sx\b|sc\.?\s*exp|1bac\s*sc/i, code: 'SE', label: 'شعبة العلوم التجريبية (الأولى بكالوريا)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, annualHours: 170, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /علوم زراعية|زراعية|agro/i, code: 'AGRO', label: 'مسلك العلوم الزراعية', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, annualHours: 170, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /علوم وتكنولوجيات|تكنولوجي|كهربائية|ميكانيكية|كهرباء|ميكانيك|\b[12]?b?ste\b|\b[12]?b?stm\b/i, code: 'TECH', label: 'شعبة العلوم والتكنولوجيات (الكهربائية / الميكانيكية)', coefficient: 7, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 5, annualHours: 170, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /اقتصاد|إقتصاد|تدبير|محاسباتي|\b[12]?b?eco\b|\b[12]?b?seg\b|\b[12]?b?sgc\b|\b[12]?b?tgc\b|\bgct\b|\bsgec\b|\bgest/i, code: 'ECO', label: 'شعبة العلوم الاقتصادية والتدبير', coefficient: 4, examsPerSemester: 3, examDurationHours: 2, weeklyHours: 4, annualHours: 136, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /فنون تطبيقية|فنون|arts/i, code: 'ART', label: 'شعبة الفنون التطبيقية', coefficient: 4, examsPerSemester: 3, examDurationHours: 1, weeklyHours: 3, annualHours: 102, homeworkPerSemester: 3, continuousWeight: 0.25 },
+        { pattern: /[12]\s*(?:ème|eme|ère|ere)?\s*bac.*(?:آداب|اداب|إنسانية|انسانية|أصيل|اصيل|lsh|lettres|sh)|(?:أولى|اولى|ثانية|الأولى|الثانية)\s*(?:باك|بكالوريا)?.*(?:آداب|اداب|إنسانية|انسانية|أصيل|اصيل)|\b[12]b?(?:lsh|sh|let|lit)\b/i, code: 'BAC_LSH', label: 'الأولى والثانية بكالوريا آداب وعلوم إنسانية وتعليم أصيل', coefficient: 1, examsPerSemester: 2, examDurationHours: 1, weeklyHours: 2, annualHours: 68, homeworkPerSemester: 2, continuousWeight: 0.25 },
+        { pattern: /آداب|اداب|علوم إنسانية|أصيل|اصيل|جذع مشترك أدبي|lsh|tcl|tco|lettres|sh/i, code: 'LIT', label: 'الجذع المشترك للآداب والعلوم الإنسانية والتعليم الأصيل', coefficient: 2, examsPerSemester: 2, examDurationHours: 1, weeklyHours: 2, annualHours: 68, homeworkPerSemester: 2, continuousWeight: 0.25 }
     ];
 
     /**
@@ -132,6 +132,7 @@
                     examsPerSemester: cfg.examsPerSemester,
                     examDurationHours: cfg.examDurationHours || 2,
                     weeklyHours: cfg.weeklyHours || 5,
+                    annualHours: cfg.annualHours || ((cfg.weeklyHours || 5) * 34),
                     homeworkPerSemester: cfg.homeworkPerSemester || cfg.examsPerSemester,
                     continuousWeight: cfg.continuousWeight
                 };
@@ -144,6 +145,7 @@
             examsPerSemester: 3,
             examDurationHours: 2,
             weeklyHours: 5,
+            annualHours: 170,
             homeworkPerSemester: 3,
             continuousWeight: 0.25
         };

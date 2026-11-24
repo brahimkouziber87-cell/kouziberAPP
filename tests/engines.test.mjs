@@ -299,19 +299,29 @@ test('Core Engine 1 — GradesCalculator: conditional formatting, Moroccan strea
     assert.equal(G.getStreamOfficialConfig('1BAC آداب وعلوم إنسانية').weeklyHours, 2);
     assert.equal(G.getStreamOfficialConfig('1BAC آداب وعلوم إنسانية').examDurationHours, 1);
     assert.equal(G.getStreamOfficialConfig('2BAC علوم وتكنولوجيات كهربائية STE').weeklyHours, 5);
+    assert.equal(G.getStreamOfficialConfig('2BAC علوم وتكنولوجيات كهربائية STE').annualHours, 170);
     assert.equal(G.getStreamOfficialConfig('1BAC علوم وتكنولوجيات ميكانيكية STM').coefficient, 7);
     assert.equal(G.getStreamOfficialConfig('1BAC علوم وتكنولوجيات ميكانيكية STM').weeklyHours, 5);
+    assert.equal(G.getStreamOfficialConfig('1BAC علوم وتكنولوجيات ميكانيكية STM').annualHours, 170);
     assert.equal(G.getStreamOfficialConfig('1BAC شعبة الفنون التطبيقية').coefficient, 4);
     assert.equal(G.getStreamOfficialConfig('1BAC شعبة الفنون التطبيقية').weeklyHours, 3);
+    assert.equal(G.getStreamOfficialConfig('1BAC شعبة الفنون التطبيقية').annualHours, 102);
     assert.equal(G.getStreamOfficialConfig('1BAC شعبة الفنون التطبيقية').examsPerSemester, 3);
     assert.equal(G.getStreamOfficialConfig('1BAC شعبة الفنون التطبيقية').examDurationHours, 1);
     assert.equal(G.getStreamOfficialConfig('1BAC علوم تجريبية خيار فرنسية').coefficient, 7);
     assert.equal(G.getStreamOfficialConfig('1BAC علوم تجريبية خيار فرنسية').weeklyHours, 5);
+    assert.equal(G.getStreamOfficialConfig('1BAC علوم تجريبية خيار فرنسية').annualHours, 170);
     assert.equal(G.getStreamOfficialConfig('جذع مشترك تكنولوجي 1').coefficient, 4);
     assert.equal(G.getStreamOfficialConfig('جذع مشترك تكنولوجي 1').weeklyHours, 5);
+    assert.equal(G.getStreamOfficialConfig('جذع مشترك تكنولوجي 1').annualHours, 170);
     assert.equal(G.getStreamOfficialConfig('TCT-1').coefficient, 4);
     assert.equal(G.getStreamOfficialConfig('1LSH-1').coefficient, 1);
     assert.equal(G.getStreamOfficialConfig('2LSH-2').coefficient, 1);
+    assert.equal(G.getStreamOfficialConfig('2BAC علوم رياضية SM').coefficient, 9);
+    assert.equal(G.getStreamOfficialConfig('2BAC علوم رياضية SM').weeklyHours, 7);
+    assert.equal(G.getStreamOfficialConfig('2BAC علوم رياضية SM').annualHours, 238);
+    assert.equal(G.getStreamOfficialConfig('1BAC علوم اقتصادية وتدبير ECO').annualHours, 136);
+    assert.equal(G.getStreamOfficialConfig('2BAC آداب وعلوم إنسانية LSH').annualHours, 68);
 
     const semAvg = G.calculateStudentSemesterAverage({ f1: 14, f2: 16, f3: 15, act: 18 }, { includeActivity: true, activityWeight: 0.25 });
     assert.equal(semAvg, 15.75);
@@ -1850,6 +1860,7 @@ test('Moroccan Curriculum & Note 142-08 Audit: all 10 tracks balance hours clean
         const track = curric[trackKey];
         assert.ok(track, `Missing track ${trackKey}`);
         assert.ok(Number.isFinite(track.totalOfficialHours), `${trackKey} must define totalOfficialHours`);
+        assert.equal(track.annualHours, track.totalOfficialHours, `${trackKey} annualHours must equal totalOfficialHours`);
         assert.ok(Number.isFinite(track.netLessonsHours), `${trackKey} must define netLessonsHours`);
         assert.ok(Number.isFinite(track.evalAndSupportHours), `${trackKey} must define evalAndSupportHours`);
         assert.equal(
