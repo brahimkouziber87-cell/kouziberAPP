@@ -229,6 +229,7 @@
         }
         return 'all';
     }
+    window.detectLevelFromClassName = detectLevelFromClassName;
 
     /**
      * الحصول على عدد تلاميذ القسم من قاعدة البيانات

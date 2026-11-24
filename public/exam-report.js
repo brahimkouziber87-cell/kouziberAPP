@@ -514,18 +514,29 @@
                 : 1);
         let defaultScale = 'التمرين 1 (تطبيق مباشر للمفاهيم - 30%): 6 ن | التمرين 2 (استحضار وتوظيف - 50%): 10 ن | التمرين 3 (توليف واستدلال - 20%): 4 ن';
 
+        const streamOfficialCfg = (window.GradesCalculator && typeof window.GradesCalculator.getStreamOfficialConfig === 'function')
+            ? window.GradesCalculator.getStreamOfficialConfig(className)
+            : null;
+        if (streamOfficialCfg && streamOfficialCfg.examDurationHours) {
+            defaultDuration = `${streamOfficialCfg.examDurationHours}h`;
+        }
+
         if (typeof window.getCurriculumLevelForClass === 'function' && window.MOROCCAN_SECONDARY_MATH_CURRICULUM) {
             const trackKey = window.getCurriculumLevelForClass(className);
             const lvlData = window.MOROCCAN_SECONDARY_MATH_CURRICULUM[trackKey];
             if (lvlData) {
-                if (typeof lvlData.examDuration === 'number' && lvlData.examDuration >= 1 && lvlData.examDuration <= 4) {
-                    defaultDuration = `${lvlData.examDuration}h`;
-                } else if (typeof lvlData.examDuration === 'string' && /^\d+h$/.test(lvlData.examDuration.trim())) {
-                    defaultDuration = lvlData.examDuration.trim();
-                } else {
-                    defaultDuration = lvlData.examDuration === 1 ? '1h' : '2h';
+                if (!streamOfficialCfg || streamOfficialCfg.code !== 'ART') {
+                    if (typeof lvlData.examDuration === 'number' && lvlData.examDuration >= 1 && lvlData.examDuration <= 4) {
+                        defaultDuration = `${lvlData.examDuration}h`;
+                    } else if (typeof lvlData.examDuration === 'string' && /^\d+h$/.test(lvlData.examDuration.trim())) {
+                        defaultDuration = lvlData.examDuration.trim();
+                    } else {
+                        defaultDuration = lvlData.examDuration === 1 ? '1h' : '2h';
+                    }
                 }
-                defaultCoef = lvlData.coefficient || defaultCoef;
+                if (!defaultCoef) {
+                    defaultCoef = lvlData.coefficient || 1;
+                }
                 let matchedOfficialWeightsScale = '';
                 const semObj = lvlData.semesters && lvlData.semesters[semester];
                 if (semObj && Array.isArray(semObj.examSchedule)) {
@@ -885,10 +896,14 @@
                         markCell = `<span style="color:#94a3b8; font-size:0.78rem;">--</span>`;
                     }
 
+                    const cleanMassar = (std.massar && std.massar !== '---') ? std.massar : '';
                     return `
-                        <tr style="border-bottom: 1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                        <tr data-massar="${escapeHtml(cleanMassar)}" data-name="${escapeHtml(std.name)}" style="border-bottom: 1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                             <td style="padding: 8px 12px; text-align: center; font-weight: 800; color: #475569; width: 80px;">${std.order}</td>
-                            <td style="padding: 8px 14px; text-align: right; font-weight: 700; color: #0f172a;">${escapeHtml(std.name)}</td>
+                            <td style="padding: 8px 14px; text-align: right; font-weight: 700; color: #0f172a;">
+                                <span>${escapeHtml(std.name)}</span>
+                                ${cleanMassar ? `<span style="font-size: 0.68rem; color: #64748b; font-weight: 600; margin-right: 6px;">(${escapeHtml(cleanMassar)})</span>` : ''}
+                            </td>
                             <td style="padding: 8px 12px; text-align: center; width: 120px;">${markCell}</td>
                         </tr>
                     `;
@@ -910,13 +925,14 @@
 
                     const markBg = rm.mark >= 10 ? '#f0fdf4' : '#fef2f2';
                     const markColor = rm.mark >= 10 ? '#15803d' : '#dc2626';
+                    const cleanMassar = (rm.massar && rm.massar !== '---') ? rm.massar : '';
 
                     return `
-                        <tr style="border-bottom: 1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+                        <tr data-massar="${escapeHtml(cleanMassar)}" data-name="${escapeHtml(rm.name)}" style="border-bottom: 1px solid #e2e8f0; transition: background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                             <td style="padding: 8px 10px; text-align: center; font-weight: 900; color: #1e3a8a; width: 75px;">${rankIcon}</td>
                             <td style="padding: 8px 12px; text-align: right; font-weight: 700; color: #0f172a;">
                                 <span>${escapeHtml(rm.name)}</span>
-                                <span style="font-size: 0.72rem; color: #64748b; margin-right: 6px;">(رقم ${rm.order})</span>
+                                <span style="font-size: 0.72rem; color: #64748b; margin-right: 6px;">(رقم ${rm.order}${cleanMassar ? ` · ${escapeHtml(cleanMassar)}` : ''})</span>
                             </td>
                             <td style="padding: 8px 10px; text-align: center; width: 110px;">
                                 <span style="background:${markBg}; color:${markColor}; padding:3px 9px; border-radius:6px; font-weight:900; font-size:0.86rem; border:1px solid ${markColor}40;">${rm.mark.toFixed(2)}</span>
@@ -1003,7 +1019,7 @@
                                     : (isJustified ? '⏳ غائب بمبرر (في انتظار التمرير)' : '🚫 غياب غير مبرر');
 
                                 return `
-                                <div style="background: #ffffff; border: 1.5px solid #fda4af; border-radius: 9px; padding: 9px 11px; display: flex; flex-direction: column; gap: 7px; box-shadow: 0 1px 3px rgba(159,18,57,0.06);">
+                                <div class="exam-absent-student-card" data-massar="${escapeHtml(std.massar || '')}" data-name="${escapeHtml(std.name || '')}" style="background: #ffffff; border: 1.5px solid #fda4af; border-radius: 9px; padding: 9px 11px; display: flex; flex-direction: column; gap: 7px; box-shadow: 0 1px 3px rgba(159,18,57,0.06);">
                                     <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
                                         <div>
                                             <div style="font-weight: 800; color: #881337; font-size: 0.84rem;">#${std.order} ${escapeHtml(std.name)}</div>
@@ -1038,20 +1054,31 @@
     }
 
     /**
-     * تصفية والبحث في جداول الفرض
+     * تصفية والبحث في جداول الفرض (بالاسم أو رقم مسار أو الرقم الترتيبي)
      */
     function filterExamReportStudents(query) {
         const q = (query || '').trim().toLowerCase();
+        const matchesQuery = (el) => {
+            if (!q) return true;
+            const txt = (el.textContent || '').toLowerCase();
+            const massar = (el.getAttribute('data-massar') || '').toLowerCase();
+            const name = (el.getAttribute('data-name') || '').toLowerCase();
+            return txt.includes(q) || massar.includes(q) || name.includes(q);
+        };
+
         const trRoster = document.querySelectorAll('#examReportRosterTbody tr');
         trRoster.forEach(tr => {
-            const txt = tr.textContent.toLowerCase();
-            tr.style.display = txt.includes(q) ? '' : 'none';
+            tr.style.display = matchesQuery(tr) ? '' : 'none';
         });
 
         const trRanked = document.querySelectorAll('#examReportRankedTbody tr');
         trRanked.forEach(tr => {
-            const txt = tr.textContent.toLowerCase();
-            tr.style.display = txt.includes(q) ? '' : 'none';
+            tr.style.display = matchesQuery(tr) ? '' : 'none';
+        });
+
+        const absentCards = document.querySelectorAll('#examReportAbsentsContainer .exam-absent-student-card');
+        absentCards.forEach(card => {
+            card.style.display = matchesQuery(card) ? '' : 'none';
         });
     }
 
@@ -1360,6 +1387,21 @@
                 </div>
             `;
 
+        // معايير المستويات المهارية الرسمية حسب المذكرة الوزارية 142-08 (الصفحة 9) وحسب الشعبة
+        const upperClsForCriteria = String(className || '').toUpperCase();
+        const curricKeyForCriteria = (typeof window.getCurriculumLevelForClass === 'function')
+            ? window.getCurriculumLevelForClass(className || '')
+            : '';
+        const isLitOrArtCriteria = (
+            curricKeyForCriteria === 'TCL' ||
+            curricKeyForCriteria === '1BAC_LSH' ||
+            curricKeyForCriteria === '2BAC_LSH' ||
+            /\b(TCL|TCO|LSH|LET|SH|ART|LITT)\b|آداب|أدبي|أصيل|إنسانية|فنون تطبيقية|الفنون التطبيقية/i.test(upperClsForCriteria)
+        );
+        const note142CriteriaText = isLitOrArtCriteria
+            ? '60% المستوى المهاري 1 (تطبيق مباشر للمعارف الأساسية) · 40% المستوى المهاري 2 (استحضار وتوظيف مكتسبات في وضعيات مألوفة) — وفق المذكرة 142-08 ص 9 (الشعب الأدبية والأصيلة والفنون التطبيقية).'
+            : '40% المستوى المهاري 1 (تطبيق مباشر للمعارف) · 45% المستوى المهاري 2 (استحضار وتوظيف في وضعيات مألوفة، متوازن مع م1) · 10% إلى 20% المستوى المهاري 3 (توليف ووضعيات غير مألوفة) — وفق المذكرة 142-08 ص 9.';
+
         const htmlContent = `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -1651,7 +1693,7 @@
                 <div class="section-body">
                     <div style="line-height: 1.4;">${escapeHtml(topics)}</div>
                     <div style="margin-top: 3px; padding: 3px 6px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 7.4pt; color: #334155;">
-                        <strong>معايير بناء موضوع الفرض (المذكرة 142-08):</strong> 30% استرداد وتطبيق مباشر للمعارف · 50% توظيف المفاهيم وحل وضعيات مألوفة والاستدلال · 20% وضعيات غير مألوفة ومسائل تركيبية والبرهان الرياضي.
+                        <strong>معايير بناء موضوع الفرض (المذكرة 142-08):</strong> ${note142CriteriaText}
                     </div>
                     ${gradingScale ? `<div style="margin-top: 3px; padding-top: 3px; border-top: 1px dashed #cbd5e1; font-size: 7.4pt; color: #475569;"><strong>سلّم التنقيط وتوزيع التمارين:</strong> ${escapeHtml(gradingScale)}</div>` : ''}
                 </div>

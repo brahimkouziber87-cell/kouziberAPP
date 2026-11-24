@@ -96,13 +96,21 @@
         const evaluatedStudents = [];
 
         students.forEach((std, idx) => {
+            const rawDbGrades = (db.grades && db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : null;
             const grades = (typeof window.getStudentGradesBySemester === 'function')
                 ? window.getStudentGradesBySemester(className, std.id, sem)
-                : ((db.grades && db.grades[className] && db.grades[className][std.id]) || {});
+                : ((rawDbGrades && rawDbGrades[sem])
+                    ? rawDbGrades[sem]
+                    : (rawDbGrades || ((std.grades && std.grades[sem]) ? std.grades[sem] : (std.grades || {}))));
 
+            const examKeysForAvg = examCount === 4 ? ['f1', 'f2', 'f3', 'f4'] : (examCount === 2 ? ['f1', 'f2'] : ['f1', 'f2', 'f3']);
             const avg = (typeof window.calculateStudentAvg === 'function')
                 ? window.calculateStudentAvg(grades, className, sem)
-                : (typeof window.calculateSemesterAvg === 'function' ? window.calculateSemesterAvg(grades, examCount, sem) : null);
+                : (typeof window.calculateSemesterAvg === 'function'
+                    ? window.calculateSemesterAvg(grades, examCount, sem)
+                    : (window.GradesCalculator && typeof window.GradesCalculator.calculateStudentSemesterAverage === 'function'
+                        ? window.GradesCalculator.calculateStudentSemesterAverage(grades, { examKeys: examKeysForAvg })
+                        : null));
 
             // إحصائيات الغياب للدورة عبر الفهرس السريع O(1)
             const stdRecords = (typeof window.getStudentClassRecordsFast === 'function')
@@ -167,11 +175,11 @@
                 } else if (avg !== null) {
                     orientationAdvice = 'يُنصح بإعادة التوجيه للثانية باك علوم فيزيائية (2BAC PC)';
                 }
-            } else if (recCurric.branchCode === '1BAC_SE') {
+            } else if (recCurric.branchCode === '1BAC_SE' || recCurric.branchCode === '1BAC_STE' || recCurric.branchCode === '1BAC_STM' || recCurric.branchCode === 'STE' || recCurric.branchCode === 'STM') {
                 if (avg !== null && avg >= 10) {
-                    orientationAdvice = 'أداء مناسب لمسلكي العلوم الفيزيائية (PC) أو علوم الحياة والأرض (SVT)';
+                    orientationAdvice = 'أداء مناسب لمتابعة مسالك العلوم التجريبية (PC / SVT) أو التكنولوجيات';
                 } else if (avg !== null) {
-                    orientationAdvice = 'استدراك مكثف في الرياضيات أو التوجيه لـ 2BAC SVT';
+                    orientationAdvice = 'استدراك مكثف في الرياضيات لتثبيت مكتسبات التحليل والهندسة';
                 }
             } else if (recCurric.branchCode === 'TCL') {
                 if (avg !== null && avg >= 10) {
@@ -179,17 +187,41 @@
                 } else if (avg !== null) {
                     orientationAdvice = 'دعم الكفايات العددية والمنطقية الأساسية بالجذع المشترك للآداب';
                 }
-            } else if (recCurric.branchCode === '1BAC_ECO') {
+            } else if (recCurric.branchCode === '1BAC_ECO' || recCurric.branchCode === 'ECO_SGC') {
                 if (avg !== null && avg >= 10) {
                     orientationAdvice = 'استيفاء مناسب للتوجيه نحو مسلكي الاقتصاد أو التدبير المحاسباتي (GC)';
                 } else if (avg !== null) {
                     orientationAdvice = 'تعزيز الدوال والاحتمالات والرياضيات المالية لتفادي التعثر بالثانية باك';
                 }
-            } else if (recCurric.branchCode === '1BAC_LSH') {
+            } else if (recCurric.branchCode === '1BAC_LSH' || recCurric.branchCode === 'LSH' || recCurric.branchCode === '1BAC_ARTS') {
                 if (avg !== null && avg >= 10) {
-                    orientationAdvice = 'تحكم جيد يؤهل للامتحان الجهوي والانتقال للثانية باك آداب وعلوم إنسانية';
+                    orientationAdvice = 'تحكم جيد يؤهل للامتحان الجهوي والانتقال للثانية باك';
                 } else if (avg !== null) {
                     orientationAdvice = 'حصة دعم موجهة استعداداً للامتحان الجهوي الموحد';
+                }
+            } else if (recCurric.branchCode === '2BAC_LSH') {
+                if (avg !== null && avg >= 14) {
+                    orientationAdvice = 'تميز ممتاز — مؤهل لكليات الآداب والعلوم الإنسانية والحقوق والمعاهد العليا للإعلام والتواصل (مراقبة مستمرة للمتمدرسين)';
+                } else if (avg !== null && avg >= 10) {
+                    orientationAdvice = 'تحكم إيجابي — استثمار نقط المراقبة المستمرة للرفع من المعدل العام للبكالوريا';
+                } else if (avg !== null) {
+                    orientationAdvice = 'دعم مركّز في المتتاليات واللوغاريتم والاحتمالات لتحسين معدل المراقبة المستمرة';
+                }
+            } else if (recCurric.branchCode === '2BAC_ARTS') {
+                if (avg !== null && avg >= 14) {
+                    orientationAdvice = 'تفوق ملحوظ — مرشح للمعهد الوطني للفنون الجميلة (INBA) والمدارس العليا للتصميم والفنون البصرية (مراقبة مستمرة)';
+                } else if (avg !== null && avg >= 10) {
+                    orientationAdvice = 'أداء متوازن — تعزيز توظيف الهندسة والدوال في مشاريع الفنون التطبيقية';
+                } else if (avg !== null) {
+                    orientationAdvice = 'دعم تربوي في المفاهيم الأساسية للدوال والاحتمالات لتحسين معدل المراقبة المستمرة';
+                }
+            } else if (recCurric.branchCode === '2BAC_ECO') {
+                if (avg !== null && avg >= 14) {
+                    orientationAdvice = 'تفوق ممتاز — مرشح بقوة للأقسام التحضيرية الاقتصادية (ECT/ECS) والمدارس الوطنية للتجارة والتسيير (ENCG/ISCAE)';
+                } else if (avg !== null && avg >= 10) {
+                    orientationAdvice = 'تحكم إيجابي — الإعداد المنهجي للامتحان الوطني الموحد (المدة ساعتان، المعامل 4)';
+                } else if (avg !== null) {
+                    orientationAdvice = 'خطة استدراكية عاجلة في الدوال والمتتاليات والاحتمالات قبل الامتحان الوطني الموحد';
                 }
             } else if (String(recCurric.branchCode || '').startsWith('2BAC')) {
                 if (avg !== null && avg >= 14) {

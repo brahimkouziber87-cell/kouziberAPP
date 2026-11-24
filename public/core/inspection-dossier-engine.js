@@ -52,7 +52,7 @@
                 const g = (st.grades && st.grades[semester]) ? st.grades[semester] : (st.grades || {});
                 let avg = null;
                 if (window.GradesCalculator && typeof window.GradesCalculator.calculateStudentSemesterAverage === 'function') {
-                    avg = window.GradesCalculator.calculateStudentSemesterAverage(g, { includeActivity: true });
+                    avg = window.GradesCalculator.calculateStudentSemesterAverage(g);
                 }
                 if (avg !== null) {
                     averages.push(avg);

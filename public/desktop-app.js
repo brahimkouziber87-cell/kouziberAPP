@@ -518,6 +518,7 @@
         } catch (e) {}
         return detectDevicePlatform().isAndroid;
     }
+    window.isAndroidTouchModeActive = isAndroidTouchModeActive;
 
     function applyAndroidTouchModeToDOM() {
         const active = isAndroidTouchModeActive();
@@ -834,7 +835,7 @@
         try {
             if ('caches' in window) {
                 const keys = await caches.keys();
-                const currentCache = 'prof-digital-v4.6.0';
+                const currentCache = 'prof-digital-v4.8.2';
                 await Promise.all(
                     keys.map(k => {
                         if (k !== currentCache) return caches.delete(k);

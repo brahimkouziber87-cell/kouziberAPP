@@ -122,6 +122,7 @@
      * رندرة مركز وسجل كشوفات المتابعة الشامل داخل لوحة القيادة
      */
     function renderAdminFollowUpHub(metrics) {
+        metrics = metrics || getAdminFollowUpMetrics();
         let hub = document.getElementById('dashAdminFollowUpHub');
         if (!hub) {
             const parent = document.getElementById('dashboardView');
@@ -359,6 +360,7 @@
      * تحديث شارات العداد للتنبيهات الإدارية
      */
     function updateFollowUpBadges(metrics) {
+        metrics = metrics || getAdminFollowUpMetrics();
         // تحديث شارة العداد في زر لوحة القيادة بالهيدر إن وُجد
         const headerBadge = document.getElementById('headerDashboardAlertBadge');
         if (headerBadge && metrics.delayedCount > 0) {
@@ -999,6 +1001,8 @@
 
     // تصدير الدوال للـ Window
     window.renderAdminFollowUpNotifications = renderAdminFollowUpNotifications;
+    window.renderAdminFollowUpHub = renderAdminFollowUpHub;
+    window.updateFollowUpBadges = updateFollowUpBadges;
     window.getAdminFollowUpMetrics = getAdminFollowUpMetrics;
     window.setAdminFollowUpFilter = setAdminFollowUpFilter;
     window.openAdminFollowUpReminderModal = openAdminFollowUpReminderModal;

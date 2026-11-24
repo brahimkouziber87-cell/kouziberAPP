@@ -18,16 +18,16 @@ const auth = getAuth(app);
 setLogLevel('silent');
 const dbFirestore = initializeFirestore(app, { experimentalAutoDetectLongPolling: true }, firebaseConfig.firestoreDatabaseId);
 
-// Purge stale Service Worker caches once on v4.6.0 upgrade so old cached scripts never persist
+// Purge stale Service Worker caches once on v4.8.2 upgrade so old cached scripts never persist
 try {
-  const SW_CACHE_MIGRATION_KEY = 'prof_digital_sw_cache_migrated_v4_6_0';
+  const SW_CACHE_MIGRATION_KEY = 'prof_digital_sw_cache_migrated_v4_8_2';
   if (typeof localStorage !== 'undefined' && localStorage.getItem(SW_CACHE_MIGRATION_KEY) !== '1') {
     localStorage.setItem(SW_CACHE_MIGRATION_KEY, '1');
     localStorage.removeItem('cloud_sync_error_logs_v1');
     if (typeof caches !== 'undefined' && typeof caches.keys === 'function') {
       caches.keys().then((keys) => {
         keys.forEach((k) => {
-          if (k !== 'prof-digital-v4.6.0') {
+          if (k !== 'prof-digital-v4.8.2') {
             caches.delete(k).catch(() => {});
           }
         });

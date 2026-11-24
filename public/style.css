@@ -2480,33 +2480,62 @@ body:has(#distanceTeachingView[style*="display:block"]) #floatingVoiceSearchBtn 
 
         .home-search-input {
             width: 100%;
-            height: 32px;
+            height: 36px;
             background: #ffffff;
             border: 1.5px solid #cbd5e1;
             border-radius: 999px;
-            padding: 0 32px 0 28px;
-            font-size: 0.77rem;
+            padding: 0 38px 0 30px;
+            font-size: 0.78rem;
             font-weight: 600;
             color: #0f172a;
             outline: none;
-            transition: all 0.2s ease;
+            transition: all 0.25s ease;
             box-sizing: border-box;
             font-family: inherit;
         }
 
         .home-search-input:focus {
-            border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+            border-color: #1e3a8a;
+            box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.14);
         }
 
         .home-search-icon {
             position: absolute;
-            right: 10px;
+            right: 5px;
             top: 50%;
             transform: translateY(-50%);
-            color: #94a3b8;
-            pointer-events: none;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+            color: #ffffff;
+            box-shadow: 0 2px 6px rgba(30, 58, 138, 0.24);
+            cursor: pointer;
             display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .home-search-icon svg {
+            width: 15px;
+            height: 15px;
+            stroke-width: 2.4;
+            filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.2));
+            transition: transform 0.25s ease;
+        }
+
+        .home-search-icon:hover,
+        .home-search-box:hover .home-search-icon,
+        .home-search-box:focus-within .home-search-icon {
+            background: linear-gradient(135deg, #172554, #2563eb);
+            box-shadow: 0 4px 10px rgba(30, 58, 138, 0.35);
+            transform: translateY(-50%) scale(1.08);
+        }
+
+        .home-search-icon:hover svg,
+        .home-search-box:focus-within .home-search-icon svg {
+            transform: scale(1.06);
         }
 
         .home-search-clear {
@@ -7969,21 +7998,29 @@ body.presentation-mode {
 
 .search-icon-adornment {
     position: absolute;
-    right: 12px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
     display: flex;
     align-items: center;
-    color: #64748b;
+    justify-content: center;
+    color: #ffffff;
     pointer-events: none;
-    transition: color 0.2s ease;
+    box-shadow: 0 2px 5px rgba(30, 58, 138, 0.25);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .class-student-search-bar:focus-within .search-icon-adornment {
-    color: #2563eb;
+    background: linear-gradient(135deg, #172554, #1e40af);
+    box-shadow: 0 3px 7px rgba(30, 58, 138, 0.35);
+    transform: scale(1.04);
 }
 
 .search-input-wrapper input {
     width: 100%;
-    padding: 9px 42px 9px 38px;
+    padding: 9px 44px 9px 38px;
     border: 1px solid #e2e8f0;
     border-radius: 9px;
     font-family: inherit;
@@ -13254,7 +13291,17 @@ body.dark-mode #whiteboardDesktopHubModal .wb-desk-tab-btn.active {
     transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
 
+.reports-axes-grid {
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(2, minmax(40px, 1fr));
+    gap: 8px;
+    width: 100%;
+    align-items: stretch;
+}
+
 .reports-axes-grid > button {
+    height: 100%;
     transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
 
@@ -13279,26 +13326,19 @@ body.dark-mode #whiteboardDesktopHubModal .wb-desk-tab-btn.active {
     transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
 
-@media (max-width: 1200px) {
-    .reports-axes-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    }
-}
-
 @media (max-width: 900px) {
     .reports-stats-bar {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     }
     .reports-axes-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        grid-template-columns: repeat(6, minmax(135px, 1fr)) !important;
+        overflow-x: auto;
+        padding-bottom: 4px;
     }
 }
 
 @media (max-width: 580px) {
     .reports-stats-bar {
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    }
-    .reports-axes-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
     .reports-top-actions-bar > button,

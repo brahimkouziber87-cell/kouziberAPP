@@ -5915,7 +5915,7 @@
                     examsCount: 3,
                     examDuration: 'ساعتان (2h)',
                     homeworkPerSemester: 3,
-                    coef: 7, // شعبة العلوم التجريبية (مسلك علوم الحياة والأرض ومسلك العلوم الفيزيائية): المعامل 7 // تصحيح تربوي رسمي: معامل الرياضيات بمسلك علوم الحياة والأرض والعلوم الزراعية هو 5 وليس 7
+                    coef: 7, // شعبة العلوم التجريبية (مسلك علوم الحياة والأرض ومسلك العلوم الفيزيائية والعلوم الزراعية): المعامل 7
                     isAutoRecognized: true
                 };
             }
@@ -5947,7 +5947,7 @@
                 const isMech = upper.includes('STM') || raw.includes('ميكانيكية');
                 const is2Bac = upper.includes('2') || raw.includes('ثانية');
                 return {
-                    branchCode: isMech ? 'STM' : 'STE',
+                    branchCode: is2Bac ? (isMech ? '2BAC_STM' : '2BAC_STE') : (isMech ? '1BAC_STM' : '1BAC_STE'),
                     levelLabel: is2Bac ? 'الثانية باكالوريا' : 'الأولى باكالوريا',
                     branchLabel: isMech ? 'العلوم والتكنولوجيات الميكانيكية (STM)' : 'العلوم والتكنولوجيات الكهربائية (STE)',
                     weeklyHours: 5,
@@ -5967,7 +5967,7 @@
             ) {
                 const is2Bac = upper.includes('2') || raw.includes('ثانية') || upper.includes('SGC') || upper.includes('TGC');
                 return {
-                    branchCode: 'ECO_SGC',
+                    branchCode: is2Bac ? '2BAC_ECO' : '1BAC_ECO',
                     levelLabel: is2Bac ? 'الثانية باكالوريا' : 'الأولى باكالوريا',
                     branchLabel: 'العلوم الاقتصادية والتدبير (ECO / SGC)',
                     weeklyHours: 4,
@@ -5983,7 +5983,7 @@
             if (/\bART/i.test(upper) || raw.includes('فنون تطبيقية')) {
                 const is2Bac = upper.includes('2') || raw.includes('ثانية');
                 return {
-                    branchCode: 'ARTS',
+                    branchCode: is2Bac ? '2BAC_ARTS' : '1BAC_ARTS',
                     levelLabel: is2Bac ? 'الثانية باكالوريا' : 'الأولى باكالوريا',
                     branchLabel: 'الفنون التطبيقية (Arts Appliqués)',
                     weeklyHours: 3,
@@ -6002,9 +6002,9 @@
                 upper.startsWith('1L') || upper.startsWith('2L') || upper.startsWith('LSH') || upper.startsWith('LET') || upper.startsWith('1SH') || upper.startsWith('2SH') ||
                 raw.includes('آداب') || raw.includes('اداب') || raw.includes('أدبي') || raw.includes('إنسانية') || raw.includes('انسانية') || raw.includes('أصيل') || raw.includes('اصيل')
             ) {
-                const is2Bac = upper.includes('2BAC') || upper.includes('2 BAC') || upper.includes('2B') || upper.includes('2L') || upper.includes('2SH') || raw.includes('ثانية') || raw.includes('الثانية');
+                const is2Bac = upper.includes('2BAC') || upper.includes('2 BAC') || upper.includes('2B') || upper.startsWith('2L') || upper.startsWith('2SH') || raw.includes('ثانية') || raw.includes('الثانية');
                 return {
-                    branchCode: 'LSH',
+                    branchCode: is2Bac ? '2BAC_LSH' : '1BAC_LSH',
                     levelLabel: is2Bac ? 'الثانية باكالوريا' : 'الأولى باكالوريا',
                     branchLabel: is2Bac ? 'الثانية باك آداب وعلوم إنسانية (2BAC LSH / 2BAC SH)' : 'الأولى باك آداب وعلوم إنسانية (1BAC SH / 1BAC LSH)',
                     weeklyHours: 2,
@@ -9732,17 +9732,51 @@
                        t.key.toLowerCase().includes(q);
             });
 
-            if (queryEcho) queryEcho.textContent = query;
-            if (countEl) countEl.textContent = `${matched.length} نتيجة`;
+            // البحث أيضاً في لوائح التلاميذ بالاسم أو رقم مسار عبر كافة الأقسام
+            const matchedStudents = [];
+            if (typeof db !== 'undefined' && db && db.classes) {
+                Object.keys(db.classes).forEach(clsName => {
+                    const rawCls = db.classes[clsName];
+                    const list = Array.isArray(rawCls) ? rawCls : (Array.isArray(rawCls?.students) ? rawCls.students : []);
+                    list.forEach(std => {
+                        if (!std) return;
+                        const sName = String(std.name || '').toLowerCase();
+                        const sMassar = String(std.massar || std.massarCode || std.cne || '').toLowerCase();
+                        if (sName.includes(q) || (sMassar && sMassar.includes(q))) {
+                            matchedStudents.push({ std, className: clsName });
+                        }
+                    });
+                });
+            }
 
-            if (matched.length === 0) {
+            const totalMatches = matched.length + matchedStudents.length;
+            if (queryEcho) queryEcho.textContent = query;
+            if (countEl) countEl.textContent = `${totalMatches} نتيجة`;
+
+            if (totalMatches === 0) {
                 resultsGrid.innerHTML = `
                     <div style="width: 100%; padding: 12px; text-align: center; color: #64748b; font-size: 0.8rem; font-weight: 600;">
-                        لم يتم العثور على أي وحدة تطابق "${query}". جرب كلمة أخرى مثل: نقط، غياب، نصوص، ذكاء، جدول...
+                        لم يتم العثور على تلميذ (بالاسم أو رقم مسار) أو وحدة تطابق "${escapeHtml(query)}".
                     </div>
                 `;
             } else {
-                resultsGrid.innerHTML = matched.map(m => `
+                const studentCardsHtml = matchedStudents.slice(0, 12).map(({ std, className }) => {
+                    const safeCls = escapeHtml(String(className).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+                    const safeId = escapeHtml(String(std.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+                    const massarStr = std.massar || std.massarCode || std.cne || '';
+                    return `
+                        <button type="button" onclick="selectStudentForReport('${safeId}', '${safeCls}'); clearHomeIconsSearch();" style="background: #eff6ff; border: 1.5px solid #93c5fd; border-radius: 10px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-family: inherit; transition: all 0.18s ease; text-align: right;" onmouseover="this.style.background='#dbeafe'; this.style.borderColor='#1d4ed8'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#eff6ff'; this.style.borderColor='#93c5fd'; this.style.transform='translateY(0)';">
+                            <span style="color: #1e3a8a; display: inline-flex;"><span data-lucide="user-check" data-size="15"></span></span>
+                            <div style="display: flex; flex-direction: column; text-align: right;">
+                                <span style="font-size: 0.8rem; font-weight: 800; color: #1e3a8a;">${escapeHtml(std.name)}</span>
+                                <span style="font-size: 0.68rem; color: #475569;">القسم: ${escapeHtml(className)}${massarStr ? ` • مسار: ${escapeHtml(massarStr)}` : ''}</span>
+                            </div>
+                            <span style="margin-right: 6px; color: #1d4ed8; display: inline-flex;"><span data-lucide="arrow-left" data-size="12"></span></span>
+                        </button>
+                    `;
+                }).join('');
+
+                const toolCardsHtml = matched.map(m => `
                     <button type="button" onclick="${m.action}; clearHomeIconsSearch();" style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-family: inherit; transition: all 0.18s ease; text-align: right;" onmouseover="this.style.background='#eff6ff'; this.style.borderColor='#3b82f6'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1'; this.style.transform='translateY(0)';">
                         <span style="color: ${m.color}; display: inline-flex;"><span data-lucide="${m.icon}" data-size="14"></span></span>
                         <div style="display: flex; flex-direction: column; text-align: right;">
@@ -9752,6 +9786,8 @@
                         <span style="margin-right: 6px; color: #2563eb; display: inline-flex;"><span data-lucide="arrow-left" data-size="12"></span></span>
                     </button>
                 `).join('');
+
+                resultsGrid.innerHTML = studentCardsHtml + toolCardsHtml;
             }
 
             resultsBox.style.display = 'block';
@@ -20130,17 +20166,26 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         function filterReportTable(query) {
             const tbody = document.getElementById('reportTableBody');
             if (!tbody) return;
-            const rows = tbody.querySelectorAll('tr');
             const q = (query || '').trim().toLowerCase();
+            if (q && document.getElementById('reportVirtualScrollSentinelRow') && window._lastReportFullRowsHtml) {
+                if (window._reportVirtualObserver) {
+                    try { window._reportVirtualObserver.disconnect(); } catch (e) {}
+                    window._reportVirtualObserver = null;
+                }
+                tbody.innerHTML = window._lastReportFullRowsHtml;
+            }
+            const rows = tbody.querySelectorAll('tr');
             let visibleCount = 0;
             rows.forEach(r => {
+                if (r.id === 'reportVirtualScrollSentinelRow') return;
                 if (!q) {
                     r.style.display = '';
                     visibleCount++;
                     return;
                 }
-                const text = r.textContent.toLowerCase();
-                const matches = text.includes(q);
+                const text = (r.textContent || '').toLowerCase();
+                const massar = (r.getAttribute('data-massar') || '').toLowerCase();
+                const matches = text.includes(q) || massar.includes(q);
                 r.style.display = matches ? '' : 'none';
                 if (matches) visibleCount++;
             });
@@ -20358,8 +20403,9 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 const safeStdIdArg = escapeHtml(String(std.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
                 const safeClassArg = escapeHtml(String(curClass).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
 
+                const stdMassarCode = std.massar || std.massarCode || std.cne || '';
                 const rowHtml = `
-                    <tr style="cursor: pointer;" title="انقر لمعاينة وتصدير التقرير الفردي للتلميذ" onclick="selectStudentForReport('${safeStdIdArg}', '${safeClassArg}')">
+                    <tr data-massar="${escapeHtml(stdMassarCode)}" style="cursor: pointer;" title="انقر لمعاينة وتصدير التقرير الفردي للتلميذ" onclick="selectStudentForReport('${safeStdIdArg}', '${safeClassArg}')">
                         <td style="width: 44px; white-space: nowrap; text-align: center; font-weight: 700;">${escapeHtml(std.orderNum || '-')}</td>
                         <td class="td-name" style="text-align: right; padding-right: 10px; font-weight: bold; min-width: 190px;">${stdNameDisplay}</td>
                         <td style="text-align: center; white-space: nowrap;">
@@ -25931,11 +25977,21 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 row.rank = row.annualAvg !== null ? (i + 1) : '-';
             });
 
+            // حساب رتب الدورة 1 والدورة 2 لرصد الارتقاء أو التراجع في الرتبة الصفية
+            const s1Sorted = studentRows.filter(r => r.s1Avg !== null).slice().sort((a, b) => b.s1Avg - a.s1Avg);
+            s1Sorted.forEach((r, idx) => { r.s1Rank = idx + 1; });
+            const s2Sorted = studentRows.filter(r => r.s2Avg !== null).slice().sort((a, b) => b.s2Avg - a.s2Avg);
+            s2Sorted.forEach((r, idx) => { r.s2Rank = idx + 1; });
+            studentRows.forEach(r => {
+                r.rankDelta = (r.s1Rank && r.s2Rank) ? (r.s1Rank - r.s2Rank) : null;
+            });
+
             let filteredRows = studentRows.filter(row => {
                 if (query) {
-                    const matchName = row.std.name.toLowerCase().includes(query);
+                    const matchName = (row.std.name || '').toLowerCase().includes(query);
                     const matchOrder = row.std.orderNum && row.std.orderNum.toString().includes(query);
-                    if (!matchName && !matchOrder) return false;
+                    const matchMassar = (row.std.massar || row.std.massarCode || row.std.cne || '').toString().toLowerCase().includes(query);
+                    if (!matchName && !matchOrder && !matchMassar) return false;
                 }
 
                 if (filterVal === 'peak_above_class') return row.bestMark !== null && classAnnualAvg !== null && row.bestMark >= classAnnualAvg;
@@ -25943,6 +25999,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 if (filterVal === 'improved') return row.delta !== null && row.delta >= 0.5;
                 if (filterVal === 'regressed') return row.delta !== null && row.delta <= -0.5;
                 if (filterVal === 'stable') return row.delta !== null && row.delta > -0.5 && row.delta < 0.5;
+                if (filterVal === 'rank_up') return row.rankDelta !== null && row.rankDelta > 0;
+                if (filterVal === 'rank_down') return row.rankDelta !== null && row.rankDelta < 0;
                 if (filterVal === 'pass') return row.annualAvg !== null && row.annualAvg >= 10;
                 if (filterVal === 'struggling') return row.annualAvg !== null && row.annualAvg < 10;
                 if (filterVal === 'top') return row.annualAvg !== null && row.annualAvg >= 16;
@@ -44023,6 +44081,7 @@ ${log.notes || 'سير الحصة عادي'}
             if (docType === 'tabAnalysis' || docType === 'tab-analysis') docType = 'analysis';
             if (docType === 'tabAnnual' || docType === 'tab-annual') docType = 'annual';
             if (docType === 'tabCalendar' || docType === 'tab-calendar') docType = 'calendar';
+            if (docType === 'spec' || docType === 'specificationTable') docType = 'specification';
 
             const docSelect = document.getElementById('universalPdfDocType');
             if (docSelect) {
@@ -47659,18 +47718,22 @@ ${log.notes || 'سير الحصة عادي'}
             const upper = (className || trackKey || '').toUpperCase();
             const is2Bac = trackKey ? trackKey.startsWith('2BAC') : (upper.includes('2BAC') || upper.includes('2 BAC') || upper.includes('ثانية') || upper.includes('2-BAC') || upper.includes('2-'));
             const is1Bac = trackKey ? trackKey.startsWith('1BAC') : (!is2Bac && (upper.includes('1BAC') || upper.includes('1 BAC') || upper.includes('أولى') || upper.includes('1-BAC') || upper.includes('1-')));
+            const isArt = /\bART\b|فنون تطبيقية|الفنون التطبيقية/i.test(className || '');
             const isLit = (trackKey === 'TCL' || trackKey === '1BAC_LSH' || trackKey === '2BAC_LSH')
-                || upper.includes('TCL') || upper.includes('LSH') || upper.includes('آداب') || upper.includes('أدبي') || upper.includes('إنسانية') || upper.includes('LET');
+                || upper.includes('TCL') || upper.includes('TCO') || upper.includes('LSH') || upper.includes('آداب') || upper.includes('أدبي') || upper.includes('أصيل') || upper.includes('إنسانية') || upper.includes('LET');
+            const isLitOrArt = isLit || isArt;
             const isSM = (trackKey === '1BAC_SM' || trackKey === '2BAC_SM') || upper.includes('SM') || upper.includes('رياضي');
 
             const semKey = opts.semester || document.getElementById('examReportSemester')?.value || 's1';
             const examNum = Number(opts.examNumber || document.getElementById('examReportNumber')?.value || 1) || 1;
             const semLabel = semKey === 's2' ? 'الدورة الثانية' : 'الدورة الأولى';
 
-            const cycleLabel = lvlData?.cycle || (is2Bac ? 'السنة الثانية من سلك البكالوريا' : (is1Bac ? 'السنة الأولى من سلك البكالوريا' : (isLit ? 'الجذع المشترك الأصيل والأدبي والفنون التطبيقية' : 'الجذع المشترك العلمي والتكنولوجي')));
-            const trackLabel = lvlData?.name || (isSM ? 'شعبة العلوم الرياضية (أ و ب)' : (isLit ? 'شعبة الآداب والعلوم الإنسانية والتعليم الأصيل والفنون التطبيقية' : 'شعبة العلوم التجريبية والتكنولوجية والاقتصادية'));
-            const examDuration = (lvlData ? lvlData.examDuration === 1 : isLit) ? 'ساعة واحدة (1h00)' : 'ساعتان كاملتان (2h00)';
-            const mathCoef = lvlData?.coefficient || getSubjectCoefForClass(className);
+            const cycleLabel = lvlData?.cycle || (is2Bac ? 'السنة الثانية من سلك البكالوريا' : (is1Bac ? 'السنة الأولى من سلك البكالوريا' : (isLitOrArt ? 'الجذع المشترك الأصيل والأدبي والفنون التطبيقية' : 'الجذع المشترك العلمي والتكنولوجي')));
+            const trackLabel = isArt
+                ? (is2Bac ? 'السنة الثانية بكالوريا — شعبة الفنون التطبيقية' : (is1Bac ? 'السنة الأولى بكالوريا — شعبة الفنون التطبيقية' : 'مسلك الفنون التطبيقية'))
+                : (lvlData?.name || (isSM ? 'شعبة العلوم الرياضية (أ و ب)' : (isLit ? 'شعبة الآداب والعلوم الإنسانية والتعليم الأصيل والفنون التطبيقية' : 'شعبة العلوم التجريبية والتكنولوجية والاقتصادية')));
+            const examDuration = (isArt || (lvlData ? lvlData.examDuration === 1 : isLit)) ? 'ساعة واحدة (1h00)' : 'ساعتان كاملتان (2h00)';
+            const mathCoef = isArt ? getSubjectCoefForClass(className) : (lvlData?.coefficient || getSubjectCoefForClass(className));
 
             const semObj = lvlData?.semesters?.[semKey];
             const exMatch = (semObj?.examSchedule || []).find(e => Number(e.examNumber || e.num) === examNum) || (semObj?.examSchedule || [])[0] || null;
@@ -47687,10 +47750,10 @@ ${log.notes || 'سير الحصة عادي'}
 
             if (parsedWeights && Array.isArray(parsedWeights.items) && parsedWeights.items.length > 0) {
                 exercisesHtml = parsedWeights.items.map((it, idx) => {
-                    const skillLabel = isLit
+                    const skillLabel = isLitOrArt
                         ? (idx === 0 ? 'المستوى الأول: تطبيق مباشر للمعارف (60%)' : 'المستوى الثاني: استحضار وتطبيق في وضعية مألوفة (40%)')
                         : (idx === 0 ? 'المستوى الأول: تطبيق مباشر للمعارف (40%)' : (idx === parsedWeights.items.length - 1 && parsedWeights.items.length >= 3 ? 'المستوى 2 و3: استدلال وتوليف (10%-20%)' : 'المستوى الثاني: استحضار وتطبيق في وضعية مألوفة (45%)'));
-                    const skillColor = idx === 0 ? '#15803d' : (idx === parsedWeights.items.length - 1 && !isLit && parsedWeights.items.length >= 3 ? '#7c3aed' : '#0284c7');
+                    const skillColor = idx === 0 ? '#15803d' : (idx === parsedWeights.items.length - 1 && !isLitOrArt && parsedWeights.items.length >= 3 ? '#7c3aed' : '#0284c7');
                     return `
                         <tr style="background: ${idx % 2 === 1 ? '#f8fafc' : '#ffffff'};">
                             <td style="padding: 7px; border: 1px solid #cbd5e1; font-weight: 800;">التمرين ${it.index}</td>
@@ -47824,17 +47887,17 @@ ${log.notes || 'سير الحصة عادي'}
                         <tbody>
                             <tr style="background: #ffffff;">
                                 <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #15803d;">1. المستوى الأول: تطبيق مباشر للمعارف</td>
-                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #15803d;">${isLit ? '60%' : '40%'}</td>
-                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 900; color: #15803d;">${isLit ? '12 نقطة' : '8 نقط'}</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #15803d;">${isLitOrArt ? '60%' : '40%'}</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 900; color: #15803d;">${isLitOrArt ? '12 نقطة' : '8 نقط'}</td>
                                 <td style="padding: 8px 12px; border: 1px solid #cbd5e1; text-align: right;">استحضار التعاريف والخاصيات والمبرهنات وتطبيقها مباشرة (نهايات مرجعية، اشتقاق، متتاليات، حساب مثلثي).</td>
                             </tr>
                             <tr style="background: #f8fafc;">
                                 <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #0284c7;">2. المستوى الثاني: استحضار وتطبيق لمعارف غير معلنة</td>
-                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #0284c7;">${isLit ? '40%' : '45%'}</td>
-                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 900; color: #0284c7;">${isLit ? '8 نقط' : '9 نقط'}</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #0284c7;">${isLitOrArt ? '40%' : '45%'}</td>
+                                <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 900; color: #0284c7;">${isLitOrArt ? '8 نقط' : '9 نقط'}</td>
                                 <td style="padding: 8px 12px; border: 1px solid #cbd5e1; text-align: right;">دراسة الدوال ورسم المنحنيات والمماسات، دراسة المتتاليات ورتابتها وتقاربها، توظيف أنماط الاستدلال الرياضي في وضعيات مألوفة.</td>
                             </tr>
-                            ${isLit ? '' : `
+                            ${isLitOrArt ? '' : `
                             <tr style="background: #ffffff;">
                                 <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #7c3aed;">3. المستوى الثالث: توليف واستدلال وحل وضعيات غير مألوفة</td>
                                 <td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: 800; color: #7c3aed;">10% إلى 20%</td>
@@ -61337,3 +61400,13 @@ ${log.notes || 'سير الحصة عادي'}
             return false;
         }
         window.printDashboardAiClassDiagnostics = printDashboardAiClassDiagnostics;
+
+        // Global cross-module compatibility exports (prevents silent undefined calls in modular scripts)
+        window.showToast = showToast;
+        window.showAppToast = showAppToast;
+        window.showNotification = showToast;
+        window.calculateSemesterAvg = calculateSemesterAvg;
+        window.getSubjectCoefForClass = getSubjectCoefForClass;
+        window.printHtmlViaIframe = printHtmlViaHiddenIframe;
+        window.openUniversalPdfModal = openUniversalPdfPreviewModal;
+        window.saveToLocalStorage = saveDB;

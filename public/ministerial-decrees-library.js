@@ -394,8 +394,8 @@
         const isHomeworkSession = sessionType === 'homework' || /فرض منزلي|واجب منزلي|تصحيح الواجب/.test(normTitle);
         const isSupportSession = isRemedialFlag || sessionType === 'soutien' || sessionType === 'rattrapage' || sessionType === 'examen_prep' || /حصه دعم|دعم تربوي|دعم واستدراك|استدراكيه|تحضير للامتحان/.test(normTitle);
 
-        const isCertificative1Bac = (levelKey === '1BAC_LSH' || levelKey === '1BAC_ECO');
-        const isCertificative2Bac = levelKey.startsWith('2BAC_');
+        const isCertificative1Bac = (levelKey === '1BAC_LSH');
+        const isCertificative2Bac = (levelKey === '2BAC_EXP' || levelKey === '2BAC_SM' || levelKey === '2BAC_ECO');
 
         let decreeId = 'note_orientations_2007';
         let decreeNumber = 'التوجيهات التربوية الرسمية (نونبر 2007) + المذكرة الوزارية رقم 155';

@@ -132,7 +132,7 @@
             if (!st) return;
             const g = (st.grades && st.grades[sem]) ? st.grades[sem] : (st.grades || {});
             if (window.GradesCalculator && typeof window.GradesCalculator.calculateStudentSemesterAverage === 'function') {
-                const a = window.GradesCalculator.calculateStudentSemesterAverage(g, { includeActivity: true });
+                const a = window.GradesCalculator.calculateStudentSemesterAverage(g);
                 if (a !== null) averages.push(a);
             }
         });
@@ -174,7 +174,7 @@
         if (selectedStudent) {
             const g = (selectedStudent.grades && selectedStudent.grades[sem]) ? selectedStudent.grades[sem] : (selectedStudent.grades || {});
             if (window.GradesCalculator && typeof window.GradesCalculator.calculateStudentSemesterAverage === 'function') {
-                studentAvg = window.GradesCalculator.calculateStudentSemesterAverage(g, { includeActivity: true });
+                studentAvg = window.GradesCalculator.calculateStudentSemesterAverage(g);
             }
             studentAbsentHours = Number(selectedStudent.absentHours || selectedStudent.unjustifiedHours || 0) || 0;
             studentBehavior = String(selectedStudent.behaviorStatus || selectedStudent.behavior || 'منضبط');

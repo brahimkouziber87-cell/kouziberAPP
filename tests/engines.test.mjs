@@ -307,6 +307,11 @@ test('Core Engine 1 — GradesCalculator: conditional formatting, Moroccan strea
     assert.equal(G.getStreamOfficialConfig('1BAC شعبة الفنون التطبيقية').examDurationHours, 1);
     assert.equal(G.getStreamOfficialConfig('1BAC علوم تجريبية خيار فرنسية').coefficient, 7);
     assert.equal(G.getStreamOfficialConfig('1BAC علوم تجريبية خيار فرنسية').weeklyHours, 5);
+    assert.equal(G.getStreamOfficialConfig('جذع مشترك تكنولوجي 1').coefficient, 4);
+    assert.equal(G.getStreamOfficialConfig('جذع مشترك تكنولوجي 1').weeklyHours, 5);
+    assert.equal(G.getStreamOfficialConfig('TCT-1').coefficient, 4);
+    assert.equal(G.getStreamOfficialConfig('1LSH-1').coefficient, 1);
+    assert.equal(G.getStreamOfficialConfig('2LSH-2').coefficient, 1);
 
     const semAvg = G.calculateStudentSemesterAverage({ f1: 14, f2: 16, f3: 15, act: 18 }, { includeActivity: true, activityWeight: 0.25 });
     assert.equal(semAvg, 15.75);
@@ -1868,6 +1873,13 @@ test('Moroccan Curriculum & Note 142-08 Audit: all 10 tracks balance hours clean
     assert.equal(curric['2BAC_SM'].examsPerSemester, 4);
     assert.equal((curric['2BAC_SM'].semesters.s1.examSchedule || []).length, 4);
     assert.equal((curric['2BAC_SM'].semesters.s2.examSchedule || []).length, 4);
+    assert.ok(curric['2BAC_ECO'].cadreReferentiel.examType.includes('2h') && !curric['2BAC_ECO'].cadreReferentiel.examType.includes('2h30'));
+    assert.equal(win.getCurriculumLevelForClass('PC-1'), '2BAC_EXP');
+    assert.equal(win.getCurriculumLevelForClass('SVT-2'), '2BAC_EXP');
+    assert.equal(win.getCurriculumLevelForClass('SMA-1'), '2BAC_SM');
+    assert.equal(win.getCurriculumLevelForClass('SE-1'), '1BAC_EXP');
+    assert.equal(win.getCurriculumLevelForClass('SGC-1'), '2BAC_ECO');
+    assert.equal(win.getCurriculumLevelForClass('TCT-1'), 'TCS');
 
     assert.equal(typeof win.showHeatmapCellDetails, 'function');
     assert.equal(typeof win.onHeatmapCellClick, 'function');
@@ -2366,6 +2378,102 @@ test('Official Supervised Exam Report — Page 2 retains all student marks, meri
     assert.ok(page2Split.includes('آية الإدريسي'), 'Page 2 must list absent student 3');
     assert.equal(page2Split.includes('لا توجد نقط مسجلة'), false, 'Page 2 merit table must not be empty');
     assert.ok(capturedOpts && capturedOpts.margins && capturedOpts.margins.top === 6, 'Must pass 6mm narrow top/bottom margins to preview modal');
+    assert.ok(capturedHtml.includes('40% المستوى المهاري 1'), 'Scientific exam report must display Note 142-08 p.9 40%/45%/10%-20% criteria');
+});
+
+test('Comprehensive Moroccan Math Pedagogical & Note 142-08 Audit: 100% weight sums, SM 4-exam Massar CSV, Remediation alignment, Lit/Art 60/40 criteria & 2BAC orientation', () => {
+    const { win, sandbox } = createDomSandbox(`<!DOCTYPE html><html dir="rtl"><body>
+        <select id="reportClassSelect"><option value="2BAC-LSH-1" selected>2BAC-LSH-1</option></select>
+        <select id="examReportSemester"><option value="s1" selected>s1</option></select>
+        <select id="examReportNumber"><option value="1" selected>1</option></select>
+        <div id="examReportProgressionStrip"></div>
+    </body></html>`);
+
+    win.db = {
+        classes: {
+            '2BAC-LSH-1': {
+                students: [
+                    { id: 'l1', name: 'خديجة بنجلون', massar: 'G1300201' }
+                ]
+            },
+            '2BAC-PC-1': {
+                students: [
+                    { id: 'p1', name: 'عمر التازي', massar: 'G1300301' }
+                ]
+            }
+        },
+        grades: {
+            '2BAC-LSH-1': { l1: { s1: { f1: '15,5', f2: '14,5' } } },
+            '2BAC-PC-1': { p1: { s1: { f1: '13,5', f2: '14,5', f3: 14 } } }
+        },
+        records: []
+    };
+
+    let capturedLitHtml = '';
+    win.openCustomPrintPreviewModal = (html) => { capturedLitHtml = html; };
+
+    runPublicScript(sandbox, 'public/core/grades-calculator.js');
+    runPublicScript(sandbox, 'public/core/massar-io.js');
+    runPublicScript(sandbox, 'public/secondary-math-curriculum.js');
+    runPublicScript(sandbox, 'public/math-remediation-ai.js');
+    runPublicScript(sandbox, 'public/exam-report.js');
+    runPublicScript(sandbox, 'public/pedagogical-council-pv.js');
+
+    // 1. Every single track in MOROCCAN_SECONDARY_MATH_CURRICULUM has 100%-balanced officialWeights, domains, and taxonomyLevels
+    const curr = win.MOROCCAN_SECONDARY_MATH_CURRICULUM;
+    assert.ok(curr && Object.keys(curr).length >= 10);
+    for (const [trackKey, track] of Object.entries(curr)) {
+        if (track.specificationTable) {
+            const domSum = (track.specificationTable.domains || []).reduce((acc, d) => acc + Number(d.weight || 0), 0);
+            const taxSum = (track.specificationTable.taxonomyLevels || []).reduce((acc, t) => acc + Number(t.weight || 0), 0);
+            assert.equal(domSum, 100, `Domains sum must equal 100% for ${trackKey}`);
+            assert.equal(taxSum, 100, `Taxonomy sum must equal 100% for ${trackKey}`);
+        }
+        for (const semKey of ['s1', 's2']) {
+            const sched = track.semesters?.[semKey]?.examSchedule || [];
+            for (const ex of sched) {
+                const matches = [...String(ex.officialWeights || '').matchAll(/(\d+)\s*%/g)].map(m => Number(m[1]));
+                if (matches.length > 0) {
+                    const sum = matches.reduce((a, b) => a + b, 0);
+                    assert.equal(sum, 100, `Exam ${ex.num} (${semKey}) officialWeights must sum to 100% for ${trackKey}, got ${sum}%`);
+                }
+            }
+        }
+    }
+
+    // 2. MassarIO CSV export: pure Note 142-08 average (ignores act) + 4th exam column for SM
+    const smCsv = win.MassarIO.buildMassarCsvExport(
+        [{ name: 'سارة العلمي', massarCode: 'R130088991', group: 'G1', grades: { s1: { f1: 14, f2: 16, f3: 18, f4: 12, act: 20 } } }],
+        '2BAC-SM-1',
+        's1'
+    );
+    assert.ok(smCsv.includes('الفرض 4'), 'SM CSV export must include الفرض 4 column');
+    assert.ok(smCsv.includes('R130088991;سارة العلمي;G1;14;16;18;12;20;15'), 'SM average must be pure (14+16+18+12)/4 = 15, ignoring act=20');
+
+    // 3. Exam Report for Literary track displays Note 142-08 p.9 60% / 40% criteria (no Level 3)
+    win.cleanupExamReportMemory();
+    win.printOfficialExamReport(false);
+    assert.ok(capturedLitHtml.includes('60% المستوى المهاري 1'), 'Literary exam report must display 60%/40% Note 142-08 p.9 criteria');
+    assert.equal(capturedLitHtml.includes('المستوى المهاري 3'), false, 'Literary exam report must not include Level 3');
+
+    // 4. computeClassExamStats handles object-wrapped class & comma-decimal grades cleanly
+    const remStats = win.computeClassExamStats('2BAC-LSH-1', 's1');
+    assert.equal(remStats.evaluatedCount, 1);
+    assert.equal(remStats.classAverage, 15);
+    assert.equal(remStats.exam1Avg, '15.50');
+
+    // 5. Pedagogical Council PV gives track-accurate orientation for 2BAC_LSH, 2BAC_ARTS, and 2BAC_ECO
+    win.recognizeMathCurriculumForClass = (cls) => {
+        if (cls.includes('LSH')) return { branchCode: '2BAC_LSH', levelLabel: 'الثانية بكالوريا آداب', examsPerSemester: 2, examDuration: 'ساعة واحدة', coef: 1 };
+        if (cls.includes('ART')) return { branchCode: '2BAC_ARTS', levelLabel: 'الثانية بكالوريا فنون تطبيقية', examsPerSemester: 2, examDuration: 'ساعة واحدة', coef: 4 };
+        return { branchCode: '2BAC_ECO', levelLabel: 'الثانية بكالوريا اقتصاد', examsPerSemester: 3, examDuration: 'ساعتان', coef: 4 };
+    };
+    const pvLsh = win.getCouncilClassStatistics('2BAC-LSH-1', 's1');
+    assert.ok(pvLsh.students[0].orientationAdvice.includes('كليات الآداب'));
+    assert.equal(pvLsh.students[0].orientationAdvice.includes('للمهندسين'), false);
+
+    const pvEco = win.getCouncilClassStatistics('2BAC-PC-1', 's1');
+    assert.ok(pvEco.students[0].orientationAdvice.includes('ENCG') || pvEco.students[0].orientationAdvice.includes('الاقتصادية'));
 });
 
 

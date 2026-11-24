@@ -181,7 +181,13 @@
      */
     function buildMassarCsvExport(students, className, semester) {
         const sem = semester === 's2' ? 's2' : 's1';
-        const header = ['رقم الترتيب', 'رقم مسار', 'الاسم الكامل', 'الفوج', 'الفرض 1', 'الفرض 2', 'الفرض 3', 'الأنشطة المندمجة', 'المعدل الدوري'];
+        const streamCfg = (window.GradesCalculator && typeof window.GradesCalculator.getStreamOfficialConfig === 'function')
+            ? window.GradesCalculator.getStreamOfficialConfig(className || '')
+            : null;
+        const hasFourExams = !!(streamCfg && Number(streamCfg.examsPerSemester) >= 4);
+        const header = hasFourExams
+            ? ['رقم الترتيب', 'رقم مسار', 'الاسم الكامل', 'الفوج', 'الفرض 1', 'الفرض 2', 'الفرض 3', 'الفرض 4', 'الأنشطة المندمجة', 'المعدل الدوري']
+            : ['رقم الترتيب', 'رقم مسار', 'الاسم الكامل', 'الفوج', 'الفرض 1', 'الفرض 2', 'الفرض 3', 'الأنشطة المندمجة', 'المعدل الدوري'];
         const rows = [header.join(';')];
         const list = Array.isArray(students) ? students : [];
 
@@ -190,10 +196,11 @@
             const f1 = grades.f1 !== undefined && grades.f1 !== null ? String(grades.f1).replace('.', ',') : '';
             const f2 = grades.f2 !== undefined && grades.f2 !== null ? String(grades.f2).replace('.', ',') : '';
             const f3 = grades.f3 !== undefined && grades.f3 !== null ? String(grades.f3).replace('.', ',') : '';
+            const f4 = grades.f4 !== undefined && grades.f4 !== null ? String(grades.f4).replace('.', ',') : '';
             const act = grades.act !== undefined && grades.act !== null ? String(grades.act).replace('.', ',') : '';
             let avg = '';
             if (window.GradesCalculator && typeof window.GradesCalculator.calculateStudentSemesterAverage === 'function') {
-                const computed = window.GradesCalculator.calculateStudentSemesterAverage(grades, { includeActivity: true });
+                const computed = window.GradesCalculator.calculateStudentSemesterAverage(grades);
                 if (computed !== null) avg = String(computed).replace('.', ',');
             }
             const cells = [
@@ -204,6 +211,7 @@
                 f1,
                 f2,
                 f3,
+                ...(hasFourExams ? [f4] : []),
                 act,
                 avg
             ];

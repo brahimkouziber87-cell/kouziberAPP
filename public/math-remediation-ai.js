@@ -43,17 +43,17 @@
             ]
         },
         'tcl': {
-            levelName: 'الجذع المشترك للآداب والعلوم الإنسانية',
+            levelName: 'الجذع المشترك للآداب والعلوم الإنسانية والتعليم الأصيل',
             s1: [
-                'الحساب العددي والعمليات في IR والنسب المئوية',
-                'الترتيب في IR والمجالات والقيمة المطلقة والتأطير',
-                'المعادلات والمتراجحات من الدرجة الأولى بمجهول واحد والنظمات',
-                'الإحصاء وتنظيم المعطيات والمخططات البيانية'
+                'الحساب العددي والعمليات في IR والتناسبية والنسب المئوية',
+                'الترتيب في IR والمجالات والقيمة المطلقة والتأطير والتقريب',
+                'المعادلات والمتراجحات من الدرجة الأولى والثانية بمجهول واحد والنظمات',
+                'الإحصاء وتنظيم المعطيات والوسط الحسابي والقيمة الوسطية والمخططات البيانية'
             ],
             s2: [
+                'المعلم في المستوى ومعادلة مستقيم والتوازي والتعامد',
                 'عموميات حول الدوال العددية والدوال التآلفية',
-                'دراسة دوال عددية بسيطة وقراءة التمثيلات المبيانية',
-                'التعداد ومبادئ الاحتمالات في الحياة اليومية'
+                'دراسة الدوال الحدودية من الدرجة الثانية والدوال المتخاطة وتمثيلها المبياني'
             ]
         },
         '1bac_sm': {
@@ -175,11 +175,12 @@
             levelName: 'الثانية باكالوريا آداب وعلوم إنسانية وتعليم أصيل',
             s1: [
                 'المتتاليات العددية الترجعية u_{n+1}=au_n+b ونهاية متتالية',
-                'حساب الاحتمالات وتساوي الاحتمالات والاحتمال الشرطي والمتغير العشوائي'
+                'نهاية واشتقاق دالة عددية ودراسة الدوال الحدودية والجذرية',
+                'دالة اللوغاريتم النبيري (ln) ودراسة الدوال اللوغاريتمية'
             ],
             s2: [
-                'الاشتقاق ودراسة الدوال العددية ودالة اللوغاريتم النبيري (ln)',
-                'الدالة الأسية النبيرية (exp) والمعادلات والمتراجحات الأسية'
+                'الدالة الأسية النبيرية (exp) والمعادلات والمتراجحات الأسية',
+                'حساب الاحتمالات وتساوي الاحتمالات والاحتمال الشرطي والمتغير العشوائي'
             ]
         }
     };
@@ -205,6 +206,12 @@
      */
     function detectLevelKeyFromClassName(className) {
         if (!className) return 'tcs';
+        if (typeof window.getCurriculumLevelForClass === 'function') {
+            const officialKey = String(window.getCurriculumLevelForClass(className) || '').toLowerCase();
+            if (officialKey && MOROCCAN_MATH_CURRICULUM[officialKey]) {
+                return officialKey;
+            }
+        }
         const c = String(className).toLowerCase();
         if (c.includes('tcl') || c.includes('tco') || c.includes('tc-l') || c.includes('جذع مشترك آداب') || c.includes('جذع أدبي') || c.includes('جذع أصيل')) return 'tcl';
         if (c.includes('tc') || c.includes('tcs') || c.includes('tct') || c.includes('جذع') || c.includes('tronc')) {
@@ -223,6 +230,12 @@
             if (c.includes('lsh') || c.includes('sh') || c.includes('let') || c.includes('آداب') || c.includes('إنسانية') || c.includes('أصيل')) return '1bac_lsh';
             return '1bac_exp';
         }
+        if (c.includes('pc') || c.includes('svt') || c.includes('agro')) return '2bac_exp';
+        if (c.includes('sma') || c.includes('smb')) return '2bac_sm';
+        if (c.includes('sm')) return '1bac_sm';
+        if (c.includes('se') || c.includes('ste') || c.includes('stm')) return '1bac_exp';
+        if (c.includes('sgc') || c.includes('tgc')) return '2bac_eco';
+        if (c.includes('eco')) return '1bac_eco';
         if (c.includes('آداب') || c.includes('إنسانية') || c.includes('أدبي')) return 'tcl';
         return 'tcs'; // الافتراضي هو الجذع المشترك العلمي
     }
@@ -236,7 +249,8 @@
             return null;
         }
 
-        const students = db.classes[className] || [];
+        const rawCls = db.classes[className];
+        const students = Array.isArray(rawCls) ? rawCls : (rawCls && Array.isArray(rawCls.students) ? rawCls.students : []);
         const examCount = (typeof window.getExamsCountForClass === 'function')
             ? window.getExamsCountForClass(className)
             : 3;
@@ -255,32 +269,52 @@
 
         const evaluatedStudents = [];
 
+        const parseMark = (v) => {
+            if (v === undefined || v === null || typeof v === 'boolean') return null;
+            const s = String(v).trim().replace(',', '.');
+            if (!s) return null;
+            const n = parseFloat(s);
+            return (!isNaN(n) && isFinite(n) && n >= 0 && n <= 20) ? n : null;
+        };
+
         students.forEach(std => {
+            if (!std) return;
+            const dbClassGrades = (db.grades && db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : null;
             const grades = (typeof window.getStudentGradesBySemester === 'function')
                 ? window.getStudentGradesBySemester(className, std.id, semester)
-                : {};
+                : ((dbClassGrades && dbClassGrades[semester])
+                    ? dbClassGrades[semester]
+                    : (dbClassGrades || ((std.grades && std.grades[semester]) ? std.grades[semester] : (std.grades || {}))));
 
-            const f1 = (grades.f1 !== undefined && grades.f1 !== '' && !isNaN(grades.f1)) ? parseFloat(grades.f1) : null;
-            const f2 = (grades.f2 !== undefined && grades.f2 !== '' && !isNaN(grades.f2)) ? parseFloat(grades.f2) : null;
-            const f3 = (grades.f3 !== undefined && grades.f3 !== '' && !isNaN(grades.f3)) ? parseFloat(grades.f3) : null;
-            const f4 = (grades.f4 !== undefined && grades.f4 !== '' && !isNaN(grades.f4)) ? parseFloat(grades.f4) : null;
+            const f1 = parseMark(grades.f1);
+            const f2 = parseMark(grades.f2);
+            const f3 = parseMark(grades.f3);
+            const f4 = parseMark(grades.f4);
 
             if (f1 !== null) { exam1Sum += f1; exam1Count++; }
             if (f2 !== null) { exam2Sum += f2; exam2Count++; }
             if (f3 !== null && examCount >= 3) { exam3Sum += f3; exam3Count++; }
             if (f4 !== null && examCount === 4) { exam4Sum += f4; exam4Count++; }
 
-            const avg = (typeof window.calculateSemesterAvg === 'function')
-                ? window.calculateSemesterAvg(grades, examCount)
-                : null;
+            let avg = null;
+            if (typeof window.calculateSemesterAvg === 'function') {
+                avg = window.calculateSemesterAvg(grades, examCount, semester);
+            } else if (typeof window.calculateStudentAvg === 'function') {
+                avg = window.calculateStudentAvg(grades, className, semester);
+            } else if (window.GradesCalculator && typeof window.GradesCalculator.calculateStudentSemesterAverage === 'function') {
+                const examKeys = examCount === 4 ? ['f1', 'f2', 'f3', 'f4'] : (examCount === 2 ? ['f1', 'f2'] : ['f1', 'f2', 'f3']);
+                avg = window.GradesCalculator.calculateStudentSemesterAverage(grades, { examKeys });
+            }
 
-            // حساب غياب التلميذ
+            // حساب غياب التلميذ مع استثناء العطل الرسمية والرخص المحمية
             let absenceHours = 0;
             if (typeof window.getTotalAbsentHours === 'function') {
                 absenceHours = window.getTotalAbsentHours(std.id, className);
             } else if (Array.isArray(db.records)) {
                 db.records.forEach(r => {
-                    if (r && r.className === className && r.studentId === std.id && (r.status === 'absent' || r.status === 'غائب' || r.status === 'مبرر')) {
+                    if (!r || r.className !== className || String(r.studentId) !== String(std.id)) return;
+                    if (typeof window.isRecordProtectedHolidayOrLeave === 'function' && window.isRecordProtectedHolidayOrLeave(r)) return;
+                    if (r.status === 'absent' || r.status === 'غائب' || r.status === 'مبرر') {
                         absenceHours += (parseFloat(r.duration) || 1);
                     }
                 });
@@ -288,7 +322,7 @@
                 const recs = db.records[className][std.id];
                 Object.keys(recs).forEach(date => {
                     const r = recs[date];
-                    if (r && (r.status === 'absent' || r.status === 'غائب' || r.status === 'مبرر')) {
+                    if (r && !(typeof window.isRecordProtectedHolidayOrLeave === 'function' && window.isRecordProtectedHolidayOrLeave(r)) && (r.status === 'absent' || r.status === 'غائب' || r.status === 'مبرر')) {
                         absenceHours += (parseFloat(r.duration) || 1);
                     }
                 });
@@ -1225,7 +1259,7 @@
 
         const cls = _activeAutoRemediationClass;
         const classes = Object.keys(window.db?.classes || {});
-        const stats = computeClassExamStats(cls, _activeAutoRemediationSemester);
+        const stats = computeClassExamStats(cls, _activeAutoRemediationSemester) || { strugglingStudents: [], topStudents: [], classAverage: 0 };
 
         const struggling = stats.strugglingStudents || [];
         const topStudents = stats.topStudents || [];

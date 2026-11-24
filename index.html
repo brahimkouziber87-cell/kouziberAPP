@@ -719,8 +719,8 @@
                 <div class="home-toolbar-wrap">
                     <!-- حقل البحث السريع الفوري -->
                     <div class="home-search-box">
-                        <span class="home-search-icon"><span data-lucide="search" data-size="14"></span></span>
-                        <input type="text" id="homeIconsSearchInput" class="home-search-input" placeholder="بحث سريع في كافة الوحدات والوظائف... (مثال: نقط، غياب، ذكاء...)" oninput="handleHomeIconsSearch(this.value)" autocomplete="off">
+                        <span class="home-search-icon" onclick="document.getElementById('homeIconsSearchInput')?.focus()" title="بحث سريع عن تلميذ بالاسم أو رقم مسار"><span data-lucide="search" data-size="16"></span></span>
+                        <input type="text" id="homeIconsSearchInput" class="home-search-input" placeholder="بحث سريع عن تلميذ بالاسم أو رقم مسار، أو في الوحدات..." oninput="handleHomeIconsSearch(this.value)" autocomplete="off">
                         <button type="button" id="homeIconsSearchClear" class="home-search-clear" onclick="clearHomeIconsSearch()" title="مسح البحث">
                             <span data-lucide="x" data-size="13"></span>
                         </button>
@@ -1704,10 +1704,10 @@
 
                 <!-- Search Input with Clear Button -->
                 <div style="position: relative; width: 100%;">
-                    <div style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; display: flex; align-items: center;">
-                        <span data-lucide="search" data-size="18"></span>
+                    <div style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: linear-gradient(135deg, #1e3a8a, #1d4ed8); color: #ffffff; width: 30px; height: 30px; border-radius: 8px; pointer-events: none; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(30, 58, 138, 0.25);">
+                        <span data-lucide="search" data-size="16"></span>
                     </div>
-                    <input type="text" id="dashQuickStudentSearchInput" oninput="onDashQuickStudentSearchInput(this.value)" placeholder="اكتب اسم التلميذ، رقم مسار، أو رقم التسلسل للوصول الفوري والسريع..." style="width: 100%; padding: 10px 42px 10px 44px; font-size: 0.9rem; border-radius: 10px; border: 1.5px solid #cbd5e1; outline: none; background: #f8fafc; font-family: inherit; transition: all 0.2s;">
+                    <input type="text" id="dashQuickStudentSearchInput" oninput="onDashQuickStudentSearchInput(this.value)" placeholder="بحث سريع عن تلميذ بالاسم أو رقم مسار أو رقم التسلسل..." style="width: 100%; padding: 10px 46px 10px 44px; font-size: 0.9rem; border-radius: 10px; border: 1.5px solid #93c5fd; outline: none; background: #f8fafc; font-family: inherit; transition: all 0.2s;">
                     <button type="button" id="btnDashQuickSearchClear" onclick="clearDashQuickStudentSearch()" style="display: none; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); background: #e2e8f0; border: none; width: 24px; height: 24px; border-radius: 50%; color: #475569; font-weight: 800; cursor: pointer; align-items: center; justify-content: center; font-size: 0.95rem; line-height: 1;" title="مسح البحث">×</button>
                 </div>
 
@@ -2245,8 +2245,8 @@
                     <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; flex: 1; min-width: 280px;">
                         <!-- Search Input -->
                         <div style="position: relative; flex: 1; min-width: 180px;">
-                            <input type="text" id="dashSearchInput" placeholder="بحث باسم التلميذ، رقم مسار، أو القسم..." oninput="onDashboardSearchChanged(this.value)" style="width: 100%; padding: 8px 30px 8px 10px; font-size: 0.82rem; border-radius: 8px; border: 1px solid #cbd5e1; outline: none;">
-                            <span style="position: absolute; right: 9px; top: 9px; color: #94a3b8;"><span data-lucide="search" data-size="14"></span></span>
+                            <input type="text" id="dashSearchInput" placeholder="بحث سريع عن تلميذ بالاسم أو رقم مسار أو القسم..." oninput="onDashboardSearchChanged(this.value)" style="width: 100%; padding: 8px 36px 8px 10px; font-size: 0.82rem; border-radius: 8px; border: 1.5px solid #cbd5e1; outline: none;">
+                            <span style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: linear-gradient(135deg, #1e3a8a, #1d4ed8); color: #ffffff; width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; pointer-events: none; box-shadow: 0 1px 3px rgba(30, 58, 138, 0.22);"><span data-lucide="search" data-size="13"></span></span>
                         </div>
 
                         <!-- Class Dropdown -->
@@ -2631,11 +2631,11 @@
                     </div>
 
                     <div style="flex: 1; min-width: 180px;">
-                        <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 4px;">بحث بالاسم:</label>
+                        <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 4px;">بحث سريع عن تلميذ:</label>
                         <div style="position: relative;">
-                            <input type="text" id="annualSearchInput" placeholder="بحث عن تلميذ..." oninput="renderAnnualPerformanceTable()" style="width: 100%; padding: 8px 32px 8px 10px; border-radius: 7px; border: 1px solid #cbd5e1; font-size: 0.88rem; margin: 0; background: #fff;">
-                            <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; display: flex; align-items: center;">
-                                <span data-lucide="search" data-size="15"></span>
+                            <input type="text" id="annualSearchInput" placeholder="بحث سريع عن تلميذ بالاسم أو رقم مسار..." oninput="renderAnnualPerformanceTable()" style="width: 100%; padding: 8px 38px 8px 10px; border-radius: 7px; border: 1.5px solid #cbd5e1; font-size: 0.86rem; margin: 0; background: #fff;">
+                            <span style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: linear-gradient(135deg, #1e3a8a, #1d4ed8); color: #ffffff; width: 25px; height: 25px; border-radius: 6px; pointer-events: none; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(30, 58, 138, 0.22);">
+                                <span data-lucide="search" data-size="14"></span>
                             </span>
                         </div>
                     </div>
@@ -2989,52 +2989,55 @@
                     </span>
                     <span style="font-size: 0.72rem; font-weight: 700; color: #475569; background: #f1f5f9; padding: 2px 10px; border-radius: 999px; border: 1px solid #e2e8f0;">انتقال سريع ومنظم بين المحاور التحليلية (12 محوراً في سطرين)</span>
                 </div>
-                <div class="reports-axes-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(195px, 1fr)); grid-template-rows: auto; gap: 8px; width: 100%; align-items: stretch;">
-                    <button type="button" onclick="if(window.openReportsRechartsSection) window.openReportsRechartsSection('exam_levels_evolution');" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #ffffff; border: 1.5px solid #1d4ed8; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 2px 5px rgba(37, 99, 235, 0.2);" title="منحنى بياني تفاعلي (Recharts) يوضح تطور مستويات التلاميذ في الفروض المحروسة لكل قسم على حدة">
+                <div class="reports-axes-grid" style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-template-rows: repeat(2, 1fr); gap: 8px; width: 100%; align-items: stretch;">
+                    <!-- السطر الأول: محاور الفروض والنتائج والتحصيل (6 محاور) -->
+                    <button type="button" onclick="if(window.openReportsRechartsSection) window.openReportsRechartsSection('exam_levels_evolution');" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #ffffff; border: 1.5px solid #1d4ed8; padding: 7px 8px; min-height: 40px; height: 100%; border-radius: 8px; font-weight: 800; font-size: 0.73rem; line-height: 1.25; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 2px 5px rgba(37, 99, 235, 0.18);" title="منحنى بياني تفاعلي (Recharts) يوضح تطور مستويات التلاميذ في الفروض المحروسة لكل قسم على حدة">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">📈</span>
                         <span>منحنى تطور الفروض المحروسة</span>
                     </button>
-                    <button type="button" onclick="if(window.openReportsRechartsSection) window.openReportsRechartsSection('bac_readiness');" style="background: linear-gradient(135deg, #065f46, #059669); color: #ffffff; border: 1.5px solid #047857; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 2px 5px rgba(5, 150, 105, 0.2);" title="مؤشر الجاهزية للامتحان الوطني والجهوي (Bac Readiness Index)">
+                    <button type="button" onclick="if(window.openReportsRechartsSection) window.openReportsRechartsSection('bac_readiness');" style="background: linear-gradient(135deg, #065f46, #059669); color: #ffffff; border: 1.5px solid #047857; padding: 7px 8px; min-height: 40px; height: 100%; border-radius: 8px; font-weight: 800; font-size: 0.73rem; line-height: 1.25; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 2px 5px rgba(5, 150, 105, 0.18);" title="مؤشر الجاهزية للامتحان الوطني والجهوي (Bac Readiness Index)">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">🎓</span>
                         <span>مؤشر الجاهزية للامتحان الإشهادي</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('examReportCard')" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #1d4ed8; border: 1.5px solid #93c5fd; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);" title="تقرير الفرض المحروس البيداغوجي (تاريخ التمرير، التصحيح، المحتوى، الإحصائيات، وخطة الدعم)">
+                    <button type="button" onclick="jumpToReportSection('examReportCard')" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #1d4ed8; border: 1.5px solid #93c5fd; padding: 7px 8px; min-height: 40px; height: 100%; border-radius: 8px; font-weight: 800; font-size: 0.73rem; line-height: 1.25; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);" title="تقرير الفرض المحروس البيداغوجي (تاريخ التمرير، التصحيح، المحتوى، الإحصائيات، وخطة الدعم)">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">📝</span>
                         <span>تقرير فرض محروس</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('react-weekday-absence-root')" style="background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #dc2626; border: 1.5px solid #fca5a5; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(220, 38, 38, 0.1);" title="بطاقة ومبيان تفاعلي لتوزيع الغياب بحسب أيام الأسبوع وتحديد أيام الذروة">
-                        <span style="font-size: 0.88rem; flex-shrink: 0;">📅</span>
-                        <span>توزيع الغياب حسب أيام الأسبوع</span>
-                    </button>
-                    <button type="button" onclick="jumpToReportSection('react-strategic-roadmap-root')" style="background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #3730a3; border: 1.5px solid #a5b4fc; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(55, 48, 163, 0.1);" title="مؤشر الإنذار المبكر، المدقق القبلي لمسار، وسجل التدقيق والأمان (09-08)">
-                        <span style="font-size: 0.88rem; flex-shrink: 0;">🛡️</span>
-                        <span>اليقظة التربوية ومدقق مسار</span>
-                    </button>
-                    <button type="button" onclick="jumpToReportSection('reportTableCard')" style="background: #f8fafc; color: #1e293b; border: 1.5px solid #cbd5e1; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);">
-                        <span style="font-size: 0.88rem; flex-shrink: 0;">📋</span>
-                        <span>كشف نقط ومواظبة التلاميذ</span>
-                    </button>
-                    <button type="button" onclick="jumpToReportSection('upcomingExamsCard')" style="background: linear-gradient(135deg, #fdf4ff, #fae8ff); color: #86198f; border: 1.5px solid #d8b4fe; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(134, 25, 143, 0.1);">
+                    <button type="button" onclick="jumpToReportSection('upcomingExamsCard')" style="background: linear-gradient(135deg, #fdf4ff, #fae8ff); color: #86198f; border: 1.5px solid #d8b4fe; padding: 7px 8px; min-height: 40px; height: 100%; border-radius: 8px; font-weight: 800; font-size: 0.73rem; line-height: 1.25; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(134, 25, 143, 0.08);" title="برمجة الفروض والخط الزمني للتقويمات">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">🗓️</span>
                         <span>الفروض والخط الزمني</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('gradesAbsenceImpactCard')" style="background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #3730a3; border: 1.5px solid #a5b4fc; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(79, 70, 229, 0.1);" title="النموذج البياني لأثر الغياب اليومي على تطور نقط ومعدل التلاميذ">
-                        <span style="font-size: 0.88rem; flex-shrink: 0;">📉</span>
-                        <span>أثر الغياب على النقط (بياني)</span>
-                    </button>
-                    <button type="button" onclick="jumpToReportSection('diagnosticReportCard')" style="background: #f0f9ff; color: #0369a1; border: 1.5px solid #bae6fd; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(2, 132, 199, 0.08);">
+                    <button type="button" onclick="jumpToReportSection('diagnosticReportCard')" style="background: linear-gradient(135deg, #f0f9ff, #e0f2fe); color: #0369a1; border: 1.5px solid #7dd3fc; padding: 7px 8px; min-height: 40px; height: 100%; border-radius: 8px; font-weight: 800; font-size: 0.73rem; line-height: 1.25; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(2, 132, 199, 0.08);" title="تقرير روائز التقويم التشخيصي وتفييء المتعلمين">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">🎯</span>
                         <span>التقويم التشخيصي</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('atRiskStudentsCard')" style="background: #fef2f2; color: #b91c1c; border: 1.5px solid #fecaca; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(185, 28, 28, 0.08);">
-                        <span style="font-size: 0.88rem; flex-shrink: 0;">⚠️</span>
-                        <span>المتعثرون ودعم AI</span>
+                    <button type="button" onclick="jumpToReportSection('reportTableCard')" style="background: linear-gradient(135deg, #f8fafc, #f1f5f9); color: #1e293b; border: 1.5px solid #cbd5e1; padding: 7px 8px; min-height: 40px; height: 100%; border-radius: 8px; font-weight: 800; font-size: 0.73rem; line-height: 1.25; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);" title="كشف النقط والمواظبة الشامل لتلاميذ القسم">
+                        <span style="font-size: 0.88rem; flex-shrink: 0;">📋</span>
+                        <span>كشف نقط ومواظبة التلاميذ</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('monthlyAbsenceEvolutionCard')" style="background: #eef2ff; color: #4338ca; border: 1.5px solid #c7d2fe; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(67, 56, 202, 0.08);">
+
+                    <!-- السطر الثاني: محاور المواظبة، اليقظة، الدعم، والتقرير الفردي (6 محاور) -->
+                    <button type="button" onclick="jumpToReportSection('react-weekday-absence-root')" style="background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #dc2626; border: 1.5px solid #fca5a5; padding: 7px 8px; min-height: 40px; height: 100%; border-radius: 8px; font-weight: 800; font-size: 0.73rem; line-height: 1.25; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(220, 38, 38, 0.08);" title="بطاقة ومبيان تفاعلي لتوزيع الغياب بحسب أيام الأسبوع وتحديد أيام الذروة">
+                        <span style="font-size: 0.88rem; flex-shrink: 0;">📅</span>
+                        <span>توزيع الغياب حسب أيام الأسبوع</span>
+                    </button>
+                    <button type="button" onclick="jumpToReportSection('gradesAbsenceImpactCard')" style="background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #3730a3; border: 1.5px solid #a5b4fc; padding: 7px 8px; min-height: 40px; height: 100%; border-radius: 8px; font-weight: 800; font-size: 0.73rem; line-height: 1.25; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(79, 70, 229, 0.08);" title="النموذج البياني لأثر الغياب اليومي على تطور نقط ومعدل التلاميذ">
+                        <span style="font-size: 0.88rem; flex-shrink: 0;">📉</span>
+                        <span>أثر الغياب على النقط (بياني)</span>
+                    </button>
+                    <button type="button" onclick="jumpToReportSection('monthlyAbsenceEvolutionCard')" style="background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #4338ca; border: 1.5px solid #c7d2fe; padding: 7px 8px; min-height: 40px; height: 100%; border-radius: 8px; font-weight: 800; font-size: 0.73rem; line-height: 1.25; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(67, 56, 202, 0.08);" title="الرسوم والمبيانات الإحصائية لتطور الغياب والتحصيل">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">📊</span>
                         <span>الرسوم البيانية</span>
                     </button>
-                    <button type="button" onclick="jumpToReportSection('studentProgressCard')" style="background: #faf5ff; color: #7c3aed; border: 1.5px solid #e9d5ff; padding: 8px 10px; min-height: 40px; border-radius: 8px; font-weight: 800; font-size: 0.74rem; line-height: 1.3; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(124, 58, 237, 0.08);">
+                    <button type="button" onclick="jumpToReportSection('react-strategic-roadmap-root')" style="background: linear-gradient(135deg, #f5f3ff, #ede9fe); color: #5b21b6; border: 1.5px solid #c4b5fd; padding: 7px 8px; min-height: 40px; height: 100%; border-radius: 8px; font-weight: 800; font-size: 0.73rem; line-height: 1.25; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 3px rgba(91, 33, 182, 0.08);" title="مؤشر الإنذار المبكر، المدقق القبلي لمسار، وسجل التدقيق والأمان (09-08)">
+                        <span style="font-size: 0.88rem; flex-shrink: 0;">🛡️</span>
+                        <span>اليقظة التربوية ومدقق مسار</span>
+                    </button>
+                    <button type="button" onclick="jumpToReportSection('atRiskStudentsCard')" style="background: linear-gradient(135deg, #fff1f2, #ffe4e6); color: #be123c; border: 1.5px solid #fda4af; padding: 7px 8px; min-height: 40px; height: 100%; border-radius: 8px; font-weight: 800; font-size: 0.73rem; line-height: 1.25; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(190, 18, 60, 0.08);" title="رصد التلاميذ المتعثرين وتوليد خطط الدعم بالذكاء الاصطناعي">
+                        <span style="font-size: 0.88rem; flex-shrink: 0;">⚠️</span>
+                        <span>المتعثرون ودعم AI</span>
+                    </button>
+                    <button type="button" onclick="jumpToReportSection('studentProgressCard')" style="background: linear-gradient(135deg, #faf5ff, #f3e8ff); color: #7c3aed; border: 1.5px solid #d8b4fe; padding: 7px 8px; min-height: 40px; height: 100%; border-radius: 8px; font-weight: 800; font-size: 0.73rem; line-height: 1.25; text-align: center; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(124, 58, 237, 0.08);" title="التقرير التفصيلي الفردي للتلميذ (النقط، المواظبة، السلوك، والمبيانات)">
                         <span style="font-size: 0.88rem; flex-shrink: 0;">👤</span>
                         <span>تقرير التلميذ الفردي</span>
                     </button>
@@ -3278,50 +3281,50 @@
                         <span style="font-size: 0.72rem; color: #15803d; font-weight: 700;">تحديث فوري من قاعدة البيانات</span>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px;">
-                        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; font-weight: 700; color: #64748b;">عدد المسجلين</div>
-                            <div id="examStatTotal" style="font-size: 1.3rem; font-weight: 900; color: #1e293b;">0</div>
+                    <div class="exam-report-kpi-single-row" style="display: grid; grid-template-columns: repeat(11, minmax(72px, 1fr)); gap: 6px; align-items: stretch; overflow-x: auto;">
+                        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-size: 0.66rem; font-weight: 700; color: #64748b; white-space: nowrap;">عدد المسجلين</div>
+                            <div id="examStatTotal" style="font-size: 1.15rem; font-weight: 900; color: #1e293b; line-height: 1.25;">0</div>
                         </div>
-                        <div style="background: #ffffff; border: 1px solid #86efac; border-radius: 8px; padding: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; font-weight: 700; color: #16a34a;">الحاضرون</div>
-                            <div id="examStatPresent" style="font-size: 1.3rem; font-weight: 900; color: #15803d;">0</div>
+                        <div style="background: #ffffff; border: 1px solid #86efac; border-radius: 8px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-size: 0.66rem; font-weight: 700; color: #16a34a; white-space: nowrap;">الحاضرون</div>
+                            <div id="examStatPresent" style="font-size: 1.15rem; font-weight: 900; color: #15803d; line-height: 1.25;">0</div>
                         </div>
-                        <div style="background: #ffffff; border: 1px solid #fecaca; border-radius: 8px; padding: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; font-weight: 700; color: #dc2626;">الغائبون</div>
-                            <div id="examStatAbsent" style="font-size: 1.3rem; font-weight: 900; color: #dc2626;">0</div>
+                        <div style="background: #ffffff; border: 1px solid #fecaca; border-radius: 8px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-size: 0.66rem; font-weight: 700; color: #dc2626; white-space: nowrap;">الغائبون</div>
+                            <div id="examStatAbsent" style="font-size: 1.15rem; font-weight: 900; color: #dc2626; line-height: 1.25;">0</div>
                         </div>
-                        <div style="background: #ffffff; border: 1px solid #93c5fd; border-radius: 8px; padding: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; font-weight: 700; color: #2563eb;">أعلى نقطة</div>
-                            <div id="examStatMax" style="font-size: 1.3rem; font-weight: 900; color: #1d4ed8;">--</div>
+                        <div style="background: #ffffff; border: 1px solid #93c5fd; border-radius: 8px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-size: 0.66rem; font-weight: 700; color: #2563eb; white-space: nowrap;">أعلى نقطة</div>
+                            <div id="examStatMax" style="font-size: 1.15rem; font-weight: 900; color: #1d4ed8; line-height: 1.25;">--</div>
                         </div>
-                        <div style="background: #ffffff; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; font-weight: 700; color: #ea580c;">أدنى نقطة</div>
-                            <div id="examStatMin" style="font-size: 1.3rem; font-weight: 900; color: #c2410c;">--</div>
+                        <div style="background: #ffffff; border: 1px solid #fed7aa; border-radius: 8px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-size: 0.66rem; font-weight: 700; color: #ea580c; white-space: nowrap;">أدنى نقطة</div>
+                            <div id="examStatMin" style="font-size: 1.15rem; font-weight: 900; color: #c2410c; line-height: 1.25;">--</div>
                         </div>
-                        <div style="background: #ffffff; border: 2px solid #2563eb; border-radius: 8px; padding: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; font-weight: 800; color: #1e3a8a;">معدل القسم</div>
-                            <div id="examStatAvg" style="font-size: 1.4rem; font-weight: 900; color: #1e40af;">--</div>
+                        <div style="background: #ffffff; border: 2px solid #2563eb; border-radius: 8px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-size: 0.66rem; font-weight: 800; color: #1e3a8a; white-space: nowrap;">معدل القسم</div>
+                            <div id="examStatAvg" style="font-size: 1.2rem; font-weight: 900; color: #1e40af; line-height: 1.25; white-space: nowrap;">--</div>
                         </div>
-                        <div style="background: #ffffff; border: 1px solid #86efac; border-radius: 8px; padding: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; font-weight: 700; color: #15803d;">المتحكمون (≥ 10)</div>
-                            <div id="examStatPassRate" style="font-size: 1.1rem; font-weight: 900; color: #15803d;">0%</div>
+                        <div style="background: #ffffff; border: 1px solid #86efac; border-radius: 8px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-size: 0.65rem; font-weight: 700; color: #15803d; white-space: nowrap;">المتحكمون (≥ 10)</div>
+                            <div id="examStatPassRate" style="font-size: 0.92rem; font-weight: 900; color: #15803d; line-height: 1.25; white-space: nowrap;">0%</div>
                         </div>
-                        <div style="background: #ffffff; border: 1px solid #fecaca; border-radius: 8px; padding: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; font-weight: 700; color: #dc2626;">دون المعدل (&lt; 10)</div>
-                            <div id="examStatFailRate" style="font-size: 1.1rem; font-weight: 900; color: #dc2626;">0%</div>
+                        <div style="background: #ffffff; border: 1px solid #fecaca; border-radius: 8px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-size: 0.65rem; font-weight: 700; color: #dc2626; white-space: nowrap;">دون المعدل (&lt; 10)</div>
+                            <div id="examStatFailRate" style="font-size: 0.92rem; font-weight: 900; color: #dc2626; line-height: 1.25; white-space: nowrap;">0%</div>
                         </div>
-                        <div style="background: #ffffff; border: 1px solid #bae6fd; border-radius: 8px; padding: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; font-weight: 700; color: #0369a1;">القيمة الوسطية</div>
-                            <div id="examStatMedian" style="font-size: 1.15rem; font-weight: 900; color: #0369a1;">--</div>
+                        <div style="background: #ffffff; border: 1px solid #bae6fd; border-radius: 8px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-size: 0.66rem; font-weight: 700; color: #0369a1; white-space: nowrap;">القيمة الوسطية</div>
+                            <div id="examStatMedian" style="font-size: 1.02rem; font-weight: 900; color: #0369a1; line-height: 1.25; white-space: nowrap;">--</div>
                         </div>
-                        <div style="background: #ffffff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; font-weight: 700; color: #6d28d9;">الانحراف المعياري (σ)</div>
-                            <div id="examStatStdDev" style="font-size: 1.15rem; font-weight: 900; color: #6d28d9;">--</div>
+                        <div style="background: #ffffff; border: 1px solid #ddd6fe; border-radius: 8px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-size: 0.65rem; font-weight: 700; color: #6d28d9; white-space: nowrap;">الانحراف المعياري (σ)</div>
+                            <div id="examStatStdDev" style="font-size: 1.02rem; font-weight: 900; color: #6d28d9; line-height: 1.25; white-space: nowrap;">--</div>
                         </div>
-                        <div style="background: #ffffff; border: 1px solid #fde68a; border-radius: 8px; padding: 8px; text-align: center;">
-                            <div style="font-size: 0.7rem; font-weight: 700; color: #b45309;">معامل التشتت (CV%)</div>
-                            <div id="examStatCV" style="font-size: 1.05rem; font-weight: 900; color: #b45309;">--</div>
+                        <div style="background: #ffffff; border: 1px solid #fde68a; border-radius: 8px; padding: 6px 4px; text-align: center; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-size: 0.65rem; font-weight: 700; color: #b45309; white-space: nowrap;">معامل التشتت (CV%)</div>
+                            <div id="examStatCV" style="font-size: 0.92rem; font-weight: 900; color: #b45309; line-height: 1.25; white-space: nowrap;">--</div>
                         </div>
                     </div>
 
@@ -3435,7 +3438,12 @@
                             </h4>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; max-width: 100%;">
-                            <input type="text" id="examReportStudentSearchInput" oninput="window.filterExamReportStudents(this.value)" placeholder="🔍 بحث سريع عن تلميذ..." style="padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.78rem; font-family: inherit; min-width: 150px; flex: 1;">
+                            <div style="position: relative; display: flex; align-items: center; min-width: 240px; flex: 1;">
+                                <span style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); background: linear-gradient(135deg, #1e3a8a, #1d4ed8); color: #ffffff; width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; pointer-events: none; box-shadow: 0 1px 3px rgba(30, 58, 138, 0.25);">
+                                    <span data-lucide="search" data-size="13"></span>
+                                </span>
+                                <input type="text" id="examReportStudentSearchInput" oninput="window.filterExamReportStudents(this.value)" placeholder="بحث سريع عن تلميذ بالاسم أو رقم مسار..." style="width: 100%; padding: 6px 34px 6px 10px; border: 1.5px solid #93c5fd; border-radius: 7px; font-size: 0.78rem; font-family: inherit; background: #f8fafc; color: #0f172a; outline: none;">
+                            </div>
                             <div style="display: inline-flex; flex-wrap: wrap; background: #f1f5f9; padding: 2px; border-radius: 8px; gap: 2px; max-width: 100%;">
                                 <button type="button" id="btnExamTabSplit" onclick="window.switchExamReportTableView('split')" class="btn-math-chip active" style="padding: 4px 9px; font-size: 0.74rem; font-weight: 700;">عرض مزدوج</button>
                                 <button type="button" id="btnExamTabRoster" onclick="window.switchExamReportTableView('roster')" class="btn-math-chip" style="padding: 4px 9px; font-size: 0.74rem; font-weight: 700;">جدول القسم (3 خانات)</button>
@@ -3552,7 +3560,12 @@
                         <span>📋 كشف تتبع نقط ومواظبة تلاميذ القسم:</span>
                     </h4>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="text" id="reportTableSearchInput" oninput="filterReportTable(this.value)" placeholder="🔍 بحث سريع عن تلميذ بالاسم أو مسار..." style="padding: 5px 10px; border-radius: 6px; border: 1.5px solid #cbd5e1; font-size: 0.78rem; width: 220px; font-family: inherit;">
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <span style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); background: linear-gradient(135deg, #1e3a8a, #1d4ed8); color: #ffffff; width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; pointer-events: none; box-shadow: 0 1px 3px rgba(30, 58, 138, 0.25);">
+                                <span data-lucide="search" data-size="13"></span>
+                            </span>
+                            <input type="text" id="reportTableSearchInput" oninput="filterReportTable(this.value)" placeholder="بحث سريع عن تلميذ بالاسم أو رقم مسار..." style="padding: 6px 34px 6px 10px; border-radius: 7px; border: 1.5px solid #93c5fd; font-size: 0.78rem; width: 255px; font-family: inherit; background: #f8fafc; color: #0f172a; outline: none;">
+                        </div>
                         <span id="reportSearchCountBadge" style="display: none; font-size: 0.72rem; background: #e0f2fe; color: #0284c7; padding: 2px 8px; border-radius: 6px; font-weight: 700;"></span>
                     </div>
                 </div>
@@ -8959,7 +8972,7 @@ f(x) = x - 1 + ln(x) / x
                         <span data-lucide="search" data-size="18"></span>
                     </span>
                     <input type="text" id="studentSearchInput"
-                        placeholder="بحث سريع بالاسم الشخصي أو العائلي أو رقم مسار (مثال: أحمد، مروان، G134...)..."
+                        placeholder="بحث سريع عن تلميذ بالاسم أو رقم مسار (مثال: أحمد، مروان، G134...)..."
                         oninput="onStudentSearchInput()"
                         onkeydown="handleStudentSearchKeydown(event)"
                         autocomplete="off"
