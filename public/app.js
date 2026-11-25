@@ -46482,7 +46482,7 @@ ${log.notes || 'سير الحصة عادي'}
                 return `<div style="page-break-after: ${isLast ? 'auto' : 'always'}; break-after: ${isLast ? 'auto' : 'page'}; page-break-inside: avoid; break-inside: avoid; padding: 4mm 6mm; background: #ffffff;">` + header + `<div style="text-align: center; padding: 40px; color: #64748b;">لا توجد لائحة تلاميذ مسجلة لهذا القسم (${className}).</div>` + buildOfficialVisasSection(options) + `</div>`;
             }
 
-            const examCount = (typeof getExamsCountForClass === 'function') ? getExamsCountForClass(className) : 2;
+            const examCount = (typeof getExamsCountForClass === 'function') ? getExamsCountForClass(className) : 3;
             const coef = (typeof getSubjectCoefForClass === 'function') ? getSubjectCoefForClass(className) : 1;
 
             let validAvgs = [];
@@ -46493,7 +46493,7 @@ ${log.notes || 'سير الحصة عادي'}
                     ? getStudentGradesBySemester(className, std.id, activeSem)
                     : null;
                 const rawGrades = (db.grades && db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {};
-                const grades = (semGrades && (semGrades.f1 !== '' || semGrades.f2 !== '' || semGrades.f3 !== '')) ? semGrades : rawGrades;
+                const grades = (semGrades && (semGrades.f1 !== '' || semGrades.f2 !== '' || semGrades.f3 !== '' || semGrades.f4 !== '')) ? semGrades : rawGrades;
                 const avg = (typeof calculateStudentAvg === 'function') ? calculateStudentAvg(grades, className) : null;
                 if (avg !== null && !isNaN(avg)) validAvgs.push(avg);
 
@@ -46884,19 +46884,30 @@ ${log.notes || 'سير الحصة عادي'}
             const exercicesCount = logs.filter(l => l.sessionType === 'exercices' || l.sessionType === 'problemes').length;
             const evaluationCount = logs.filter(l => l.sessionType === 'controle' || l.sessionType === 'correction' || l.sessionType === 'evaluation').length;
 
-            let gradesList = [];
+            let studentAvgsList = [];
             const activeSemPdf = typeof activeSemester !== 'undefined' ? activeSemester : 's1';
-            const examCountPdf = typeof getExamsCountForClass === 'function' ? getExamsCountForClass(className) : 4;
+            const examCountPdf = typeof getExamsCountForClass === 'function' ? getExamsCountForClass(className) : 3;
             students.forEach(std => {
                 const stdGrades = (typeof getStudentGradesBySemester === 'function')
                     ? getStudentGradesBySemester(className, std.id, activeSemPdf)
                     : ((db.grades && db.grades[className] && db.grades[className][std.id]) ? db.grades[className][std.id] : {});
                 if (stdGrades && typeof stdGrades === 'object') {
-                    for (let eIdx = 1; eIdx <= examCountPdf; eIdx++) {
-                        const rawVal = stdGrades['f' + eIdx];
-                        if (rawVal !== undefined && rawVal !== null && rawVal !== '' && rawVal !== 'غ' && rawVal !== 'ABS') {
-                            const num = parseFloat(rawVal);
-                            if (!isNaN(num)) gradesList.push(num);
+                    const stdAvg = (typeof calculateStudentAvg === 'function')
+                        ? calculateStudentAvg(stdGrades, className)
+                        : null;
+                    if (stdAvg !== null && !isNaN(stdAvg)) {
+                        studentAvgsList.push(stdAvg);
+                    } else {
+                        const stdMarks = [];
+                        for (let eIdx = 1; eIdx <= examCountPdf; eIdx++) {
+                            const rawVal = stdGrades['f' + eIdx];
+                            if (rawVal !== undefined && rawVal !== null && rawVal !== '' && rawVal !== 'غ' && rawVal !== 'ABS') {
+                                const num = parseFloat(String(rawVal).replace(',', '.'));
+                                if (!isNaN(num)) stdMarks.push(num);
+                            }
+                        }
+                        if (stdMarks.length > 0) {
+                            studentAvgsList.push(stdMarks.reduce((a, b) => a + b, 0) / stdMarks.length);
                         }
                     }
                 }
@@ -46907,13 +46918,13 @@ ${log.notes || 'سير الحصة عادي'}
             let minGrade = '-';
             let successRate = '-';
 
-            if (gradesList.length > 0) {
-                const sum = gradesList.reduce((acc, cur) => acc + cur, 0);
-                avgGrade = (sum / gradesList.length).toFixed(2);
-                maxGrade = Math.max(...gradesList).toFixed(2);
-                minGrade = Math.min(...gradesList).toFixed(2);
-                const passCount = gradesList.filter(g => g >= 10).length;
-                successRate = ((passCount / gradesList.length) * 100).toFixed(1) + '%';
+            if (studentAvgsList.length > 0) {
+                const sum = studentAvgsList.reduce((acc, cur) => acc + cur, 0);
+                avgGrade = (sum / studentAvgsList.length).toFixed(2);
+                maxGrade = Math.max(...studentAvgsList).toFixed(2);
+                minGrade = Math.min(...studentAvgsList).toFixed(2);
+                const passCount = studentAvgsList.filter(g => g >= 10).length;
+                successRate = ((passCount / studentAvgsList.length) * 100).toFixed(1) + '%';
             }
 
             const classResources = [];
@@ -57407,7 +57418,7 @@ ${log.notes || 'سير الحصة عادي'}
 
             // استخراج بيانات المراقبة المستمرة والنقط
             const activeSem = window.activeSemester || 's1';
-            const examCount = (typeof getExamsCountForClass === 'function') ? getExamsCountForClass(className) : 2;
+            const examCount = (typeof getExamsCountForClass === 'function') ? getExamsCountForClass(className) : 3;
             const grades = (typeof getStudentGradesBySemester === 'function') ? getStudentGradesBySemester(className, std.id, activeSem) : {};
             const avg = (typeof calculateSemesterAvg === 'function') ? calculateSemesterAvg(grades, examCount) : null;
             const annualData = (typeof calculateStudentAnnualData === 'function') ? calculateStudentAnnualData(className, std.id) : { annualAvg: null };

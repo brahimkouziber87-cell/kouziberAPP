@@ -2806,6 +2806,10 @@ test('Moroccan Pedagogical Guidelines (2007) & Ministerial Note 142-08 Deep Alig
     const dashSrc = fs.readFileSync(path.join(ROOT, 'src/DashboardView.tsx'), 'utf8');
     const repEvoSrc = fs.readFileSync(path.join(ROOT, 'src/ReportsEvolutionChart.tsx'), 'utf8');
     const trendsSrc = fs.readFileSync(path.join(ROOT, 'src/AcademicYearPerformanceTrends.tsx'), 'utf8');
+    const pdfExportSrc = fs.readFileSync(path.join(ROOT, 'src/ComprehensiveAnalysisPdfExport.tsx'), 'utf8');
+    const aiRemSrc = fs.readFileSync(path.join(ROOT, 'src/AiRemediationView.tsx'), 'utf8');
+    const analysisSrc = fs.readFileSync(path.join(ROOT, 'src/Analysis.tsx'), 'utf8');
+    const appJsSrc = fs.readFileSync(path.join(ROOT, 'public/app.js'), 'utf8');
 
     assert.equal(dashSrc.includes('isTech ? 6'), false, 'DashboardView.tsx must never assign coefficient 6 to STE/STM');
     assert.ok(dashSrc.includes('isTech ? 7'), 'DashboardView.tsx must assign official Note 142-08 coefficient 7 to STE/STM');
@@ -2813,4 +2817,11 @@ test('Moroccan Pedagogical Guidelines (2007) & Ministerial Note 142-08 Deep Alig
     assert.ok(repEvoSrc.includes('المعامل الرسمي: 7 (علوم وتكنولوجيات STE/STM - 3 فروض)'), 'ReportsEvolutionChart.tsx must display coefficient 7 for 2BAC STE/STM');
     assert.ok(repEvoSrc.includes('المعامل الرسمي: 7 (1 باك علوم وتكنولوجيات STE/STM - 3 فروض)'), 'ReportsEvolutionChart.tsx must display coefficient 7 for 1BAC STE/STM');
     assert.equal(trendsSrc.includes("if (upper.includes('2BAC') || upper.includes('SM')"), false, 'AcademicYearPerformanceTrends.tsx must not default all 2BAC classes to 4 exams');
+
+    // 3. Verify 2-exam Literary tracks (hasF3 / hasF3Exam / hasF3Column) & track-aware diagnostics
+    assert.ok(pdfExportSrc.includes("hasF4 ? 'F1 - F2 - F3 - F4' : hasF3 ? 'F1 - F2 - F3' : 'F1 - F2'"), 'ComprehensiveAnalysisPdfExport.tsx must support 2-exam Literary tracks (F1 - F2)');
+    assert.ok(aiRemSrc.includes('isLitOrEco') && aiRemSrc.includes('hasF3Exam'), 'AiRemediationView.tsx must use curriculum-track aware diagnostics and hasF3Exam');
+    assert.ok(analysisSrc.includes('hasF3Column') && analysisSrc.includes('hasF4Column'), 'Analysis.tsx must conditionally render F3 and F4 columns based on class exam count');
+    assert.ok(appJsSrc.includes('let studentAvgsList = [];') && appJsSrc.includes('calculateStudentAvg(stdGrades, className)'), 'buildReportsPdfHTML in app.js must compute class statistics from student continuous assessment averages');
 });
+

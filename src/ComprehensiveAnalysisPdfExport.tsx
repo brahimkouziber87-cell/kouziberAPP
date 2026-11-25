@@ -106,7 +106,32 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
     const [statusMessage, setStatusMessage] = useState('');
     const reportRef = useRef<HTMLDivElement>(null);
 
-    const hasF4 = (classAverages.f4 !== null && classAverages.f4 !== undefined) || studentMetrics.some(m => m.f4 !== null && m.f4 !== undefined);
+    const configuredExamsCount = (() => {
+      if (!selectedClass || selectedClass === 'all' || selectedClass === '__MULTI__') return 3;
+      const winFn = typeof window !== 'undefined' ? (window as any).getExamsCountForClass : null;
+      if (typeof winFn === 'function') {
+        const n = Number(winFn(selectedClass));
+        if (!isNaN(n) && n >= 2 && n <= 4) return n;
+      }
+      const rawCfg = db?.classConfig?.[selectedClass];
+      const cfgN =
+        typeof rawCfg === 'number'
+          ? rawCfg
+          : rawCfg && typeof rawCfg === 'object'
+          ? Number(rawCfg.examsCount)
+          : Number(rawCfg);
+      if (!isNaN(cfgN) && cfgN >= 2 && cfgN <= 4) return cfgN;
+      return 3;
+    })();
+    const hasF4 =
+      configuredExamsCount >= 4 ||
+      (classAverages.f4 !== null && classAverages.f4 !== undefined) ||
+      studentMetrics.some(m => m.f4 !== null && m.f4 !== undefined);
+    const hasF3 =
+      hasF4 ||
+      configuredExamsCount >= 3 ||
+      (classAverages.f3 !== null && classAverages.f3 !== undefined) ||
+      studentMetrics.some(m => m.f3 !== null && m.f3 !== undefined);
     const getExamMinMax = (key: 'f1' | 'f2' | 'f3' | 'f4') => {
       const vals = studentMetrics.map(m => m[key]).filter((v): v is number => v !== null && v !== undefined && !isNaN(v));
       if (vals.length === 0) return { min: '--', max: '--', passPct: '--' };
@@ -143,13 +168,12 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
 
     const atRiskStudents = studentMetrics.filter(s => s.avg !== null && s.avg < 10);
 
-    // SVG Chart 1: Macro Trend Progression across F1, F2, F3, and F4 (if applicable)
+    // SVG Chart 1: Macro Trend Progression across F1, F2, F3 (if applicable), and F4 (if applicable)
     const renderMacroTrendSvg = () => {
       const f1 = classAverages.f1 ?? 0;
       const f2 = classAverages.f2 ?? 0;
       const f3 = classAverages.f3 ?? 0;
       const f4 = classAverages.f4 ?? null;
-      const hasF4 = f4 !== null && f4 !== undefined;
 
       // Dimensions: 700 x 200
       const w = 700;
@@ -165,12 +189,17 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
             { x: padX + chartW * 0.1, y: scaleY(f1), label: 'الفرض 1', val: classAverages.f1 },
             { x: padX + chartW * 0.36, y: scaleY(f2), label: 'الفرض 2', val: classAverages.f2 },
             { x: padX + chartW * 0.63, y: scaleY(f3), label: 'الفرض 3', val: classAverages.f3 },
-            { x: padX + chartW * 0.9, y: scaleY(f4), label: 'الفرض 4', val: classAverages.f4 ?? null }
+            { x: padX + chartW * 0.9, y: scaleY(f4 ?? 0), label: 'الفرض 4', val: classAverages.f4 ?? null }
           ]
-        : [
+        : hasF3
+        ? [
             { x: padX + chartW * 0.15, y: scaleY(f1), label: 'الفرض 1', val: classAverages.f1 },
             { x: padX + chartW * 0.5, y: scaleY(f2), label: 'الفرض 2', val: classAverages.f2 },
             { x: padX + chartW * 0.85, y: scaleY(f3), label: 'الفرض 3', val: classAverages.f3 }
+          ]
+        : [
+            { x: padX + chartW * 0.25, y: scaleY(f1), label: 'الفرض 1', val: classAverages.f1 },
+            { x: padX + chartW * 0.75, y: scaleY(f2), label: 'الفرض 2', val: classAverages.f2 }
           ];
 
       const validPoints = points.filter(p => p.val !== null);
@@ -613,7 +642,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
               <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <span style={{ fontSize: '11px', fontWeight: 800, color: '#0f172a' }}>
-                    الرسم البياني 1: تطور المسار الإجمالي لمعدل القسم عبر محطات الفروض ({hasF4 ? 'F1 - F2 - F3 - F4' : 'F1 - F2 - F3'})
+                    الرسم البياني 1: تطور المسار الإجمالي لمعدل القسم عبر محطات الفروض ({hasF4 ? 'F1 - F2 - F3 - F4' : hasF3 ? 'F1 - F2 - F3' : 'F1 - F2'})
                   </span>
                   <span style={{ fontSize: '10px', color: macroTrend.delta >= 0 ? '#15803d' : '#b91c1c', fontWeight: 800 }}>
                     مؤشر التطور: {macroTrend.delta >= 0 ? `+${macroTrend.delta}` : `${macroTrend.delta}`} نقطة ({macroTrend.deltaPercent}%)
@@ -644,7 +673,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                       <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{f1Stat.min}</td>
                       <td style={{ padding: '6px 10px', color: '#475569' }}>محطة التقويم الأولي وتشخيص المكتسبات</td>
                     </tr>
-                    <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#fafafa' }}>
+                    <tr style={{ borderBottom: hasF3 ? '1px solid #e2e8f0' : 'none', background: '#fafafa' }}>
                       <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 800, color: '#4f46e5' }}>الفرض المحروس رقم 2 (F2)</td>
                       <td style={{ padding: '6px 10px', fontWeight: 800, fontFamily: 'monospace' }}>{classAverages.f2 !== null ? `${classAverages.f2}/20` : 'غير مسجل'}</td>
                       <td style={{ padding: '6px 10px', fontWeight: 700, color: '#15803d' }}>{f2Stat.passPct}</td>
@@ -652,14 +681,16 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                       <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{f2Stat.min}</td>
                       <td style={{ padding: '6px 10px', color: '#475569' }}>محطة قياس أثر المعالجة والتعلمات المركبة</td>
                     </tr>
-                    <tr style={{ borderBottom: hasF4 ? '1px solid #e2e8f0' : 'none' }}>
-                      <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 800, color: '#0891b2' }}>الفرض المحروس رقم 3 (F3)</td>
-                      <td style={{ padding: '6px 10px', fontWeight: 800, fontFamily: 'monospace' }}>{classAverages.f3 !== null ? `${classAverages.f3}/20` : 'غير مسجل'}</td>
-                      <td style={{ padding: '6px 10px', fontWeight: 700, color: '#15803d' }}>{f3Stat.passPct}</td>
-                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{f3Stat.max}</td>
-                      <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{f3Stat.min}</td>
-                      <td style={{ padding: '6px 10px', color: '#475569' }}>محطة قياس تثبيت المهارات البرهانية</td>
-                    </tr>
+                    {hasF3 && (
+                      <tr style={{ borderBottom: hasF4 ? '1px solid #e2e8f0' : 'none' }}>
+                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 800, color: '#0891b2' }}>الفرض المحروس رقم 3 (F3)</td>
+                        <td style={{ padding: '6px 10px', fontWeight: 800, fontFamily: 'monospace' }}>{classAverages.f3 !== null ? `${classAverages.f3}/20` : 'غير مسجل'}</td>
+                        <td style={{ padding: '6px 10px', fontWeight: 700, color: '#15803d' }}>{f3Stat.passPct}</td>
+                        <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{f3Stat.max}</td>
+                        <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>{f3Stat.min}</td>
+                        <td style={{ padding: '6px 10px', color: '#475569' }}>محطة قياس تثبيت المهارات البرهانية</td>
+                      </tr>
+                    )}
                     {hasF4 && (
                       <tr style={{ background: '#fafafa' }}>
                         <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 800, color: '#7c3aed' }}>الفرض المحروس رقم 4 (F4)</td>
@@ -971,7 +1002,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                         {studentChunks.length > 1 && ` (الجزء ${chunkIdx + 1} من ${studentChunks.length})`}
                       </h2>
                       <p style={{ margin: '2px 0 0 0', fontSize: '10px', color: '#64748b' }}>
-                        البيان التفصيلي لنقط الفروض {hasF4 ? 'F1 وF2 وF3 وF4' : 'F1 وF2 وF3'} والمعدل الدوري ومسار التطور والتقدير الوزاري وفق المذكرة 142-08
+                        البيان التفصيلي لنقط الفروض {hasF4 ? 'F1 وF2 وF3 وF4' : hasF3 ? 'F1 وF2 وF3' : 'F1 وF2'} والمعدل الدوري ومسار التطور والتقدير الوزاري وفق المذكرة 142-08
                       </p>
                     </div>
                     <span style={{ background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 800, color: '#475569' }}>
@@ -989,7 +1020,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                           <th style={{ padding: '6px 10px', textAlign: 'right' }}>الاسم والنسب الكامل</th>
                           <th style={{ padding: '6px 6px', width: '46px' }}>F1</th>
                           <th style={{ padding: '6px 6px', width: '46px' }}>F2</th>
-                          <th style={{ padding: '6px 6px', width: '46px' }}>F3</th>
+                          {hasF3 && <th style={{ padding: '6px 6px', width: '46px' }}>F3</th>}
                           {hasF4 && <th style={{ padding: '6px 6px', width: '46px' }}>F4</th>}
                           <th style={{ padding: '6px 8px', width: '60px', background: '#1e293b' }}>المعدل</th>
                           <th style={{ padding: '6px 8px' }}>مسار التطور</th>
@@ -1019,9 +1050,11 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                               <td style={{ padding: '5px 6px', fontFamily: 'monospace', fontWeight: 700, color: m.f2 !== null && m.f2 >= 10 ? '#15803d' : (m.f2 !== null ? '#b91c1c' : '#94a3b8') }}>
                                 {m.f2 !== null ? m.f2 : '-'}
                               </td>
-                              <td style={{ padding: '5px 6px', fontFamily: 'monospace', fontWeight: 700, color: m.f3 !== null && m.f3 >= 10 ? '#15803d' : (m.f3 !== null ? '#b91c1c' : '#94a3b8') }}>
-                                {m.f3 !== null ? m.f3 : '-'}
-                              </td>
+                              {hasF3 && (
+                                <td style={{ padding: '5px 6px', fontFamily: 'monospace', fontWeight: 700, color: m.f3 !== null && m.f3 >= 10 ? '#15803d' : (m.f3 !== null ? '#b91c1c' : '#94a3b8') }}>
+                                  {m.f3 !== null ? m.f3 : '-'}
+                                </td>
+                              )}
                               {hasF4 && (
                                 <td style={{ padding: '5px 6px', fontFamily: 'monospace', fontWeight: 700, color: m.f4 !== null && m.f4 !== undefined && m.f4 >= 10 ? '#15803d' : (m.f4 !== null && m.f4 !== undefined ? '#b91c1c' : '#94a3b8') }}>
                                   {m.f4 !== null && m.f4 !== undefined ? m.f4 : '-'}

@@ -796,13 +796,44 @@ export default function Analysis() {
       });
   }, [studentMetrics, searchQuery, cohortFilter, sortField, sortAsc]);
 
+  const hasF4Column = useMemo(() => {
+    if (classAverages.f4 !== null && classAverages.f4 !== undefined) return true;
+    if (studentMetrics.some(s => s.f4 !== null && s.f4 !== undefined)) return true;
+    if (selectedClass && selectedClass !== 'all' && selectedClass !== '__MULTI__') {
+      const winFn = typeof window !== 'undefined' ? (window as any).getExamsCountForClass : null;
+      if (typeof winFn === 'function' && Number(winFn(selectedClass)) >= 4) return true;
+    }
+    return false;
+  }, [classAverages.f4, studentMetrics, selectedClass]);
+
+  const hasF3Column = useMemo(() => {
+    if (hasF4Column) return true;
+    if (classAverages.f3 !== null && classAverages.f3 !== undefined) return true;
+    if (studentMetrics.some(s => s.f3 !== null && s.f3 !== undefined)) return true;
+    if (!selectedClass || selectedClass === 'all' || selectedClass === '__MULTI__') return true;
+    const winFn = typeof window !== 'undefined' ? (window as any).getExamsCountForClass : null;
+    if (typeof winFn === 'function') {
+      const n = Number(winFn(selectedClass));
+      if (!isNaN(n) && n >= 2 && n <= 4) return n >= 3;
+    }
+    const rawCfg = db?.classConfig?.[selectedClass];
+    const cfgN =
+      typeof rawCfg === 'number'
+        ? rawCfg
+        : rawCfg && typeof rawCfg === 'object'
+        ? Number(rawCfg.examsCount)
+        : Number(rawCfg);
+    if (!isNaN(cfgN) && cfgN >= 2 && cfgN <= 4) return cfgN >= 3;
+    return true;
+  }, [hasF4Column, classAverages.f3, studentMetrics, selectedClass, db]);
+
   // Multi-student comparison chart data
   const multiStudentChartData = useMemo(() => {
     const exams = [
       { key: 'f1', name: 'الفرض 1', classAvg: classAverages.f1 },
       { key: 'f2', name: 'الفرض 2', classAvg: classAverages.f2 },
-      { key: 'f3', name: 'الفرض 3', classAvg: classAverages.f3 },
-      ...(classAverages.f4 !== null && classAverages.f4 !== undefined ? [{ key: 'f4', name: 'الفرض 4', classAvg: classAverages.f4 }] : [])
+      ...(hasF3Column ? [{ key: 'f3', name: 'الفرض 3', classAvg: classAverages.f3 }] : []),
+      ...(hasF4Column ? [{ key: 'f4', name: 'الفرض 4', classAvg: classAverages.f4 }] : [])
     ];
 
     return exams.map(ex => {
@@ -815,7 +846,7 @@ export default function Analysis() {
       });
       return point;
     });
-  }, [selectedStudentIds, studentMetrics, classAverages]);
+  }, [selectedStudentIds, studentMetrics, classAverages, hasF3Column, hasF4Column]);
 
   const toggleStudentSelection = (studentId: string) => {
     if (selectedStudentIds.includes(studentId)) {
@@ -832,21 +863,33 @@ export default function Analysis() {
   const handleExportCsv = () => {
     if (!studentMetrics || studentMetrics.length === 0) return;
     const bom = '\uFEFF';
-    const hasF4Col = classAverages.f4 !== null && classAverages.f4 !== undefined;
+    const hasF4Col = hasF4Column;
+    const hasF3Col = hasF3Column;
     const csvSafeCell = (val: any) => {
       const str = String(val ?? '');
       const neutralized = /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
       return `"${neutralized.replace(/"/g, '""')}"`;
     };
-    const headers = hasF4Col
-      ? ['الرقم والاسم', 'القسم', 'الفرض 1', 'الفرض 2', 'الفرض 3', 'الفرض 4', 'معدل الدورة', 'أفضل فرض (الذروة)', 'مسمى الفرض', 'الفارق عن معدل القسم', 'فجوة الطاقات الكامنة', 'مسار التطور']
-      : ['الرقم والاسم', 'القسم', 'الفرض 1', 'الفرض 2', 'الفرض 3', 'معدل الدورة', 'أفضل فرض (الذروة)', 'مسمى الفرض', 'الفارق عن معدل القسم', 'فجوة الطاقات الكامنة', 'مسار التطور'];
+    const headers = [
+      'الرقم والاسم',
+      'القسم',
+      'الفرض 1',
+      'الفرض 2',
+      ...(hasF3Col ? ['الفرض 3'] : []),
+      ...(hasF4Col ? ['الفرض 4'] : []),
+      'معدل الدورة',
+      'أفضل فرض (الذروة)',
+      'مسمى الفرض',
+      'الفارق عن معدل القسم',
+      'فجوة الطاقات الكامنة',
+      'مسار التطور'
+    ];
     const rows = studentMetrics.map(s => [
       csvSafeCell(s.name),
       csvSafeCell(s.className),
       s.f1 !== null ? s.f1 : '',
       s.f2 !== null ? s.f2 : '',
-      s.f3 !== null ? s.f3 : '',
+      ...(hasF3Col ? [s.f3 !== null ? s.f3 : ''] : []),
       ...(hasF4Col ? [s.f4 !== null && s.f4 !== undefined ? s.f4 : ''] : []),
       s.avg !== null ? s.avg : '',
       s.bestMark !== null ? s.bestMark : '',
@@ -876,10 +919,12 @@ export default function Analysis() {
           'الاسم والنسب': s.name,
           'القسم': s.className,
           'الفرض المحروس 1 (/20)': s.f1 !== null ? s.f1 : '',
-          'الفرض المحروس 2 (/20)': s.f2 !== null ? s.f2 : '',
-          'الفرض المحروس 3 (/20)': s.f3 !== null ? s.f3 : ''
+          'الفرض المحروس 2 (/20)': s.f2 !== null ? s.f2 : ''
         };
-        if (classAverages.f4 !== null && classAverages.f4 !== undefined) {
+        if (hasF3Column) {
+          row['الفرض المحروس 3 (/20)'] = s.f3 !== null ? s.f3 : '';
+        }
+        if (hasF4Column) {
           row['الفرض المحروس 4 (/20)'] = s.f4 !== null && s.f4 !== undefined ? s.f4 : '';
         }
         row['معدل المراقبة المستمرة (/20)'] = s.avg !== null ? s.avg : '';
@@ -3800,19 +3845,21 @@ export default function Analysis() {
                               <ArrowUpDown className="w-3 h-3 text-slate-400" />
                             </span>
                           </th>
-                          <th
-                            className="p-3 text-center cursor-pointer hover:bg-slate-100"
-                            onClick={() => {
-                              if (sortField === 'f3') setSortAsc(!sortAsc);
-                              else { setSortField('f3'); setSortAsc(false); }
-                            }}
-                          >
-                            <span className="inline-flex items-center gap-1">
-                              F3 (الفرض 3)
-                              <ArrowUpDown className="w-3 h-3 text-slate-400" />
-                            </span>
-                          </th>
-                          {studentMetrics.some(s => s.f4 !== null && s.f4 !== undefined) && (
+                          {hasF3Column && (
+                            <th
+                              className="p-3 text-center cursor-pointer hover:bg-slate-100"
+                              onClick={() => {
+                                if (sortField === 'f3') setSortAsc(!sortAsc);
+                                else { setSortField('f3'); setSortAsc(false); }
+                              }}
+                            >
+                              <span className="inline-flex items-center gap-1">
+                                F3 (الفرض 3)
+                                <ArrowUpDown className="w-3 h-3 text-slate-400" />
+                              </span>
+                            </th>
+                          )}
+                          {hasF4Column && (
                             <th
                               className="p-3 text-center cursor-pointer hover:bg-slate-100"
                               onClick={() => {
@@ -3907,16 +3954,18 @@ export default function Analysis() {
                                   <span className="text-slate-300">-</span>
                                 )}
                               </td>
-                              <td className="p-3 text-center font-mono font-bold">
-                                {std.f3 !== null ? (
-                                  <span className={isZeroF3 ? 'text-rose-600 font-black bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200' : ''}>
-                                    {std.f3}
-                                  </span>
-                                ) : (
-                                  <span className="text-slate-300">-</span>
-                                )}
-                              </td>
-                              {studentMetrics.some(s => s.f4 !== null && s.f4 !== undefined) && (
+                              {hasF3Column && (
+                                <td className="p-3 text-center font-mono font-bold">
+                                  {std.f3 !== null ? (
+                                    <span className={isZeroF3 ? 'text-rose-600 font-black bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200' : ''}>
+                                      {std.f3}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-300">-</span>
+                                  )}
+                                </td>
+                              )}
+                              {hasF4Column && (
                                 <td className="p-3 text-center font-mono font-bold">
                                   {std.f4 !== null && std.f4 !== undefined ? (
                                     <span className={std.f4 === 0 ? 'text-rose-600 font-black bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200' : ''}>

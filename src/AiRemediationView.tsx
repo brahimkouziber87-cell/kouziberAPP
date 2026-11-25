@@ -216,11 +216,31 @@ const REMEDIATION_CATALOG: Record<string, {
 
 const CATEGORY_KEYS = Object.keys(REMEDIATION_CATALOG);
 
-// Deterministic heuristic diagnostic to classify student error type based on their marks profile
+// Deterministic heuristic diagnostic to classify student error type based on their marks profile & Moroccan curriculum track
 function diagnoseStudentMathError(std: StudentMetric): string {
+  const clsRaw = String(std.className || '');
+  const upper = clsRaw.toUpperCase();
+  const isLitOrEco =
+    upper.includes('TCL') ||
+    upper.includes('LSH') ||
+    upper.includes('LETTRE') ||
+    upper.includes('ECO') ||
+    upper.includes('SGC') ||
+    /(?:^|[^A-Z])(?:L|SH)(?:$|[^A-Z])/.test(upper) ||
+    clsRaw.includes('آداب') ||
+    clsRaw.includes('اداب') ||
+    clsRaw.includes('إنسان') ||
+    clsRaw.includes('انسان') ||
+    clsRaw.includes('اقتصاد') ||
+    clsRaw.includes('تدبير');
+  const isCommonCore =
+    upper.includes('TC') ||
+    clsRaw.includes('جذع') ||
+    clsRaw.includes('مشترك');
+
   // If student has a sharp drop from F1 to F2 (F1 >= 10 and F2 < 8)
   if (std.f1 !== null && std.f2 !== null && std.f1 >= 10 && std.f2 < 8) {
-    return 'thales_trig'; // Geometry & Trig introduced in exam 2
+    return isLitOrEco ? 'equations_modelling' : 'thales_trig';
   }
 
   // If student has consistent very low grade (< 6)
@@ -230,7 +250,7 @@ function diagnoseStudentMathError(std: StudentMetric): string {
 
   // If student failed exam 1 severely (F1 < 7)
   if (std.f1 !== null && std.f1 < 7) {
-    return 'roots_powers';
+    return isCommonCore && !isLitOrEco ? 'algebra_signs' : 'roots_powers';
   }
 
   // If student has moderate struggling (6 <= avg < 8)
@@ -240,9 +260,12 @@ function diagnoseStudentMathError(std: StudentMetric): string {
 
   // If student struggles with 8 <= avg < 10
   if (std.avg !== null && std.avg < 10) {
-    // Hash based on student ID to vary pedagogical suggestions across students
     const sumChars = std.id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    const catList = ['pythagoras_geometry', 'vectors_analytic', 'proof_reasoning', 'thales_trig'];
+    const catList = isLitOrEco
+      ? ['roots_powers', 'equations_modelling', 'proof_reasoning', 'algebra_signs']
+      : isCommonCore
+      ? ['thales_trig', 'algebra_signs', 'proof_reasoning', 'equations_modelling']
+      : ['pythagoras_geometry', 'vectors_analytic', 'proof_reasoning', 'thales_trig'];
     return catList[sumChars % catList.length];
   }
 
@@ -381,6 +404,34 @@ export default function AiRemediationView({
       below10Students
     };
   }, [studentMetrics, scannedExamSource]);
+
+  const configuredExamsCount = useMemo(() => {
+    if (!selectedClass || selectedClass === 'all' || selectedClass === '__MULTI__') return 3;
+    const winFn = typeof window !== 'undefined' ? (window as any).getExamsCountForClass : null;
+    if (typeof winFn === 'function') {
+      const n = Number(winFn(selectedClass));
+      if (!isNaN(n) && n >= 2 && n <= 4) return n;
+    }
+    const rawCfg = db?.classConfig?.[selectedClass];
+    const cfgN =
+      typeof rawCfg === 'number'
+        ? rawCfg
+        : rawCfg && typeof rawCfg === 'object'
+        ? Number(rawCfg.examsCount)
+        : Number(rawCfg);
+    if (!isNaN(cfgN) && cfgN >= 2 && cfgN <= 4) return cfgN;
+    return 3;
+  }, [selectedClass, db]);
+
+  const hasF4Exam =
+    configuredExamsCount >= 4 ||
+    (classAverages?.f4 !== null && classAverages?.f4 !== undefined) ||
+    collectiveScannedSummary.f4Avg !== null;
+  const hasF3Exam =
+    hasF4Exam ||
+    configuredExamsCount >= 3 ||
+    (classAverages?.f3 !== null && classAverages?.f3 !== undefined) ||
+    collectiveScannedSummary.f3Avg !== null;
 
   // Identify struggling students based on the selected scanned exam source or overall trajectory
   const strugglingStudents = useMemo(() => {
@@ -703,7 +754,8 @@ export default function AiRemediationView({
     const schoolName = (db?.teacherProfile?.school) || (db?.profile?.school) || 'المؤسسة التعليمية';
     const printDate = nowObj.toLocaleDateString('ar-MA');
     const clsName = selectedClass === 'all' ? 'جميع الأقسام' : selectedClass;
-    const tierHasF4 = collectiveScannedSummary.f4Avg !== null || tier.students.some(st => st.student.f4 !== null && st.student.f4 !== undefined);
+    const tierHasF4 = hasF4Exam || tier.students.some(st => st.student.f4 !== null && st.student.f4 !== undefined);
+    const tierHasF3 = tierHasF4 || hasF3Exam || tier.students.some(st => st.student.f3 !== null && st.student.f3 !== undefined);
 
     const studentsRowsHtml = tier.students.length > 0
       ? tier.students.map((st, idx) => `
@@ -713,13 +765,13 @@ export default function AiRemediationView({
             <td style="padding:5px; text-align:center; border:1px solid #cbd5e1;">${esc(st.student.className)}</td>
             <td style="padding:5px; text-align:center; border:1px solid #cbd5e1;">${st.student.f1 ?? '-'}</td>
             <td style="padding:5px; text-align:center; border:1px solid #cbd5e1;">${st.student.f2 ?? '-'}</td>
-            <td style="padding:5px; text-align:center; border:1px solid #cbd5e1;">${st.student.f3 ?? '-'}</td>
+            ${tierHasF3 ? `<td style="padding:5px; text-align:center; border:1px solid #cbd5e1;">${st.student.f3 ?? '-'}</td>` : ''}
             ${tierHasF4 ? `<td style="padding:5px; text-align:center; border:1px solid #cbd5e1;">${st.student.f4 ?? '-'}</td>` : ''}
             <td style="padding:5px; text-align:center; font-weight:900; color:#dc2626; border:1px solid #cbd5e1;">${st.evaluatedScore ?? st.student.avg ?? '-'} / 20</td>
             <td style="padding:5px 8px; border:1px solid #cbd5e1;">${esc(st.diagnosedErrorLabel)}</td>
           </tr>
         `).join('')
-      : `<tr><td colspan="${tierHasF4 ? 9 : 8}" style="padding:10px; text-align:center; border:1px solid #cbd5e1;">لا يوجد تلاميذ مصنفون في هذه الفئة حالياً</td></tr>`;
+      : `<tr><td colspan="${tierHasF4 ? 9 : tierHasF3 ? 8 : 7}" style="padding:10px; text-align:center; border:1px solid #cbd5e1;">لا يوجد تلاميذ مصنفون في هذه الفئة حالياً</td></tr>`;
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -785,7 +837,7 @@ export default function AiRemediationView({
                     <th style="width:65px;">القسم</th>
                     <th style="width:45px;">ف1</th>
                     <th style="width:45px;">ف2</th>
-                    <th style="width:45px;">ف3</th>
+                    ${tierHasF3 ? '<th style="width:45px;">ف3</th>' : ''}
                     ${tierHasF4 ? '<th style="width:45px;">ف4</th>' : ''}
                     <th style="width:70px;">النقطة/المعدل</th>
                     <th style="text-align:right;">العائق الرياضي المشخص</th>
@@ -1217,8 +1269,8 @@ export default function AiRemediationView({
               { id: 'all', label: '📊 الحصيلة الشاملة للفروض الممسوحة' },
               { id: 'f1', label: '📄 الفرض المحروس 1 (F1)' },
               { id: 'f2', label: '📄 الفرض المحروس 2 (F2)' },
-              { id: 'f3', label: '📄 الفرض المحروس 3 (F3)' },
-              ...(classAverages.f4 !== null && classAverages.f4 !== undefined ? [{ id: 'f4', label: '📄 الفرض المحروس 4 (F4)' }] : [])
+              ...(hasF3Exam ? [{ id: 'f3', label: '📄 الفرض المحروس 3 (F3)' }] : []),
+              ...(hasF4Exam ? [{ id: 'f4', label: '📄 الفرض المحروس 4 (F4)' }] : [])
             ].map(ex => (
               <button
                 key={ex.id}
@@ -1265,8 +1317,9 @@ export default function AiRemediationView({
                 <span className="text-xs text-purple-200 font-normal"> / 20</span>
               </div>
               <div className="text-[10px] text-purple-200 mt-0.5 font-mono">
-                F1: {collectiveScannedSummary.f1Avg ?? '-'} | F2: {collectiveScannedSummary.f2Avg ?? '-'} | F3: {collectiveScannedSummary.f3Avg ?? '-'}
-                {collectiveScannedSummary.f4Avg !== null ? ` | F4: ${collectiveScannedSummary.f4Avg}` : ''}
+                F1: {collectiveScannedSummary.f1Avg ?? '-'} | F2: {collectiveScannedSummary.f2Avg ?? '-'}
+                {hasF3Exam ? ` | F3: ${collectiveScannedSummary.f3Avg ?? '-'}` : ''}
+                {hasF4Exam && collectiveScannedSummary.f4Avg !== null ? ` | F4: ${collectiveScannedSummary.f4Avg}` : ''}
               </div>
             </div>
             <span className={`text-xs font-black px-2.5 py-1 rounded-full ${collectiveScannedSummary.classAvg !== null && collectiveScannedSummary.classAvg >= 10 ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/30' : 'bg-rose-500/20 text-rose-200 border border-rose-400/30'}`}>
