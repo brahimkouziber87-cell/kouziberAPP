@@ -395,7 +395,7 @@ export default function Analysis() {
         typeof (window as any).getExamsCountForClass === 'function'
           ? Number((window as any).getExamsCountForClass(cName))
           : null;
-      const classExamsCount = (winExams && !isNaN(winExams)) ? winExams : (cfgExams || 4);
+      const classExamsCount = (winExams && !isNaN(winExams)) ? winExams : (cfgExams || 3);
 
       students.forEach((std: any) => {
         const f1 = getStudentExamGrade(classGrades, std.id, semester, 'f1', db, cName);

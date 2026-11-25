@@ -572,13 +572,14 @@ export const WeekdayAbsenceDistributionCard: React.FC<{
         </div>
 
         {/* Interactive Controls */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
-            <Filter className="w-3.5 h-3.5 text-slate-500" />
+        <div className="flex items-center gap-2.5 flex-nowrap overflow-x-auto max-w-full shrink-0 py-0.5">
+          <div className="inline-flex items-center gap-2 bg-white hover:bg-slate-50/80 border border-slate-200/90 hover:border-blue-300 shadow-2xs rounded-xl px-3 h-9 shrink-0 transition-all">
+            <Filter className="w-3.5 h-3.5 text-blue-600 shrink-0" />
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+              style={{ width: 'auto', margin: 0, padding: '0 2px', height: '100%', border: 'none', background: 'transparent', boxShadow: 'none' }}
+              className="bg-transparent text-xs font-extrabold text-slate-800 focus:outline-none cursor-pointer whitespace-nowrap shrink-0"
               aria-label="تصفية حسب القسم"
             >
               <option value="all">جميع الأقسام المسندة</option>
@@ -590,7 +591,7 @@ export const WeekdayAbsenceDistributionCard: React.FC<{
             </select>
           </div>
 
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200/70">
+          <div className="inline-flex items-center gap-1 p-1 bg-slate-100/90 rounded-xl border border-slate-200/80 h-9 shrink-0 shadow-2xs">
             {[
               { id: 'all', label: 'الموسم الكامل' },
               { id: '30days', label: 'آخر 30 يوماً' },
@@ -602,10 +603,11 @@ export const WeekdayAbsenceDistributionCard: React.FC<{
                 key={period.id}
                 type="button"
                 onClick={() => setSelectedPeriod(period.id as any)}
-                className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                style={{ margin: 0, padding: '0 10px', height: '26px' }}
+                className={`inline-flex items-center justify-center text-[11px] font-extrabold rounded-lg transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                   selectedPeriod === period.id
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/70'
                 }`}
               >
                 {period.label}
@@ -617,7 +619,8 @@ export const WeekdayAbsenceDistributionCard: React.FC<{
             <button
               type="button"
               onClick={() => setShowDemoWhenEmpty(false)}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-600 hover:bg-slate-50 whitespace-nowrap shrink-0 cursor-pointer"
+              style={{ margin: 0, padding: '0 10px', height: '36px' }}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-[11px] font-extrabold text-slate-600 hover:bg-slate-50 hover:text-slate-900 whitespace-nowrap shrink-0 cursor-pointer shadow-2xs transition-colors"
             >
               إخفاء المعاينة
             </button>

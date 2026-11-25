@@ -743,46 +743,36 @@
             .slice(0, 4);
 
         let html = `
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 14px; margin-bottom: 16px;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);">
-                        <span data-lucide="line-chart" data-size="24"></span>
-                    </div>
-                    <div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 900; color: #0f172a; font-family: 'Cairo', sans-serif;">
-                                النموذج البياني: أثر الغياب اليومي على تطور نقط ومعدلات التلاميذ 📉
-                            </h3>
-                            <span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; background: #e0e7ff; color: #3730a3; font-weight: 800;">
-                                تحليل ارتباط إحصائي ديناميكي
-                            </span>
+            <!-- الترويسة المدمجة وشريط الفلاتر والتحكم وأزرار أنماط المخطط البياني -->
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; padding: 16px 18px; background: linear-gradient(135deg, #eef2ff 0%, #f8fafc 55%, #e0e7ff 100%); border: 1.5px solid #c7d2fe; border-radius: 14px; box-shadow: 0 3px 12px rgba(79, 70, 229, 0.08);">
+                <!-- الصف الأول: العنوان والوصف -->
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div style="width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3); flex-shrink: 0;">
+                            <span data-lucide="line-chart" data-size="24"></span>
                         </div>
-                        <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #64748b; font-weight: 600;">
-                            ربط زمني مرئي بين تراكم حصص وساعات الغياب اليومية وتراجع مستوى تحصيل التلاميذ في الفروض المحروسة
-                        </p>
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <h3 style="margin: 0; font-size: 1.1rem; font-weight: 900; color: #1e1b4b; font-family: 'Cairo', sans-serif;">
+                                    النموذج البياني: أثر الغياب اليومي على تطور نقط ومعدلات التلاميذ 📉
+                                </h3>
+                                <span style="font-size: 0.72rem; padding: 3px 10px; border-radius: 9999px; background: #ffffff; color: #3730a3; border: 1px solid #a5b4fc; font-weight: 800; box-shadow: 0 1px 2px rgba(55, 48, 163, 0.08);">
+                                    تحليل ارتباط إحصائي ديناميكي
+                                </span>
+                            </div>
+                            <p style="margin: 4px 0 0 0; font-size: 0.79rem; color: #475569; font-weight: 600; line-height: 1.4;">
+                                ربط زمني مرئي بين تراكم حصص وساعات الغياب اليومية وتراجع مستوى تحصيل التلاميذ في الفروض المحروسة
+                            </p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- أزرار الإجراءات والطباعة -->
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <button type="button" onclick="window.exportGradesAbsenceReportPDF()" style="background: linear-gradient(135deg, #059669, #047857); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(5,150,105,0.25);">
-                        <span data-lucide="printer" data-size="14"></span>
-                        <span>طبع التقرير التحليلي PDF</span>
-                    </button>
-                    <button type="button" onclick="window.openAbsenceRemediationAdviceModal()" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(245,158,11,0.25);">
-                        <span data-lucide="shield-alert" data-size="14"></span>
-                        <span>توصيات الدعم للمتأثرين بالغياب</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- شريط الفلاتر والتحكم -->
-            <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;">
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <!-- الصف الثاني: الفلاتر (القسم، الدورة، الترتيب) وأزرار الإجراءات والطباعة — متوسطة الصفحة -->
+                <div style="display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; width: 100%; padding-top: 12px; border-top: 1px dashed #a5b4fc;">
                     <!-- اختيار القسم -->
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <label style="font-size: 0.78rem; font-weight: 800; color: #475569;">القسم:</label>
-                        <select id="selImpactClass" onchange="window.setImpactClassFilter(this.value)" style="padding: 5px 10px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 0.82rem; font-weight: 700; background: #fff; color: #1e293b;">
+                    <div style="display: inline-flex; align-items: center; gap: 6px; background: #ffffff; padding: 3px 10px 3px 4px; border-radius: 9px; border: 1.5px solid #c7d2fe; height: 36px; box-sizing: border-box; box-shadow: 0 1px 3px rgba(79, 70, 229, 0.06);">
+                        <label for="selImpactClass" style="margin: 0; font-size: 0.77rem; font-weight: 800; color: #312e81; white-space: nowrap;">🏫 القسم:</label>
+                        <select id="selImpactClass" onchange="window.setImpactClassFilter(this.value)" style="margin: 0; width: auto; min-width: 140px; height: 28px; padding: 0 8px; border-radius: 6px; border: 1px solid #e0e7ff; font-size: 0.78rem; font-weight: 800; background: #f8fafc; color: #1e293b; cursor: pointer;">
                             <option value="all" ${_impactState.className === 'all' ? 'selected' : ''}>جميع الأقسام (${classes.length})</option>
                             ${(multiRes.classes && multiRes.classes.length >= 2) ? `<option value="__MULTI__" ${_impactState.className === '__MULTI__' ? 'selected' : ''}>🗂️ أقسام متعددة (${escapeHtml(multiRes.label)})</option>` : ''}
                             ${classes.map(c => `<option value="${escapeHtml(c)}" ${_impactState.className === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
@@ -790,41 +780,57 @@
                     </div>
 
                     <!-- اختيار الدورة -->
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <label style="font-size: 0.78rem; font-weight: 800; color: #475569;">الدورة:</label>
-                        <div style="background: #e2e8f0; padding: 2px; border-radius: 8px; display: inline-flex; gap: 2px;">
-                            <button type="button" onclick="window.setImpactSemester('s1')" style="padding: 4px 10px; border-radius: 6px; border: none; font-size: 0.76rem; font-weight: 800; cursor: pointer; background: ${_impactState.semester === 's1' ? '#2563eb' : 'transparent'}; color: ${_impactState.semester === 's1' ? '#fff' : '#475569'};">الدورة 1</button>
-                            <button type="button" onclick="window.setImpactSemester('s2')" style="padding: 4px 10px; border-radius: 6px; border: none; font-size: 0.76rem; font-weight: 800; cursor: pointer; background: ${_impactState.semester === 's2' ? '#2563eb' : 'transparent'}; color: ${_impactState.semester === 's2' ? '#fff' : '#475569'};">الدورة 2</button>
-                            <button type="button" onclick="window.setImpactSemester('overall')" style="padding: 4px 10px; border-radius: 6px; border: none; font-size: 0.76rem; font-weight: 800; cursor: pointer; background: ${_impactState.semester === 'overall' ? '#2563eb' : 'transparent'}; color: ${_impactState.semester === 'overall' ? '#fff' : '#475569'};">الموسم كاملاً</button>
+                    <div style="display: inline-flex; align-items: center; gap: 6px; background: #ffffff; padding: 3px 10px 3px 4px; border-radius: 9px; border: 1.5px solid #c7d2fe; height: 36px; box-sizing: border-box; box-shadow: 0 1px 3px rgba(79, 70, 229, 0.06);">
+                        <label style="margin: 0; font-size: 0.77rem; font-weight: 800; color: #312e81; white-space: nowrap;">📅 الدورة:</label>
+                        <div style="background: #f1f5f9; padding: 2px; border-radius: 7px; display: inline-flex; align-items: center; gap: 3px; height: 28px; box-sizing: border-box;">
+                            <button type="button" onclick="window.setImpactSemester('s1')" style="margin: 0; height: 24px; padding: 0 10px; border-radius: 5px; border: none; font-size: 0.75rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; transition: all 0.15s; background: ${_impactState.semester === 's1' ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : 'transparent'}; color: ${_impactState.semester === 's1' ? '#fff' : '#475569'}; box-shadow: ${_impactState.semester === 's1' ? '0 1px 3px rgba(37, 99, 235, 0.25)' : 'none'};">الدورة 1</button>
+                            <button type="button" onclick="window.setImpactSemester('s2')" style="margin: 0; height: 24px; padding: 0 10px; border-radius: 5px; border: none; font-size: 0.75rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; transition: all 0.15s; background: ${_impactState.semester === 's2' ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : 'transparent'}; color: ${_impactState.semester === 's2' ? '#fff' : '#475569'}; box-shadow: ${_impactState.semester === 's2' ? '0 1px 3px rgba(37, 99, 235, 0.25)' : 'none'};">الدورة 2</button>
+                            <button type="button" onclick="window.setImpactSemester('overall')" style="margin: 0; height: 24px; padding: 0 10px; border-radius: 5px; border: none; font-size: 0.75rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; transition: all 0.15s; background: ${_impactState.semester === 'overall' ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : 'transparent'}; color: ${_impactState.semester === 'overall' ? '#fff' : '#475569'}; box-shadow: ${_impactState.semester === 'overall' ? '0 1px 3px rgba(37, 99, 235, 0.25)' : 'none'};">الموسم كاملاً</button>
                         </div>
                     </div>
 
                     <!-- الترتيب -->
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <label style="font-size: 0.78rem; font-weight: 800; color: #475569;">الترتيب:</label>
-                        <select onchange="window.setImpactSortBy(this.value)" style="padding: 5px 8px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-size: 0.8rem; font-weight: 700; background: #fff;">
+                    <div style="display: inline-flex; align-items: center; gap: 6px; background: #ffffff; padding: 3px 10px 3px 4px; border-radius: 9px; border: 1.5px solid #c7d2fe; height: 36px; box-sizing: border-box; box-shadow: 0 1px 3px rgba(79, 70, 229, 0.06);">
+                        <label style="margin: 0; font-size: 0.77rem; font-weight: 800; color: #312e81; white-space: nowrap;">🔃 الترتيب:</label>
+                        <select onchange="window.setImpactSortBy(this.value)" style="margin: 0; width: auto; min-width: 130px; height: 28px; padding: 0 8px; border-radius: 6px; border: 1px solid #e0e7ff; font-size: 0.78rem; font-weight: 800; background: #f8fafc; color: #1e293b; cursor: pointer;">
                             <option value="absence_desc" ${_impactState.sortBy === 'absence_desc' ? 'selected' : ''}>الأكثر غياباً أولاً</option>
                             <option value="grades_asc" ${_impactState.sortBy === 'grades_asc' ? 'selected' : ''}>الأدنى نقطة أولاً</option>
                             <option value="grades_desc" ${_impactState.sortBy === 'grades_desc' ? 'selected' : ''}>الأعلى نقطة أولاً</option>
                             <option value="name" ${_impactState.sortBy === 'name' ? 'selected' : ''}>أبجدياً حسب الاسم</option>
                         </select>
                     </div>
+
+                    <!-- أزرار الإجراءات والطباعة -->
+                    <button type="button" onclick="window.exportGradesAbsenceReportPDF()" style="margin: 0; height: 36px; background: linear-gradient(135deg, #059669, #047857); color: #fff; border: 1px solid #047857; padding: 0 14px; border-radius: 9px; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-shadow: 0 2px 6px rgba(5,150,105,0.22);">
+                        <span data-lucide="printer" data-size="14"></span>
+                        <span>طبع التقرير التحليلي PDF</span>
+                    </button>
+                    <button type="button" onclick="window.openAbsenceRemediationAdviceModal()" style="margin: 0; height: 36px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; border: 1px solid #d97706; padding: 0 14px; border-radius: 9px; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-shadow: 0 2px 6px rgba(245,158,11,0.22);">
+                        <span data-lucide="shield-alert" data-size="14"></span>
+                        <span>توصيات الدعم للمتأثرين بالغياب</span>
+                    </button>
                 </div>
 
-                <!-- أزرار نمط المخطط البياني -->
-                <div style="display: flex; align-items: center; gap: 4px; background: #ffffff; padding: 3px; border-radius: 10px; border: 1.5px solid #cbd5e1;">
-                    <button type="button" onclick="window.setImpactChartMode('dual_axis')" style="padding: 5px 12px; border-radius: 7px; border: none; font-size: 0.78rem; font-weight: 800; cursor: pointer; transition: all 0.2s; background: ${_impactState.chartMode === 'dual_axis' ? '#4f46e5' : 'transparent'}; color: ${_impactState.chartMode === 'dual_axis' ? '#fff' : '#475569'};" title="منحنى النقط مع أعمدة الغياب المتزامنة">
-                        📊 المخطط المزدوج
-                    </button>
-                    <button type="button" onclick="window.setImpactChartMode('scatter')" style="padding: 5px 12px; border-radius: 7px; border: none; font-size: 0.78rem; font-weight: 800; cursor: pointer; transition: all 0.2s; background: ${_impactState.chartMode === 'scatter' ? '#4f46e5' : 'transparent'}; color: ${_impactState.chartMode === 'scatter' ? '#fff' : '#475569'};" title="مخطط التشتت والانحدار الخطي">
-                        📉 تشتت وانحدار
-                    </button>
-                    <button type="button" onclick="window.setImpactChartMode('clusters')" style="padding: 5px 12px; border-radius: 7px; border: none; font-size: 0.78rem; font-weight: 800; cursor: pointer; transition: all 0.2s; background: ${_impactState.chartMode === 'clusters' ? '#4f46e5' : 'transparent'}; color: ${_impactState.chartMode === 'clusters' ? '#fff' : '#475569'};" title="مقارنة معدل النقط عبر فئات الغياب">
-                        🎯 فئات التأثر
-                    </button>
-                    <button type="button" onclick="window.setImpactChartMode('timeline')" style="padding: 5px 12px; border-radius: 7px; border: none; font-size: 0.78rem; font-weight: 800; cursor: pointer; transition: all 0.2s; background: ${_impactState.chartMode === 'timeline' ? '#4f46e5' : 'transparent'}; color: ${_impactState.chartMode === 'timeline' ? '#fff' : '#475569'};" title="تتبع زمني مفصل لكل تلميذ">
-                        👤 تتبع تلميذ
-                    </button>
+                <!-- الصف الثالث: أزرار نمط المخطط البياني — متوسطة الصفحة -->
+                <div style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; width: 100%; padding-top: 10px; border-top: 1px dashed #c7d2fe;">
+                    <div style="display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; background: #ffffff; padding: 4px; border-radius: 10px; border: 1.5px solid #c7d2fe; box-shadow: 0 1px 4px rgba(79, 70, 229, 0.08);">
+                        <button type="button" onclick="window.setImpactChartMode('dual_axis')" style="margin: 0; height: 34px; padding: 0 16px; border-radius: 7px; border: none; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; transition: all 0.2s; background: ${_impactState.chartMode === 'dual_axis' ? 'linear-gradient(135deg, #4f46e5, #4338ca)' : 'transparent'}; color: ${_impactState.chartMode === 'dual_axis' ? '#fff' : '#475569'}; box-shadow: ${_impactState.chartMode === 'dual_axis' ? '0 2px 5px rgba(79, 70, 229, 0.25)' : 'none'};" title="منحنى النقط مع أعمدة الغياب المتزامنة">
+                            <span>📊</span>
+                            <span>المخطط المزدوج</span>
+                        </button>
+                        <button type="button" onclick="window.setImpactChartMode('scatter')" style="margin: 0; height: 34px; padding: 0 16px; border-radius: 7px; border: none; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; transition: all 0.2s; background: ${_impactState.chartMode === 'scatter' ? 'linear-gradient(135deg, #4f46e5, #4338ca)' : 'transparent'}; color: ${_impactState.chartMode === 'scatter' ? '#fff' : '#475569'}; box-shadow: ${_impactState.chartMode === 'scatter' ? '0 2px 5px rgba(79, 70, 229, 0.25)' : 'none'};" title="مخطط التشتت والانحدار الخطي">
+                            <span>📉</span>
+                            <span>تشتت وانحدار</span>
+                        </button>
+                        <button type="button" onclick="window.setImpactChartMode('clusters')" style="margin: 0; height: 34px; padding: 0 16px; border-radius: 7px; border: none; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; transition: all 0.2s; background: ${_impactState.chartMode === 'clusters' ? 'linear-gradient(135deg, #4f46e5, #4338ca)' : 'transparent'}; color: ${_impactState.chartMode === 'clusters' ? '#fff' : '#475569'}; box-shadow: ${_impactState.chartMode === 'clusters' ? '0 2px 5px rgba(79, 70, 229, 0.25)' : 'none'};" title="مقارنة معدل النقط عبر فئات الغياب">
+                            <span>🎯</span>
+                            <span>فئات التأثر</span>
+                        </button>
+                        <button type="button" onclick="window.setImpactChartMode('timeline')" style="margin: 0; height: 34px; padding: 0 16px; border-radius: 7px; border: none; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; transition: all 0.2s; background: ${_impactState.chartMode === 'timeline' ? 'linear-gradient(135deg, #4f46e5, #4338ca)' : 'transparent'}; color: ${_impactState.chartMode === 'timeline' ? '#fff' : '#475569'}; box-shadow: ${_impactState.chartMode === 'timeline' ? '0 2px 5px rgba(79, 70, 229, 0.25)' : 'none'};" title="تتبع زمني مفصل لكل تلميذ">
+                            <span>👤</span>
+                            <span>تتبع تلميذ</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 

@@ -1911,31 +1911,77 @@
     function getCurriculumLevelForClass(className) {
         if (!className) return 'TCS';
         const clean = String(className).trim().toUpperCase();
+        const isLitToken =
+            /\b(?:LSH|LET|LIT|SH|1B?L|2B?L|1B?SH|2B?SH|1B?LSH|2B?LSH)\b/i.test(clean) ||
+            clean.includes('1BACSH') ||
+            clean.includes('2BACSH') ||
+            clean.includes('1BACLSH') ||
+            clean.includes('2BACLSH') ||
+            clean.includes('آداب') ||
+            clean.includes('اداب') ||
+            clean.includes('إنسانية') ||
+            clean.includes('انسانية') ||
+            clean.includes('أدبي') ||
+            clean.includes('ادبي') ||
+            clean.includes('أصيل') ||
+            clean.includes('اصيل');
+        const isArtToken =
+            /\b(?:1B?|2B?)?ARTS?\b/i.test(clean) ||
+            clean.includes('فنون تطبيقية') ||
+            clean.includes('الفنون التطبيقية');
 
         // 1. Check Tronc Commun (TCL / TCS / TCT) explicitly first so names like "1TCS" or "2TCL" are not misclassified as 1BAC/2BAC
         if (clean.includes('TCL') || clean.includes('TCO') || clean.includes('TC-L') || clean.includes('TC L') || clean.includes('جذع مشترك آداب') || clean.includes('جذع مشترك اداب') || clean.includes('جذع أدبي') || clean.includes('جذع ادبي') || clean.includes('جذع أصيل')) {
             return 'TCL';
         }
-        if (clean.includes('TCS') || clean.includes('TCT') || clean.includes('TC-S') || clean.includes('TC S') || clean.includes('جذع') || clean.includes('TRONC')) {
-            if (clean.includes('LSH') || clean.includes('LET') || clean.includes('آداب') || clean.includes('اداب') || clean.includes('إنسانية') || clean.includes('انسانية') || clean.includes('أدبي') || clean.includes('أصيل') || clean.includes('اصيل')) {
+        if (clean.includes('TCS') || clean.includes('TCT') || clean.includes('TC-S') || clean.includes('TC S') || clean.includes('جذع') || clean.includes('جدع') || clean.includes('TRONC')) {
+            if (isLitToken) {
                 return 'TCL';
             }
             return 'TCS';
         }
 
         // 2. Check 2BAC
-        if (clean.includes('2BAC') || clean.includes('2-BAC') || clean.includes('2 BAC') || clean.includes('2ÈME') || clean.includes('2EME') || clean.includes('ثانية باك') || clean.includes('الثانية باك') || clean.includes('ثانية بكالوريا') || clean.startsWith('2')) {
+        const is2BacPrefix =
+            clean.includes('2BAC') ||
+            clean.includes('2-BAC') ||
+            clean.includes('2 BAC') ||
+            clean.includes('2_BAC') ||
+            clean.includes('2ÈME') ||
+            clean.includes('2EME') ||
+            clean.includes('ثانية باك') ||
+            clean.includes('الثانية باك') ||
+            clean.includes('ثانية بكالوريا') ||
+            clean.includes('الثانية بكالوريا') ||
+            /^2[\s\-_]*(?:B|PC|SP|SVT|SM|SE|SX|STE|STM|ECO|SEG|SGC|TGC|LSH|SH|LET|LIT|ART|علوم|آداب|اداب|اقتصاد|فنون)/i.test(clean);
+
+        if (is2BacPrefix) {
             if (clean.includes('SM') || clean.includes('MATH') || clean.includes('رياضية')) return '2BAC_SM';
-            if (clean.includes('ECO') || clean.includes('TGC') || clean.includes('SGC') || clean.includes('GCT') || clean.includes('اقتصاد') || clean.includes('تدبير')) return '2BAC_ECO';
-            if (clean.includes('LSH') || clean.includes('LET') || clean.includes('LIT') || clean.includes('SH') || clean.includes('آداب') || clean.includes('اداب') || clean.includes('إنسانية') || clean.includes('انسانية') || clean.includes('أصيل') || clean.includes('اصيل')) return '2BAC_LSH';
+            if (clean.includes('ECO') || clean.includes('SEG') || clean.includes('TGC') || clean.includes('SGC') || clean.includes('GCT') || clean.includes('اقتصاد') || clean.includes('تدبير')) return '2BAC_ECO';
+            if (isLitToken || isArtToken) return '2BAC_LSH';
             return '2BAC_EXP';
         }
 
         // 3. Check 1BAC
-        if (clean.includes('1BAC') || clean.includes('1-BAC') || clean.includes('1 BAC') || clean.includes('1ÈRE') || clean.includes('1ERE') || clean.includes('أولى باك') || clean.includes('اولى باك') || clean.includes('الأولى باك') || clean.includes('أولى بكالوريا') || clean.startsWith('1')) {
+        const is1BacPrefix =
+            clean.includes('1BAC') ||
+            clean.includes('1-BAC') ||
+            clean.includes('1 BAC') ||
+            clean.includes('1_BAC') ||
+            clean.includes('1ÈRE') ||
+            clean.includes('1ERE') ||
+            clean.includes('أولى باك') ||
+            clean.includes('اولى باك') ||
+            clean.includes('الأولى باك') ||
+            clean.includes('الاولى باك') ||
+            clean.includes('أولى بكالوريا') ||
+            clean.includes('الأولى بكالوريا') ||
+            /^1[\s\-_]*(?:B|PC|SP|SVT|SM|SE|SX|STE|STM|ECO|SEG|SGC|TGC|LSH|SH|LET|LIT|ART|علوم|آداب|اداب|اقتصاد|فنون)/i.test(clean);
+
+        if (is1BacPrefix) {
             if (clean.includes('SM') || clean.includes('MATH') || clean.includes('رياضية')) return '1BAC_SM';
-            if (clean.includes('ECO') || clean.includes('TGC') || clean.includes('SGC') || clean.includes('GCT') || clean.includes('اقتصاد') || clean.includes('تدبير')) return '1BAC_ECO';
-            if (clean.includes('LSH') || clean.includes('LET') || clean.includes('LIT') || clean.includes('SH') || clean.includes('آداب') || clean.includes('اداب') || clean.includes('إنسانية') || clean.includes('انسانية') || clean.includes('أصيل') || clean.includes('اصيل')) return '1BAC_LSH';
+            if (clean.includes('ECO') || clean.includes('SEG') || clean.includes('TGC') || clean.includes('SGC') || clean.includes('GCT') || clean.includes('اقتصاد') || clean.includes('تدبير')) return '1BAC_ECO';
+            if (isLitToken || isArtToken) return '1BAC_LSH';
             return '1BAC_EXP';
         }
 
@@ -1950,18 +1996,23 @@
             return '1BAC_SM';
         }
         if (/\b(?:SE|SX|EXP|STE|STM)\b/i.test(clean) || clean.includes('تجريبية') || clean.includes('كهربائية') || clean.includes('ميكانيكية') || clean.includes('علوم وتكنولوجيات')) {
-            return '1BAC_EXP';
+            return (clean.includes('ثانية') || clean.includes('الثانية')) ? '2BAC_EXP' : '1BAC_EXP';
         }
         if (/\b(?:SGC|TGC|GCT)\b/i.test(clean) || clean.includes('تدبير محاسباتي')) {
             return '2BAC_ECO';
         }
         if (/\b(?:ECO|SEG)\b/i.test(clean) || clean.includes('اقتصاد') || clean.includes('إقتصاد') || clean.includes('تدبير')) {
-            return '1BAC_ECO';
+            return (clean.includes('ثانية') || clean.includes('الثانية')) ? '2BAC_ECO' : '1BAC_ECO';
+        }
+        if (isArtToken) {
+            return (clean.includes('2') || clean.includes('ثانية') || clean.includes('الثانية')) ? '2BAC_LSH' : '1BAC_LSH';
         }
         if (/\b(?:LSH|LET|LIT|SH)\b/i.test(clean)) {
-            return '1BAC_LSH';
+            return (clean.includes('2') || clean.includes('ثانية') || clean.includes('الثانية')) ? '2BAC_LSH' : '1BAC_LSH';
         }
-        if (clean.includes('آداب') || clean.includes('اداب') || clean.includes('إنسانية') || clean.includes('انسانية') || clean.includes('أدبي') || clean.includes('أصيل') || clean.includes('اصيل')) {
+        if (isLitToken) {
+            if (clean.includes('2') || clean.includes('ثانية') || clean.includes('الثانية')) return '2BAC_LSH';
+            if (clean.includes('1') || clean.includes('أولى') || clean.includes('اولى') || clean.includes('الأولى')) return '1BAC_LSH';
             return 'TCL';
         }
 

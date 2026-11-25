@@ -42816,24 +42816,25 @@ window.isPresentationMode = isPresentationMode;
             const clean = className.trim().toUpperCase();
 
             let level = '';
-            if (clean.includes('2BAC') || clean.includes('2-BAC') || clean.includes('2 BAC') || clean.includes('ثانية باك')) level = '2BAC';
-            else if (clean.includes('1BAC') || clean.includes('1-BAC') || clean.includes('1 BAC') || clean.includes('أولى باك')) level = '1BAC';
-            else if (clean.includes('TCS') || clean.includes('TC') || clean.includes('جذع')) level = 'TCS';
-            else if (clean.includes('TCL') || clean.includes('LSH') || clean.includes('آداب') || clean.includes('إنسانية')) level = 'TCL';
-
-
+            if (clean.includes('TCL') || clean.includes('TCO') || clean.includes('TC-L') || clean.includes('جذع مشترك آداب') || clean.includes('جذع أدبي') || clean.includes('جذع أصيل')) level = 'TCL';
+            else if (clean.includes('TCS') || clean.includes('TCT') || clean.includes('TC') || clean.includes('جذع') || clean.includes('جدع')) level = 'TCS';
+            else if (clean.includes('2BAC') || clean.includes('2-BAC') || clean.includes('2 BAC') || clean.includes('ثانية باك') || clean.includes('الثانية باك')) level = '2BAC';
+            else if (clean.includes('1BAC') || clean.includes('1-BAC') || clean.includes('1 BAC') || clean.includes('أولى باك') || clean.includes('الأولى باك')) level = '1BAC';
+            else if (clean.includes('LSH') || clean.includes('آداب') || clean.includes('إنسانية')) level = 'TCL';
             else {
                 const m = clean.match(/^([A-Z0-9\u0621-\u064A]+)/i);
                 level = m ? m[1] : clean;
             }
 
             let track = '';
-            if (clean.includes('PC') || clean.includes('PHYSIQUE') || clean.includes('فيزياء')) track = 'PC';
-            else if (clean.includes('SVT') || clean.includes('علوم الحياة') || clean.includes('BIO')) track = 'SVT';
+            if (clean.includes('PC') || clean.includes('SP') || clean.includes('PHYSIQUE') || clean.includes('فيزياء') || clean.includes('فيزيائية')) track = 'PC';
+            else if (clean.includes('SVT') || clean.includes('علوم الحياة') || clean.includes('BIO') || clean.includes('AGRO') || clean.includes('زراعية')) track = 'SVT';
             else if (clean.includes('SM') || clean.includes('MATH') || clean.includes('رياضية')) track = 'SM';
-            else if (clean.includes('STE') || clean.includes('STM') || clean.includes('تكنولوجي')) track = 'TECH';
-            else if (clean.includes('L') || clean.includes('SH') || clean.includes('آداب')) track = 'L';
-            else if (clean.includes('SE') || clean.includes('ECO') || clean.includes('اقتصاد')) track = 'ECO';
+            else if (clean.includes('STE') || clean.includes('STM') || clean.includes('TCT') || clean.includes('تكنولوجي') || clean.includes('كهربائية') || clean.includes('ميكانيكية')) track = 'TECH';
+            else if (/\bARTS?\b/i.test(clean) || clean.includes('فنون تطبيقية')) track = 'ART';
+            else if (/\b(?:TCL|TCO|LSH|LET|LIT|SH)\b/i.test(clean) || clean.includes('آداب') || clean.includes('اداب') || clean.includes('إنسانية') || clean.includes('أصيل')) track = 'L';
+            else if (clean.includes('ECO') || clean.includes('SEG') || clean.includes('SGC') || clean.includes('TGC') || clean.includes('اقتصاد') || clean.includes('تدبير')) track = 'ECO';
+            else if (clean.includes('SE') || clean.includes('SX') || clean.includes('EXP') || clean.includes('تجريبية')) track = 'SE';
 
             return { level, track, raw: clean };
         }

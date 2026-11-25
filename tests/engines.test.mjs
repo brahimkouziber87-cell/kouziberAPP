@@ -2767,8 +2767,50 @@ test('Monthly Detailed Schedule Print, Blank-Print Pipeline Fixes, CSS Media Rul
     assert.ok(appJsText.includes('customReportPdfExportClone') && appJsText.includes('scrollX: 0, scrollY: 0'), 'PDF export must clone sheet into clean top-left container with scrollX:0, scrollY:0');
 });
 
+test('Moroccan Pedagogical Guidelines (2007) & Ministerial Note 142-08 Deep Alignment: STE/STM coef 7, Applied Arts coef 4, hardened getCurriculumLevelForClass & extractClassLevelTrack', () => {
+    const { win, sandbox } = createDomSandbox();
+    runPublicScript(sandbox, 'public/core/grades-calculator.js');
+    runPublicScript(sandbox, 'public/secondary-math-curriculum.js');
 
+    // 1. Verify getCurriculumLevelForClass safely routes all Moroccan tracks without false substring matches
+    const getLvl = win.getCurriculumLevelForClass;
+    assert.equal(getLvl('TCS-1'), 'TCS');
+    assert.equal(getLvl('TCT-2'), 'TCS');
+    assert.equal(getLvl('TCL-1'), 'TCL');
+    assert.equal(getLvl('2TCL-1'), 'TCL', 'Tronc commun literary with leading 2 must stay TCL');
+    assert.equal(getLvl('1TCS-2'), 'TCS', 'Tronc commun scientific with leading 1 must stay TCS');
+    assert.equal(getLvl('1BAC-SE-1'), '1BAC_EXP');
+    assert.equal(getLvl('1BAC-STE-1'), '1BAC_EXP');
+    assert.equal(getLvl('1BAC-STM-1'), '1BAC_EXP');
+    assert.equal(getLvl('1BAC-SM-1'), '1BAC_SM');
+    assert.equal(getLvl('1BAC-ECO-1'), '1BAC_ECO');
+    assert.equal(getLvl('1BAC-LSH-1'), '1BAC_LSH');
+    assert.equal(getLvl('1BAC-SH-2'), '1BAC_LSH');
+    assert.equal(getLvl('1BAC-ARTS-1'), '1BAC_LSH');
+    assert.equal(getLvl('2BAC-PC-1'), '2BAC_EXP');
+    assert.equal(getLvl('2BAC-SVT-2'), '2BAC_EXP');
+    assert.equal(getLvl('2BAC-AGRO-1'), '2BAC_EXP');
+    assert.equal(getLvl('2BAC-STE-1'), '2BAC_EXP');
+    assert.equal(getLvl('2BAC-STM-1'), '2BAC_EXP');
+    assert.equal(getLvl('2BAC-SMA-1'), '2BAC_SM');
+    assert.equal(getLvl('2BAC-SMB-1'), '2BAC_SM');
+    assert.equal(getLvl('2BAC-ECO-1'), '2BAC_ECO');
+    assert.equal(getLvl('2BAC-SGC-1'), '2BAC_ECO');
+    assert.equal(getLvl('2BAC-LSH-1'), '2BAC_LSH');
+    assert.equal(getLvl('2BAC-SH-1'), '2BAC_LSH');
+    assert.equal(getLvl('2BAC-ARTS-1'), '2BAC_LSH');
+    assert.equal(getLvl('1BAC-ENGLISH-BIOF'), '1BAC_EXP', 'Word containing SH inside ENGLISH must not misclassify as Literary LSH');
+    assert.equal(getLvl('2BAC-ENGLISH-BIOF'), '2BAC_EXP', 'Word containing SH inside ENGLISH must not misclassify as Literary LSH');
 
+    // 2. Verify React source files align STE/STM coefficient to 7 (never 6) and default exam counts to 3 (4 only for SM, 2 for Lit)
+    const dashSrc = fs.readFileSync(path.join(ROOT, 'src/DashboardView.tsx'), 'utf8');
+    const repEvoSrc = fs.readFileSync(path.join(ROOT, 'src/ReportsEvolutionChart.tsx'), 'utf8');
+    const trendsSrc = fs.readFileSync(path.join(ROOT, 'src/AcademicYearPerformanceTrends.tsx'), 'utf8');
 
-
-
+    assert.equal(dashSrc.includes('isTech ? 6'), false, 'DashboardView.tsx must never assign coefficient 6 to STE/STM');
+    assert.ok(dashSrc.includes('isTech ? 7'), 'DashboardView.tsx must assign official Note 142-08 coefficient 7 to STE/STM');
+    assert.equal(repEvoSrc.includes('المعامل الرسمي: 6'), false, 'ReportsEvolutionChart.tsx must never display coefficient 6 for STE/STM');
+    assert.ok(repEvoSrc.includes('المعامل الرسمي: 7 (علوم وتكنولوجيات STE/STM - 3 فروض)'), 'ReportsEvolutionChart.tsx must display coefficient 7 for 2BAC STE/STM');
+    assert.ok(repEvoSrc.includes('المعامل الرسمي: 7 (1 باك علوم وتكنولوجيات STE/STM - 3 فروض)'), 'ReportsEvolutionChart.tsx must display coefficient 7 for 1BAC STE/STM');
+    assert.equal(trendsSrc.includes("if (upper.includes('2BAC') || upper.includes('SM')"), false, 'AcademicYearPerformanceTrends.tsx must not default all 2BAC classes to 4 exams');
+});

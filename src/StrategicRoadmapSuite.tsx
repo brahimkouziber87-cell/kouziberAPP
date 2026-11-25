@@ -241,8 +241,8 @@ export default function StrategicRoadmapSuite({ dbProp, classNamesProp }: Strate
       const peakDay = peakDayByClass[cls] ?? 5;
       const clsExamCnt =
         typeof window !== 'undefined' && typeof (window as any).getExamsCountForClass === 'function'
-          ? Number((window as any).getExamsCountForClass(cls)) || 4
-          : 4;
+          ? Number((window as any).getExamsCountForClass(cls)) || 3
+          : 3;
 
       students.forEach((std: any, idx: number) => {
         const stdId = String(std.id || idx + 1);
@@ -652,32 +652,35 @@ export default function StrategicRoadmapSuite({ dbProp, classNamesProp }: Strate
   return (
     <div className="rounded-2xl border border-indigo-200/90 bg-white shadow-sm overflow-hidden my-5" dir="rtl">
       {/* Top Strategic Banner */}
-      <div className="bg-gradient-to-l from-slate-900 via-indigo-950 to-slate-900 text-white px-4 sm:px-6 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-        <div className="flex items-start sm:items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 shrink-0">
-            <Sparkles className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-base sm:text-lg font-black tracking-tight text-white">
-                منظومة التطوير الاستراتيجي واليقظة التربوية والحكامة الأمنية
-              </h2>
-              <span className="px-2.5 py-0.5 rounded-md text-[11px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                معتمد وفق المذكرة 142-08 والقانون 09-08
-              </span>
+      <div className="bg-gradient-to-l from-slate-900 via-indigo-950 to-slate-900 text-white px-4 sm:px-6 py-4 flex flex-col gap-3.5 border-b border-indigo-500/20">
+        <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 shrink-0 shadow-inner">
+              <Sparkles className="w-6 h-6" />
             </div>
-            <p className="text-xs text-slate-300 mt-0.5">
-              مؤشر الإنذار المبكر بالانقطاع والتراجع الرياضي · المدقق القبلي لمنظومة مسار وحقيبة المفتش التربوي · قاعدة IndexedDB وسجل التدقيق المشفر
-            </p>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base sm:text-lg font-black tracking-tight text-white">
+                  منظومة التطوير الاستراتيجي واليقظة التربوية والحكامة الأمنية
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                  معتمد وفق المذكرة 142-08 والقانون 09-08
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1">
+                مؤشر الإنذار المبكر بالانقطاع والتراجع الرياضي · المدقق القبلي لمنظومة مسار وحقيبة المفتش التربوي · قاعدة IndexedDB وسجل التدقيق المشفر
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Quick Global Controls: Class Filter + Semester + CNDP Privacy Toggle */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Quick Global Controls: Centered Class Filter + Semester + CNDP Privacy Toggle */}
+        <div className="flex items-center justify-center gap-2.5 flex-wrap w-full pt-2.5 border-t border-indigo-400/20">
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-800/90 border border-slate-600 text-xs font-bold text-white focus:outline-none focus:border-indigo-400"
+            style={{ margin: 0, width: 'auto', height: '36px', padding: '0 12px' }}
+            className="rounded-lg bg-slate-800/95 border border-slate-600 text-xs font-extrabold text-white focus:outline-none focus:border-indigo-400 cursor-pointer shadow-xs"
           >
             <option value="all">جميع الأقسام ({classNames.length})</option>
             {classNames.map((c) => (
@@ -690,7 +693,8 @@ export default function StrategicRoadmapSuite({ dbProp, classNamesProp }: Strate
           <select
             value={selectedSemester}
             onChange={(e) => setSelectedSemester(e.target.value as 's1' | 's2')}
-            className="px-2.5 py-1.5 rounded-lg bg-slate-800/90 border border-slate-600 text-xs font-bold text-white focus:outline-none focus:border-indigo-400"
+            style={{ margin: 0, width: 'auto', height: '36px', padding: '0 12px' }}
+            className="rounded-lg bg-slate-800/95 border border-slate-600 text-xs font-extrabold text-white focus:outline-none focus:border-indigo-400 cursor-pointer shadow-xs"
           >
             <option value="s1">الدورة الأولى (S1)</option>
             <option value="s2">الدورة الثانية (S2)</option>
@@ -699,7 +703,8 @@ export default function StrategicRoadmapSuite({ dbProp, classNamesProp }: Strate
           <button
             type="button"
             onClick={handleTogglePrivacy}
-            className={`px-3 py-1.5 rounded-lg text-xs font-extrabold border transition flex items-center gap-1.5 cursor-pointer ${
+            style={{ margin: 0, height: '36px', padding: '0 14px' }}
+            className={`rounded-lg text-xs font-extrabold border transition inline-flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap ${
               privacyActive
                 ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400 shadow-md'
                 : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-600'

@@ -197,16 +197,19 @@ function detectClassCertificationTarget(className: string): {
     raw.includes('انسانية');
   const isEco = norm.includes('ECO') || norm.includes('SEG') || norm.includes('SGC') || raw.includes('اقتصاد') || raw.includes('تدبير');
   const isTech = norm.includes('STE') || norm.includes('STM') || norm.includes('TECH') || raw.includes('تكنولوجي') || raw.includes('كهربائ') || raw.includes('ميكانيك');
+  const isArt = /\bARTS?\b/i.test(norm) || raw.includes('فنون تطبيقية') || raw.includes('الفنون التطبيقية');
 
   if (norm.includes('2BAC') || norm.includes('2 BAC') || norm.includes('2-BAC') || raw.includes('الثانية') || raw.includes('ثانية') || norm.includes('2B')) {
     const coefLabel = isSM
       ? 'المعامل الرسمي: 9 (علوم رياضية - 4 فروض)'
       : isLit
       ? 'المعامل الرسمي: 1 (آداب وعلوم إنسانية - فرضان)'
+      : isArt
+      ? 'المعامل الرسمي: 4 (فنون تطبيقية - 3 فروض)'
       : isEco
       ? 'المعامل الرسمي: 4 (علوم اقتصادية وتدبير - 3 فروض)'
       : isTech
-      ? 'المعامل الرسمي: 6 (علوم وتكنولوجيات STE/STM - 3 فروض)'
+      ? 'المعامل الرسمي: 7 (علوم وتكنولوجيات STE/STM - 3 فروض)'
       : 'المعامل الرسمي: 7 (علوم تجريبية PC/SVT - 3 فروض)';
     return {
       badge: 'الامتحان الوطني الموحد للبكالوريا',
@@ -220,10 +223,12 @@ function detectClassCertificationTarget(className: string): {
       ? 'المعامل الرسمي: 1 (الامتحان الجهوي الموحد - فرضان)'
       : isSM
       ? 'المعامل الرسمي: 9 (1 باك علوم رياضية - 4 فروض)'
+      : isArt
+      ? 'المعامل الرسمي: 4 (1 باك فنون تطبيقية - 3 فروض)'
       : isEco
       ? 'المعامل الرسمي: 4 (1 باك علوم اقتصادية وتدبير - 3 فروض)'
       : isTech
-      ? 'المعامل الرسمي: 6 (1 باك علوم وتكنولوجيات - 3 فروض)'
+      ? 'المعامل الرسمي: 7 (1 باك علوم وتكنولوجيات STE/STM - 3 فروض)'
       : 'المعامل الرسمي: 7 (1 باك علوم تجريبية - 3 فروض)';
     return {
       badge: isLit ? 'الأولى بكالوريا آداب وإنسانية • الامتحان الجهوي الموحد' : 'الأولى بكالوريا • الاستحقاق الإشهادي والترقية',
@@ -1906,25 +1911,26 @@ export default function ReportsEvolutionChart() {
   return (
     <div className="space-y-5" dir="rtl" ref={containerRef}>
       {/* Top Header Card */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-indigo-900/15">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#1e1b4b] via-[#312e81] to-[#4338ca] text-amber-300 border border-amber-400/40 flex items-center justify-center shadow-md">
+      <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-indigo-900/15">
+        {/* Row 1: Title, Metadata Chips & Primary Action Toolbar */}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-tr from-[#1e1b4b] via-[#312e81] to-[#4338ca] text-amber-300 border border-amber-400/40 flex items-center justify-center shadow-md shrink-0">
               {viewMode === 'bac_readiness' ? (
-                <Target className="w-6 h-6 text-amber-300" />
+                <Target className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" />
               ) : viewMode === 'exam_levels_evolution' ? (
-                <TrendingUp className="w-6 h-6 text-amber-300" />
+                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" />
               ) : viewMode === 'class_progression' ? (
-                <Activity className="w-6 h-6 text-amber-300" />
+                <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" />
               ) : viewMode === 'failure_risk' ? (
-                <ShieldAlert className="w-6 h-6 text-amber-300" />
+                <ShieldAlert className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" />
               ) : (
-                <TrendingUp className="w-6 h-6 text-amber-300" />
+                <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-amber-300" />
               )}
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg md:text-xl font-black text-[#1e1b4b]">
+                <h2 className="text-base sm:text-lg md:text-xl font-black text-[#1e1b4b] leading-snug">
                   {viewMode === 'exam_levels_evolution'
                     ? `منحنى تطور مستويات التلاميذ في الفروض المحروسة (${selectedClass})`
                     : viewMode === 'bac_readiness'
@@ -1935,50 +1941,56 @@ export default function ReportsEvolutionChart() {
                     ? 'رسم مؤشر احتمالية التعثر والربط التلقائي بالغياب وتطور الفروض'
                     : 'منحنى تطور معدلات المراقبة المستمرة مقارنة بمعدل القسم'}
                 </h2>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-extrabold bg-gradient-to-r from-[#312e81] to-[#4338ca] text-amber-200 border border-amber-400/40 shadow-2xs">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-extrabold bg-gradient-to-r from-[#312e81] to-[#4338ca] text-amber-200 border border-amber-400/40 shadow-2xs shrink-0">
                   <span className="w-2 h-2 rounded-full bg-[#fbbf24]"></span>
                   <span>الهوية البصرية: النيلي والذهبي</span>
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 flex-wrap">
-                <span>القسم النشط: <strong className="text-[#312e81]">{selectedClass}</strong></span>
-                <span aria-hidden="true">·</span>
-                <span>عدد التلاميذ: <strong className="text-slate-800">{students.length}</strong></span>
-                <span aria-hidden="true">·</span>
-                <span className="text-[#b45309] font-semibold">{certTargetInfo.badge}</span>
-                <span aria-hidden="true">·</span>
-                <span>{certTargetInfo.coefLabel}</span>
+              <div className="flex items-center gap-2 text-xs text-slate-500 mt-1.5 flex-wrap">
+                <span className="inline-flex items-center gap-1 bg-indigo-50/80 text-[#312e81] border border-indigo-200/70 px-2 py-0.5 rounded-md font-bold">
+                  القسم النشط: <strong className="font-black">{selectedClass}</strong>
+                </span>
+                <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 border border-slate-200/80 px-2 py-0.5 rounded-md font-bold">
+                  التلاميذ: <strong className="font-black text-slate-900">{students.length}</strong>
+                </span>
+                <span className="inline-flex items-center gap-1 bg-amber-50 text-[#b45309] border border-amber-200/80 px-2 py-0.5 rounded-md font-bold">
+                  {certTargetInfo.badge}
+                </span>
+                <span className="text-slate-500 font-semibold">{certTargetInfo.coefLabel}</span>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons: Image Export & Official Print */}
-          <div className="flex items-center gap-2.5 self-end lg:self-center flex-wrap">
+          {/* Action Buttons: Image Export, Official Print & Refresh in One Aligned Row */}
+          <div className="flex items-center gap-2 self-stretch xl:self-center justify-end flex-nowrap overflow-x-auto shrink-0">
             <button
               type="button"
               onClick={handleExportPNG}
               disabled={isExporting}
-              className="px-3.5 py-2 text-xs font-bold rounded-lg border border-indigo-200 bg-white hover:bg-indigo-50/50 text-[#312e81] shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              style={{ margin: 0, padding: '0 13px', height: '36px' }}
+              className="text-xs font-extrabold rounded-xl border border-indigo-200 bg-white hover:bg-indigo-50/70 hover:border-indigo-300 text-[#312e81] shadow-2xs transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
               title="تصدير المنحنى والبطاقة كصورة PNG عالية الدقة"
             >
-              <Download className="w-4 h-4 text-[#d97706]" />
+              <Download className="w-3.5 h-3.5 text-[#d97706] shrink-0" />
               <span>{isExporting ? 'جاري التصدير...' : 'تصدير كصورة'}</span>
             </button>
 
             <button
               type="button"
               onClick={handlePrintOfficialEvolutionReport}
-              className="px-3.5 py-2 text-xs font-bold rounded-lg border border-amber-300/80 bg-gradient-to-r from-[#312e81] to-[#3730a3] hover:from-[#1e1b4b] hover:to-[#312e81] text-amber-100 shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              style={{ margin: 0, padding: '0 14px', height: '36px' }}
+              className="text-xs font-extrabold rounded-xl border border-amber-400/70 bg-gradient-to-r from-[#1e1b4b] via-[#312e81] to-[#3730a3] hover:from-[#312e81] hover:to-[#4338ca] text-amber-100 shadow-xs transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer"
               title="طباعة التقرير الرسمي لتطور الفروض ومؤشر الجاهزية (A4)"
             >
-              <Printer className="w-4 h-4 text-amber-300" />
+              <Printer className="w-3.5 h-3.5 text-amber-300 shrink-0" />
               <span>طباعة التقرير الرسمي (A4)</span>
             </button>
 
             <button
               type="button"
-              onClick={loadDb}
-              className="p-2 text-xs font-bold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-sm transition-all cursor-pointer"
+              onClick={() => loadDb(true)}
+              style={{ margin: 0, padding: 0, width: '36px', height: '36px' }}
+              className="text-xs font-extrabold rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50 hover:border-indigo-200 text-[#312e81] shadow-2xs transition-all inline-flex items-center justify-center shrink-0 cursor-pointer"
               title="تحديث البيانات"
             >
               <RefreshCw className="w-4 h-4 text-[#312e81]" />
@@ -1986,14 +1998,14 @@ export default function ReportsEvolutionChart() {
           </div>
         </div>
 
-        {/* Interactive Class Switcher Bar (لكل قسم على حدة) */}
-        <div className="pt-3 pb-3 border-b border-slate-100 flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-extrabold text-[#1e1b4b] flex items-center gap-1">
-              <Users className="w-3.5 h-3.5 text-[#d97706]" />
-              <span>اختيار القسم لعرض منحناه البياني على حدة:</span>
+        {/* Row 2: Interactive Class Switcher Bar (لكل قسم على حدة) */}
+        <div className="py-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap w-full">
+            <span className="text-xs font-extrabold text-[#1e1b4b] inline-flex items-center gap-1.5 shrink-0 bg-slate-100/90 border border-slate-200/80 px-2.5 py-1.5 rounded-lg">
+              <Users className="w-3.5 h-3.5 text-[#d97706] shrink-0" />
+              <span>اختيار القسم:</span>
             </span>
-            <div className="flex items-center gap-1.5 flex-wrap bg-indigo-50/60 p-1 rounded-xl border border-indigo-100">
+            <div className="flex items-center gap-1.5 flex-wrap bg-slate-50 p-1 rounded-xl border border-slate-200/80 flex-1 min-w-0">
               {classNames.map(cls => {
                 const count = Array.isArray(db.classes[cls]) ? db.classes[cls].length : db.classes[cls]?.students?.length || 0;
                 const isActive = selectedClass === cls;
@@ -2002,13 +2014,21 @@ export default function ReportsEvolutionChart() {
                     key={cls}
                     type="button"
                     onClick={() => handleSelectClassChange(cls)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                    style={{ margin: 0, padding: '0 12px', height: '30px' }}
+                    className={`rounded-lg text-xs font-extrabold transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 cursor-pointer ${
                       isActive
-                        ? 'bg-[#312e81] text-amber-200 border border-amber-400/50 shadow-sm'
-                        : 'text-slate-700 hover:bg-white hover:text-[#312e81]'
+                        ? 'bg-gradient-to-r from-[#312e81] to-[#3730a3] text-amber-200 border border-amber-400/60 shadow-xs'
+                        : 'bg-white text-slate-700 border border-slate-200/70 hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-[#312e81]'
                     }`}
                   >
-                    {cls} ({count})
+                    <span>{cls}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                        isActive ? 'bg-amber-400/20 text-amber-200' : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {count}
+                    </span>
                   </button>
                 );
               })}
@@ -2016,84 +2036,90 @@ export default function ReportsEvolutionChart() {
           </div>
         </div>
 
-        {/* View Mode Switching Tabs */}
-        <div className="flex gap-2 pt-3 pb-1 flex-wrap">
+        {/* Row 3: View Mode Switching Tabs (6 Organized Equal-Height Interactive Cards) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 pt-3.5">
           <button
             type="button"
             onClick={() => setViewMode('exam_levels_evolution')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
+            style={{ margin: 0, padding: '0 12px', height: '38px' }}
+            className={`text-xs font-extrabold rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer ${
               viewMode === 'exam_levels_evolution'
-                ? 'bg-[#312e81] text-amber-200 border border-amber-400/40 shadow-sm'
-                : 'bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-[#312e81]'
+                ? 'bg-gradient-to-r from-[#1e1b4b] to-[#312e81] text-amber-200 border border-amber-400/60 shadow-sm'
+                : 'bg-slate-50 text-slate-700 border border-slate-200/80 hover:bg-indigo-50/60 hover:border-indigo-200 hover:text-[#312e81]'
             }`}
           >
-            <TrendingUp className="w-4 h-4 text-amber-400" />
-            <span>منحنى تطور مستويات الفروض المحروسة للقسم (Recharts)</span>
+            <TrendingUp className={`w-4 h-4 shrink-0 ${viewMode === 'exam_levels_evolution' ? 'text-amber-300' : 'text-[#312e81]'}`} />
+            <span className="truncate">تطور مستويات الفروض</span>
           </button>
 
           <button
             type="button"
             onClick={() => setViewMode('bac_readiness')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
+            style={{ margin: 0, padding: '0 12px', height: '38px' }}
+            className={`text-xs font-extrabold rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer ${
               viewMode === 'bac_readiness'
-                ? 'bg-[#b45309] text-white border border-amber-300 shadow-sm'
-                : 'bg-amber-50/80 text-[#92400e] hover:bg-amber-100 border border-amber-200'
+                ? 'bg-gradient-to-r from-[#b45309] to-[#d97706] text-white border border-amber-300 shadow-sm'
+                : 'bg-amber-50/70 text-[#92400e] border border-amber-200/90 hover:bg-amber-100/80'
             }`}
           >
-            <Target className="w-4 h-4" />
-            <span>مؤشر الجاهزية للامتحان الوطني والجهوي (Bac Readiness)</span>
+            <Target className="w-4 h-4 shrink-0" />
+            <span className="truncate">مؤشر الجاهزية للإشهادي</span>
           </button>
 
           <button
             type="button"
             onClick={() => setViewMode('individual')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
+            style={{ margin: 0, padding: '0 12px', height: '38px' }}
+            className={`text-xs font-extrabold rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer ${
               viewMode === 'individual'
-                ? 'bg-[#3730a3] text-amber-200 border border-amber-400/40 shadow-sm'
-                : 'bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-[#312e81]'
+                ? 'bg-gradient-to-r from-[#312e81] to-[#4338ca] text-amber-200 border border-amber-400/60 shadow-sm'
+                : 'bg-slate-50 text-slate-700 border border-slate-200/80 hover:bg-indigo-50/60 hover:border-indigo-200 hover:text-[#312e81]'
             }`}
           >
-            <Compass className="w-4 h-4 text-amber-400" />
-            <span>منحنى التلميذ الفردي</span>
+            <Compass className={`w-4 h-4 shrink-0 ${viewMode === 'individual' ? 'text-amber-300' : 'text-[#312e81]'}`} />
+            <span className="truncate">منحنى التلميذ الفردي</span>
           </button>
 
           <button
             type="button"
             onClick={() => setViewMode('class_all')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
+            style={{ margin: 0, padding: '0 12px', height: '38px' }}
+            className={`text-xs font-extrabold rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer ${
               viewMode === 'class_all'
-                ? 'bg-[#4338ca] text-amber-200 border border-amber-400/40 shadow-sm'
-                : 'bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-[#312e81]'
+                ? 'bg-gradient-to-r from-[#312e81] to-[#4338ca] text-amber-200 border border-amber-400/60 shadow-sm'
+                : 'bg-slate-50 text-slate-700 border border-slate-200/80 hover:bg-indigo-50/60 hover:border-indigo-200 hover:text-[#312e81]'
             }`}
           >
-            <BarChart3 className="w-4 h-4 text-amber-400" />
-            <span>توزيع معدلات القسم</span>
+            <BarChart3 className={`w-4 h-4 shrink-0 ${viewMode === 'class_all' ? 'text-amber-300' : 'text-[#312e81]'}`} />
+            <span className="truncate">توزيع معدلات القسم</span>
           </button>
 
           <button
             type="button"
             onClick={() => setViewMode('class_progression')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
+            style={{ margin: 0, padding: '0 12px', height: '38px' }}
+            className={`text-xs font-extrabold rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer ${
               viewMode === 'class_progression'
-                ? 'bg-[#312e81] text-amber-200 border border-amber-400/40 shadow-sm'
-                : 'bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-[#312e81]'
+                ? 'bg-gradient-to-r from-[#1e1b4b] to-[#312e81] text-amber-200 border border-amber-400/60 shadow-sm'
+                : 'bg-slate-50 text-slate-700 border border-slate-200/80 hover:bg-indigo-50/60 hover:border-indigo-200 hover:text-[#312e81]'
             }`}
           >
-            <Activity className="w-4 h-4 text-amber-400" />
-            <span>مقارنة الأسدسين (S1 vs S2)</span>
+            <Activity className={`w-4 h-4 shrink-0 ${viewMode === 'class_progression' ? 'text-amber-300' : 'text-[#312e81]'}`} />
+            <span className="truncate">مقارنة الأسدسين (S1/S2)</span>
           </button>
 
           <button
             type="button"
             onClick={() => setViewMode('failure_risk')}
-            className={`px-3.5 py-2 text-xs font-extrabold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer ${
+            style={{ margin: 0, padding: '0 12px', height: '38px' }}
+            className={`text-xs font-extrabold rounded-xl transition-all inline-flex items-center justify-center gap-2 cursor-pointer ${
               viewMode === 'failure_risk'
-                ? 'bg-rose-700 text-white shadow-sm'
-                : 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-200'
+                ? 'bg-gradient-to-r from-rose-700 to-rose-600 text-white border border-rose-400 shadow-sm'
+                : 'bg-rose-50/80 text-rose-800 border border-rose-200 hover:bg-rose-100/80'
             }`}
           >
-            <AlertOctagon className="w-4 h-4" />
-            <span>مؤشر احتمالية التعثر ({classRiskSummary.criticalCount})</span>
+            <AlertOctagon className="w-4 h-4 shrink-0" />
+            <span className="truncate">احتمالية التعثر ({classRiskSummary.criticalCount})</span>
           </button>
         </div>
       </div>

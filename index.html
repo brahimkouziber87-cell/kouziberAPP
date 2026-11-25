@@ -701,48 +701,58 @@
         <!-- واجهة الأيقونات الرئيسية (Home Icons Launchpad) -->
         <!-- واجهة الأيقونات الرئيسية المجمعة في شاشة واحدة (Home Icons Launchpad) -->
         <div id="homeIconsView" class="home-icons-container" style="display: block;">
-            <div class="home-icons-hero">
-                <div class="home-icons-hero-content" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <div class="home-icons-hero-badge">
-                        <span class="ui-icon"><span data-lucide="layout-grid" data-size="14"></span></span>
-                        <span>بوابة الوحدات التدبيرية الذكية</span>
+            <div class="home-icons-hero" style="background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 55%, #eef2ff 100%); border: 1.5px solid #bfdbfe; border-radius: 16px; padding: 14px 18px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 4px 14px rgba(30, 58, 138, 0.06);">
+                <!-- الصف الأول: الهوية البصرية لبوابة الوحدات والإحصاءات الفورية -->
+                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; width: 100%;">
+                    <div class="home-icons-hero-content" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color: #ffffff; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.28); flex-shrink: 0;">
+                            <span data-lucide="layout-grid" data-size="22"></span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 3px;">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <div class="home-icons-hero-badge" style="margin: 0; background: #ffffff; color: #1d4ed8; border: 1px solid #93c5fd; padding: 3px 11px; border-radius: 999px; font-size: 0.76rem; font-weight: 800; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08);">
+                                    <span class="ui-icon" style="margin: 0; display: inline-flex;"><span data-lucide="sparkles" data-size="13"></span></span>
+                                    <span>بوابة الوحدات التدبيرية الذكية</span>
+                                </div>
+                                <span style="font-weight: 900; color: #0f172a; font-size: 0.94rem;">21 وحدة مجمعة في 5 اختصارات رئيسية</span>
+                            </div>
+                            <span class="home-icons-hero-desc" style="color: #475569; font-size: 0.79rem; font-weight: 600;">تنظيم ذكي في شاشة واحدة متكاملة لمادة الرياضيات بالسلك الثانوي التأهيلي</span>
+                        </div>
                     </div>
-                    <span style="font-weight: 800; color: #1e293b; font-size: 0.9rem;">21 وحدة مجمعة في 5 اختصارات رئيسية</span>
-                    <span style="color: #cbd5e1; font-size: 0.8rem;">•</span>
-                    <span class="home-icons-hero-desc" style="color: #64748b; font-size: 0.78rem; font-weight: 600;">تنظيم ذكي في شاشة واحدة متكاملة لمادة الرياضيات</span>
+
+                    <div class="home-icons-hero-meta" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <div class="home-icons-stat-pill" id="homeClassCountPill" style="margin: 0; height: 34px; padding: 0 14px; background: #ffffff; border: 1.5px solid #bfdbfe; border-radius: 999px; color: #1e3a8a; font-size: 0.78rem; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);">
+                            <span class="ui-icon" style="color: #2563eb; margin: 0; display: inline-flex;"><span data-lucide="users" data-size="14"></span></span>
+                            <span id="homeClassCountText">الأقسام: 0 مسجلة</span>
+                        </div>
+                        <div class="home-icons-stat-pill" id="homeStudentsCountPill" style="margin: 0; height: 34px; padding: 0 14px; background: #ffffff; border: 1.5px solid #a7f3d0; border-radius: 999px; color: #065f46; font-size: 0.78rem; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 3px rgba(16, 185, 129, 0.08);">
+                            <span class="ui-icon" style="color: #10b981; margin: 0; display: inline-flex;"><span data-lucide="user-check" data-size="14"></span></span>
+                            <span id="homeStudentsCountText">التلاميذ: 0 تلميذ</span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="home-toolbar-wrap">
+                <!-- الصف الثاني: شريط البحث الذكي ومبدل نمط العرض -->
+                <div class="home-toolbar-wrap" style="display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; width: 100%; padding-top: 10px; border-top: 1px dashed #bfdbfe;">
                     <!-- حقل البحث السريع الفوري -->
-                    <div class="home-search-box">
-                        <span class="home-search-icon" onclick="document.getElementById('homeIconsSearchInput')?.focus()" title="بحث سريع عن تلميذ بالاسم أو رقم مسار"><span data-lucide="search" data-size="16"></span></span>
-                        <input type="text" id="homeIconsSearchInput" class="home-search-input" placeholder="بحث سريع عن تلميذ بالاسم أو رقم مسار، أو في الوحدات..." oninput="handleHomeIconsSearch(this.value)" autocomplete="off">
-                        <button type="button" id="homeIconsSearchClear" class="home-search-clear" onclick="clearHomeIconsSearch()" title="مسح البحث">
-                            <span data-lucide="x" data-size="13"></span>
+                    <div class="home-search-box" style="min-width: 260px; max-width: 480px; flex: 1 1 320px; margin: 0;">
+                        <span class="home-search-icon" onclick="document.getElementById('homeIconsSearchInput')?.focus()" title="بحث سريع عن تلميذ بالاسم أو رقم مسار"><span data-lucide="search" data-size="15"></span></span>
+                        <input type="text" id="homeIconsSearchInput" class="home-search-input" style="margin: 0; height: 38px; border-radius: 999px; border: 1.5px solid #93c5fd; background: #ffffff; padding: 0 40px 0 34px; font-size: 0.8rem; font-weight: 700; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.06);" placeholder="بحث سريع عن تلميذ بالاسم أو رقم مسار، أو في الوحدات..." oninput="handleHomeIconsSearch(this.value)" autocomplete="off">
+                        <button type="button" id="homeIconsSearchClear" class="home-search-clear" onclick="clearHomeIconsSearch()" title="مسح البحث" style="margin: 0;">
+                            <span data-lucide="x" data-size="14"></span>
                         </button>
                     </div>
 
                     <!-- مبدل نمط العرض: مجمع في شاشة واحدة vs تفصيلي -->
-                    <div class="home-view-toggle">
-                        <button type="button" class="home-view-btn active" id="btnViewModeGrouped" onclick="setHomeViewMode('grouped')" title="عرض الاختصارات المجمعة في شاشة واحدة">
-                            <span data-lucide="layout-grid" data-size="13"></span>
+                    <div class="home-view-toggle" style="display: inline-flex; align-items: center; gap: 4px; background: #ffffff; border-radius: 999px; padding: 3px; border: 1.5px solid #bfdbfe; height: 38px; box-sizing: border-box; box-shadow: 0 1px 3px rgba(37, 99, 235, 0.06);">
+                        <button type="button" class="home-view-btn active" id="btnViewModeGrouped" onclick="setHomeViewMode('grouped')" style="margin: 0; height: 30px; padding: 0 14px; border-radius: 999px; font-size: 0.76rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" title="عرض الاختصارات المجمعة في شاشة واحدة">
+                            <span data-lucide="layout-grid" data-size="14"></span>
                             <span>اختصارات مجمعة</span>
                         </button>
-                        <button type="button" class="home-view-btn" id="btnViewModeDetailed" onclick="setHomeViewMode('detailed')" title="عرض تفصيلي لكافة الأيقونات المنفردة">
-                            <span data-lucide="grid" data-size="13"></span>
+                        <button type="button" class="home-view-btn" id="btnViewModeDetailed" onclick="setHomeViewMode('detailed')" style="margin: 0; height: 30px; padding: 0 14px; border-radius: 999px; font-size: 0.76rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 6px;" title="عرض تفصيلي لكافة الأيقونات المنفردة">
+                            <span data-lucide="grid" data-size="14"></span>
                             <span>عرض تفصيلي</span>
                         </button>
-                    </div>
-
-                    <div class="home-icons-hero-meta">
-                        <div class="home-icons-stat-pill" id="homeClassCountPill">
-                            <span class="ui-icon" style="color: #2563eb;"><span data-lucide="users" data-size="13"></span></span>
-                            <span id="homeClassCountText">الأقسام: 0 مسجلة</span>
-                        </div>
-                        <div class="home-icons-stat-pill" id="homeStudentsCountPill">
-                            <span class="ui-icon" style="color: #10b981;"><span data-lucide="user-check" data-size="13"></span></span>
-                            <span id="homeStudentsCountText">التلاميذ: 0 تلميذ</span>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -1333,184 +1343,190 @@
             <!-- ويدجت التقدم السنوي وحالة الطقس والتنقل في أعلى لوحة القيادة -->
             <div class="dash-top-widgets-grid hide-in-presentation" id="dashTopWidgetsSection">
                 <!-- بطاقة شريط تقدم الموسم الدراسي ومرصد الزمن المدرسي الفعلي -->
-                <div class="card dash-widget-card" id="dashSchoolYearProgressCard" style="margin-bottom: 0; border-top: 4px solid #4f46e5; border-radius: 14px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05); padding: 16px 18px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between;">
+                <div class="card dash-widget-card" id="dashSchoolYearProgressCard" style="margin-bottom: 0; border: 1.5px solid #c7d2fe; border-top: 4px solid #4f46e5; border-radius: 16px; box-shadow: 0 6px 18px rgba(79, 70, 229, 0.07); padding: 16px 18px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
                     <div>
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 8px; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="background: linear-gradient(135deg, #eef2ff, #e0e7ff); color: #4f46e5; width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #c7d2fe; box-shadow: 0 2px 5px rgba(79, 70, 229, 0.15);">
-                                    <span data-lucide="calendar-range" data-size="20"></span>
-                                </span>
-                                <div>
-                                    <h3 style="margin: 0; font-size: 1.02rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                        <span>تقدم الموسم والزمن المدرسي</span>
-                                        <span id="dashSchoolYearBadge" style="font-size: 0.7rem; background: #ede9fe; color: #6d28d9; padding: 2px 8px; border-radius: 999px; font-weight: 800; border: 1px solid #ddd6fe;">2026/2027</span>
-                                        <span id="dashCurrentSemesterBadge" style="font-size: 0.68rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 999px; font-weight: 800; border: 1px solid #bae6fd;">الأسدوس 1</span>
-                                    </h3>
-                                    <p style="margin: 2px 0 0 0; font-size: 0.74rem; color: #64748b;">
-                                        متابعة الوعاء الزمني، صافي أيام الدراسة الفعلية، ومواكبة التوزيع السنوي
-                                    </p>
+                        <!-- ترويسة بطاقة تقدم الموسم والزمن المدرسي -->
+                        <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; padding: 12px 14px; background: linear-gradient(135deg, #f5f3ff 0%, #eef2ff 100%); border: 1px solid #ddd6fe; border-radius: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="background: linear-gradient(135deg, #4f46e5, #6d28d9); color: #ffffff; width: 42px; height: 42px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(79, 70, 229, 0.25); flex-shrink: 0;">
+                                        <span data-lucide="calendar-range" data-size="20"></span>
+                                    </span>
+                                    <div>
+                                        <h3 style="margin: 0; font-size: 1.03rem; font-weight: 900; color: #1e1b4b; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                            <span>تقدم الموسم والزمن المدرسي</span>
+                                            <span id="dashSchoolYearBadge" style="font-size: 0.7rem; background: #ffffff; color: #6d28d9; padding: 2px 9px; border-radius: 999px; font-weight: 800; border: 1px solid #c4b5fd; box-shadow: 0 1px 2px rgba(109, 40, 217, 0.08);">2026/2027</span>
+                                            <span id="dashCurrentSemesterBadge" style="font-size: 0.68rem; background: #e0f2fe; color: #0369a1; padding: 2px 9px; border-radius: 999px; font-weight: 800; border: 1px solid #7dd3fc;">الأسدوس 1</span>
+                                        </h3>
+                                        <p style="margin: 3px 0 0 0; font-size: 0.75rem; font-weight: 600; color: #475569;">
+                                            متابعة الوعاء الزمني، صافي أيام الدراسة الفعلية، ومواكبة التوزيع السنوي
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
-                                <button type="button" class="btn-dash-mini-action" onclick="switchTab('calendar'); setTimeout(function(){ if(typeof switchCalendarSubView==='function') switchCalendarSubView('annual'); }, 40);" title="فتح التقويم السنوي والعطل المدرسية" style="color: #4f46e5; border-color: #c7d2fe; background: #f5f3ff;">
-                                    <span data-lucide="calendar-days" data-size="12"></span>
-                                    <span>التقويم</span>
-                                </button>
-                                <button type="button" class="btn-dash-mini-action" onclick="openSchoolYearDatesModal()" title="تعديل تاريخ بداية ونهاية الموسم الدراسي">
-                                    <span data-lucide="calendar-cog" data-size="12"></span>
-                                    <span>التواريخ</span>
-                                </button>
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;">
+                                    <button type="button" class="btn-dash-mini-action" onclick="switchTab('calendar'); setTimeout(function(){ if(typeof switchCalendarSubView==='function') switchCalendarSubView('annual'); }, 40);" title="فتح التقويم السنوي والعطل المدرسية" style="margin: 0; height: 32px; padding: 0 12px; border-radius: 8px; color: #ffffff; border: 1px solid #4338ca; background: linear-gradient(135deg, #4f46e5, #4338ca); font-weight: 800; box-shadow: 0 2px 5px rgba(79, 70, 229, 0.2);">
+                                        <span data-lucide="calendar-days" data-size="13"></span>
+                                        <span>التقويم السنوي</span>
+                                    </button>
+                                    <button type="button" class="btn-dash-mini-action" onclick="openSchoolYearDatesModal()" title="تعديل تاريخ بداية ونهاية الموسم الدراسي" style="margin: 0; height: 32px; padding: 0 12px; border-radius: 8px; color: #4338ca; border: 1.5px solid #c7d2fe; background: #ffffff; font-weight: 800;">
+                                        <span data-lucide="calendar-cog" data-size="13"></span>
+                                        <span>ضبط التواريخ</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
                         <!-- النسبة المتبقية البارزة وشريط التقدم الذكي -->
-                        <div style="background: linear-gradient(135deg, #faf5ff 0%, #eff6ff 100%); border: 1px solid #e9d5ff; border-radius: 12px; padding: 11px 13px; margin-bottom: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                        <div style="background: linear-gradient(135deg, #faf5ff 0%, #eff6ff 100%); border: 1.5px solid #e9d5ff; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; box-shadow: inset 0 1px 2px rgba(255,255,255,0.8);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
                                 <div>
-                                    <span style="font-size: 0.73rem; font-weight: 800; color: #6d28d9;">النسبة المتبقية من الموسم الدراسي:</span>
-                                    <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 1px;">
-                                        <div style="font-size: 1.65rem; font-weight: 900; color: #4c1d95; line-height: 1.1;">
+                                    <span style="font-size: 0.74rem; font-weight: 800; color: #6d28d9;">النسبة المتبقية من الموسم الدراسي:</span>
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px; flex-wrap: wrap;">
+                                        <div style="font-size: 1.7rem; font-weight: 900; color: #4c1d95; line-height: 1.1;">
                                             <span id="dashSchoolYearPctRemaining">--</span>%
                                         </div>
-                                        <span id="dashNetSchoolDaysPill" style="font-size: 0.72rem; font-weight: 800; color: #047857; background: #d1fae5; border: 1px solid #6ee7b7; padding: 2px 8px; border-radius: 999px;" title="صافي أيام الدراسة الفعلية المتبقية (بعد خصم الآحاد والعطل الرسمية ورخص الأستاذ)">
+                                        <span id="dashNetSchoolDaysPill" style="font-size: 0.72rem; font-weight: 800; color: #047857; background: #d1fae5; border: 1px solid #6ee7b7; padding: 3px 10px; border-radius: 999px; box-shadow: 0 1px 2px rgba(4, 120, 87, 0.08);" title="صافي أيام الدراسة الفعلية المتبقية (بعد خصم الآحاد والعطل الرسمية ورخص الأستاذ)">
                                             🏫 <span id="dashNetSchoolDaysRemainingVal">--</span> يوم دراسة فعلي متبقٍ
                                         </span>
                                     </div>
                                 </div>
                                 <div style="text-align: left;">
-                                    <span id="dashSchoolYearDaysRemainingBadge" style="display: inline-flex; align-items: center; gap: 5px; background: #6d28d9; color: #ffffff; padding: 4px 10px; border-radius: 999px; font-size: 0.76rem; font-weight: 800; box-shadow: 0 2px 6px rgba(109, 40, 217, 0.25);">
+                                    <span id="dashSchoolYearDaysRemainingBadge" style="display: inline-flex; align-items: center; gap: 5px; background: linear-gradient(135deg, #6d28d9, #4f46e5); color: #ffffff; padding: 4px 12px; border-radius: 999px; font-size: 0.75rem; font-weight: 800; box-shadow: 0 2px 6px rgba(109, 40, 217, 0.25);">
                                         <span data-lucide="hourglass" data-size="12"></span>
                                         <span id="dashSchoolYearDaysRemainingText">-- يوماً تقويمياً متبقية</span>
                                     </span>
-                                    <div style="font-size: 0.7rem; color: #6b21a8; font-weight: 700; margin-top: 3px;">
+                                    <div style="font-size: 0.71rem; color: #5b21b6; font-weight: 800; margin-top: 4px;">
                                         منقضي: <span id="dashSchoolYearPctElapsedText">--</span>% (<span id="dashSchoolYearDaysElapsedText">--</span> يوم) • <span id="dashRemainingClassSessionsText" style="color: #1d4ed8;">-- حصة متبقية</span>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Progress Bar Track -->
-                            <div class="school-year-progress-track" style="position: relative; height: 10px; background: #e2e8f0; border-radius: 999px; overflow: hidden;">
+                            <div class="school-year-progress-track" style="position: relative; height: 11px; background: #e2e8f0; border-radius: 999px; overflow: hidden; box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.12);">
                                 <div id="dashSchoolYearProgressFill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #10b981 0%, #3b82f6 50%, #7c3aed 100%); border-radius: 999px; transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);"></div>
                             </div>
 
                             <!-- المحطات الرئيسية التفاعلية للموسم الدراسي -->
-                            <div id="dashSchoolYearStagesRow" style="display: flex; justify-content: space-between; align-items: center; margin-top: 7px; font-size: 0.66rem; color: #64748b; font-weight: 700; flex-wrap: wrap; gap: 4px;">
-                                <span id="dashSeasonStage1" style="padding: 2px 6px; border-radius: 6px; transition: all 0.2s;">🚩 انطلاق الموسم</span>
-                                <span id="dashSeasonStage2" style="padding: 2px 6px; border-radius: 6px; transition: all 0.2s;">📝 نهاية الدورة 1</span>
-                                <span id="dashSeasonStage3" style="padding: 2px 6px; border-radius: 6px; transition: all 0.2s;">☕ عطلة منتصف السنة</span>
-                                <span id="dashSeasonStage4" style="padding: 2px 6px; border-radius: 6px; transition: all 0.2s;">📚 نهاية الدورة 2</span>
-                                <span id="dashSeasonStage5" style="padding: 2px 6px; border-radius: 6px; transition: all 0.2s;">🏁 اختتام الموسم</span>
+                            <div id="dashSchoolYearStagesRow" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 0.67rem; color: #475569; font-weight: 800; flex-wrap: wrap; gap: 4px;">
+                                <span id="dashSeasonStage1" style="padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.75); border: 1px solid #e2e8f0; transition: all 0.2s;">🚩 انطلاق الموسم</span>
+                                <span id="dashSeasonStage2" style="padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.75); border: 1px solid #e2e8f0; transition: all 0.2s;">📝 نهاية الدورة 1</span>
+                                <span id="dashSeasonStage3" style="padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.75); border: 1px solid #e2e8f0; transition: all 0.2s;">☕ عطلة منتصف السنة</span>
+                                <span id="dashSeasonStage4" style="padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.75); border: 1px solid #e2e8f0; transition: all 0.2s;">📚 نهاية الدورة 2</span>
+                                <span id="dashSeasonStage5" style="padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.75); border: 1px solid #e2e8f0; transition: all 0.2s;">🏁 اختتام الموسم</span>
                             </div>
                         </div>
 
                         <!-- شريط التوافق بين تقدم الزمن المدرسي وتقدم إنجاز المقرر الدراسي (التوزيع السنوي) -->
-                        <div id="dashCurriculumPacingStrip" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px 11px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 7px; font-size: 0.74rem; font-weight: 800; color: #1e293b;">
+                        <div id="dashCurriculumPacingStrip" style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 7px; font-size: 0.75rem; font-weight: 800; color: #1e293b;">
                                 <span>📊 مواكبة التوزيع السنوي:</span>
-                                <span id="dashCurriculumPctVal" style="color: #2563eb; font-family: monospace; font-size: 0.82rem;">--%</span>
-                                <span id="dashCurriculumLessonsCount" style="font-size: 0.68rem; color: #64748b; font-weight: 700;">(-- درس)</span>
+                                <span id="dashCurriculumPctVal" style="color: #2563eb; font-family: monospace; font-size: 0.84rem; font-weight: 900;">--%</span>
+                                <span id="dashCurriculumLessonsCount" style="font-size: 0.69rem; color: #64748b; font-weight: 700;">(-- درس)</span>
                             </div>
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <span id="dashPacingSyncStatusBadge" style="font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: #dcfce7; color: #166534; border: 1px solid #86efac;">منسجم مع الزمن ✅</span>
-                                <button type="button" onclick="switchTab('lessonlog');" style="background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 0.67rem; font-weight: 800; padding: 2px 7px; border-radius: 6px; cursor: pointer;" title="معاينة سجل الدروس والتوزيع السنوي">سجل الدروس ⬅</button>
+                                <span id="dashPacingSyncStatusBadge" style="font-size: 0.69rem; font-weight: 800; padding: 3px 9px; border-radius: 999px; background: #dcfce7; color: #166534; border: 1px solid #86efac;">منسجم مع الزمن ✅</span>
+                                <button type="button" onclick="switchTab('lessonlog');" style="margin: 0; height: 26px; background: #eff6ff; border: 1px solid #93c5fd; color: #1d4ed8; font-size: 0.69rem; font-weight: 800; padding: 0 9px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center;" title="معاينة سجل الدروس والتوزيع السنوي">سجل الدروس ⬅</button>
                             </div>
                         </div>
 
                         <!-- إحصائيات التواريخ والوعاء الزمني الصافي -->
-                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; margin-bottom: 10px;">
-                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 4px;">
-                                <div style="font-size: 0.63rem; color: #64748b; font-weight: 700;">📅 الانطلاق والاختتام</div>
-                                <div id="dashSchoolYearStartDate" style="font-size: 0.72rem; font-weight: 800; color: #0f172a; margin-top: 2px;">--</div>
-                                <div id="dashSchoolYearEndDate" style="font-size: 0.65rem; font-weight: 700; color: #475569;">--</div>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; text-align: center; margin-bottom: 4px;">
+                            <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 7px 5px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);">
+                                <div style="font-size: 0.64rem; color: #475569; font-weight: 800;">📅 الانطلاق والاختتام</div>
+                                <div id="dashSchoolYearStartDate" style="font-size: 0.74rem; font-weight: 900; color: #0f172a; margin-top: 2px;">--</div>
+                                <div id="dashSchoolYearEndDate" style="font-size: 0.66rem; font-weight: 700; color: #64748b;">--</div>
                             </div>
-                            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 6px 4px;">
-                                <div style="font-size: 0.63rem; color: #15803d; font-weight: 700;">⏱️ المنقضي (تقويمي)</div>
-                                <div id="dashSchoolYearDaysElapsed" style="font-size: 0.75rem; font-weight: 800; color: #166534; margin-top: 2px;">-- يوم</div>
-                                <div id="dashNetSchoolDaysTotalSub" style="font-size: 0.63rem; color: #15803d; font-weight: 700;">صافي الموسم: -- يوم</div>
+                            <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 7px 5px; box-shadow: 0 1px 2px rgba(21, 128, 61, 0.04);">
+                                <div style="font-size: 0.64rem; color: #15803d; font-weight: 800;">⏱️ المنقضي (تقويمي)</div>
+                                <div id="dashSchoolYearDaysElapsed" style="font-size: 0.76rem; font-weight: 900; color: #166534; margin-top: 2px;">-- يوم</div>
+                                <div id="dashNetSchoolDaysTotalSub" style="font-size: 0.64rem; color: #15803d; font-weight: 700;">صافي الموسم: -- يوم</div>
                             </div>
-                            <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; padding: 6px 4px;">
-                                <div style="font-size: 0.63rem; color: #7e22ce; font-weight: 700;">🎯 المتبقي (تقويمي)</div>
-                                <div id="dashSchoolYearDaysRemaining" style="font-size: 0.75rem; font-weight: 800; color: #6b21a8; margin-top: 2px;">-- يوم</div>
-                                <div id="dashSemesterBreakdownSub" style="font-size: 0.63rem; color: #6b21a8; font-weight: 700;">د1: -- | د2: --</div>
+                            <div style="background: #faf5ff; border: 1px solid #d8b4fe; border-radius: 10px; padding: 7px 5px; box-shadow: 0 1px 2px rgba(126, 34, 206, 0.04);">
+                                <div style="font-size: 0.64rem; color: #7e22ce; font-weight: 800;">🎯 المتبقي (تقويمي)</div>
+                                <div id="dashSchoolYearDaysRemaining" style="font-size: 0.76rem; font-weight: 900; color: #6b21a8; margin-top: 2px;">-- يوم</div>
+                                <div id="dashSemesterBreakdownSub" style="font-size: 0.64rem; color: #6b21a8; font-weight: 700;">د1: -- | د2: --</div>
                             </div>
-                            <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 6px 4px;">
-                                <div style="font-size: 0.63rem; color: #b45309; font-weight: 700;">🌴 العطل المتبقية</div>
-                                <div id="dashRemainingHolidaysCount" style="font-size: 0.75rem; font-weight: 800; color: #92400e; margin-top: 2px;">-- يوم عطلة</div>
-                                <div id="dashNextHolidayMiniCountdown" style="font-size: 0.63rem; color: #d97706; font-weight: 700;">الأقرب: --</div>
+                            <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; padding: 7px 5px; box-shadow: 0 1px 2px rgba(180, 83, 9, 0.04);">
+                                <div style="font-size: 0.64rem; color: #b45309; font-weight: 800;">🌴 العطل المتبقية</div>
+                                <div id="dashRemainingHolidaysCount" style="font-size: 0.76rem; font-weight: 900; color: #92400e; margin-top: 2px;">-- يوم عطلة</div>
+                                <div id="dashNextHolidayMiniCountdown" style="font-size: 0.64rem; color: #d97706; font-weight: 700;">الأقرب: --</div>
                             </div>
                         </div>
                     </div>
 
                     <!-- رادار مصغر لأقرب عطلة وأقرب محطة تربوية -->
-                    <div id="dashSeasonLiveRadarStrip" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid #cbd5e1; border-radius: 9px; padding: 7px 10px; font-size: 0.72rem; color: #334155; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <div id="dashSeasonNextHolidayInfo" style="display: flex; align-items: center; gap: 5px; font-weight: 700;">
+                    <div id="dashSeasonLiveRadarStrip" style="background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%); border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 8px 12px; font-size: 0.73rem; color: #334155; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <div id="dashSeasonNextHolidayInfo" style="display: flex; align-items: center; gap: 5px; font-weight: 800;">
                             <span>🌴</span> <span>جاري فحص أقرب عطلة مدرسية...</span>
                         </div>
-                        <div id="dashSeasonNextMilestoneInfo" style="display: flex; align-items: center; gap: 5px; font-weight: 700; color: #1e40af;">
+                        <div id="dashSeasonNextMilestoneInfo" style="display: flex; align-items: center; gap: 5px; font-weight: 800; color: #1e40af;">
                             <span>📌</span> <span>جاري فحص أقرب محطة تربوية...</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- ويدجت حالة الطقس والأجواء الصفية والتنقل المطور -->
-                <div class="card dash-widget-card" id="dashWeatherWidgetCard" style="margin-bottom: 0; border-top: 4px solid #0284c7; border-radius: 14px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05); padding: 16px 18px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between;">
+                <div class="card dash-widget-card" id="dashWeatherWidgetCard" style="margin-bottom: 0; border: 1.5px solid #bae6fd; border-top: 4px solid #0284c7; border-radius: 16px; box-shadow: 0 6px 18px rgba(2, 132, 199, 0.07); padding: 16px 18px; background: #ffffff; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
                     <div>
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 8px; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="background: linear-gradient(135deg, #e0f2fe, #bae6fd); color: #0284c7; width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #7dd3fc; box-shadow: 0 2px 5px rgba(2, 132, 199, 0.15);">
-                                    <span data-lucide="cloud-sun" data-size="20"></span>
-                                </span>
-                                <div>
-                                    <h3 style="margin: 0; font-size: 1.02rem; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                        <span>الطقس والأجواء الصفية</span>
-                                        <span id="dashWeatherCityBadge" onclick="openWeatherCitySelectModal()" style="cursor: pointer; font-size: 0.7rem; background: #f0f9ff; color: #0369a1; padding: 2px 8px; border-radius: 999px; font-weight: 800; border: 1px solid #b9e6fe; display: inline-flex; align-items: center; gap: 3px;" title="انقر لتغيير مدينة المؤسسة">
-                                            <span data-lucide="map-pin" data-size="11"></span>
-                                            <span id="dashWeatherCityText">الدار البيضاء</span>
-                                        </span>
-                                        <span id="dashWeatherLastUpdateBadge" style="font-size: 0.64rem; background: #f1f5f9; color: #475569; padding: 2px 7px; border-radius: 999px; font-weight: 700; border: 1px solid #e2e8f0;">محدّث الآن</span>
-                                    </h3>
-                                    <p style="margin: 2px 0 0 0; font-size: 0.74rem; color: #64748b;">
-                                        توقعات فترتي الدوام (الصباح والزوال)، حالة التنقل، وتكييف أجواء الفصل
-                                    </p>
+                        <!-- ترويسة بطاقة الطقس والأجواء الصفية -->
+                        <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; padding: 12px 14px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; width: 42px; height: 42px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(2, 132, 199, 0.25); flex-shrink: 0;">
+                                        <span data-lucide="cloud-sun" data-size="20"></span>
+                                    </span>
+                                    <div>
+                                        <h3 style="margin: 0; font-size: 1.03rem; font-weight: 900; color: #0c4a6e; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                            <span>الطقس والأجواء الصفية</span>
+                                            <span id="dashWeatherCityBadge" onclick="openWeatherCitySelectModal()" style="cursor: pointer; font-size: 0.7rem; background: #ffffff; color: #0369a1; padding: 2px 9px; border-radius: 999px; font-weight: 800; border: 1px solid #7dd3fc; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(2, 132, 199, 0.08);" title="انقر لتغيير مدينة المؤسسة">
+                                                <span data-lucide="map-pin" data-size="11"></span>
+                                                <span id="dashWeatherCityText">الدار البيضاء</span>
+                                            </span>
+                                            <span id="dashWeatherLastUpdateBadge" style="font-size: 0.65rem; background: #ffffff; color: #475569; padding: 2px 8px; border-radius: 999px; font-weight: 800; border: 1px solid #cbd5e1;">محدّث الآن</span>
+                                        </h3>
+                                        <p style="margin: 3px 0 0 0; font-size: 0.75rem; font-weight: 600; color: #475569;">
+                                            توقعات فترتي الدوام (الصباح والزوال)، حالة التنقل، وتكييف أجواء الفصل
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
-                                <button type="button" class="btn-dash-mini-action" onclick="detectTeacherWeatherLocationGPS()" title="تحديد موقع المؤسسة تلقائياً عبر GPS" style="color: #0369a1; border-color: #bae6fd; background: #f0f9ff;">
-                                    <span data-lucide="locate-fixed" data-size="12"></span>
-                                    <span>موقعي</span>
-                                </button>
-                                <button type="button" class="btn-dash-mini-action" onclick="openWeatherCitySelectModal()" title="تغيير مدينة المؤسسة">
-                                    <span data-lucide="map-pin" data-size="12"></span>
-                                    <span>المدينة</span>
-                                </button>
-                                <button type="button" class="btn-dash-mini-action" onclick="refreshDashboardWeather(true)" title="تحديث حالة الطقس فوراً">
-                                    <span data-lucide="refresh-cw" data-size="12" id="dashWeatherRefreshIcon"></span>
-                                    <span>تحديث</span>
-                                </button>
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;">
+                                    <button type="button" class="btn-dash-mini-action" onclick="detectTeacherWeatherLocationGPS()" title="تحديد موقع المؤسسة تلقائياً عبر GPS" style="margin: 0; height: 32px; padding: 0 11px; border-radius: 8px; color: #ffffff; border: 1px solid #0369a1; background: linear-gradient(135deg, #0284c7, #0369a1); font-weight: 800; box-shadow: 0 2px 5px rgba(2, 132, 199, 0.2);">
+                                        <span data-lucide="locate-fixed" data-size="13"></span>
+                                        <span>موقعي</span>
+                                    </button>
+                                    <button type="button" class="btn-dash-mini-action" onclick="openWeatherCitySelectModal()" title="تغيير مدينة المؤسسة" style="margin: 0; height: 32px; padding: 0 11px; border-radius: 8px; color: #0369a1; border: 1.5px solid #7dd3fc; background: #ffffff; font-weight: 800;">
+                                        <span data-lucide="map-pin" data-size="13"></span>
+                                        <span>المدينة</span>
+                                    </button>
+                                    <button type="button" class="btn-dash-mini-action" onclick="refreshDashboardWeather(true)" title="تحديث حالة الطقس فوراً" style="margin: 0; height: 32px; padding: 0 11px; border-radius: 8px; color: #334155; border: 1.5px solid #cbd5e1; background: #ffffff; font-weight: 800;">
+                                        <span data-lucide="refresh-cw" data-size="13" id="dashWeatherRefreshIcon"></span>
+                                        <span>تحديث</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
                         <!-- بطاقة الطقس الحالية والحرارة وتوقعات فترتي الصباح والزوال -->
-                        <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 12px; padding: 10px 13px; margin-bottom: 10px;">
+                        <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1.5px solid #bae6fd; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; box-shadow: inset 0 1px 2px rgba(255,255,255,0.8);">
                             <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
-                                <div style="display: flex; align-items: center; gap: 10px;">
-                                    <div id="dashWeatherIcon" style="font-size: 2.15rem; line-height: 1;">☀️</div>
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <div id="dashWeatherIcon" style="font-size: 2.25rem; line-height: 1; filter: drop-shadow(0 2px 4px rgba(2, 132, 199, 0.15));">☀️</div>
                                     <div>
-                                        <div style="display: flex; align-items: baseline; gap: 7px;">
-                                            <div style="font-size: 1.65rem; font-weight: 900; color: #0369a1; line-height: 1.1;">
+                                        <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
+                                            <div style="font-size: 1.7rem; font-weight: 900; color: #0369a1; line-height: 1.1;">
                                                 <span id="dashWeatherTemp">--</span>°C
                                             </div>
-                                            <span id="dashWeatherMinMax" style="font-size: 0.7rem; font-weight: 800; color: #0284c7; background: rgba(255,255,255,0.75); padding: 1px 7px; border-radius: 999px; border: 1px solid #bae6fd;">عظمى --° / صغرى --°</span>
+                                            <span id="dashWeatherMinMax" style="font-size: 0.71rem; font-weight: 800; color: #0369a1; background: #ffffff; padding: 2px 9px; border-radius: 999px; border: 1px solid #7dd3fc; box-shadow: 0 1px 2px rgba(2, 132, 199, 0.06);">عظمى --° / صغرى --°</span>
                                         </div>
-                                        <div id="dashWeatherCondition" style="font-size: 0.78rem; font-weight: 800; color: #0284c7; margin-top: 2px;">
+                                        <div id="dashWeatherCondition" style="font-size: 0.79rem; font-weight: 800; color: #0284c7; margin-top: 3px;">
                                             جاري جلب الطقس...
                                         </div>
                                     </div>
                                 </div>
 
-                                <div style="text-align: left; font-size: 0.71rem; color: #0369a1; display: grid; grid-template-columns: auto auto; gap: 2px 10px;">
+                                <div style="text-align: left; font-size: 0.72rem; color: #0369a1; background: rgba(255, 255, 255, 0.75); border: 1px solid #bae6fd; border-radius: 9px; padding: 6px 10px; display: grid; grid-template-columns: auto auto; gap: 3px 12px;">
                                     <div>المحسوسة: <strong id="dashWeatherApparent">--</strong>°C</div>
                                     <div>الرطوبة: <strong id="dashWeatherHumidity">--</strong>%</div>
                                     <div>الرياح: <strong id="dashWeatherWind">--</strong> كم/س</div>
@@ -1519,12 +1535,12 @@
                             </div>
 
                             <!-- توقعات فترتي الدوام المدرسي (الصباح 08h-12h / الزوال 14h-18h) -->
-                            <div id="dashWeatherShiftsStrip" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #7dd3fc;">
-                                <div style="background: rgba(255, 255, 255, 0.75); border: 1px solid #bae6fd; border-radius: 8px; padding: 5px 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem;">
+                            <div id="dashWeatherShiftsStrip" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; padding-top: 9px; border-top: 1px dashed #7dd3fc;">
+                                <div style="background: #ffffff; border: 1px solid #bae6fd; border-radius: 8px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; box-shadow: 0 1px 2px rgba(2, 132, 199, 0.04);">
                                     <span style="color: #0369a1; font-weight: 800;">🌅 الصباح (08h-12h):</span>
                                     <span id="dashWeatherMorningInfo" style="font-weight: 900; color: #0f172a;">☀️ --°C</span>
                                 </div>
-                                <div style="background: rgba(255, 255, 255, 0.75); border: 1px solid #bae6fd; border-radius: 8px; padding: 5px 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem;">
+                                <div style="background: #ffffff; border: 1px solid #bae6fd; border-radius: 8px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; box-shadow: 0 1px 2px rgba(2, 132, 199, 0.04);">
                                     <span style="color: #0369a1; font-weight: 800;">🌇 الزوال (14h-18h):</span>
                                     <span id="dashWeatherAfternoonInfo" style="font-weight: 900; color: #0f172a;">⛅ --°C</span>
                                 </div>
@@ -1532,31 +1548,31 @@
                         </div>
 
                         <!-- مؤشرات التنقل والأجواء الصفية الثلاثية -->
-                        <div id="dashWeatherIndicatorsGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; text-align: center; margin-bottom: 10px;">
-                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px 4px;">
-                                <div style="font-size: 0.62rem; color: #64748b; font-weight: 700;">🚗 حالة التنقل</div>
-                                <div id="dashCommuteStatusVal" style="font-size: 0.72rem; font-weight: 800; color: #166534; margin-top: 2px;">انسيابي 🟢</div>
+                        <div id="dashWeatherIndicatorsGrid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; text-align: center; margin-bottom: 4px;">
+                            <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 7px 5px; box-shadow: 0 1px 2px rgba(21, 128, 61, 0.04);">
+                                <div style="font-size: 0.64rem; color: #15803d; font-weight: 800;">🚗 حالة التنقل</div>
+                                <div id="dashCommuteStatusVal" style="font-size: 0.75rem; font-weight: 900; color: #166534; margin-top: 2px;">انسيابي 🟢</div>
                             </div>
-                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px 4px;">
-                                <div style="font-size: 0.62rem; color: #64748b; font-weight: 700;">🏫 أجواء الحجرة</div>
-                                <div id="dashClassroomComfortVal" style="font-size: 0.72rem; font-weight: 800; color: #0369a1; margin-top: 2px;">معتدلة 🌿</div>
+                            <div style="background: #f0f9ff; border: 1px solid #7dd3fc; border-radius: 10px; padding: 7px 5px; box-shadow: 0 1px 2px rgba(2, 132, 199, 0.04);">
+                                <div style="font-size: 0.64rem; color: #0369a1; font-weight: 800;">🏫 أجواء الحجرة</div>
+                                <div id="dashClassroomComfortVal" style="font-size: 0.75rem; font-weight: 900; color: #0284c7; margin-top: 2px;">معتدلة 🌿</div>
                             </div>
-                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px 4px;">
-                                <div style="font-size: 0.62rem; color: #64748b; font-weight: 700;">🎯 المواظبة والتركيز</div>
-                                <div id="dashAttendanceImpactVal" style="font-size: 0.72rem; font-weight: 800; color: #4f46e5; margin-top: 2px;">تركيز عالٍ ✨</div>
+                            <div style="background: #f5f3ff; border: 1px solid #c4b5fd; border-radius: 10px; padding: 7px 5px; box-shadow: 0 1px 2px rgba(79, 70, 229, 0.04);">
+                                <div style="font-size: 0.64rem; color: #5b21b6; font-weight: 800;">🎯 المواظبة والتركيز</div>
+                                <div id="dashAttendanceImpactVal" style="font-size: 0.75rem; font-weight: 900; color: #4f46e5; margin-top: 2px;">تركيز عالٍ ✨</div>
                             </div>
                         </div>
                     </div>
 
                     <!-- شريط التوجيه البيداغوجي المرتبط بحصص اليوم وتنبيه التنقل -->
-                    <div id="dashWeatherAdvisoryBox" style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 9px 11px; font-size: 0.75rem; line-height: 1.45; color: #334155; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
+                    <div id="dashWeatherAdvisoryBox" style="background: linear-gradient(135deg, #f8fafc 0%, #f0f9ff 100%); border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 9px 12px; font-size: 0.74rem; line-height: 1.45; color: #334155; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                         <div style="display: flex; align-items: flex-start; gap: 7px; flex: 1;">
                             <span id="dashWeatherAdvisoryIcon" style="font-size: 1.05rem; line-height: 1.2;">🌿</span>
                             <div id="dashWeatherAdvisoryText" style="flex: 1;">
                                 <strong>الأجواء الصفية والتنقل:</strong> جاري تحليل المعطيات المناخية وحصص اليوم لتقديم التوجيهات الملائمة...
                             </div>
                         </div>
-                        <button type="button" id="dashWeatherQuickActionBtn" onclick="switchTab('absence');" style="display: none; white-space: nowrap; background: #ffffff; border: 1px solid #cbd5e1; color: #0f172a; font-size: 0.68rem; font-weight: 800; padding: 4px 8px; border-radius: 6px; cursor: pointer; align-self: center;">سجل الغياب ⬅</button>
+                        <button type="button" id="dashWeatherQuickActionBtn" onclick="switchTab('absence');" style="display: none; margin: 0; height: 28px; white-space: nowrap; background: #ffffff; border: 1px solid #93c5fd; color: #1d4ed8; font-size: 0.69rem; font-weight: 800; padding: 0 10px; border-radius: 6px; cursor: pointer; align-self: center;">سجل الغياب ⬅</button>
                     </div>
                 </div>
             </div>
@@ -3162,40 +3178,44 @@
 
             <!-- بطاقة تقرير الفرض المحروس الرسمي (مادة الرياضيات - السلك الثانوي التأهيلي) -->
             <div class="card" id="examReportCard" style="display: block; background: #ffffff; border: 1.5px solid #2563eb; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08);">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; border-bottom: 1.5px solid #dbeafe; padding-bottom: 10px;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div style="display: flex; align-items: center; flex-shrink: 0;">
-                            <img src="/logo.svg" id="examCardTeacherLogo" alt="" style="width: 40px; height: 40px; object-fit: contain; border-radius: 50%; border: 1.5px solid #1e3a8a; padding: 2px; background: #ffffff; box-shadow: 0 1px 4px rgba(0,0,0,0.1);" onerror="this.onerror=null; this.src='/logo.svg';">
-                        </div>
-                        <div>
-                            <h3 style="color: #1e3a8a; font-size: 1.05rem; font-weight: 800; margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
-                                <span>تقرير الفرض المحروس - مادة الرياضيات</span>
-                                <span id="examReportStatusBadge" style="font-size: 0.72rem; background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 6px; font-weight: 800; border: 1px solid #fde68a;">مسودة قيد التحرير</span>
-                                <span id="examReportStreamNormBadge" style="font-size: 0.72rem; background: #eff6ff; color: #1e40af; padding: 2px 8px; border-radius: 6px; font-weight: 800; border: 1px solid #bfdbfe;">المذكرة 142-08</span>
-                            </h3>
-                            <p style="color: #475569; font-size: 0.78rem; margin: 3px 0 0 0;">
-                                توثيق رسمي لتمرير وتصحيح الفرض بالسلك الثانوي التأهيلي، تحليل النتائج والإحصائيات، تشخيص التعثرات، وخطة المعالجة والدعم البيداغوجي
-                            </p>
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; padding: 14px 16px; background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%); border: 1px solid #dbeafe; border-radius: 12px; box-shadow: 0 2px 8px rgba(30, 58, 138, 0.05);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="display: flex; align-items: center; flex-shrink: 0;">
+                                <img src="/logo.svg" id="examCardTeacherLogo" alt="" style="width: 44px; height: 44px; object-fit: contain; border-radius: 50%; border: 2px solid #1e3a8a; padding: 2px; background: #ffffff; box-shadow: 0 2px 6px rgba(30, 58, 138, 0.14);" onerror="this.onerror=null; this.src='/logo.svg';">
+                            </div>
+                            <div>
+                                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                    <h3 style="color: #1e3a8a; font-size: 1.08rem; font-weight: 800; margin: 0; letter-spacing: -0.01em;">
+                                        تقرير الفرض المحروس - مادة الرياضيات
+                                    </h3>
+                                    <span id="examReportStatusBadge" style="font-size: 0.72rem; background: #fef3c7; color: #b45309; padding: 3px 10px; border-radius: 999px; font-weight: 800; border: 1px solid #fde68a; box-shadow: 0 1px 2px rgba(180, 83, 9, 0.08);">مسودة قيد التحرير</span>
+                                    <span id="examReportStreamNormBadge" style="font-size: 0.72rem; background: #ffffff; color: #1e40af; padding: 3px 10px; border-radius: 999px; font-weight: 800; border: 1px solid #bfdbfe; box-shadow: 0 1px 2px rgba(30, 64, 175, 0.06);">المذكرة 142-08</span>
+                                </div>
+                                <p style="color: #475569; font-size: 0.79rem; font-weight: 600; margin: 4px 0 0 0; line-height: 1.4;">
+                                    توثيق رسمي لتمرير وتصحيح الفرض بالسلك الثانوي التأهيلي، تحليل النتائج والإحصائيات، تشخيص التعثرات، وخطة المعالجة والدعم البيداغوجي
+                                </p>
+                            </div>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                        <button type="button" class="btn-primary" onclick="window.autoCalculateExamStats(true)" style="background: linear-gradient(135deg, #0284c7, #0369a1); font-size: 0.78rem; padding: 6px 12px; font-weight: 800; border-radius: 7px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(2, 132, 199, 0.25);" title="استيراد واحتساب الإحصائيات آلياً من نقط الفرض المسجلة في المنظومة">
+                    <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; width: 100%; padding-top: 10px; border-top: 1px dashed #bfdbfe;">
+                        <button type="button" class="btn-primary" onclick="window.autoCalculateExamStats(true)" style="margin: 0; height: 36px; background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; border: 1px solid #0369a1; font-size: 0.78rem; padding: 0 14px; font-weight: 800; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; cursor: pointer; box-shadow: 0 2px 5px rgba(2, 132, 199, 0.22);" title="استيراد واحتساب الإحصائيات آلياً من نقط الفرض المسجلة في المنظومة">
                             <span>⚡</span>
                             <span>استيراد واحتساب من النقط</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="window.openMakeupExamManagerModal()" style="background: linear-gradient(135deg, #be123c, #9f1239); font-size: 0.78rem; padding: 6px 12px; font-weight: 800; border-radius: 7px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(190, 18, 60, 0.25);" title="برمجة وتدبير الفروض المحروسة التعويضية للمتغيبين بمبرر (المذكرة 142-08)">
+                        <button type="button" class="btn-primary" onclick="window.openMakeupExamManagerModal()" style="margin: 0; height: 36px; background: linear-gradient(135deg, #be123c, #9f1239); color: #ffffff; border: 1px solid #9f1239; font-size: 0.78rem; padding: 0 14px; font-weight: 800; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; cursor: pointer; box-shadow: 0 2px 5px rgba(190, 18, 60, 0.22);" title="برمجة وتدبير الفروض المحروسة التعويضية للمتغيبين بمبرر (المذكرة 142-08)">
                             <span>🔄</span>
                             <span>الفرض التعويضي (المذكرة 142-08)</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="window.saveCurrentExamReport()" style="background: linear-gradient(135deg, #059669, #047857); font-size: 0.78rem; padding: 6px 12px; font-weight: 800; border-radius: 7px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(5, 150, 105, 0.25);">
+                        <button type="button" class="btn-primary" onclick="window.saveCurrentExamReport()" style="margin: 0; height: 36px; background: linear-gradient(135deg, #059669, #047857); color: #ffffff; border: 1px solid #047857; font-size: 0.78rem; padding: 0 14px; font-weight: 800; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; cursor: pointer; box-shadow: 0 2px 5px rgba(5, 150, 105, 0.22);">
                             <span>💾</span>
                             <span>حفظ التقرير</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="window.exportExamFeedbackToCompanionJson()" style="background: linear-gradient(135deg, #7c3aed, #5b21b6); font-size: 0.78rem; padding: 6px 12px; font-weight: 800; border-radius: 7px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(124, 58, 237, 0.25);" title="تصدير نتائج وتشخيص الفرض بصيغة JSON نحو تطبيق إنتاج الوثائق التربوية">
+                        <button type="button" class="btn-primary" onclick="window.exportExamFeedbackToCompanionJson()" style="margin: 0; height: 36px; background: linear-gradient(135deg, #7c3aed, #5b21b6); color: #ffffff; border: 1px solid #5b21b6; font-size: 0.78rem; padding: 0 14px; font-weight: 800; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; cursor: pointer; box-shadow: 0 2px 5px rgba(124, 58, 237, 0.22);" title="تصدير نتائج وتشخيص الفرض بصيغة JSON نحو تطبيق إنتاج الوثائق التربوية">
                             <span>📤</span>
                             <span>تصدير للتطبيق الموازي (.json)</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="window.printOfficialExamReport()" style="background: linear-gradient(135deg, #1e3a8a, #2563eb); font-size: 0.78rem; padding: 6px 14px; font-weight: 800; border-radius: 7px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);" title="طباعة رسمية مهيأة للورق A4 للإدارة والتفتيش التربوي">
+                        <button type="button" class="btn-primary" onclick="window.printOfficialExamReport()" style="margin: 0; height: 36px; background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #ffffff; border: 1px solid #1d4ed8; font-size: 0.78rem; padding: 0 16px; font-weight: 800; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; cursor: pointer; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.28);" title="طباعة رسمية مهيأة للورق A4 للإدارة والتفتيش التربوي">
                             <span>🖨️</span>
                             <span>طباعة التقرير الرسمي (A4)</span>
                         </button>
@@ -3593,43 +3613,100 @@
 
             <!-- بطاقة مواعيد الفروض القادمة والجدول الزمني المصغر المطور -->
             <div class="card" id="upcomingExamsCard" style="margin-top: 16px; border: 1.5px solid #9333ea; background: #ffffff; border-radius: 14px; padding: 18px; box-shadow: 0 6px 18px rgba(147, 51, 234, 0.08);">
-                <!-- ترويسة بطاقة الفروض القادمة -->
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; border-bottom: 1.5px solid #f3e8ff; padding-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="background: linear-gradient(135deg, #9333ea 0%, #6b21a8 100%); color: #fff; width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 3px 10px rgba(147, 51, 234, 0.3); font-size: 1.25rem;">
-                            📅
-                        </span>
-                        <div>
-                            <h4 style="color: #581c87; font-size: 1.08rem; font-weight: 900; margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                <span>جدولة مواعيد الفروض القادمة والخط الزمني المصغر</span>
-                                <span style="font-size: 0.72rem; background: #f3e8ff; color: #7e22ce; padding: 2px 9px; border-radius: 6px; font-weight: 800; border: 1px solid #d8b4fe;">المراقبة المستمرة • تتبع الجاهزية</span>
-                            </h4>
-                            <p style="color: #64748b; font-size: 0.78rem; margin: 2px 0 0 0;">
-                                برمجة ذكية متعددة الأقسام، كاشف التعارض مع العطل، تتبع مراحل الإعداد والتصحيح (0%-100%)، والربط المباشر بتقرير الفرض ودفتر النقط
-                            </p>
+                <!-- الترويسة المدمجة وشريط الإجراءات والمؤشرات والفلاتر لبطاقة الفروض القادمة -->
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; padding: 16px 18px; background: linear-gradient(135deg, #fdf4ff 0%, #faf5ff 55%, #f3e8ff 100%); border: 1.5px solid #e9d5ff; border-radius: 14px; box-shadow: 0 3px 12px rgba(147, 51, 234, 0.07);">
+                    <!-- الصف الأول: العنوان والوصف -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="background: linear-gradient(135deg, #9333ea 0%, #6b21a8 100%); color: #fff; width: 46px; height: 46px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(147, 51, 234, 0.3); font-size: 1.25rem; flex-shrink: 0;">
+                                📅
+                            </span>
+                            <div>
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <h4 style="color: #581c87; font-size: 1.1rem; font-weight: 900; margin: 0;">
+                                        جدولة مواعيد الفروض القادمة والخط الزمني المصغر
+                                    </h4>
+                                    <span style="font-size: 0.72rem; background: #ffffff; color: #7e22ce; padding: 3px 10px; border-radius: 999px; font-weight: 800; border: 1px solid #d8b4fe; box-shadow: 0 1px 2px rgba(126, 34, 206, 0.08);">المراقبة المستمرة • تتبع الجاهزية</span>
+                                </div>
+                                <p style="color: #64748b; font-size: 0.79rem; font-weight: 600; margin: 4px 0 0 0; line-height: 1.4;">
+                                    برمجة ذكية متعددة الأقسام، كاشف التعارض مع العطل، تتبع مراحل الإعداد والتصحيح (0%-100%)، والربط المباشر بتقرير الفرض ودفتر النقط
+                                </p>
+                            </div>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                        <button type="button" id="btnToggleUpcomingExamForm" onclick="window.toggleUpcomingExamForm()" style="background: linear-gradient(135deg, #9333ea, #7e22ce); color: #ffffff; border: 1px solid transparent; padding: 7px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(147, 51, 234, 0.25);">
+
+                    <!-- الصف الثاني: أزرار الإجراءات السريعة — متوسطة البطاقة -->
+                    <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 8px; width: 100%; padding-top: 10px; border-top: 1px dashed #d8b4fe;">
+                        <button type="button" id="btnToggleUpcomingExamForm" onclick="window.toggleUpcomingExamForm()" style="margin: 0; height: 36px; background: linear-gradient(135deg, #9333ea, #7e22ce); color: #ffffff; border: 1px solid #7e22ce; padding: 0 14px; border-radius: 9px; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-shadow: 0 2px 6px rgba(147, 51, 234, 0.25);">
                             <span>➕</span>
                             <span>برمجة موعد فرض جديد</span>
                         </button>
-                        <button type="button" onclick="window.syncUpcomingExamsToAnnualCalendar()" style="background: #eff6ff; color: #1d4ed8; border: 1.5px solid #bfdbfe; padding: 6px 11px; border-radius: 8px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="مزامنة الفروض المبرمجة مع التقويم السنوي والشهري">
+                        <button type="button" onclick="window.syncUpcomingExamsToAnnualCalendar()" style="margin: 0; height: 36px; background: #eff6ff; color: #1d4ed8; border: 1.5px solid #bfdbfe; padding: 0 13px; border-radius: 9px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-shadow: 0 1px 3px rgba(29, 78, 216, 0.08);" title="مزامنة الفروض المبرمجة مع التقويم السنوي والشهري">
                             <span>🔄</span>
                             <span>مزامنة التقويم</span>
                         </button>
-                        <button type="button" onclick="window.loadDefaultExamsPreset()" style="background: #faf5ff; color: #7e22ce; border: 1.5px solid #d8b4fe; padding: 6px 11px; border-radius: 8px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="توليد جدولة استرشادية للأقسام المسندة">
+                        <button type="button" onclick="window.loadDefaultExamsPreset()" style="margin: 0; height: 36px; background: #ffffff; color: #7e22ce; border: 1.5px solid #d8b4fe; padding: 0 13px; border-radius: 9px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-shadow: 0 1px 3px rgba(126, 34, 206, 0.08);" title="توليد جدولة استرشادية للأقسام المسندة">
                             <span>✨</span>
                             <span>برمجة استرشادية آلية</span>
                         </button>
-                        <button type="button" onclick="window.exportUpcomingExamsICS()" style="background: #f0fdf4; color: #15803d; border: 1.5px solid #bbf7d0; padding: 6px 11px; border-radius: 8px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="تصدير مواعيد الفروض إلى تقويم الهاتف أو Google Calendar (.ics)">
+                        <button type="button" onclick="window.exportUpcomingExamsICS()" style="margin: 0; height: 36px; background: #f0fdf4; color: #15803d; border: 1.5px solid #bbf7d0; padding: 0 13px; border-radius: 9px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-shadow: 0 1px 3px rgba(21, 128, 61, 0.08);" title="تصدير مواعيد الفروض إلى تقويم الهاتف أو Google Calendar (.ics)">
                             <span>📲</span>
                             <span>تصدير تقويم (.ics)</span>
                         </button>
-                        <button type="button" onclick="window.printUpcomingExamsTimeline()" style="background: #f8fafc; color: #334155; border: 1.5px solid #cbd5e1; padding: 6px 11px; border-radius: 8px; font-size: 0.76rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                        <button type="button" onclick="window.printUpcomingExamsTimeline()" style="margin: 0; height: 36px; background: #ffffff; color: #334155; border: 1.5px solid #cbd5e1; padding: 0 13px; border-radius: 9px; font-size: 0.76rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);">
                             <span>🖨️</span>
                             <span>طباعة الجدولة (A4)</span>
                         </button>
+                    </div>
+
+                    <!-- الصف الثالث: المؤشرات الإحصائية وأدوات التصفية المتقدمة — مدمجة ومتناسقة -->
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; width: 100%; padding-top: 10px; border-top: 1px dashed #e9d5ff;">
+                        <!-- المؤشرات الإحصائية المصغرة -->
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; width: 100%;">
+                            <span style="height: 30px; padding: 0 10px; border-radius: 8px; background: #f3e8ff; border: 1px solid #d8b4fe; font-size: 0.75rem; font-weight: 900; color: #581c87; display: inline-flex; align-items: center; gap: 5px;">
+                                <span>📊 المؤشرات:</span>
+                            </span>
+                            <span style="height: 30px; background: #ffffff; border: 1px solid #d8b4fe; padding: 0 11px; border-radius: 8px; font-size: 0.74rem; font-weight: 800; color: #475569; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(126, 34, 206, 0.05);">
+                                <span>المجموع:</span>
+                                <strong id="upcomingExamTotalCountBadge" style="color: #6b21a8; font-size: 0.8rem;">0</strong>
+                            </span>
+                            <span style="height: 30px; background: #eff6ff; border: 1px solid #bfdbfe; padding: 0 11px; border-radius: 8px; font-size: 0.74rem; font-weight: 800; color: #1e40af; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(29, 78, 216, 0.05);">
+                                <span>⏳ قيد الانتظار:</span>
+                                <strong id="upcomingExamUpcomingCountBadge" style="color: #1d4ed8; font-size: 0.8rem;">0</strong>
+                            </span>
+                            <span style="height: 30px; background: #fffbeb; border: 1px solid #fde68a; padding: 0 11px; border-radius: 8px; font-size: 0.74rem; font-weight: 800; color: #b45309; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(180, 83, 9, 0.05);">
+                                <span>🖨️ جاهز للتمرير:</span>
+                                <strong id="upcomingExamReadyCountBadge" style="color: #d97706; font-size: 0.8rem;">0</strong>
+                            </span>
+                            <span style="height: 30px; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 0 11px; border-radius: 8px; font-size: 0.74rem; font-weight: 800; color: #065f46; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 2px rgba(5, 150, 105, 0.05);">
+                                <span>✅ منجزة ومصححة:</span>
+                                <strong id="upcomingExamCompletedCountBadge" style="color: #047857; font-size: 0.8rem;">0</strong>
+                            </span>
+                            <div id="upcomingExamNextBadgeBox" style="display: inline-flex; align-items: center;"></div>
+                        </div>
+
+                        <!-- أزرار ومحددات التصفية المتقدمة — متوسطة البطاقة -->
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; width: 100%;">
+                            <div style="display: inline-flex; align-items: center; gap: 6px; background: #ffffff; padding: 3px 10px 3px 4px; border-radius: 9px; border: 1.5px solid #d8b4fe; height: 34px; box-sizing: border-box; box-shadow: 0 1px 2px rgba(126, 34, 206, 0.06);">
+                                <span style="font-size: 0.75rem; color: #581c87; font-weight: 800; white-space: nowrap;">🍂 الدورة:</span>
+                                <select id="upcomingTimelineSemesterFilter" onchange="window.onTimelineSemesterFilterChange(this.value)" style="margin: 0; width: auto; min-width: 105px; height: 26px; padding: 0 8px; border: 1px solid #e9d5ff; border-radius: 6px; font-size: 0.75rem; font-weight: 800; background: #faf5ff; color: #334155; outline: none; cursor: pointer;">
+                                    <option value="all">كل الدورات</option>
+                                    <option value="s1">الدورة 1</option>
+                                    <option value="s2">الدورة 2</option>
+                                </select>
+                            </div>
+                            <div style="display: inline-flex; align-items: center; gap: 6px; background: #ffffff; padding: 3px 10px 3px 4px; border-radius: 9px; border: 1.5px solid #d8b4fe; height: 34px; box-sizing: border-box; box-shadow: 0 1px 2px rgba(126, 34, 206, 0.06);">
+                                <span style="font-size: 0.75rem; color: #581c87; font-weight: 800; white-space: nowrap;">🏫 القسم:</span>
+                                <select id="upcomingTimelineClassFilter" onchange="window.onTimelineClassFilterChange(this.value)" style="margin: 0; width: auto; min-width: 115px; height: 26px; padding: 0 8px; border: 1px solid #e9d5ff; border-radius: 6px; font-size: 0.75rem; font-weight: 800; background: #faf5ff; color: #334155; outline: none; cursor: pointer;">
+                                    <option value="all">كل الأقسام</option>
+                                </select>
+                            </div>
+                            <div style="display: inline-flex; align-items: center; gap: 4px; background: #ffffff; padding: 3px; border: 1.5px solid #d8b4fe; border-radius: 9px; height: 34px; box-sizing: border-box; box-shadow: 0 1px 2px rgba(126, 34, 206, 0.06);">
+                                <button type="button" id="btnUpcomingStatus_all" onclick="window.onTimelineStatusFilterChange('all')" style="margin: 0; height: 26px; background: #7c3aed; color: #ffffff; border: 1px solid #6d28d9; padding: 0 12px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;">الكل</button>
+                                <button type="button" id="btnUpcomingStatus_upcoming" onclick="window.onTimelineStatusFilterChange('upcoming')" style="margin: 0; height: 26px; background: #ffffff; color: #475569; border: 1px solid #cbd5e1; padding: 0 12px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;">القادمة</button>
+                                <button type="button" id="btnUpcomingStatus_completed" onclick="window.onTimelineStatusFilterChange('completed')" style="margin: 0; height: 26px; background: #ffffff; color: #475569; border: 1px solid #cbd5e1; padding: 0 12px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;">المنجزة</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -3873,50 +3950,6 @@
                     </form>
                 </div>
 
-                <!-- شريط التصفية والمؤشرات الإحصائية المصغرة -->
-                <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-                    <!-- المؤشرات الإحصائية -->
-                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <span style="font-size: 0.78rem; font-weight: 900; color: #581c87;">📊 المؤشرات:</span>
-                        <span style="background: #ffffff; border: 1px solid #d8b4fe; padding: 3px 8px; border-radius: 6px; font-size: 0.73rem; font-weight: 700; color: #475569;">
-                            المجموع: <strong id="upcomingExamTotalCountBadge" style="color: #6b21a8;">0</strong>
-                        </span>
-                        <span style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 3px 8px; border-radius: 6px; font-size: 0.73rem; font-weight: 700; color: #1e40af;">
-                            ⏳ قيد الانتظار: <strong id="upcomingExamUpcomingCountBadge" style="color: #1d4ed8;">0</strong>
-                        </span>
-                        <span style="background: #fffbeb; border: 1px solid #fde68a; padding: 3px 8px; border-radius: 6px; font-size: 0.73rem; font-weight: 700; color: #b45309;">
-                            🖨️ جاهز للتمرير: <strong id="upcomingExamReadyCountBadge" style="color: #d97706;">0</strong>
-                        </span>
-                        <span style="background: #ecfdf5; border: 1px solid #a7f3d0; padding: 3px 8px; border-radius: 6px; font-size: 0.73rem; font-weight: 700; color: #065f46;">
-                            ✅ منجزة ومصححة: <strong id="upcomingExamCompletedCountBadge" style="color: #047857;">0</strong>
-                        </span>
-                        <div id="upcomingExamNextBadgeBox" style="margin-right: 4px;"></div>
-                    </div>
-
-                    <!-- أزرار التصفية المتقدمة -->
-                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <span style="font-size: 0.73rem; color: #64748b; font-weight: 700;">الدورة:</span>
-                            <select id="upcomingTimelineSemesterFilter" onchange="window.onTimelineSemesterFilterChange(this.value)" style="padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.73rem; font-weight: 700; background: #ffffff; color: #334155; outline: none;">
-                                <option value="all">كل الدورات</option>
-                                <option value="s1">الدورة 1</option>
-                                <option value="s2">الدورة 2</option>
-                            </select>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <span style="font-size: 0.73rem; color: #64748b; font-weight: 700;">القسم:</span>
-                            <select id="upcomingTimelineClassFilter" onchange="window.onTimelineClassFilterChange(this.value)" style="padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.73rem; font-weight: 700; background: #ffffff; color: #334155; outline: none;">
-                                <option value="all">كل الأقسام</option>
-                            </select>
-                        </div>
-                        <div style="display: flex; gap: 3px; background: #ffffff; padding: 2px; border: 1px solid #e2e8f0; border-radius: 6px;">
-                            <button type="button" id="btnUpcomingStatus_all" onclick="window.onTimelineStatusFilterChange('all')" style="background: #f3e8ff; color: #7e22ce; border: 1px solid #c084fc; padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; cursor: pointer;">الكل</button>
-                            <button type="button" id="btnUpcomingStatus_upcoming" onclick="window.onTimelineStatusFilterChange('upcoming')" style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; cursor: pointer;">القادمة</button>
-                            <button type="button" id="btnUpcomingStatus_completed" onclick="window.onTimelineStatusFilterChange('completed')" style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; padding: 3px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; cursor: pointer;">المنجزة</button>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- الشريط الزمني المصغر الأفقي السريع (Horizontal Mini-Timeline Strip) -->
                 <div id="upcomingExamsHorizontalMiniStrip" style="margin-bottom: 14px; display: none;"></div>
 
@@ -3929,40 +3962,44 @@
             <!-- بطاقة التقويم التشخيصي لمادة الرياضيات وشبكة تفريغ الروائز -->
             <div class="card" id="diagnosticReportCard" style="margin-top: 16px; border: 1.5px solid #0284c7; background: #ffffff; border-radius: 12px; padding: 18px; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.08);">
                 <!-- ترويسة بطاقة التقويم التشخيصي -->
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; border-bottom: 1.5px solid #e0f2fe; padding-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #fff; width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3); font-size: 1.1rem;">
-                            🎯
-                        </span>
-                        <div>
-                            <h4 style="color: #0369a1; font-size: 1.05rem; font-weight: 800; margin: 0; display: flex; align-items: center; gap: 8px;">
-                                <span>التقويم التشخيصي لمادة الرياضيات (Diagnostic Assessment)</span>
-                                <span style="font-size: 0.72rem; background: #e0f2fe; color: #0284c7; padding: 2px 8px; border-radius: 6px; font-weight: 700; border: 1px solid #bae6fd;">وفق التوجيهات الرسمية</span>
-                            </h4>
-                            <p style="color: #64748b; font-size: 0.78rem; margin: 2px 0 0 0;">
-                                رصد المكتسبات القبلية، شبكة تفريغ الروائز، تفييئ المتعلمين (Profilage)، والمجالات الرياضية الأربعة المعتمدة
-                            </p>
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; padding: 14px 16px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #bae6fd; border-radius: 12px; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.06);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #fff; width: 42px; height: 42px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3); font-size: 1.15rem; flex-shrink: 0;">
+                                🎯
+                            </span>
+                            <div>
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <h4 style="color: #0369a1; font-size: 1.06rem; font-weight: 800; margin: 0;">
+                                        التقويم التشخيصي لمادة الرياضيات (Diagnostic Assessment)
+                                    </h4>
+                                    <span style="font-size: 0.72rem; background: #ffffff; color: #0284c7; padding: 3px 10px; border-radius: 999px; font-weight: 800; border: 1px solid #bae6fd; box-shadow: 0 1px 2px rgba(2, 132, 199, 0.08);">وفق التوجيهات الرسمية</span>
+                                </div>
+                                <p style="color: #475569; font-size: 0.79rem; font-weight: 600; margin: 4px 0 0 0; line-height: 1.4;">
+                                    رصد المكتسبات القبلية، شبكة تفريغ الروائز، تفييئ المتعلمين (Profilage)، والمجالات الرياضية الأربعة المعتمدة
+                                </p>
+                            </div>
                         </div>
                     </div>
                     <!-- أزرار الإجراءات السريعة -->
-                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <button type="button" class="btn-primary" onclick="switchTab('annual'); setTimeout(function(){ window.dispatchEvent(new CustomEvent('selectAnalysisWorkspace', { detail: { workspace: 'council_orientation', subTab: 'diagnostic_toolkit' } })); var el = document.getElementById('react-analysis-root'); if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 120);" style="background: linear-gradient(135deg, #4f46e5, #3730a3); font-size: 0.76rem; padding: 5px 12px; display: inline-flex; align-items: center; gap: 5px;" title="فتح حقيبة الروائز التشخيصية ومصفوفة العوائق الإبستيمولوجية ومجالس الأقسام والتوجيه">
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap; width: 100%; padding-top: 10px; border-top: 1px dashed #7dd3fc;">
+                        <button type="button" class="btn-primary" onclick="switchTab('annual'); setTimeout(function(){ window.dispatchEvent(new CustomEvent('selectAnalysisWorkspace', { detail: { workspace: 'council_orientation', subTab: 'diagnostic_toolkit' } })); var el = document.getElementById('react-analysis-root'); if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 120);" style="margin: 0; height: 36px; background: linear-gradient(135deg, #4f46e5, #3730a3); color: #ffffff; border: 1px solid #3730a3; font-size: 0.76rem; font-weight: 800; padding: 0 14px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; cursor: pointer; box-shadow: 0 2px 5px rgba(79, 70, 229, 0.22);" title="فتح حقيبة الروائز التشخيصية ومصفوفة العوائق الإبستيمولوجية ومجالس الأقسام والتوجيه">
                             <span data-lucide="compass" data-size="14"></span>
                             <span>حقيبة الروائز ومجلس القسم والتوجيه</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="openUniversalPdfPreviewModal('diagnostic')" style="background: linear-gradient(135deg, #0284c7, #0369a1); font-size: 0.76rem; padding: 5px 12px; display: inline-flex; align-items: center; gap: 5px;" title="معاينة وطباعة تقرير التقويم التشخيصي الرسمي بصيغة PDF">
+                        <button type="button" class="btn-primary" onclick="openUniversalPdfPreviewModal('diagnostic')" style="margin: 0; height: 36px; background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; border: 1px solid #0369a1; font-size: 0.76rem; font-weight: 800; padding: 0 14px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; cursor: pointer; box-shadow: 0 2px 5px rgba(2, 132, 199, 0.22);" title="معاينة وطباعة تقرير التقويم التشخيصي الرسمي بصيغة PDF">
                             <span data-lucide="printer" data-size="14"></span>
                             <span>تقرير رسمي (PDF)</span>
                         </button>
-                        <button type="button" class="btn-primary" onclick="exportDiagnosticExcelGrid()" style="background: linear-gradient(135deg, #059669, #047857); font-size: 0.76rem; padding: 5px 12px; display: inline-flex; align-items: center; gap: 5px;" title="تصدير شبكة تفريغ نتائج التقويم التشخيصي إلى مصنف Excel">
+                        <button type="button" class="btn-primary" onclick="exportDiagnosticExcelGrid()" style="margin: 0; height: 36px; background: linear-gradient(135deg, #059669, #047857); color: #ffffff; border: 1px solid #047857; font-size: 0.76rem; font-weight: 800; padding: 0 14px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; cursor: pointer; box-shadow: 0 2px 5px rgba(5, 150, 105, 0.22);" title="تصدير شبكة تفريغ نتائج التقويم التشخيصي إلى مصنف Excel">
                             <span data-lucide="file-spreadsheet" data-size="14"></span>
                             <span>تصدير Excel</span>
                         </button>
-                        <button type="button" class="btn-secondary" onclick="toggleDiagnosticRemediationBox()" style="font-size: 0.76rem; padding: 5px 10px; display: inline-flex; align-items: center; gap: 5px;" title="عرض خطة الدعم والمعالجة الديدكتيكية المقترحة">
+                        <button type="button" class="btn-secondary" onclick="toggleDiagnosticRemediationBox()" style="margin: 0; height: 36px; background: #ffffff; color: #0369a1; border: 1.5px solid #7dd3fc; font-size: 0.76rem; font-weight: 800; padding: 0 13px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; cursor: pointer; box-shadow: 0 1px 3px rgba(2, 132, 199, 0.08);" title="عرض خطة الدعم والمعالجة الديدكتيكية المقترحة">
                             <span data-lucide="lightbulb" data-size="14"></span>
                             <span>خطة الدعم</span>
                         </button>
-                        <button type="button" class="btn-secondary" onclick="autoGenerateDiagnosticMarks()" style="font-size: 0.76rem; padding: 5px 10px; display: inline-flex; align-items: center; gap: 5px;" title="تعبئة تقديرية سريعة لروائز التلاميذ وفق نتائج وتوزيع القسم">
+                        <button type="button" class="btn-secondary" onclick="autoGenerateDiagnosticMarks()" style="margin: 0; height: 36px; background: #ffffff; color: #334155; border: 1.5px solid #cbd5e1; font-size: 0.76rem; font-weight: 800; padding: 0 13px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; cursor: pointer; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);" title="تعبئة تقديرية سريعة لروائز التلاميذ وفق نتائج وتوزيع القسم">
                             <span data-lucide="sparkles" data-size="14"></span>
                             <span>تعبئة تقديرية</span>
                         </button>
@@ -4175,26 +4212,30 @@
             <!-- الخريطة الحرارية (Heatmap) لأيام وأسابيع السنة الدراسية الأعلى غياباً والقرارات الوقائية -->
             <div class="card" id="absenceHeatmapCard" style="margin-top: 14px; border: 1.5px solid #f97316; background: #ffffff; border-radius: 12px; padding: 18px; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.08);">
                 <!-- ترويسة بطاقة الخريطة الحرارية -->
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; border-bottom: 1px solid #ffedd5; padding-bottom: 10px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); color: #fff; width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(234, 88, 12, 0.25);">
-                            <span data-lucide="flame" data-size="18"></span>
-                        </span>
-                        <div>
-                            <h4 style="color: #9a3412; font-size: 1rem; font-weight: 800; margin: 0; display: flex; align-items: center; gap: 6px;">
-                                <span>الخريطة الحرارية للغياب (Heatmap)</span>
-                                <span style="font-size: 0.72rem; background: #fff7ed; color: #ea580c; padding: 2px 8px; border-radius: 6px; font-weight: 700; border: 1px solid #fed7aa;">رصد بؤر الغياب الاستباقي</span>
-                            </h4>
-                            <p style="color: #6b7280; font-size: 0.78rem; margin: 2px 0 0 0;">
-                                مصفوفة حرارية تحدد الأيام والأسابيع الأكثر تسجيلاً للغياب عبر الموسم الدراسي لمساعدة الأستاذ في اتخاذ قرارات بيداغوجية وقائية
-                            </p>
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; padding: 14px 16px; background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 1px solid #fed7aa; border-radius: 12px; box-shadow: 0 2px 8px rgba(234, 88, 12, 0.06);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="background: linear-gradient(135deg, #ea580c 0%, #f97316 100%); color: #fff; width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(234, 88, 12, 0.25); flex-shrink: 0;">
+                                <span data-lucide="flame" data-size="20"></span>
+                            </span>
+                            <div>
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <h4 style="color: #9a3412; font-size: 1.04rem; font-weight: 800; margin: 0;">
+                                        الخريطة الحرارية للغياب (Heatmap)
+                                    </h4>
+                                    <span style="font-size: 0.72rem; background: #ffffff; color: #ea580c; padding: 3px 10px; border-radius: 999px; font-weight: 800; border: 1px solid #fed7aa; box-shadow: 0 1px 2px rgba(234, 88, 12, 0.08);">رصد بؤر الغياب الاستباقي</span>
+                                </div>
+                                <p style="color: #6b7280; font-size: 0.79rem; font-weight: 600; margin: 4px 0 0 0; line-height: 1.4;">
+                                    مصفوفة حرارية تحدد الأيام والأسابيع الأكثر تسجيلاً للغياب عبر الموسم الدراسي لمساعدة الأستاذ في اتخاذ قرارات بيداغوجية وقائية
+                                </p>
+                            </div>
                         </div>
                     </div>
 
                     <!-- أدوات التحكم وأنماط العرض -->
-                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%; padding-top: 10px; border-top: 1px dashed #fdba74;">
                         <!-- محدد الفترة -->
-                        <select id="heatmapPeriodSelect" onchange="onHeatmapFilterChange()" style="padding: 5px 8px; font-size: 0.75rem; border: 1px solid #fed7aa; border-radius: 6px; background: #fff7ed; color: #9a3412; font-weight: 700; cursor: pointer;">
+                        <select id="heatmapPeriodSelect" onchange="onHeatmapFilterChange()" style="margin: 0; width: auto; height: 34px; padding: 0 10px; font-size: 0.76rem; border: 1.5px solid #fdba74; border-radius: 8px; background: #ffffff; color: #9a3412; font-weight: 800; cursor: pointer; box-shadow: 0 1px 2px rgba(154, 52, 18, 0.06);">
                             <option value="all">📅 كامل الموسم الدراسي (36 أسبوع)</option>
                             <option value="term1">🍂 الدورة الأولى (شتنبر - يناير)</option>
                             <option value="term2">🌱 الدورة الثانية (فبراير - يوليوز)</option>
@@ -4202,21 +4243,21 @@
                         </select>
 
                         <!-- محدد المقياس: ساعات / عدد حالات -->
-                        <div style="display: flex; align-items: center; gap: 2px; background: #f1f5f9; padding: 2px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                            <button type="button" id="btnHeatmapMetricHours" onclick="setHeatmapMetric('hours')" style="border: none; background: #ffffff; color: #ea580c; padding: 4px 10px; font-size: 0.72rem; font-weight: 800; border-radius: 5px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">
+                        <div style="display: inline-flex; align-items: center; gap: 3px; background: #ffffff; padding: 3px; border-radius: 8px; border: 1.5px solid #fed7aa; height: 34px; box-sizing: border-box;">
+                            <button type="button" id="btnHeatmapMetricHours" onclick="setHeatmapMetric('hours')" style="margin: 0; height: 26px; border: none; background: #fff7ed; color: #ea580c; padding: 0 12px; font-size: 0.74rem; font-weight: 800; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; box-shadow: 0 1px 2px rgba(234,88,12,0.12);">
                                 الساعات (س)
                             </button>
-                            <button type="button" id="btnHeatmapMetricCount" onclick="setHeatmapMetric('count')" style="border: none; background: transparent; color: #64748b; padding: 4px 10px; font-size: 0.72rem; font-weight: 700; border-radius: 5px; cursor: pointer;">
+                            <button type="button" id="btnHeatmapMetricCount" onclick="setHeatmapMetric('count')" style="margin: 0; height: 26px; border: none; background: transparent; color: #64748b; padding: 0 12px; font-size: 0.74rem; font-weight: 700; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;">
                                 عدد الحالات
                             </button>
                         </div>
 
                         <!-- نمط العرض: أسابيع وأيام / كثافة الحصص اليومية -->
-                        <div style="display: flex; align-items: center; gap: 2px; background: #f1f5f9; padding: 2px; border-radius: 6px; border: 1px solid #e2e8f0;">
-                            <button type="button" id="btnHeatmapModeWeeks" onclick="setHeatmapMode('weeks')" style="border: none; background: #ea580c; color: #ffffff; padding: 4px 10px; font-size: 0.72rem; font-weight: 800; border-radius: 5px; cursor: pointer;">
+                        <div style="display: inline-flex; align-items: center; gap: 3px; background: #ffffff; padding: 3px; border-radius: 8px; border: 1.5px solid #fed7aa; height: 34px; box-sizing: border-box;">
+                            <button type="button" id="btnHeatmapModeWeeks" onclick="setHeatmapMode('weeks')" style="margin: 0; height: 26px; border: none; background: #ea580c; color: #ffffff; padding: 0 12px; font-size: 0.74rem; font-weight: 800; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;">
                                 مصفوفة الأسابيع والأيام
                             </button>
-                            <button type="button" id="btnHeatmapModePeriods" onclick="setHeatmapMode('periods')" style="border: none; background: transparent; color: #64748b; padding: 4px 10px; font-size: 0.72rem; font-weight: 700; border-radius: 5px; cursor: pointer;">
+                            <button type="button" id="btnHeatmapModePeriods" onclick="setHeatmapMode('periods')" style="margin: 0; height: 26px; border: none; background: transparent; color: #64748b; padding: 0 12px; font-size: 0.74rem; font-weight: 700; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;">
                                 كثافة الحصص اليومية
                             </button>
                         </div>

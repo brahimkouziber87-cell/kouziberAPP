@@ -133,13 +133,18 @@ function getExamsCountSafe(className: string): number {
   const upper = (className || '').toUpperCase();
   if (
     upper.includes('LSH') ||
-    upper.includes('SH') ||
+    upper.includes('TCL') ||
+    upper.includes('TCO') ||
+    /(?:^|[^A-Z])(?:SH|LET|LIT)(?:$|[^A-Z])/.test(upper) ||
     className.includes('آداب') ||
-    className.includes('إنسانية')
+    className.includes('اداب') ||
+    className.includes('إنسانية') ||
+    className.includes('انسانية') ||
+    className.includes('أصيل')
   ) {
     return 2;
   }
-  if (upper.includes('2BAC') || upper.includes('SM') || className.includes('ثانية')) {
+  if (/\b(?:[12]?B?SM[AB]?|SM-[AB])\b/.test(upper) || className.includes('رياضية')) {
     return 4;
   }
   return 3;

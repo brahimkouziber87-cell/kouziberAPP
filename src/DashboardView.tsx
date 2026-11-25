@@ -239,6 +239,10 @@ function detectStreamMeta(className: string, db: any): {
     className.includes('تكنولوجي') ||
     className.includes('كهربائ') ||
     className.includes('ميكانيك');
+  const isArt =
+    /\bARTS?\b/i.test(upper) ||
+    className.includes('فنون تطبيقية') ||
+    className.includes('الفنون التطبيقية');
 
   if (
     upper.includes('2BAC') ||
@@ -256,12 +260,14 @@ function detectStreamMeta(className: string, db: any): {
       ? '2 باك علوم رياضية'
       : isEco
       ? '2 باك علوم اقتصادية'
+      : isArt
+      ? '2 باك فنون تطبيقية'
       : isLit
       ? '2 باك آداب وعلوم إنسانية'
       : isTech
       ? '2 باك علوم وتكنولوجيات (STE/STM)'
       : '2 باك علوم تجريبية (PC/SVT)';
-    defaultCoef = isLit ? 1 : isEco ? 4 : isTech ? 6 : isSm ? 9 : 7;
+    defaultCoef = isLit ? 1 : (isEco || isArt) ? 4 : isTech ? 7 : isSm ? 9 : 7;
     defaultExams = isLit ? 2 : isSm ? 4 : 3;
   } else if (
     upper.includes('1BAC') ||
@@ -280,13 +286,15 @@ function detectStreamMeta(className: string, db: any): {
       ? '1 باك علوم رياضية'
       : isEco
       ? '1 باك علوم اقتصادية'
+      : isArt
+      ? '1 باك فنون تطبيقية'
       : isLit
       ? '1 باك آداب وعلوم إنسانية'
       : isTech
       ? '1 باك علوم وتكنولوجيات (STE/STM)'
       : '1 باك علوم تجريبية';
-    // المعامل الرسمي لمادة الرياضيات في 1 باك علوم رياضية هو 9، وعلوم تجريبية 7، وتكنولوجيات 6، واقتصاد 4، وآداب 1 (المذكرة 142-08)
-    defaultCoef = isLit ? 1 : isEco ? 4 : isTech ? 6 : isSm ? 9 : 7;
+    // المعامل الرسمي لمادة الرياضيات في 1 باك علوم رياضية هو 9، وعلوم تجريبية وتكنولوجيات (STE/STM) هو 7، واقتصاد وفنون تطبيقية 4، وآداب 1 (المذكرة 142-08)
+    defaultCoef = isLit ? 1 : (isEco || isArt) ? 4 : isTech ? 7 : isSm ? 9 : 7;
     defaultExams = isLit ? 2 : isSm ? 4 : 3;
   } else if (
     upper.includes('TC') ||
@@ -297,7 +305,11 @@ function detectStreamMeta(className: string, db: any): {
     className.includes('مشترك')
   ) {
     streamLevel = 'tc';
-    streamLabel = isLit ? 'الجذع المشترك للآداب والعلوم الإنسانية' : 'الجذع المشترك العلمي';
+    streamLabel = isLit
+      ? 'الجذع المشترك للآداب والعلوم الإنسانية'
+      : upper.includes('TCT') || isTech
+      ? 'الجذع المشترك التكنولوجي'
+      : 'الجذع المشترك العلمي';
     defaultCoef = isLit ? 2 : 4;
     defaultExams = isLit ? 2 : 3;
   } else if (isLit) {
