@@ -79,7 +79,7 @@ const PRESET_LEVELS: Record<string, {
       {
         order: 3,
         title: 'التمرين الثالث: دراسة دالة لوغاريتمية / أسية وتمثيلها المبياني',
-        domain: 'التحليل ودراسة الدوال',
+        domain: 'التحليل: النهايات، الاتصال، والاشتقاق ودراسة الدوال',
         points: 9,
         skills: { directApplication: 3.5, familiarSituation: 3.5, complexReasoning: 2 },
         competencies: 'حساب النهايات، الفروع اللانهائية، إشارة المشتقة، جدول التغيرات، والإنشاء الهندسي لـ (Cf).'
@@ -521,9 +521,15 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
     }));
   });
 
+  const isLiteraryPreset = selectedLevel === 'TCL' || selectedLevel === '1BAC_LSH' || selectedLevel === '2BAC_LSH';
+
   // Keep exercises in sync if preset changes
   const handleLevelChange = (newLevel: string) => {
     setSelectedLevel(newLevel);
+    const maxExamsForLevel = newLevel.includes('SM') ? 4 : (newLevel === 'TCL' || newLevel === '1BAC_LSH' || newLevel === '2BAC_LSH') ? 2 : 3;
+    if (Number(examNumber) > maxExamsForLevel) {
+      setExamNumber('1');
+    }
     const p = PRESET_LEVELS[newLevel] || PRESET_LEVELS['2BAC_PC'];
     setExercises(p.defaultExercises.map((ex, i) => ({
       ...ex,
@@ -851,8 +857,8 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">رقم الفرض المحروس:</label>
-              <div className={`grid ${selectedLevel.includes('SM') ? 'grid-cols-4' : selectedLevel === 'TCL' ? 'grid-cols-2' : 'grid-cols-3'} gap-1.5`}>
-                {(selectedLevel.includes('SM') ? (['1', '2', '3', '4'] as const) : selectedLevel === 'TCL' ? (['1', '2'] as const) : (['1', '2', '3'] as const)).map(num => (
+              <div className={`grid ${selectedLevel.includes('SM') ? 'grid-cols-4' : isLiteraryPreset ? 'grid-cols-2' : 'grid-cols-3'} gap-1.5`}>
+                {(selectedLevel.includes('SM') ? (['1', '2', '3', '4'] as const) : isLiteraryPreset ? (['1', '2'] as const) : (['1', '2', '3'] as const)).map(num => (
                   <button
                     key={num}
                     type="button"
@@ -907,7 +913,9 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
             </div>
 
             <div className="p-4 rounded-xl border border-sky-200 bg-sky-50 text-sky-950">
-              <span className="text-[11px] font-bold block text-sky-700">تطبيق مباشر للمعارف (35%-45%):</span>
+              <span className="text-[11px] font-bold block text-sky-700">
+                تطبيق مباشر للمعارف ({isLiteraryPreset ? 'المذكرة 142-08: ~60%' : '40%-45%'}):
+              </span>
               <div className="flex items-center justify-between mt-1">
                 <span className="text-xl font-black font-mono">{skillTotals.direct} ن</span>
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-sky-200/80 text-sky-800 font-mono">
@@ -917,7 +925,9 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
             </div>
 
             <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-950">
-              <span className="text-[11px] font-bold block text-emerald-700">حل وضعيات مألوفة (35%-45%):</span>
+              <span className="text-[11px] font-bold block text-emerald-700">
+                حل وضعيات مألوفة ({isLiteraryPreset ? 'المذكرة 142-08: ~40%' : '40%-45%'}):
+              </span>
               <div className="flex items-center justify-between mt-1">
                 <span className="text-xl font-black font-mono">{skillTotals.familiar} ن</span>
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-200/80 text-emerald-800 font-mono">
@@ -927,7 +937,9 @@ export const ExamFrameworkModal: React.FC<ExamFrameworkModalProps> = ({
             </div>
 
             <div className="p-4 rounded-xl border border-purple-200 bg-purple-50 text-purple-950">
-              <span className="text-[11px] font-bold block text-purple-700">استدلال ووضعيات مركبة (15%-25%):</span>
+              <span className="text-[11px] font-bold block text-purple-700">
+                استدلال ووضعيات مركبة ({isLiteraryPreset ? '0%-10%' : 'المذكرة 142-08: 10%-20%'}):
+              </span>
               <div className="flex items-center justify-between mt-1">
                 <span className="text-xl font-black font-mono">{skillTotals.complex} ن</span>
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-200/80 text-purple-800 font-mono">

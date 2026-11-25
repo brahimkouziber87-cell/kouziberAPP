@@ -989,6 +989,10 @@ export default function Analysis() {
       let f3TotalTested = 0;
       let f3GradeSum = 0;
 
+      let f4PassCount = 0;
+      let f4TotalTested = 0;
+      let f4GradeSum = 0;
+
       let overallPassCount = 0; // >= 10
       let overallDistinctionCount = 0; // >= 12
       let overallExcellenceCount = 0; // >= 14
@@ -1032,6 +1036,11 @@ export default function Analysis() {
           f3GradeSum += f3;
           if (f3 >= 10) f3PassCount++;
         }
+        if (f4 !== null) {
+          f4TotalTested++;
+          f4GradeSum += f4;
+          if (f4 >= 10) f4PassCount++;
+        }
 
         const validMarks = [f1, f2, f3, f4].filter(v => v !== null) as number[];
         if (validMarks.length > 0) {
@@ -1053,6 +1062,9 @@ export default function Analysis() {
 
       const f3SuccessRate = f3TotalTested > 0 ? parseFloat(((f3PassCount / f3TotalTested) * 100).toFixed(1)) : 0;
       const f3AvgGrade = f3TotalTested > 0 ? parseFloat((f3GradeSum / f3TotalTested).toFixed(2)) : 0;
+
+      const f4SuccessRate = f4TotalTested > 0 ? parseFloat(((f4PassCount / f4TotalTested) * 100).toFixed(1)) : 0;
+      const f4AvgGrade = f4TotalTested > 0 ? parseFloat((f4GradeSum / f4TotalTested).toFixed(2)) : 0;
 
       const overallSuccessRate = overallTestedStudents > 0
         ? parseFloat(((overallPassCount / overallTestedStudents) * 100).toFixed(1))
@@ -1083,7 +1095,9 @@ export default function Analysis() {
         studentCount,
         totalAbsentHours,
         avgAbsentHours,
+        avgAbsentHoursPerStudent: avgAbsentHours,
         absenceRatePercent,
+        absenceRate: absenceRatePercent,
         attendanceRatePercent,
         lateRecordsCount,
         f1TestedCount: f1TotalTested,
@@ -1095,12 +1109,17 @@ export default function Analysis() {
         f3TestedCount: f3TotalTested,
         f3SuccessRate,
         f3AvgGrade,
+        f4TestedCount: f4TotalTested,
+        f4SuccessRate,
+        f4AvgGrade,
         overallTestedStudents,
         overallSuccessRate,
+        successRate: overallSuccessRate,
         overallDistinctionRate,
         overallExcellenceRate,
         overallAtRiskRate,
         overallExamAverage,
+        classAvg: overallExamAverage,
         impactCategory
       };
     });
@@ -1330,12 +1349,14 @@ export default function Analysis() {
           name: std.name || 'تلميذ(ة)',
           massar: std.massar || std.id || '',
           className: cName,
-          s1_f1, s1_f2, s1_f3, s1Avg,
-          s2_f1, s2_f2, s2_f3, s2Avg,
+          s1_f1, s1_f2, s1_f3, s1_f4, s1Avg,
+          s2_f1, s2_f2, s2_f3, s2_f4, s2Avg,
           annualAvg,
           currentSemAvg,
           latestMark,
           yearlyDelta,
+          classExamsCount,
+          yearlyExpectedExams,
           currentCompletionPct: Math.min(100, Math.round((currentExamCompletedCount / classExamsCount) * 100)),
           yearlyCompletionPct: Math.min(100, Math.round((yearlyExamCompletedCount / yearlyExpectedExams) * 100)),
           yearlyExamCompletedCount,
@@ -2876,7 +2897,7 @@ export default function Analysis() {
                             </ComposedChart>
                           </ResponsiveContainer>
                         </div>
-                        <div className={`mt-3 pt-3 border-t border-slate-100 grid ${classAverages.f4 !== null ? 'grid-cols-5' : 'grid-cols-4'} text-center text-xs`}>
+                        <div className={`mt-3 pt-3 border-t border-slate-100 grid ${hasF4Column ? 'grid-cols-5' : hasF3Column ? 'grid-cols-4' : 'grid-cols-3'} text-center text-xs`}>
                           <div>
                             <span className="text-slate-400 block text-[11px]">الفرض 1 ({semester === 's1' ? 'د1' : 'د2'})</span>
                             <strong className="text-slate-800 font-mono text-sm">{classAverages.f1 !== null ? `${classAverages.f1}/20` : '-'}</strong>
@@ -2885,14 +2906,16 @@ export default function Analysis() {
                             <span className="text-slate-400 block text-[11px]">الفرض 2 ({semester === 's1' ? 'د1' : 'د2'})</span>
                             <strong className="text-slate-800 font-mono text-sm">{classAverages.f2 !== null ? `${classAverages.f2}/20` : '-'}</strong>
                           </div>
-                          <div>
-                            <span className="text-slate-400 block text-[11px]">الفرض 3 ({semester === 's1' ? 'د1' : 'د2'})</span>
-                            <strong className="text-slate-800 font-mono text-sm">{classAverages.f3 !== null ? `${classAverages.f3}/20` : '-'}</strong>
-                          </div>
-                          {classAverages.f4 !== null && (
+                          {hasF3Column && (
+                            <div>
+                              <span className="text-slate-400 block text-[11px]">الفرض 3 ({semester === 's1' ? 'د1' : 'د2'})</span>
+                              <strong className="text-slate-800 font-mono text-sm">{classAverages.f3 !== null ? `${classAverages.f3}/20` : '-'}</strong>
+                            </div>
+                          )}
+                          {hasF4Column && (
                             <div>
                               <span className="text-slate-400 block text-[11px]">الفرض 4 ({semester === 's1' ? 'د1' : 'د2'})</span>
-                              <strong className="text-slate-800 font-mono text-sm">{`${classAverages.f4}/20`}</strong>
+                              <strong className="text-slate-800 font-mono text-sm">{classAverages.f4 !== null ? `${classAverages.f4}/20` : '-'}</strong>
                             </div>
                           )}
                           <div>
@@ -3515,7 +3538,7 @@ export default function Analysis() {
                                       style={{ width: `${row.yearlyCompletionPct}%` }}
                                     />
                                   </div>
-                                  <span className="font-mono text-[10px] text-slate-500">{row.yearlyExamCompletedCount}/6</span>
+                                  <span className="font-mono text-[10px] text-slate-500">{row.yearlyExamCompletedCount}/{row.yearlyExpectedExams || 6}</span>
                                 </div>
                               </td>
                               <td className="py-2.5 px-2 text-center font-mono">
@@ -4505,7 +4528,7 @@ export default function Analysis() {
                             </div>
 
                             {/* Marks Row */}
-                            <div className="grid grid-cols-4 gap-1 p-2 bg-white/90 rounded-xl border border-slate-200/80 text-center my-2.5">
+                            <div className={`grid ${hasF4Column ? 'grid-cols-5' : hasF3Column ? 'grid-cols-4' : 'grid-cols-3'} gap-1 p-2 bg-white/90 rounded-xl border border-slate-200/80 text-center my-2.5`}>
                               <div>
                                 <span className="text-[9px] text-slate-400 block">ف1</span>
                                 <span className="text-xs font-mono font-bold text-slate-800">
@@ -4518,12 +4541,22 @@ export default function Analysis() {
                                   {std.f2 !== null ? std.f2 : '-'}
                                 </span>
                               </div>
-                              <div>
-                                <span className="text-[9px] text-slate-400 block">ف3</span>
-                                <span className="text-xs font-mono font-bold text-slate-800">
-                                  {std.f3 !== null ? std.f3 : '-'}
-                                </span>
-                              </div>
+                              {hasF3Column && (
+                                <div>
+                                  <span className="text-[9px] text-slate-400 block">ف3</span>
+                                  <span className="text-xs font-mono font-bold text-slate-800">
+                                    {std.f3 !== null ? std.f3 : '-'}
+                                  </span>
+                                </div>
+                              )}
+                              {hasF4Column && (
+                                <div>
+                                  <span className="text-[9px] text-slate-400 block">ف4</span>
+                                  <span className="text-xs font-mono font-bold text-slate-800">
+                                    {std.f4 !== null && std.f4 !== undefined ? std.f4 : '-'}
+                                  </span>
+                                </div>
+                              )}
                               <div className="border-r border-slate-200">
                                 <span className="text-[9px] text-slate-500 font-bold block">المعدل</span>
                                 <span

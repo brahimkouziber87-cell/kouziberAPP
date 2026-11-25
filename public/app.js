@@ -47779,7 +47779,7 @@ ${log.notes || 'سير الحصة عادي'}
             const upper = (className || trackKey || '').toUpperCase();
             const is2Bac = trackKey ? trackKey.startsWith('2BAC') : (upper.includes('2BAC') || upper.includes('2 BAC') || upper.includes('ثانية') || upper.includes('2-BAC') || upper.includes('2-'));
             const is1Bac = trackKey ? trackKey.startsWith('1BAC') : (!is2Bac && (upper.includes('1BAC') || upper.includes('1 BAC') || upper.includes('أولى') || upper.includes('1-BAC') || upper.includes('1-')));
-            const isArt = /\bART\b|فنون تطبيقية|الفنون التطبيقية/i.test(className || '');
+            const isArt = /\b[12]?b?arts?\b|فنون تطبيقية|الفنون التطبيقية/i.test(className || '');
             const isLit = (trackKey === 'TCL' || trackKey === '1BAC_LSH' || trackKey === '2BAC_LSH')
                 || upper.includes('TCL') || upper.includes('TCO') || upper.includes('LSH') || upper.includes('آداب') || upper.includes('أدبي') || upper.includes('أصيل') || upper.includes('إنسانية') || upper.includes('LET');
             const isLitOrArt = isLit || isArt;

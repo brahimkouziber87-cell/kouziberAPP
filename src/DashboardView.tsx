@@ -187,6 +187,8 @@ function detectStreamMeta(className: string, db: any): {
   streamLabel: string;
   coef: number;
   examsCount: number;
+  weeklyHours: number;
+  annualHours: number;
 } {
   const upper = (className || '').toUpperCase();
   const winCoef =
@@ -202,6 +204,7 @@ function detectStreamMeta(className: string, db: any): {
   let streamLabel = 'الثانوي التأهيلي';
   let defaultCoef = 7;
   let defaultExams = 3;
+  let defaultWeeklyHours = 5;
 
   // التعرف الدقيق على شعبة الآداب والعلوم الإنسانية (1 bac sh / 1 bac lsh / 1BAC-SH / 1BAC-LSH)
   const isLit =
@@ -269,6 +272,7 @@ function detectStreamMeta(className: string, db: any): {
       : '2 باك علوم تجريبية (PC/SVT)';
     defaultCoef = isLit ? 1 : (isEco || isArt) ? 4 : isTech ? 7 : isSm ? 9 : 7;
     defaultExams = isLit ? 2 : isSm ? 4 : 3;
+    defaultWeeklyHours = isSm ? 7 : isEco ? 4 : isArt ? 3 : isLit ? 2 : 5;
   } else if (
     upper.includes('1BAC') ||
     upper.includes('1 BAC') ||
@@ -296,6 +300,7 @@ function detectStreamMeta(className: string, db: any): {
     // المعامل الرسمي لمادة الرياضيات في 1 باك علوم رياضية هو 9، وعلوم تجريبية وتكنولوجيات (STE/STM) هو 7، واقتصاد وفنون تطبيقية 4، وآداب 1 (المذكرة 142-08)
     defaultCoef = isLit ? 1 : (isEco || isArt) ? 4 : isTech ? 7 : isSm ? 9 : 7;
     defaultExams = isLit ? 2 : isSm ? 4 : 3;
+    defaultWeeklyHours = isSm ? 7 : isEco ? 4 : isArt ? 3 : isLit ? 2 : 5;
   } else if (
     upper.includes('TC') ||
     upper.includes('TCS') ||
@@ -312,12 +317,14 @@ function detectStreamMeta(className: string, db: any): {
       : 'الجذع المشترك العلمي';
     defaultCoef = isLit ? 2 : 4;
     defaultExams = isLit ? 2 : 3;
+    defaultWeeklyHours = isLit ? 2 : 5;
   } else if (isLit) {
     const is2 = upper.includes('2') || className.includes('ثانية');
     streamLevel = is2 ? '2bac' : '1bac';
     streamLabel = is2 ? '2 باك آداب وعلوم إنسانية' : '1 باك آداب وعلوم إنسانية';
     defaultCoef = 1;
     defaultExams = 2;
+    defaultWeeklyHours = 2;
   }
 
   const rawCfg = db?.classConfig?.[className];
@@ -330,11 +337,16 @@ function detectStreamMeta(className: string, db: any): {
       ? parseInt(rawCfg.examsCount, 10)
       : null;
 
+  const weeklyHours = defaultWeeklyHours;
+  const annualHours = weeklyHours * 34;
+
   return {
     streamLevel,
     streamLabel,
     coef: winCoef && !isNaN(winCoef) ? winCoef : (db?.coefConfig?.[className] ?? defaultCoef),
-    examsCount: winExams && !isNaN(winExams) ? winExams : (cfgExams || db?.examsCountConfig?.[className] || defaultExams)
+    examsCount: winExams && !isNaN(winExams) ? winExams : (cfgExams || db?.examsCountConfig?.[className] || defaultExams),
+    weeklyHours,
+    annualHours
   };
 }
 
@@ -647,12 +659,14 @@ export default function DashboardView() {
 
   const allClassesStats: ClassAggregatedStats[] = useMemo(() => {
     if (!db || !db.classes) return [];
-    const expectedSessionsHoursPerStudent = 48; // ~24 weeks * 2h baseline for attendance %
 
     return classNames.map((className) => {
       const rawCls = db.classes[className];
       const students: Student[] = Array.isArray(rawCls) ? rawCls : (rawCls?.students || []);
       const meta = detectStreamMeta(className, db);
+      // الغلاف الزمني الرسمي حسب التوجيهات التربوية 2007 (34 أسبوعاً سنوياً / 17 أسبوعاً لكل دورة)
+      const expectedSessionsHoursPerStudent =
+        semester === 'annual' ? meta.annualHours : Math.max(17, Math.round(meta.annualHours / 2));
       const classRecords = recordsIndex.byClass.get(className) || [];
       const getDur = typeof (window as any).getRecordAbsenceDuration === 'function'
         ? (r: any) => Number((window as any).getRecordAbsenceDuration(r)) || (Number(r.duration) || 1)

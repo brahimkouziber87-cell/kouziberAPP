@@ -2823,5 +2823,29 @@ test('Moroccan Pedagogical Guidelines (2007) & Ministerial Note 142-08 Deep Alig
     assert.ok(aiRemSrc.includes('isLitOrEco') && aiRemSrc.includes('hasF3Exam'), 'AiRemediationView.tsx must use curriculum-track aware diagnostics and hasF3Exam');
     assert.ok(analysisSrc.includes('hasF3Column') && analysisSrc.includes('hasF4Column'), 'Analysis.tsx must conditionally render F3 and F4 columns based on class exam count');
     assert.ok(appJsSrc.includes('let studentAvgsList = [];') && appJsSrc.includes('calculateStudentAvg(stdGrades, className)'), 'buildReportsPdfHTML in app.js must compute class statistics from student continuous assessment averages');
+
+    // 4. Verify Deep Audit Fixes across React Analytics, ExamFrameworkModal, DashboardView, Council Digest, and Roadmap
+    const examModalSrc = fs.readFileSync(path.join(ROOT, 'src/ExamFrameworkModal.tsx'), 'utf8');
+    const councilSrc = fs.readFileSync(path.join(ROOT, 'src/PedagogicalCouncilOrientationView.tsx'), 'utf8');
+    const roadmapSrc = fs.readFileSync(path.join(ROOT, 'src/StrategicRoadmapSuite.tsx'), 'utf8');
+
+    // 4a. Analysis.tsx classAbsenceSuccessComparison aliases & dynamic yearlyExpectedExams (4 / 6 / 8)
+    assert.ok(analysisSrc.includes('successRate: overallSuccessRate') && analysisSrc.includes('avgAbsentHoursPerStudent: avgAbsentHours'), 'Analysis.tsx must expose successRate, absenceRate, classAvg, and avgAbsentHoursPerStudent aliases for charts and PDF export');
+    assert.ok(analysisSrc.includes('const yearlyExpectedExams = classExamsCount * 2;') && analysisSrc.includes('/{row.yearlyExpectedExams || 6}'), 'Analysis.tsx must compute dynamic yearlyExpectedExams (4 for Lit, 6 for Standard, 8 for SM) instead of hardcoding /6');
+
+    // 4b. ExamFrameworkModal.tsx Note 142-08 exam counts (2 for Lit, 4 for SM, 3 for others), skill targets (60%/40% vs 40-45%/40-45%/10-20%), and 2BAC_PC domain alignment
+    assert.equal(examModalSrc.includes("domain: 'التحليل ودراسة الدوال'"), false, 'ExamFrameworkModal.tsx must not use stale domain label التحليل ودراسة الدوال in 2BAC_PC defaults');
+    assert.ok(examModalSrc.includes("const isLiteraryPreset = selectedLevel === 'TCL' || selectedLevel === '1BAC_LSH' || selectedLevel === '2BAC_LSH';"), 'ExamFrameworkModal.tsx must restrict all Literary tracks (TCL, 1BAC_LSH, 2BAC_LSH) to 2 exams per semester');
+    assert.ok(examModalSrc.includes('المذكرة 142-08: ~60%') && examModalSrc.includes('المذكرة 142-08: 10%-20%'), 'ExamFrameworkModal.tsx must display Note 142-08 page 9 skill distribution targets per track');
+
+    // 4c. DashboardView.tsx official annual teaching hours (34 weeks: 238h SM, 170h Sci/Tech, 136h Eco, 102h Art, 68h Lit)
+    assert.ok(dashSrc.includes('const annualHours = weeklyHours * 34;') && dashSrc.includes("semester === 'annual' ? meta.annualHours : Math.max(17, Math.round(meta.annualHours / 2))"), 'DashboardView.tsx must compute expected session hours from official 2007 Pedagogical Guidelines weekly/annual hours');
+
+    // 4d. PedagogicalCouncilOrientationView.tsx dynamic F3/F4 columns in printed council digest
+    assert.ok(councilSrc.includes('configuredExamsCount >= 3') && councilSrc.includes('configuredExamsCount >= 4'), 'PedagogicalCouncilOrientationView.tsx must dynamically include F3/F4 in printed council digest');
+
+    // 4e. StrategicRoadmapSuite.tsx full exam sequence in early warning table & ReportsEvolutionChart.tsx 2BAC LSH certification clarity
+    assert.ok(roadmapSrc.includes('[item.f1, item.f2, item.f3, item.f4].filter'), 'StrategicRoadmapSuite.tsx must display full completed exam sequence F1..F4 in Early Warning table');
+    assert.ok(repEvoSrc.includes('المراقبة المستمرة والأحرار') && repEvoSrc.includes('معامل 1 للمتمدرسين - فرضان في كل دورة'), 'ReportsEvolutionChart.tsx must distinguish 2BAC LSH regular school assessment from free-candidate national exam');
 });
 

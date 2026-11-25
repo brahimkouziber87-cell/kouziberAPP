@@ -1127,6 +1127,28 @@ export default function PedagogicalCouncilOrientationView({
 
   // Print Official Class Council Digest (Point 3)
   const handlePrintCouncilDigest = () => {
+    const configuredExamsCount = (() => {
+      if (!selectedClass || selectedClass === 'all' || selectedClass === '__MULTI__') return 3;
+      const winFn = typeof window !== 'undefined' ? (window as any).getExamsCountForClass : null;
+      if (typeof winFn === 'function') {
+        const n = Number(winFn(selectedClass));
+        if (!isNaN(n) && n >= 2 && n <= 4) return n;
+      }
+      const code = resolveStudentStreamCode(selectedClass, '2BAC');
+      if (code === 'TCL' || code === '1BAC_LSH' || code === '2BAC_LSH') return 2;
+      if (code === '1BAC_SM' || code === '2BAC_SM') return 4;
+      return 3;
+    })();
+    const councilHasF4 =
+      configuredExamsCount >= 4 ||
+      (classAverages.f4 !== null && classAverages.f4 !== undefined) ||
+      studentMetrics.some(s => s.f4 !== null && s.f4 !== undefined);
+    const councilHasF3 =
+      councilHasF4 ||
+      configuredExamsCount >= 3 ||
+      (classAverages.f3 !== null && classAverages.f3 !== undefined) ||
+      studentMetrics.some(s => s.f3 !== null && s.f3 !== undefined);
+
     const html = `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
@@ -1250,8 +1272,8 @@ export default function PedagogicalCouncilOrientationView({
       <tr>
         <th>الفرض المحروس 1</th>
         <th>الفرض المحروس 2</th>
-        <th>الفرض المحروس 3</th>
-        ${classAverages.f4 !== null && classAverages.f4 !== undefined ? '<th>الفرض المحروس 4</th>' : ''}
+        ${councilHasF3 ? '<th>الفرض المحروس 3</th>' : ''}
+        ${councilHasF4 ? '<th>الفرض المحروس 4</th>' : ''}
         <th>المعدل العام للدورة</th>
       </tr>
     </thead>
@@ -1259,8 +1281,8 @@ export default function PedagogicalCouncilOrientationView({
       <tr>
         <td style="text-align:center; font-weight:bold;">${classAverages.f1 ?? '-'}/20</td>
         <td style="text-align:center; font-weight:bold;">${classAverages.f2 ?? '-'}/20</td>
-        <td style="text-align:center; font-weight:bold;">${classAverages.f3 ?? '-'}/20</td>
-        ${classAverages.f4 !== null && classAverages.f4 !== undefined ? `<td style="text-align:center; font-weight:bold;">${classAverages.f4}/20</td>` : ''}
+        ${councilHasF3 ? `<td style="text-align:center; font-weight:bold;">${classAverages.f3 ?? '-'}/20</td>` : ''}
+        ${councilHasF4 ? `<td style="text-align:center; font-weight:bold;">${classAverages.f4 ?? '-'}/20</td>` : ''}
         <td style="text-align:center; font-weight:bold; color:#1e3a8a;">${classAverages.overall ?? '-'}/20</td>
       </tr>
     </tbody>

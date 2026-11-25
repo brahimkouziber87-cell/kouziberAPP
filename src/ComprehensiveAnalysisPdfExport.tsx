@@ -930,7 +930,7 @@ const ComprehensiveAnalysisPdfExport = forwardRef<ComprehensivePdfExportHandle, 
                           {c.totalAbsentHours} ساعة
                         </td>
                         <td style={{ padding: '6px 10px', fontFamily: 'monospace' }}>
-                          {c.avgAbsentHoursPerStudent} س / تلميذ
+                          {c.avgAbsentHoursPerStudent ?? (c as any).avgAbsentHours ?? 0} س / تلميذ
                         </td>
                         <td style={{ padding: '6px 10px' }}>
                           <span style={{

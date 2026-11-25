@@ -64,6 +64,7 @@ interface EarlyWarningStudentItem {
   f1: number | null;
   f2: number | null;
   f3: number | null;
+  f4?: number | null;
   avg: number | null;
   gradeTrendDelta: number | null;
   totalAbsenceHours: number;
@@ -349,6 +350,7 @@ export default function StrategicRoadmapSuite({ dbProp, classNamesProp }: Strate
             f1,
             f2,
             f3,
+            f4,
             avg,
             gradeTrendDelta,
             totalAbsenceHours,
@@ -957,7 +959,7 @@ export default function StrategicRoadmapSuite({ dbProp, classNamesProp }: Strate
                   <thead>
                     <tr className="bg-slate-900 text-white font-bold">
                       <th className="py-2 px-3">التلميذ(ة) · القسم</th>
-                      <th className="py-2 px-2 text-center">الفروض (F1/F2)</th>
+                      <th className="py-2 px-2 text-center">مسار الفروض</th>
                       <th className="py-2 px-2 text-center">المعدل</th>
                       <th className="py-2 px-2 text-center">الغياب (الذروة)</th>
                       <th className="py-2 px-2 text-center">مؤشر الخطر</th>
@@ -974,11 +976,19 @@ export default function StrategicRoadmapSuite({ dbProp, classNamesProp }: Strate
                           </div>
                         </td>
                         <td className="py-2 px-2 text-center font-bold text-slate-700">
-                          <span>{item.f1 !== null ? item.f1 : '-'}</span>
-                          <span className="mx-1 text-slate-400">←</span>
-                          <span className={item.gradeTrendDelta !== null && item.gradeTrendDelta < 0 ? 'text-rose-600 font-black' : ''}>
-                            {item.f2 !== null ? item.f2 : '-'}
-                          </span>
+                          {(() => {
+                            const seq = [item.f1, item.f2, item.f3, item.f4].filter((v): v is number => v !== null && v !== undefined);
+                            if (seq.length === 0) return <span>-</span>;
+                            if (seq.length === 1) return <span>{seq[0]}</span>;
+                            return seq.map((val, sIdx) => (
+                              <React.Fragment key={sIdx}>
+                                {sIdx > 0 && <span className="mx-0.5 text-slate-400">←</span>}
+                                <span className={sIdx === seq.length - 1 && item.gradeTrendDelta !== null && item.gradeTrendDelta < 0 ? 'text-rose-600 font-black' : ''}>
+                                  {val}
+                                </span>
+                              </React.Fragment>
+                            ));
+                          })()}
                         </td>
                         <td className="py-2 px-2 text-center font-black">
                           {item.avg !== null ? (
