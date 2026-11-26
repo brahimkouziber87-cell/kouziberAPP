@@ -3133,5 +3133,100 @@ test('End-to-End Multi-Class Realistic Simulation Across All 14 Moroccan Qualify
     assert.equal(win.db.notes['TCL-1'][0].studentId, 'TCL-1_2', 'Camera scanner must resolve studentId from { students: [...] } class structure');
 });
 
+test('Personalized Student Pedagogical Remediation Plan: integrates diagnostic 4-domain scores + statistical student record (grades, value-added, absences, homework, behavior), Gemini AI generation, notes & lesson log saving', async () => {
+    const serverSrc = fs.readFileSync(path.join(ROOT, 'server.ts'), 'utf8');
+    const indexHtmlSrc = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    const diagEvalSrc = fs.readFileSync(path.join(ROOT, 'public/diagnostic-evaluation.js'), 'utf8');
+    const aiRemViewSrc = fs.readFileSync(path.join(ROOT, 'src/AiRemediationView.tsx'), 'utf8');
+
+    assert.ok(serverSrc.includes('app.post("/api/ai/student-personalized-remediation-plan"'), 'server.ts must expose POST /api/ai/student-personalized-remediation-plan');
+    assert.ok(indexHtmlSrc.includes('id="btnOpenPersonalizedStudentRemediationPlan"'), 'index.html must include personalized student remediation button in diagnosticReportCard');
+    assert.ok(indexHtmlSrc.includes('src="/student-remediation-plan.js'), 'index.html must load /student-remediation-plan.js');
+    assert.ok(diagEvalSrc.includes('openStudentPersonalizedRemediationModal'), 'diagnostic-evaluation.js must render per-student personalized remediation trigger');
+    assert.ok(aiRemViewSrc.includes('openStudentPersonalizedRemediationModal'), 'AiRemediationView.tsx must expose per-student personalized remediation trigger');
+
+    const { win, sandbox } = createDomSandbox(`<!DOCTYPE html><html dir="rtl" lang="ar"><body>
+        <select id="reportClassSelect"><option value="1BAC-SE-1" selected>1BAC-SE-1</option></select>
+    </body></html>`);
+
+    runPublicScript(sandbox, 'public/core/grades-calculator.js');
+    runPublicScript(sandbox, 'public/student-remediation-plan.js');
+
+    win.db = {
+        classes: {
+            '1BAC-SE-1': [
+                { id: 'st_1', name: 'سفيان المنصوري', massar: 'D130055443', orderNum: 1 }
+            ]
+        },
+        diagnostic: {
+            '1BAC-SE-1': {
+                'st_1': { d1: 1.5, d2: 3.5, d3: 1.25, d4: 2.75, total: 9.0 }
+            }
+        },
+        grades: {
+            '1BAC-SE-1': {
+                'st_1': { s1: { f1: 8.5, f2: 9.5, f3: 9.0 }, s2: { f1: 10.5 } }
+            }
+        },
+        records: [
+            { class: '1BAC-SE-1', studentId: 'st_1', date: '2026-10-12', status: 'غائب', hours: 2, homework: 'لم ينجز' },
+            { class: '1BAC-SE-1', studentId: 'st_1', date: '2026-10-19', status: 'غائب', hours: 2, homework: 'لم ينجز' },
+            { class: '1BAC-SE-1', studentId: 'st_1', date: '2026-10-25', status: 'مبرر', hours: 2 },
+            { class: '1BAC-SE-1', studentId: 'st_1', date: '2026-11-02', status: 'متأخر', hours: 1 }
+        ],
+        behaviors: {
+            '1BAC-SE-1': {
+                'st_1': { status: 'تنبيه', note: 'شرود الذهن أثناء الشرح' }
+            }
+        },
+        notes: { '1BAC-SE-1': [] },
+        lessonLogs: { '1BAC-SE-1': [] }
+    };
+    win.saveDB = () => {};
+    win.renderNotes = () => {};
+    win.renderLessonLogs = () => {};
+    win.notifySafeToast = () => {};
+
+    // 1. Verify unified diagnostic + statistical record extraction
+    const rec = win.buildStudentDiagnosticAndStatisticalRecord('1BAC-SE-1', 'st_1');
+    assert.ok(rec, 'Record must be extracted');
+    assert.equal(rec.studentName, 'سفيان المنصوري');
+    assert.equal(rec.diagnostic.total, 9.0);
+    assert.equal(rec.diagnostic.d3, 1.25, 'Weakest domain d3 (Algebra & Analysis = 1.25/5) must be preserved');
+    assert.equal(rec.statistics.s1Avg, 9.0);
+    assert.equal(rec.statistics.s2Avg, 10.5);
+    assert.equal(rec.statistics.currentAvg, 9.75);
+    assert.equal(rec.statistics.valueAddedDelta, 0.75, 'Value-added delta = 9.75 - 9.0 = +0.75');
+    assert.equal(rec.statistics.totalAbsentHours, 6, '4h unjustified + 2h justified = 6h');
+    assert.equal(rec.statistics.unjustifiedHours, 4);
+    assert.equal(rec.statistics.lateCount, 1);
+    assert.equal(rec.statistics.missedHomeworkCount, 2);
+    assert.equal(rec.statistics.behaviorStatus, 'تنبيه');
+
+    // 2. Open modal and verify local plan prioritizes d3 (1.25/5) and d1 (1.5/5)
+    const initialPlan = win.openStudentPersonalizedRemediationModal('1BAC-SE-1', 'st_1');
+    assert.ok(initialPlan, 'Initial personalized plan must be built');
+    assert.ok(initialPlan.priorityDomains[0].domainName.includes('الجبر والتحليل'), 'First priority domain must be Algebra & Analysis (1.25/5)');
+    assert.ok(initialPlan.priorityDomains[1].domainName.includes('الحسابيات والأنشطة العددية'), 'Second priority domain must be Arithmetic & Numerical (1.5/5)');
+    assert.equal(initialPlan.weeklyActionPlan.length, 3);
+
+    const modalEl = win.document.getElementById('studentPersonalizedRemediationModal');
+    assert.ok(modalEl && modalEl.style.display === 'flex', 'Modal must be open and visible');
+
+    // 3. Test saving plan into student pedagogical notes & db.remediationPlans
+    const savedNoteOk = win.saveStudentRemediationToNotes();
+    assert.equal(savedNoteOk, true);
+    assert.equal(win.db.notes['1BAC-SE-1'].length, 1);
+    assert.equal(win.db.notes['1BAC-SE-1'][0].studentId, 'st_1');
+    assert.ok(win.db.remediationPlans['1BAC-SE-1']['st_1'], 'Full plan must be stored in db.remediationPlans');
+
+    // 4. Test scheduling remediation session in lesson logs (Cahier de Textes)
+    const scheduledLog = win.scheduleStudentRemediationInLessonLog();
+    assert.ok(scheduledLog && scheduledLog.sessionType === 'soutien');
+    assert.equal(win.db.lessonLogs['1BAC-SE-1'].length, 1);
+    assert.ok(win.db.lessonLogs['1BAC-SE-1'][0].title.includes('سفيان المنصوري'));
+});
+
+
 
 

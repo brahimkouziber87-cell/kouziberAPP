@@ -3995,6 +3995,10 @@
                             <span data-lucide="file-spreadsheet" data-size="14"></span>
                             <span>تصدير Excel</span>
                         </button>
+                        <button type="button" id="btnOpenPersonalizedStudentRemediationPlan" class="btn-primary" onclick="window.openStudentPersonalizedRemediationModal && window.openStudentPersonalizedRemediationModal(document.getElementById('reportClassSelect') ? document.getElementById('reportClassSelect').value : '', '')" style="margin: 0; height: 36px; background: linear-gradient(135deg, #0d9488, #0f766e); color: #ffffff; border: 1px solid #0f766e; font-size: 0.76rem; font-weight: 800; padding: 0 14px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; cursor: pointer; box-shadow: 0 2px 5px rgba(13, 148, 136, 0.25);" title="توليد خطة معالجة تربوية بيداغوجية مخصصة لكل تلميذ بناءً على نتائج التقويم التشخيصي والبيانات الإحصائية في سجل التلاميذ">
+                            <span data-lucide="target" data-size="14"></span>
+                            <span>خطة معالجة مخصصة للتلميذ (AI) 🎯</span>
+                        </button>
                         <button type="button" class="btn-secondary" onclick="toggleDiagnosticRemediationBox()" style="margin: 0; height: 36px; background: #ffffff; color: #0369a1; border: 1.5px solid #7dd3fc; font-size: 0.76rem; font-weight: 800; padding: 0 13px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; cursor: pointer; box-shadow: 0 1px 3px rgba(2, 132, 199, 0.08);" title="عرض خطة الدعم والمعالجة الديدكتيكية المقترحة">
                             <span data-lucide="lightbulb" data-size="14"></span>
                             <span>خطة الدعم</span>
@@ -9181,6 +9185,7 @@ f(x) = x - 1 + ln(x) / x
     <script defer src="/chunked-pdf-engine.js?v=3.9.6"></script>
     <script defer src="/ministerial-decrees-library.js?v=3.9"></script>
     <script defer src="/camera-notes-scanner.js?v=4.8.0"></script>
+    <script defer src="/student-remediation-plan.js?v=4.8.0"></script>
 
     <!-- زر الرجوع إلى أعلى الصفحة بتمرير ناعم -->
     <button type="button" id="btnScrollToTop" class="scroll-to-top-btn" onclick="scrollToTop()" title="الرجوع إلى أعلى الصفحة" aria-label="الرجوع للأعلى">

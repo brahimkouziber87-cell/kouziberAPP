@@ -442,8 +442,13 @@
                                 ${prof.profileLabel}
                             </span>
                         </td>
-                        <td style="text-align: right; padding-right: 8px; font-size: 0.73rem; color: #475569; line-height: 1.4; min-width: 220px;">
-                            ${escapeHtml(prof.recommendation)}
+                        <td style="text-align: right; padding-right: 8px; font-size: 0.73rem; color: #475569; line-height: 1.4; min-width: 240px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span style="flex: 1; min-width: 140px;">${escapeHtml(prof.recommendation)}</span>
+                                <button type="button" onclick="window.openStudentPersonalizedRemediationModal && window.openStudentPersonalizedRemediationModal('${escapeJsAttr(className)}', '${escapeJsAttr(std.id)}')" style="background: linear-gradient(135deg, #0284c7, #4f46e5); color: #ffffff; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.71rem; font-weight: 800; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 5px rgba(79,70,229,0.22);" title="توليد خطة معالجة تربوية بيداغوجية مخصصة لهذا التلميذ بناءً على التقويم التشخيصي وسجله الإحصائي">
+                                    <span>🎯 خطة معالجة مخصصة</span>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;

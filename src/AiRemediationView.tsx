@@ -1796,6 +1796,20 @@ export default function AiRemediationView({
                     <button
                       type="button"
                       onClick={() => {
+                        if (typeof (window as any).openStudentPersonalizedRemediationModal === 'function') {
+                          (window as any).openStudentPersonalizedRemediationModal(student.className || selectedClass, student.id);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-black transition-all cursor-pointer"
+                      title="توليد خطة معالجة تربوية بيداغوجية مخصصة لهذا التلميذ بناءً على نتائج التقويم التشخيصي والبيانات الإحصائية في سجله"
+                    >
+                      <Target className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>خطة معالجة تشخيصية مخصصة 🎯</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
                         if (typeof (window as any).openStudentStatisticalReport === 'function') {
                           (window as any).openStudentStatisticalReport(student.id, student.className || selectedClass);
                         }

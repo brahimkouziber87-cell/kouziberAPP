@@ -4084,6 +4084,281 @@ ${studentsList.length > 0 ? `- لائحة تلاميذ القسم لمطابقة
     }
   });
 
+  function generateStudentPersonalizedRemediationFallback(payload: any) {
+    const studentName = String(payload?.studentName || "التلميذ(ة)").trim();
+    const className = String(payload?.className || "القسم الحالي").trim();
+    const trackName = String(payload?.trackName || "سلك التعليم الثانوي التأهيلي").trim();
+    const diag = payload?.diagnostic || {};
+    const d1 = Number(diag.d1 ?? 2.5);
+    const d2 = Number(diag.d2 ?? 2.5);
+    const d3 = Number(diag.d3 ?? 2.5);
+    const d4 = Number(diag.d4 ?? 2.5);
+    const diagTotal = Number(diag.total ?? (d1 + d2 + d3 + d4));
+
+    const stats = payload?.statistics || {};
+    const s1Avg = stats.s1Avg !== null && stats.s1Avg !== undefined ? Number(stats.s1Avg) : null;
+    const s2Avg = stats.s2Avg !== null && stats.s2Avg !== undefined ? Number(stats.s2Avg) : null;
+    const currentAvg = s2Avg !== null ? s2Avg : (s1Avg !== null ? s1Avg : diagTotal);
+    const absentHours = Number(stats.totalAbsentHours || 0);
+    const missedHw = Number(stats.missedHomeworkCount || 0);
+    const behaviorStatus = String(stats.behaviorStatus || "منضبط").trim();
+
+    const domains = [
+      {
+        key: "d1",
+        domainName: "الحسابيات والأنشطة العددية (Arithmétique & Calcul)",
+        score: d1,
+        maxScore: 5,
+        topicFocus: "الحساب العددي في ℝ، القوى والجذور المربعة، الترتيب والمجالات والقيمة المطلقة",
+        epistemologicalObstacle: "خلط في قواعد الإشارات وتوحيد المقامات وصعوبة تأطير التعابير الجبرية",
+        remedialActivity: "ورشة التحكم في الحساب العددي والتأطير في ℝ مع بطاقة تصحيح ذاتي متدرجة",
+        targetedExercise: "1) بسط العدد A = √(27) - 2√(12) + √(75).\n2) إذا كان 2 ≤ x ≤ 5 و -3 ≤ y ≤ -1 فأطر x - y و x×y."
+      },
+      {
+        key: "d2",
+        domainName: "الهندسة والحساب المثلثي (Géométrie & Trigonométrie)",
+        score: d2,
+        maxScore: 5,
+        topicFocus: "الحساب المتجهي، الجداء السلمي، الدائرة المثلثية، والهندسة التحليلية",
+        epistemologicalObstacle: "صعوبة الانتقال من الشكل الهندسي إلى العلاقة المتجهية أو التحليلية البرهانية",
+        remedialActivity: "مختبر الدائرة المثلثية والتمثيل المتجهي المدعم ببرمجية GeoGebra",
+        targetedExercise: "1) حدد الأفصول المنحني الرئيسي للعدد α = 17π/4 واحسب cos(α) و sin(α).\n2) في معلم متعامد ممنظم، حدد معادلة ديكارتية للمستقيم المار من A(1,2) والموجه بالمتجهة u(-2,3)."
+      },
+      {
+        key: "d3",
+        domainName: "الجبر والتحليل ودراسة الدوال (Algèbre & Analyse)",
+        score: d3,
+        maxScore: 5,
+        topicFocus: "المعادلات والمتراجحات، الحدوديات، النهايات والاتصال والاشتقاق ودراسة الدوال",
+        epistemologicalObstacle: "عائق الربط بين إشارة المشتقة ورتابة الدالة وأخطاء إشارة ثلاثية الحدود",
+        remedialActivity: "عيادة دراسة الدوال العددية وحل المعادلات والمتراجحات خطوة بخطوة",
+        targetedExercise: "1) حل في ℝ المتراجحة: x² - 5x + 6 ≤ 0.\n2) لتكن f(x) = x³ - 3x + 1، احسب f'(x) وضع جدول تغيرات الدالة f على ℝ."
+      },
+      {
+        key: "d4",
+        domainName: "تنظيم المعطيات والاحتمالات وحل المسائل (Statistiques & Problèmes)",
+        score: d4,
+        maxScore: 5,
+        topicFocus: "قراءة المبيانات، الإحصاء، المتتاليات العددية، وترييض المسائل المركبة",
+        epistemologicalObstacle: "صعوبة ترجمة نص المسألة إلى نموذج رياضي (معادلة أو نظمة أو متتالية)",
+        remedialActivity: "ورشة منهجية ترييض المسائل واستخراج المعطيات وبناء الاستدلال الرياضي",
+        targetedExercise: "نعتبر المتتالية (u_n) المعرفة بـ u_0 = 2 و u_{n+1} = 3u_n - 2.\n1) احسب u_1 و u_2.\n2) نضع v_n = u_n - 1، بين أن (v_n) متتالية هندسية محدداً أساسها ثم اكتب u_n بدلالة n."
+      }
+    ];
+
+    const sortedDomains = [...domains].sort((a, b) => a.score - b.score);
+    const weakest = sortedDomains[0];
+    const secondWeakest = sortedDomains[1];
+
+    const profileCategory = diagTotal >= 12 ? "A" : diagTotal >= 8 ? "B" : "C";
+    const profileTitle = profileCategory === "A"
+      ? "الفئة (أ): متمكن — خطة تثبيت وإغناء وتميز"
+      : profileCategory === "B"
+      ? "الفئة (ب): في طور التمكن — خطة تثبيت ومعالجة وقائية"
+      : "الفئة (ج): متعثر — خطة دعم استدراكي وعلاجي مكثف";
+
+    const valueAddedDelta = Number((currentAvg - diagTotal).toFixed(2));
+
+    return {
+      source: "pedagogical_remediation_engine",
+      studentName,
+      className,
+      trackName,
+      profileCategory,
+      profileTitle,
+      diagnosticSynthesis: `حصل التلميذ(ة) ${studentName} في رائز التقويم التشخيصي على (${diagTotal.toFixed(2)}/20)، وأظهر تحليله المجالي حاجة أولوية لدعم مجال "${weakest.domainName}" (${weakest.score}/5) يليه مجال "${secondWeakest.domainName}" (${secondWeakest.score}/5).`,
+      statisticalCorrelationAnalysis: `بمقارنة نقطة التقويم التشخيصي (${diagTotal.toFixed(2)}/20) مع معدل المراقبة المستمرة (${currentAvg.toFixed(2)}/20؛ فارق القيمة المضافة: ${valueAddedDelta >= 0 ? "+" : ""}${valueAddedDelta})، ومع تسجيل (${absentHours} ساعة غياب) و(${missedHw} واجب غير منجز) وسلوك (${behaviorStatus})، يتبين أن ${
+        absentHours >= 6
+          ? "تراكم الغياب أثر بشكل مباشر على استمرارية تحصيل المفاهيم الرياضية ويستلزم استدراك الحصص الفائتة."
+          : currentAvg < 10
+          ? "التلميذ منتظم في الحضور لكنه يواجه صعوبات ديدكتيكية مرتبطة بالمكتسبات القبلية تتطلب تفريد الدعم."
+          : "المسار الأكاديمي إيجابي ومستقر مع قابلية عالية لتطوير الأداء عبر تمارين التثبيت والبرهان."
+      }`,
+      priorityDomains: sortedDomains.slice(0, 2).map((d) => ({
+        domainName: d.domainName,
+        scoreText: `${d.score} / ${d.maxScore}`,
+        masteryLevel: d.score >= 3.5 ? "تمكن جيد" : d.score >= 2.5 ? "تمكن جزئي" : "تعثر يحتاج معالجة عاجلة",
+        epistemologicalObstacle: d.epistemologicalObstacle,
+        remedialObjective: `تجاوز العائق المرصود في (${d.topicFocus}) وضبط القواعد الأساسية.`,
+        didacticStrategy: d.remedialActivity,
+        customExercise: d.targetedExercise
+      })),
+      weeklyActionPlan: [
+        {
+          weekLabel: "الأسبوع 1: تصفية المكتسبات القبلية الحرجة",
+          focus: weakest.domainName,
+          classroomAction: "دعم مندمج (15 دقيقة) في بداية الحصة + تكليف ببطاقة معالجة فردية موجهة.",
+          homeTask: `إنجاز تمرين المعالجة المخصص في (${weakest.topicFocus}) مع التصحيح على دفتر البحث.`,
+          evaluationCriteria: "حل 3 تطبيقات أساسية في المجال الأول دون أخطاء في الإشارات أو القواعد."
+        },
+        {
+          weekLabel: "الأسبوع 2: تثبيت المهارات والربط ببرنامج المستوى الحالي",
+          focus: secondWeakest.domainName,
+          classroomAction: "إدماج التلميذ في ثنائي متكافئ (بيداغوجيا الأقران) لحل وضعيات متدرجة على السبورة.",
+          homeTask: `إنجاز تمارين تطبيقية من الكتاب المدرسي مرتبطة بمحور (${secondWeakest.topicFocus}).`,
+          evaluationCriteria: "تحقيق نسبة تحكم لا تقل عن 75% في رائز التتبع القصير."
+        },
+        {
+          weekLabel: "الأسبوع 3 و 4: التقويم التكويني وقياس أثر المعالجة",
+          focus: "إدماج المكتسبات والاستعداد للفرض المحروس القادم",
+          classroomAction: "توجيه فردي أثناء حصص التمارين ومراقبة دفتر الدروس والواجبات المنزلية.",
+          homeTask: "حل نموذج فرض محروس مهيكل وفق الإطار المرجعي والمذكرة 142-08.",
+          evaluationCriteria: `تحسن معدل المراقبة المستمرة وتجاوز عتبة التحكم بـ +2.0 نقط على الأقل.`
+        }
+      ],
+      pedagogicalContract: {
+        studentCommitment: "الالتزام بالحضور المنتظم، إنجاز تمارين بطاقة المعالجة الفردية، والمشاركة في تصحيح التمارين على السبورة.",
+        teacherSupport: "توفير بطاقات دعم متدرجة، مواكبة فردية داخل الفصل، وتقويم تكويني لقياس تطور المكتسبات.",
+        parentRole: "تتبع مواظبة التلميذ(ة) ومراقبة إنجاز الواجبات المنزلية والتواصل الدوري مع أستاذ المادة."
+      },
+      readyNoteForStudentRecord: `خطة معالجة فردية (${profileTitle}): تركيز الدعم على [${weakest.domainName}] و[${secondWeakest.domainName}] بناءً على التقويم التشخيصي (${diagTotal.toFixed(2)}/20) ومعدل الفروض (${currentAvg.toFixed(2)}/20).`
+    };
+  }
+
+  app.post("/api/ai/student-personalized-remediation-plan", sameOriginGuard, aiLimiter, async (req, res) => {
+    try {
+      const payload = req.body || {};
+      const apiKey = getValidGeminiApiKey();
+      if (!apiKey) {
+        return res.json(generateStudentPersonalizedRemediationFallback(payload));
+      }
+
+      const ai = createGeminiClient(apiKey);
+      const modelName = process.env.GEMINI_MODEL || "gemini-4-hydrogen";
+
+      const prompt = `أنت مفتش تربوي وخبير ديدكتيك مادة الرياضيات بسلك التعليم الثانوي التأهيلي بالمغرب، ضابط للتوجيهات التربوية الرسمية (2007) والمذكرة الوزارية 142-08 الخاصة بالتقويم التربوي.
+مهمتك هي بناء **خطة معالجة تربوية بيداغوجية مخصصة وفردية (Plan de Remédiation Pédagogique Individualisé)** للتلميذ(ة) بناءً على نتائج رائز التقويم التشخيصي في المجالات الرياضية الأربعة والبيانات الإحصائية المتوفرة في سجل التلميذ (نقط الفروض، القيمة المضافة، ساعات الغياب، الواجبات المنزلية، والسلوك):
+
+بيانات التلميذ(ة) التشخيصية والإحصائية:
+${JSON.stringify(payload, null, 2)}
+
+المطلوب إرجاع كائن JSON متكامل يتضمن:
+1. profileCategory: ('A' | 'B' | 'C') حسب درجة التمكن.
+2. profileTitle: عنوان الفئة التربوية وخطة التدخل.
+3. diagnosticSynthesis: تشخيص بيداغوجي دقيق لنقط قوة وضعف التلميذ في المجالات الرياضية الأربعة للتقويم التشخيصي.
+4. statisticalCorrelationAnalysis: تحليل معمق يربط بين نتائج التقويم التشخيصي، تطور نقط الفروض (S1/S2)، ساعات الغياب والتأخر، وإنجاز الواجبات والسلوك.
+5. priorityDomains: مصفوفة (مجالان أو 3 مجالات ذات أولوية) يتضمن كل عنصر:
+   - domainName: اسم المجال الرياضي.
+   - scoreText: النقطة المحصلة على 5.
+   - masteryLevel: توصيف مستوى التمكن.
+   - epistemologicalObstacle: العائق الديدكتيكي أو الإبستيمولوجي المرصود.
+   - remedialObjective: الهدف العلاجي الإجرائي.
+   - didacticStrategy: استراتيجية المعالجة البيداغوجية (تفريد، أقران، GeoGebra، بطاقات منهجية...).
+   - customExercise: تمرين تطبيقي علاجي مخصص واضح ومناسب لمستوى القسم بالثانوي التأهيلي.
+6. weeklyActionPlan: برنامج عمل إجرائي على مدى 3 إلى 4 أسابيع [{ weekLabel, focus, classroomAction, homeTask, evaluationCriteria }].
+7. pedagogicalContract: ميثاق التعاقد البيداغوجي الثلاثي { studentCommitment, teacherSupport, parentRole }.
+8. readyNoteForStudentRecord: خلاصة موجزة ورصينة جاهزة للحفظ المباشر في سجل ملاحظات التلميذ وملفه البيداغوجي.`;
+
+      const generatePromise = ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              profileCategory: { type: Type.STRING },
+              profileTitle: { type: Type.STRING },
+              diagnosticSynthesis: { type: Type.STRING },
+              statisticalCorrelationAnalysis: { type: Type.STRING },
+              priorityDomains: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    domainName: { type: Type.STRING },
+                    scoreText: { type: Type.STRING },
+                    masteryLevel: { type: Type.STRING },
+                    epistemologicalObstacle: { type: Type.STRING },
+                    remedialObjective: { type: Type.STRING },
+                    didacticStrategy: { type: Type.STRING },
+                    customExercise: { type: Type.STRING }
+                  },
+                  required: [
+                    "domainName",
+                    "scoreText",
+                    "masteryLevel",
+                    "epistemologicalObstacle",
+                    "remedialObjective",
+                    "didacticStrategy",
+                    "customExercise"
+                  ]
+                }
+              },
+              weeklyActionPlan: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    weekLabel: { type: Type.STRING },
+                    focus: { type: Type.STRING },
+                    classroomAction: { type: Type.STRING },
+                    homeTask: { type: Type.STRING },
+                    evaluationCriteria: { type: Type.STRING }
+                  },
+                  required: ["weekLabel", "focus", "classroomAction", "homeTask", "evaluationCriteria"]
+                }
+              },
+              pedagogicalContract: {
+                type: Type.OBJECT,
+                properties: {
+                  studentCommitment: { type: Type.STRING },
+                  teacherSupport: { type: Type.STRING },
+                  parentRole: { type: Type.STRING }
+                },
+                required: ["studentCommitment", "teacherSupport", "parentRole"]
+              },
+              readyNoteForStudentRecord: { type: Type.STRING }
+            },
+            required: [
+              "profileCategory",
+              "profileTitle",
+              "diagnosticSynthesis",
+              "statisticalCorrelationAnalysis",
+              "priorityDomains",
+              "weeklyActionPlan",
+              "pedagogicalContract",
+              "readyNoteForStudentRecord"
+            ]
+          }
+        }
+      });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("AI remediation timeout")), 15000)
+      );
+      const response: any = await Promise.race([generatePromise, timeoutPromise]);
+      const parsed = parseAiJson(response.text || "");
+      if (!parsed || !parsed.diagnosticSynthesis) {
+        return res.json(generateStudentPersonalizedRemediationFallback(payload));
+      }
+
+      const fallback = generateStudentPersonalizedRemediationFallback(payload);
+      return res.json({
+        source: "gemini_ai",
+        studentName: payload.studentName || fallback.studentName,
+        className: payload.className || fallback.className,
+        trackName: payload.trackName || fallback.trackName,
+        profileCategory: ["A", "B", "C"].includes(parsed.profileCategory) ? parsed.profileCategory : fallback.profileCategory,
+        profileTitle: parsed.profileTitle || fallback.profileTitle,
+        diagnosticSynthesis: parsed.diagnosticSynthesis,
+        statisticalCorrelationAnalysis: parsed.statisticalCorrelationAnalysis || fallback.statisticalCorrelationAnalysis,
+        priorityDomains: Array.isArray(parsed.priorityDomains) && parsed.priorityDomains.length > 0
+          ? parsed.priorityDomains
+          : fallback.priorityDomains,
+        weeklyActionPlan: Array.isArray(parsed.weeklyActionPlan) && parsed.weeklyActionPlan.length > 0
+          ? parsed.weeklyActionPlan
+          : fallback.weeklyActionPlan,
+        pedagogicalContract: parsed.pedagogicalContract || fallback.pedagogicalContract,
+        readyNoteForStudentRecord: parsed.readyNoteForStudentRecord || fallback.readyNoteForStudentRecord
+      });
+    } catch (error: any) {
+      console.info("Using student personalized remediation fallback:", error?.message || error);
+      res.json(generateStudentPersonalizedRemediationFallback(req.body || {}));
+    }
+  });
+
   app.get("/api/health", (_req, res) => {
     res.json({
       status: "ok",

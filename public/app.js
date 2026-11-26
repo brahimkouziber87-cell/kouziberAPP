@@ -52719,6 +52719,10 @@ ${log.notes || 'سير الحصة عادي'}
                                             <span data-lucide="target" data-size="14"></span>
                                             <span>تركيز 🎯</span>
                                         </button>
+                                        <button type="button" class="dash-btn-action" onclick="window.openStudentPersonalizedRemediationModal && window.openStudentPersonalizedRemediationModal('${escapeHtml(s.className)}', '${escapeHtml(s.id)}')" style="background: rgba(13, 148, 136, 0.12); color: #0f766e; border: 1.5px solid #5eead4; font-weight: 800;" title="توليد خطة معالجة تربوية بيداغوجية مخصصة لهذا التلميذ بناءً على التقويم التشخيصي وسجله الإحصائي">
+                                            <span data-lucide="sparkles" data-size="14"></span>
+                                            <span>خطة معالجة</span>
+                                        </button>
                                         <button type="button" class="dash-btn-action profile" onclick="openStudentQuickModal('${escapeHtml(s.className)}', '${escapeHtml(s.id)}')" title="معاينة البطاقة السريعة وسجل الغياب والنقط">
                                             <span data-lucide="user" data-size="14"></span>
                                             <span>بطاقة</span>
@@ -52804,6 +52808,9 @@ ${log.notes || 'سير الحصة عادي'}
                                         <div style="display: flex; gap: 4px; justify-content: center;">
                                             <button type="button" class="dash-btn-action focus-mode-btn" onclick="openStudentFocusMode('${escapeHtml(s.id)}', '${escapeHtml(s.className)}')" title="وضع التركيز الفردي الشامل لهذا التلميذ 🎯" style="padding: 5px 8px; background: rgba(99, 102, 241, 0.12); color: #4338ca; border: 1.5px solid #a5b4fc;">
                                                 <span data-lucide="target" data-size="13"></span>
+                                            </button>
+                                            <button type="button" class="dash-btn-action" onclick="window.openStudentPersonalizedRemediationModal && window.openStudentPersonalizedRemediationModal('${escapeHtml(s.className)}', '${escapeHtml(s.id)}')" title="خطة معالجة تربوية بيداغوجية مخصصة لهذا التلميذ" style="padding: 5px 8px; background: rgba(13, 148, 136, 0.12); color: #0f766e; border: 1.5px solid #5eead4;">
+                                                <span data-lucide="sparkles" data-size="13"></span>
                                             </button>
                                             <button type="button" class="dash-btn-action profile" onclick="openStudentQuickModal('${escapeHtml(s.className)}', '${escapeHtml(s.id)}')" title="بطاقة التلميذ السريعة" style="padding: 5px 8px;">
                                                 <span data-lucide="user" data-size="13"></span>
