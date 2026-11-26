@@ -648,7 +648,6 @@
     // المتغيرات العامة للتقويم السنوي والمحطات
     let selectedAcademicYearStart = detectInitialAcademicStartYear();
     let annualCalendarViewMode = 'grid'; // 'grid' | 'table'
-    let activeAnnualSubSection = 'holidays'; // 'holidays' | 'milestones'
     let activeMilestonesSemesterFilter = 'all'; // 'all' | 's1' | 's2'
     let activeMilestonesCategoryFilter = 'all'; // 'all' | 'exam' | 'certification' | 'massar' | 'council' | 'teacher'
     let activeMilestonesStatusFilter = 'all'; // 'all' | 'upcoming' | 'completed'
@@ -5662,7 +5661,7 @@
     }
 
     function runManualHolidayAbsenceMigration() {
-        const res = autoMigrateHolidayAbsences({ silent: false });
+        autoMigrateHolidayAbsences({ silent: false });
         openHolidayAbsenceMigrationModal(); // تحديث العرض
     }
 
@@ -7094,7 +7093,6 @@
      * نوافذ استيراد المقرر الوزاري بالذكاء الاصطناعي ووثائق PDF
      */
     let _attachedDecreePdfBase64 = null;
-    let _attachedDecreePdfName = null;
     let _attachedDecreePdfSize = null;
     let _extractedDecreeData = null;
     let _decreePreviewFilter = 'all'; // 'all' | 'secondary' | 'math' | 'teacher' | 'holidays'
@@ -7248,7 +7246,6 @@
     }
 
     function processDecreePdfFile(file) {
-        _attachedDecreePdfName = file.name;
         _attachedDecreePdfSize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
 
         // إظهار بطاقة حالة ملف PDF
@@ -7317,7 +7314,6 @@
 
     function removeDecreePdfAttachment() {
         _attachedDecreePdfBase64 = null;
-        _attachedDecreePdfName = null;
         _attachedDecreePdfSize = null;
         const card = document.getElementById('decreePdfAttachedCard');
         if (card) card.style.display = 'none';
@@ -7446,8 +7442,6 @@
         let milestonesHtml = '';
         if (displayedMilestones.length > 0) {
             milestonesHtml = displayedMilestones.map(m => {
-                const isExamOrCert = m.category === 'certification' || m.category === 'exam';
-                const isCouncil = m.category === 'council';
                 const isTeacher = m.isTeacher;
                 const isMath = m.isMath;
                 const isSecondary = m.isSecondary;

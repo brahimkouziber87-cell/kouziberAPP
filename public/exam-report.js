@@ -3051,7 +3051,6 @@
 
     function onMassarMakeupFilterChange() {
         const className = document.getElementById('massarMakeupClassSelect')?.value || '';
-        const semester = document.getElementById('massarMakeupSemesterSelect')?.value || 's1';
         const examKey = document.getElementById('massarMakeupExamSelect')?.value || 'f1';
 
         // تحديث شارة المعامل وعدد الفروض وفق المذكرة الوزارية 142-08

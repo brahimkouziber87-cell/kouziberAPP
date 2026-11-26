@@ -1306,10 +1306,7 @@
     /**
      * نافذة تحديث وتعديل الملف المهني للأستاذ
      */
-    let currentEditSection = 'info';
-
     function openEditTeacherProfileModal(section = 'info') {
-        currentEditSection = section;
         let modal = document.getElementById('teacherProfileEditModal');
         if (!modal) {
             createTeacherProfileEditModalHtml();
@@ -2382,7 +2379,6 @@
             document.body.appendChild(modal);
         }
 
-        const tp = getTeacherProfile();
         const innerSheetHtml = buildOfficialTeacherProfileDocumentInnerHtml();
 
         modal.innerHTML = `

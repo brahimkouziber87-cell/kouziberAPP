@@ -2561,7 +2561,6 @@
         syncStudentPortfolioToICalServer(d.studentId, d.className);
 
         const events = buildStudentPortfolioCalendarEvents(d.studentId, d.className);
-        const { httpFeedUrl } = getPortfolioWebCalUrls(d.studentId);
         const todayStr = typeof window.formatLocalDate === 'function' ? window.formatLocalDate() : getPortfolioLocalDate();
 
         // بناء صفوف جدول المهام المجدولة

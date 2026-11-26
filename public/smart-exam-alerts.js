@@ -250,7 +250,7 @@
         if (!exam) return '';
         const cd = getExamCountdown(exam);
         if (!cd) return '';
-        const { days, hours, minutes, seconds, isCritical, isToday, isLiveNow, isPast } = cd;
+        const { isCritical, isLiveNow, isPast } = cd;
         const { compact = false, showHeader = true, idPrefix = 'banner' } = opts;
 
         if (isPast) {
@@ -1089,7 +1089,7 @@
      */
     function renderDashboardExamAlerts(container, cache) {
         if (!container) return;
-        const { criticalAlertExams, upcomingExams, primaryExam } = cache;
+        const { criticalAlertExams, upcomingExams } = cache;
         const alertsToDisplay = (criticalAlertExams.length > 0) ? criticalAlertExams : (upcomingExams.slice(0, 3));
 
         if (!alertsToDisplay || alertsToDisplay.length === 0) {
@@ -1238,7 +1238,6 @@
         const count = highAbsenceStudents.length;
         const daysLeft = exam.daysLeft;
 
-        let bannerClass = 'smart-alert-notice';
         let borderColor = '#f59e0b';
         let bgGradient = 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)';
         let badgeBg = '#f59e0b';

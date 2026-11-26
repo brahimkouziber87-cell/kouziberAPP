@@ -425,12 +425,12 @@
 
                 let html = '';
                 folders.forEach(f => {
-                    const safeName = (f.name || 'مجلد بدون اسم').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    const safeName = (f.name || 'مجلد بدون اسم').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                     html += `
-                        <div class="lib-drive-folder-item" onclick="selectDriveFolderFromPicker('${f.id}', '${encodeURIComponent(f.name)}')">
+                        <div class="lib-drive-folder-item" onclick="selectDriveFolderFromPicker('${f.id}')">
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span data-lucide="folder" data-size="16" style="color: #2563eb;"></span>
-                                <strong style="font-size: 0.84rem; color: #1e293b;">${f.name}</strong>
+                                <strong style="font-size: 0.84rem; color: #1e293b;">${safeName}</strong>
                             </div>
                             <span style="font-size: 0.72rem; color: #2563eb; background: #eff6ff; padding: 2px 6px; border-radius: 4px;">اختيار</span>
                         </div>
@@ -448,8 +448,7 @@
             if (picker) picker.style.display = 'none';
         }
 
-        function selectDriveFolderFromPicker(folderId, encodedName) {
-            const name = decodeURIComponent(encodedName);
+        function selectDriveFolderFromPicker(folderId) {
             const input = document.getElementById('libDriveFolderInput');
             if (input) input.value = `https://drive.google.com/drive/folders/${folderId}`;
             closeDriveFoldersPicker();
@@ -541,7 +540,7 @@
                 saveDB();
 
                 // Now execute immediate sync of all files (or cloud metadata sync when OAuth popup is unavailable)
-                const syncResult = await syncDriveFolder(folderId, false, false);
+                await syncDriveFolder(folderId, false, false);
 
                 if (input) input.value = '';
                 if (topicInput) topicInput.value = '';
@@ -4657,7 +4656,7 @@
             }
 
             let html = '';
-            items.forEach((item, idx) => {
+            items.forEach((item) => {
                 const res = _batchAiResults[item.id];
                 const currentTopic = item.topic || '';
                 const suggestedTopic = res ? res.suggestedTopic : '';
@@ -5346,7 +5345,6 @@
             payInfo = payInfo || {};
             const remaining = payInfo.remaining !== undefined ? payInfo.remaining : 0;
             const paidAmount = payInfo.paidAmount !== undefined ? payInfo.paidAmount : 0;
-            const totalDue = payInfo.totalDue !== undefined ? payInfo.totalDue : 0;
             const progressPercent = payInfo.progressPercent !== undefined ? payInfo.progressPercent : 0;
 
             if (status === 'paid') {
@@ -6095,7 +6093,6 @@
             });
             const rate = parseFloat(std.fee) || 0;
             const payInfo = window.getTutoringPaymentInfo(std, currentPayMonth);
-            const totalDue = payInfo.totalDue;
 
             // Populate banner
             const banner = document.getElementById('payModalStudentBanner');

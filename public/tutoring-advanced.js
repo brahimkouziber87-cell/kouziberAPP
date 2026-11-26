@@ -313,7 +313,6 @@
             return;
         }
 
-        const count = window.selectedTutoringStudentIds.size;
         let movedCount = 0;
 
         (db.tutoring.students || []).forEach(std => {
@@ -1463,10 +1462,6 @@
         const todayBanner = document.getElementById('tutoringTodayAlertBanner');
         if (todayBanner) {
             const todayIdx = new Date().getDay(); // 0 = Sunday, 1 = Monday ... 6 = Saturday
-            const dayNames = {
-                1: 'الإثنين', 2: 'الثلاثاء', 3: 'الأربعاء',
-                4: 'الخميس', 5: 'الجمعة', 6: 'السبت', 0: 'الأحد'
-            };
             const todaySlots = allSlots.filter(s => parseInt(s.day, 10) === todayIdx);
             todaySlots.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
 
@@ -2361,7 +2356,6 @@
         if (!modal) return;
 
         const idInput = document.getElementById('scheduleSlotId');
-        const typeInput = document.getElementById('scheduleSlotType');
         const daySelect = document.getElementById('scheduleSlotDay');
         const recSelect = document.getElementById('scheduleSlotRecurrence');
         const groupInput = document.getElementById('scheduleSlotGroup');
@@ -5303,8 +5297,6 @@
     window.setTutoringAttPeriodPreset = function (preset) {
         const typeSelect = document.getElementById('tutoringAttPeriodType');
         const monthInput = document.getElementById('tutoringAttMonthFilter');
-        const dateFrom = document.getElementById('tutoringAttDateFrom');
-        const dateTo = document.getElementById('tutoringAttDateTo');
         const now = new Date();
         const y = now.getFullYear();
         const m = now.getMonth() + 1;

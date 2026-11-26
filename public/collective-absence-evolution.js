@@ -58,16 +58,6 @@
 
     const ARABIC_WEEKDAYS = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
-    function escapeHtml(str) {
-        if (str === null || str === undefined) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
-
     /**
      * الذاكرة المؤقتة الذكية لتجنب تكرار العمليات الحسابية الباهظة
      */
@@ -352,7 +342,7 @@
         } else if (opts.periodMode === 'periods') {
             // نمط الفترات البيداغوجية الخمس
             let prevRate = null;
-            periodsData = PEDAGOGICAL_PERIODS.map((period, idx) => {
+            periodsData = PEDAGOGICAL_PERIODS.map((period) => {
                 const pSessions = allSessions.filter(s => period.months.includes(s.month));
                 const pCollective = pSessions.filter(s => s.isCollective);
                 const rate = pSessions.length > 0 ? Math.round((pCollective.length / pSessions.length) * 1000) / 10 : 0;
@@ -604,15 +594,12 @@
         // تقييم مؤشر الخطورة المركب IGC
         let gravityColor = '#10b981';
         let gravityText = 'منخفض ومضبوط';
-        let gravityBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
         if (metrics.gravityIndex >= 50) {
             gravityColor = '#e11d48';
             gravityText = 'مرتفع وحرج (يستدعي تدخلاً إدارياً)';
-            gravityBadgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
         } else if (metrics.gravityIndex >= 25) {
             gravityColor = '#f59e0b';
             gravityText = 'متوسط (يقظة وتتبع مطلوب)';
-            gravityBadgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
         }
 
         const escHtml = (s) => String(s ?? '')
@@ -651,7 +638,7 @@
 
         // رسم الأعمدة البيانية التفاعلية للفترات
         const maxRateInPeriods = Math.max(10, ...metrics.periodsData.map(p => p.rate));
-        let chartBarsHtml = metrics.periodsData.map((p, idx) => {
+        let chartBarsHtml = metrics.periodsData.map((p) => {
             const heightPct = Math.min(100, Math.max(8, Math.round((p.rate / maxRateInPeriods) * 100)));
             let barColor = '#10b981'; // أخضر
             if (p.rate >= 20) barColor = '#e11d48'; // أحمر حرج

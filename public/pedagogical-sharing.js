@@ -82,7 +82,6 @@
 
         isGeneratingShare = true;
         const genBtn = document.getElementById('shareModalGenerateBtn');
-        const qrContainer = document.getElementById('shareModalQrResultContainer');
         const loadingSpinner = document.getElementById('shareModalLoadingSpinner');
 
         if (genBtn) {
@@ -325,7 +324,7 @@
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('✅ تم نسخ الرابط المشفر بنجاح إلى الحافظة.', 'success');
             }
-        }).catch(err => {
+        }).catch(() => {
             urlInput.select();
             document.execCommand('copy');
             if (typeof window.showAppToast === 'function') {
@@ -692,8 +691,6 @@
             const metrics = d.academicMetrics || {};
             const absences = d.absences || {};
             const risk = d.riskIndex || {};
-            const grades = d.grades || {};
-            const behavior = d.behavior || {};
             const remediation = d.remediation || {};
 
             let gradesHtml = '';

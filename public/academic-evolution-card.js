@@ -1156,7 +1156,7 @@ ${teacherName}`;
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; max-height: 320px; overflow-y: auto;">
                 `;
 
-                data.regressedStudents.forEach((st, idx) => {
+                data.regressedStudents.forEach((st) => {
                     html += `
                         <div style="background: #ffffff; border: 1.5px solid #fed7aa; border-radius: 10px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px;">
                             <div>
@@ -1264,7 +1264,6 @@ ${teacherName}`;
         targetClasses.forEach(className => {
             const rawClass = window.db.classes[className];
             const students = Array.isArray(rawClass) ? rawClass : (rawClass && rawClass.students ? rawClass.students : []);
-            const classGrades = (window.db.grades && window.db.grades[className]) ? window.db.grades[className] : {};
 
             students.forEach((std, idx) => {
                 const marks = getStudentExamMarks(className, std.id, sem, 'f_all');

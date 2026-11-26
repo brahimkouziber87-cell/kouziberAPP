@@ -683,13 +683,11 @@
         }
         await new Promise(r => setTimeout(r, 450));
 
-        const mBefore = getLiveMemoryMetrics();
         // Trigger cycle
         if (typeof window.optimizeAppMemory === 'function') {
             window.optimizeAppMemory({ manual: true });
         }
         await new Promise(r => setTimeout(r, 200));
-        const mAfter = getLiveMemoryMetrics();
 
         if (btnEl) {
             btnEl.disabled = false;

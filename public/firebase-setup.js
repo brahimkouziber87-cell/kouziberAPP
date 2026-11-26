@@ -2312,7 +2312,6 @@ function ensureGisClientLoaded(timeoutMs = 3000) {
 window.handleGoogleSignInOfficial = (options = {}) => {
   const skipUpdateCheck = !!options.skipUpdateCheck;
   const strictReauth = !!options.strictReauth;
-  const allowDirectFallback = !!options.allowDirectFallback;
 
   // تحديد تلميح البريد الإلكتروني (login_hint) لتسهيل اختيار حساب الأستاذ مباشرة
   let rawHint = options.emailHint || '';

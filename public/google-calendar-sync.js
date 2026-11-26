@@ -148,19 +148,6 @@
     }
 
     /**
-     * تحويل تاريخ محلي إلى صيغة Google Calendar
-     */
-    function formatGCalDate(dateStr) {
-        if (!dateStr) return null;
-        // إذا كان يحتوي على وقت
-        if (dateStr.includes('T')) {
-            return { dateTime: new Date(dateStr).toISOString() };
-        }
-        // حدث طيلة اليوم
-        return { date: dateStr };
-    }
-
-    /**
      * حساب تاريخ النهاية للأحداث طيلة اليوم (+1 day)
      */
     function getGCalEndDate(startDateStr, endDateStr) {

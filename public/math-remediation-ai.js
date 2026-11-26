@@ -448,7 +448,7 @@
         const topicsListEl = document.getElementById('mathRemediationTopicsList');
         if (topicsListEl) {
             const availableTopics = currInfo[sem] || currInfo['s1'];
-            topicsListEl.innerHTML = availableTopics.map((t, idx) => `
+            topicsListEl.innerHTML = availableTopics.map((t) => `
                 <label style="display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 700; color: #1e293b; background: #ffffff; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; cursor: pointer;">
                     <input type="checkbox" name="mathRemediationTopicChk" value="${escapeQuotes(t)}" checked style="accent-color: #2563eb; width: 16px; height: 16px;">
                     <span>${t}</span>
@@ -1191,7 +1191,6 @@
 
     let _activeAutoRemediationClass = null;
     let _activeAutoRemediationSemester = 's1';
-    let _selectedRemediationActivityIdx = 0;
 
     function openAutoRemediationWithTimetableSync(targetClass = null, targetStudentId = null) {
         let classes = Object.keys(window.db?.classes || {});
@@ -1263,7 +1262,6 @@
 
         const struggling = stats.strugglingStudents || [];
         const topStudents = stats.topStudents || [];
-        const levelKey = detectLevelKeyFromClassName(cls);
 
         // مقترحات أنشطة الدعم البيداغوجي التلقائية المخصصة لمادة الرياضيات
         const suggestedActivities = [

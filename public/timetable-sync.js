@@ -938,7 +938,6 @@
             const icalDay = dayToIcalByDay[dayName];
             if (!icalDay) return;
 
-            const info = getTimetableSessionsForDate(now); // to get slot info
             // Find reference date for this day of week
             const refDate = new Date(baseYear, 8, 1); // 1 Sep
             while (refDate.getDay() !== dayIndex) {

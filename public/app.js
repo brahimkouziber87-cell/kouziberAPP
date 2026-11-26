@@ -4787,7 +4787,6 @@
             container.innerHTML = '';
 
             const currentSeason = getCurrentAcademicYear();
-            const prevSeason = getPreviousAcademicYear(currentSeason);
             const currentStartYear = parseInt(currentSeason.split('/')[0].trim(), 10);
 
             if (!db.archivedClasses) db.archivedClasses = [];
@@ -5460,7 +5459,6 @@
                     const weekdayStr = now.toLocaleDateString('ar-MA', { weekday: 'short' });
                     const dayNum = String(now.getDate()).padStart(2, '0');
                     const monthNum = String(now.getMonth() + 1).padStart(2, '0');
-                    const yearNum = now.getFullYear();
                     const compactDateStr = `${weekdayStr} ${dayNum}/${monthNum}`;
                     const fullDateStr = now.toLocaleDateString('ar-MA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
                     const hours = String(now.getHours()).padStart(2, '0');
@@ -5523,7 +5521,6 @@
             const moroccoLive = getMoroccoLiveDate();
             const offsetMins = getAppTimeOffsetMinutes();
             const moroccoOffset = getMoroccoAutoOffsetMinutes();
-            const offsetH = (offsetMins / 60).toFixed(1).replace('.0', '');
 
             const pad = (n) => String(n).padStart(2, '0');
             const formatTime = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
@@ -8138,7 +8135,6 @@
             });
             const rate = parseFloat(std.fee) || 0;
             const payInfo = window.getTutoringPaymentInfo ? window.getTutoringPaymentInfo(std, activeMonth) : { totalDue: totalHours * rate, status: 'unpaid', paidAmount: 0, remaining: totalHours * rate };
-            const due = payInfo.totalDue;
             const isSettled = payInfo.status === 'paid';
 
             let determinedType = 'unpaid';
@@ -11752,7 +11748,7 @@
                 };
             }
 
-            const { name, avg, academicLevel, attendanceLevel, disciplineLevel, absentHours, unexcusedHours, lateCount, missedHw, behaviorStatus, progression } = profile;
+            const { academicLevel, attendanceLevel, disciplineLevel, absentHours, unexcusedHours, missedHw, progression } = profile;
             const progLevel = progression ? progression.level : 'insufficient';
             const progSeq = (progression && progression.sequenceText && progression.sequenceText !== '-') ? ` (${progression.sequenceText})` : '';
             const isUpward = (progLevel === 'strong_up' || progLevel === 'steady_up');
@@ -13278,9 +13274,6 @@
             const yearMatch = birth.match(/\b(19\d{2}|20\d{2})\b/);
             const birthYear = yearMatch ? yearMatch[1] : (birth.length >= 4 ? birth : '');
 
-            const groupVal = 'all';
-            const groupLabel = 'كامل القسم';
-
             const nextOrder = students.length > 0 ? (Math.max(...students.map(s => s.orderNum || 0)) + 1) : 1;
             const stdId = massar || ('std_' + Date.now());
 
@@ -13441,7 +13434,7 @@
             const currentClassVal = document.getElementById('classSelect') ? document.getElementById('classSelect').value : '';
             const currentSessionVal = document.getElementById('sessionSelect') ? document.getElementById('sessionSelect').value : '';
 
-            sessions.forEach((s, idx) => {
+            sessions.forEach((s) => {
                 const isSelected = (currentClassVal === s.className && (!currentSessionVal || currentSessionVal === s.period));
                 const accentColor = isSelected ? '#059669' : (s.isMorning ? '#0284c7' : '#4f46e5');
                 const badgeBg = isSelected ? '#dcfce7' : (s.isMorning ? '#e0f2fe' : '#eef2ff');
@@ -15000,7 +14993,7 @@
             const comp = computeMassarClassComparison(className);
 
             let html = '';
-            massarParsedStudents.forEach((std, idx) => {
+            massarParsedStudents.forEach((std) => {
                 const massarDisplay = std.massar ? `<strong style="font-family: monospace; color: #0284c7; letter-spacing: 0.5px;">${escapeHtml(std.massar)}</strong>` : '<span style="color:#94a3b8; font-style:italic;">غير متوفر</span>';
                 const birthDisplay = std.birthDate ? `<span style="color: #334155; font-weight: 600;">${escapeHtml(std.birthDate)}</span>` : '<span style="color:#94a3b8;">-</span>';
                 const genderDisplay = std.gender === 'F' ? '<span style="color:#e11d48; font-weight:bold;">أنثى</span>' : '<span style="color:#2563eb; font-weight:bold;">ذكر</span>';
@@ -15751,8 +15744,6 @@
             container.innerHTML = batchMassarDetectedClasses.map(item => {
                 const isChecked = item.selected ? 'checked' : '';
                 const comp = item.comparison;
-                const g1Count = item.students.filter(s => s.group === 'G1').length;
-                const g2Count = item.students.filter(s => s.group === 'G2').length;
                 const total = item.students.length;
 
                 let statusBadge = '';
@@ -20779,7 +20770,6 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 const dur = getRecordAbsenceDuration(r);
                 const isAbs = (r.status === 'غائب' || r.status === 'مبرر');
                 const isJust = (r.status === 'مبرر');
-                const isUnjust = (r.status === 'غائب');
                 const isLate = (r.status === 'متأخر');
                 const isHw = (r.homework === 'لم ينجز');
                 const inPeriod = (!dateFrom || r.date >= dateFrom) && (!dateTo || r.date <= dateTo);
@@ -21097,14 +21087,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const safeHmHtml = (v) => (typeof escapeHtml === 'function' ? escapeHtml(String(v ?? '')) : String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
             const safeHmJs = (v) => safeHmHtml(JSON.stringify(String(v ?? '')));
 
-            const classStudents = (window.db && window.db.classes && window.db.classes[className]) || [];
-            const stdObj = Array.isArray(classStudents)
-                ? classStudents.find(s => String(s.id) === String(studentId))
-                : (classStudents.students ? classStudents.students.find(s => String(s.id) === String(studentId)) : null);
-            const stdName = stdObj ? stdObj.name : 'التلميذ(ة)';
-            const stdMassar = stdObj && stdObj.massar ? stdObj.massar : '—';
             const prof = (window.db && (window.db.teacherProfile || window.db.profile)) || {};
-            const profName = prof.name || 'أستاذ مادة الرياضيات';
             const _hmNow = (typeof getAppNow === 'function') ? getAppNow() : new Date();
             const _hmCurY = _hmNow.getFullYear();
             const _hmSchoolYear = prof.academicYear || ((_hmNow.getMonth() < 8) ? `${_hmCurY - 1}/${_hmCurY}` : `${_hmCurY}/${_hmCurY + 1}`);
@@ -21160,13 +21143,10 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const totalAbsent = hmData.totalAllTimeAbsent || 0;
             const totalUnjust = hmData.totalAllTimeUnjustified || 0;
             const totalJust = hmData.totalAllTimeJustified || 0;
-            const totalLate = hmData.totalAllTimeLate || 0;
-            const totalMissedHw = hmData.totalAllTimeMissedHw || 0;
 
             // Attendance Global Rate & Justification Ratio (based on official track annual math hours)
             const attendanceRate = Math.max(0, Math.min(100, Math.round(((annualMathHours - totalAbsent) / annualMathHours) * 1000) / 10));
             const justPct = totalAbsent > 0 ? Math.round((totalJust / totalAbsent) * 100) : 100;
-            const unjustPct = totalAbsent > 0 ? Math.max(0, 100 - justPct) : 0;
             const morningPct = (hmData.slotStats && hmData.slotStats.morningPct !== undefined) ? hmData.slotStats.morningPct : (totalAbsent > 0 ? 50 : 0);
             const afternoonPct = (hmData.slotStats && hmData.slotStats.afternoonPct !== undefined) ? hmData.slotStats.afternoonPct : (totalAbsent > 0 ? 50 : 0);
 
@@ -21842,7 +21822,6 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const std = classStudents.find(s => String(s.id) === String(studentId)) || null;
             const stdName = std ? std.name : 'التلميذ(ة)';
             const stdMassar = std && std.massar ? std.massar : '—';
-            const stdPhone = std?.phone || std?.guardianPhone || std?.parentPhone || '';
 
             const allRecords = (window.db && Array.isArray(window.db.records)) ? window.db.records : [];
             const dayRecords = allRecords.filter(r =>
@@ -21866,7 +21845,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             let hasMissedHw = false;
 
             if (dayRecords.length > 0) {
-                recordsHtml = dayRecords.map((r, idx) => {
+                recordsHtml = dayRecords.map((r) => {
                     const dur = (typeof getRecordAbsenceDuration === 'function') ? getRecordAbsenceDuration(r) : 1;
                     const isAbs = (r.status === 'غائب' || r.status === 'مبرر');
                     const isJust = (r.status === 'مبرر');
@@ -22013,7 +21992,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             let listHtml = '';
             let totalH = 0;
             if (matchingRecords.length > 0) {
-                listHtml = matchingRecords.map((r, idx) => {
+                listHtml = matchingRecords.map((r) => {
                     const dur = (typeof getRecordAbsenceDuration === 'function') ? getRecordAbsenceDuration(r) : 1;
                     const isAbs = (r.status === 'غائب' || r.status === 'مبرر');
                     if (isAbs) totalH += dur;
@@ -24635,7 +24614,6 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }
 
             const students = db.classes[className];
-            const examCount = getExamsCountForClass(className);
 
             let sumS1 = 0, countS1 = 0;
             let sumS2 = 0, countS2 = 0;
@@ -29437,7 +29415,6 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
 
             // Attendance records & Personal Absence Heatmap via unified single-pass engine
             const hmData = computeStudentPersonalHeatmap(studentId, className, dateFrom, dateTo);
-            const stdRecords = hmData.stdRecords;
             const absentHours = hmData.absentHours;
             const justifiedHours = hmData.justifiedHours;
             const unjustifiedHours = hmData.unjustifiedHours;
@@ -31927,7 +31904,6 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const academicYear = (db.teacherProfile && db.teacherProfile.academicYear) || `${qStartYear}/${qStartYear + 1}`;
 
             const examCount = Math.max(...resolved.classes.map(c => getExamsCountForClass(c)), 2);
-            const coef = getSubjectCoefForClass(resolved.classes[0]);
 
             const btn = document.querySelector('button[onclick="exportClassQuarterlyReportsPDF()"]');
             const originalText = btn ? btn.innerHTML : '';
@@ -31980,7 +31956,6 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                         ? getStudentGradesBySemester(stdCls, std.id, activeSemBulk)
                         : ((db.grades[stdCls] && db.grades[stdCls][std.id]) ? db.grades[stdCls][std.id] : {});
                     const avg = calculateStudentAvg(grades, stdCls);
-                    const weightedAvg = avg !== null ? (avg * coef).toFixed(2) : '-';
 
                     let rankText = '-';
                     if (avg !== null) {
@@ -33737,7 +33712,6 @@ window.isPresentationMode = isPresentationMode;
             }
 
             // Banner
-            const banner = document.getElementById('calendarWhatsappReminderBanner');
             const bannerTag = document.getElementById('calendarWaBannerStatusTag');
             const bannerText = document.getElementById('calendarWaBannerText');
             if (bannerTag) {
@@ -33965,7 +33939,6 @@ window.isPresentationMode = isPresentationMode;
         }
 
         function triggerDaily8AmWhatsappAlert(dateStr) {
-            const cfg = getCalendarWhatsappConfig();
             const generated = generateCalendarWhatsappMessage(dateStr);
             const data = generated.summary;
 
@@ -38558,8 +38531,6 @@ window.isPresentationMode = isPresentationMode;
         function copyCurrentLessonVideoLink() {
             const linkEl = document.getElementById('lessonVideoPlayerExternalLink');
             const url = linkEl ? linkEl.getAttribute('href') : '';
-            const titleEl = document.getElementById('lessonVideoPlayerTitle');
-            const title = titleEl ? titleEl.textContent.trim() : '';
 
             if (!url || url === '#' || url.startsWith('javascript:')) {
                 if (typeof showAppToast === 'function') showAppToast('لا يتوفر رابط خارجي لهذا المورد للنسخ', 'warning');
@@ -50165,9 +50136,6 @@ ${log.notes || 'سير الحصة عادي'}
                 hwLate: 0
             };
 
-            const cTheme = (typeof getClassColorTheme === 'function') ? getClassColorTheme(focusClass) : null;
-            const focusClassDot = cTheme ? cTheme.solid : '#818cf8';
-
             // أزرار التبديل بين الأقسام داخل وضع التركيز
             let classButtonsHtml = '';
             classes.forEach(c => {
@@ -50997,7 +50965,6 @@ ${log.notes || 'سير الحصة عادي'}
             try {
                 const { stats } = getDashboardAtRiskStudents();
                 const total = stats ? stats.totalCount : 0;
-                const dual = stats ? stats.dualCount : 0;
 
                 let delayedAdminCount = 0;
                 if (typeof window.getAdminFollowUpMetrics === 'function') {
@@ -52455,7 +52422,7 @@ ${log.notes || 'سير الحصة عادي'}
                     }
                 }
 
-                const { students, allAtRisk, stats } = getDashboardAtRiskStudents();
+                const { students, stats } = getDashboardAtRiskStudents();
 
                 // 1. KPI Cards
                 // بطاقة إجمالي ساعات الغياب التراكمية لجميع الأقسام ومقارنة التغير مع الشهر السابق
@@ -52660,7 +52627,7 @@ ${log.notes || 'سير الحصة عادي'}
                         `;
                     } else if (_dashboardFilter.viewMode === 'cards') {
                         let cardsHtml = `<div class="dash-student-grid">`;
-                        students.forEach((s, idx) => {
+                        students.forEach((s) => {
                             const sClsTheme = (typeof getClassColorTheme === 'function') ? getClassColorTheme(s.className) : null;
                             const severityClass = `severity-${s.severityKey || 'ok'}`;
                             const focusCardClass = _isDashboardFocusMode ? 'focus-mode-card' : '';
@@ -53798,7 +53765,7 @@ ${log.notes || 'سير الحصة عادي'}
                     </div>
                 `;
             } else {
-                displayItems.forEach((hw, idx) => {
+                displayItems.forEach((hw) => {
                     const clsTheme = (typeof getClassColorTheme === 'function') ? getClassColorTheme(hw.className) : { bg: '#eff6ff', text: '#1e40af', solid: '#3b82f6', border: '#bfdbfe' };
                     const isCompleted = hw.completed;
                     const urgency = hw.urgency;
@@ -54193,7 +54160,7 @@ ${log.notes || 'سير الحصة عادي'}
                     <div style="position: absolute; right: 13px; top: 12px; bottom: 12px; width: 2.5px; background: #e2e8f0; border-radius: 2px;"></div>
             `;
 
-            filteredEvents.forEach((ev, idx) => {
+            filteredEvents.forEach((ev) => {
                 const isAction = (ev.itemCategory === 'action');
                 let iconName = 'bell';
                 let iconBg = '#fee2e2';
@@ -56032,14 +55999,13 @@ ${log.notes || 'سير الحصة عادي'}
             const selectedClass = document.getElementById('dashReportClassFilter')?.value || 'all';
             const selectedCategory = document.getElementById('dashReportCategoryFilter')?.value || 'all';
             const selectedThreshold = document.getElementById('dashReportThreshold')?.value || '3';
-            const orientation = document.getElementById('dashReportOrientation')?.value || 'landscape';
 
             const optHeader = document.getElementById('dashReportOptHeader')?.checked ?? true;
             const optStats = document.getElementById('dashReportOptStats')?.checked ?? true;
             const optSignatures = document.getElementById('dashReportOptSignatures')?.checked ?? true;
             const optRecommendations = document.getElementById('dashReportOptRecommendations')?.checked ?? true;
 
-            const { students, stats } = getDashboardAtRiskStudents({
+            const { students } = getDashboardAtRiskStudents({
                 class: selectedClass,
                 category: selectedCategory,
                 threshold: selectedThreshold,
@@ -56843,7 +56809,6 @@ ${log.notes || 'سير الحصة عادي'}
             const phoneInput = document.getElementById('quickAddStudentPhone');
             const genderRadio = document.querySelector('input[name="quickAddGender"]:checked');
             const ttCheck = document.getElementById('quickAddAssignTimetableCheck');
-            const groupRadio = document.querySelector('input[name="quickAddGroupRadio"]:checked');
 
             const rawClass = classSelect ? classSelect.value.trim() : '';
             let className = rawClass;
@@ -56859,8 +56824,6 @@ ${log.notes || 'سير الحصة عادي'}
             const birth = birthInput ? birthInput.value.trim() : '';
             const phone = phoneInput ? phoneInput.value.trim() : '';
             const assignTimetable = ttCheck ? ttCheck.checked : false;
-            const group = 'all';
-            const groupLabel = 'كامل القسم';
 
             // Validation
             if (!className) {
@@ -57144,7 +57107,6 @@ ${log.notes || 'سير الحصة عادي'}
                     const key = `${rec.studentId}_${rec.date}_${rec.session}`;
                     if (recordsMap.has(key)) {
                         report.duplicateRecordsRemoved++;
-                        const existing = recordsMap.get(key);
                         // الاحتفاظ بالسجل الذي يحتوي على تفاصيل أكثر (غياب أو عدم إنجاز واجب)
                         if (rec.status !== 'حاضر' || rec.homework === 'لم ينجز' || rec.duration > 0) {
                             recordsMap.set(key, rec);

@@ -41,8 +41,6 @@
     let isPanning = false;
     let startX = 0;
     let startY = 0;
-    let lastX = 0;
-    let lastY = 0;
     let panStartX = 0;
     let panStartY = 0;
 
@@ -140,7 +138,6 @@
         timerInterval: null
     };
     let currentRecordedStroke = null;
-    let proofPlaybackTimer = null;
     let proofPlaybackSpeed = 1.0;
     let proofPlaybackTime = 0;
     let proofTotalDuration = 0;
@@ -447,17 +444,6 @@
             timer = setTimeout(() => fn.apply(this, arguments), ms);
         };
     }
-
-    const persistOnMoveThrottled = (function () {
-        let timer = null;
-        return function () {
-            if (timer) return;
-            timer = setTimeout(() => {
-                timer = null;
-                persistWhiteboardState();
-            }, 90);
-        };
-    })();
 
     /**
      * ضغط صورة DataURL من PNG إلى WebP لتقليل استهلاك الذاكرة و IndexedDB بنسبة تصل إلى 75%
@@ -4685,7 +4671,6 @@
         tCtx.stroke();
 
         // Centimeter & millimeter graduations (20px = 1cm, 2px = 1mm)
-        const pxPerCm = 20;
         const startX = -halfL + 16;
         const endX = halfL - 16;
         const totalMm = Math.floor((endX - startX) / 2);
@@ -6954,13 +6939,6 @@
     /* ====================================================================
      * 6. راسم الدوال المخصصة مع المماس وحساب التكامل (Custom Function Plotter)
      * ==================================================================== */
-    function evalMathExprSafe(exprStr, xVal) {
-        if (window.WbSecurityMath && typeof window.WbSecurityMath.evaluateMathWithX === 'function') {
-            return window.WbSecurityMath.evaluateMathWithX(exprStr, xVal, false);
-        }
-        return NaN;
-    }
-
     function openCustomFunctionPlotterModal() {
         let modal = document.getElementById('wbCustomPlotterModal');
         if (!modal) {

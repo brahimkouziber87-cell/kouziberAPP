@@ -594,7 +594,7 @@
         const teacherProfile = (window.db && window.db.teacherProfile) ? window.db.teacherProfile : {};
         const teacherName = teacherProfile.name || 'أستاذ مادة الرياضيات';
         const schoolName = teacherProfile.school || 'المؤسسة التعليمية';
-        const classDiag = ensureDiagnosticDb(className);
+        ensureDiagnosticDb(className);
         const nowObj = (typeof window.getAppNow === 'function') ? window.getAppNow() : new Date();
 
         const rows = [

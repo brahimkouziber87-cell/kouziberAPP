@@ -801,10 +801,6 @@
         const records = cell ? (cell.records || []) : [];
         const totalHours = records.reduce((s, r) => s + getRecordHours(r), 0);
 
-        // استخراج أحدث تاريخ في هذه الفترة لفتحه في مكتبة الموارد
-        const uniqueDates = Array.from(new Set(records.map(r => r.date).filter(Boolean))).sort().reverse();
-        const latestDate = uniqueDates[0] || '';
-
         let recordsHtml = '';
         if (records.length > 0) {
             recordsHtml = `

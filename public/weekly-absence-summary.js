@@ -728,7 +728,6 @@
      */
     async function sendWeeklySummaryToAdminOneClick() {
         const data = getWeeklyAbsenceSummaryData();
-        const db = window.db || {};
 
         if (data.students.length === 0) {
             // تنبيه الأستاذ في حال عدم وجود تلاميذ متجاوزين
@@ -1702,7 +1701,7 @@
             }).join('');
         }
 
-        const footerDayTotalsHtml = data.dailyTotals.map((tot, idx) => `
+        const footerDayTotalsHtml = data.dailyTotals.map((tot) => `
             <td style="padding: 9px 6px; text-align: center; border-left: 1px solid #cbd5e1; font-weight: 900; color: ${tot > 0 ? '#dc2626' : '#64748b'}; font-size: 0.8rem; background: #f1f5f9;">
                 ${tot > 0 ? `${tot} س` : '0 س'}
             </td>

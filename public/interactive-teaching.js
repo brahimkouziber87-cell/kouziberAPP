@@ -1661,9 +1661,6 @@
         setupTimerDrag();
     }
 
-    // إبقاء الاسم القديم متوافقاً مع أي استدعاء خارجي
-    const updateFloatingTimerDisplay = renderFloatingTimerStructure;
-
     function setupTimerDrag() {
         const handle = document.getElementById('teachingTimerDragHandle');
         const widget = document.getElementById('floatingTeachingTimerWidget');
