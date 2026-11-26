@@ -77,7 +77,6 @@ const FALLBACK_EXAMS: ExamComparisonItem[] = [
   { examLabel: 'الفرض 1', s1Avg: 0, s2Avg: 0, delta: 0 },
   { examLabel: 'الفرض 2', s1Avg: 0, s2Avg: 0, delta: 0 },
   { examLabel: 'الفرض 3', s1Avg: 0, s2Avg: 0, delta: 0 },
-  { examLabel: 'الأنشطة المندمجة', s1Avg: 0, s2Avg: 0, delta: 0 },
 ];
 
 const FALLBACK_PROGRESSING_STUDENTS: StudentProgressionItem[] = [];

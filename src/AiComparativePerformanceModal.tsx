@@ -131,10 +131,30 @@ export const AiComparativePerformanceModal: React.FC<StudentAiComparativeModalPr
     const s1Source = db?.gradesS1?.[selectedClass]?.[stdId] || stdRecord.s1 || stdRecord || {};
     const activeSource = semester === 's2' ? s2Source : s1Source;
 
+    const configuredExamsCount = (() => {
+      if (!selectedClass) return 3;
+      const winFn = typeof window !== 'undefined' ? (window as any).getExamsCountForClass : null;
+      if (typeof winFn === 'function') {
+        const n = Number(winFn(selectedClass));
+        if (!isNaN(n) && n >= 2 && n <= 4) return n;
+      }
+      const rawCfg = db?.classConfig?.[selectedClass];
+      const cfgN =
+        typeof rawCfg === 'number'
+          ? rawCfg
+          : rawCfg && typeof rawCfg === 'object'
+          ? Number(rawCfg.examsCount)
+          : Number(rawCfg);
+      if (!isNaN(cfgN) && cfgN >= 2 && cfgN <= 4) return cfgN;
+      return 3;
+    })();
+
     const f1: number | null = parseGradeVal(activeSource.f1);
     const f2: number | null = parseGradeVal(activeSource.f2);
-    const f3: number | null = parseGradeVal(activeSource.f3);
-    const f4: number | null = parseGradeVal(activeSource.f4);
+    const f3: number | null = configuredExamsCount >= 3 ? parseGradeVal(activeSource.f3) : null;
+    const f4: number | null = configuredExamsCount >= 4 ? parseGradeVal(activeSource.f4) : null;
+    const hasF4 = configuredExamsCount >= 4 || f4 !== null;
+    const hasF3 = hasF4 || configuredExamsCount >= 3 || f3 !== null;
 
     const validProctored = [f1, f2, f3, f4].filter((v): v is number => v !== null && !isNaN(v));
     const proctoredAvg = validProctored.length > 0
@@ -206,6 +226,8 @@ export const AiComparativePerformanceModal: React.FC<StudentAiComparativeModalPr
       f2,
       f3,
       f4,
+      hasF3,
+      hasF4,
       proctoredAvg,
       activitiesScore,
       gap,
@@ -448,7 +470,7 @@ ${analysisResult.recommendationsForStudent.slice(0, 2).map((r, i) => `• ${r}`)
                     <span>معدل الفروض المحروسة الكتابية</span>
                   </span>
                   <span className="text-[10px] font-mono font-bold bg-blue-200/60 text-blue-800 px-2 py-0.5 rounded-md">
-                    {studentMetrics.f4 !== null ? 'F1, F2, F3, F4' : 'F1, F2, F3'}
+                    {studentMetrics.hasF4 ? 'F1, F2, F3, F4' : studentMetrics.hasF3 ? 'F1, F2, F3' : 'F1, F2'}
                   </span>
                 </div>
                 <div className="my-2 flex items-baseline gap-2">
@@ -460,9 +482,11 @@ ${analysisResult.recommendationsForStudent.slice(0, 2).map((r, i) => `• ${r}`)
                 <div className="text-[11px] text-blue-800 flex items-center flex-wrap gap-2 border-t border-blue-200/60 pt-1.5">
                   <span>ف1: <strong>{studentMetrics.f1 !== null ? studentMetrics.f1 : '-'}</strong></span>
                   <span>ف2: <strong>{studentMetrics.f2 !== null ? studentMetrics.f2 : '-'}</strong></span>
-                  <span>ف3: <strong>{studentMetrics.f3 !== null ? studentMetrics.f3 : '-'}</strong></span>
-                  {studentMetrics.f4 !== null && (
-                    <span>ف4: <strong>{studentMetrics.f4}</strong></span>
+                  {studentMetrics.hasF3 && (
+                    <span>ف3: <strong>{studentMetrics.f3 !== null ? studentMetrics.f3 : '-'}</strong></span>
+                  )}
+                  {studentMetrics.hasF4 && (
+                    <span>ف4: <strong>{studentMetrics.f4 !== null ? studentMetrics.f4 : '-'}</strong></span>
                   )}
                 </div>
               </div>
