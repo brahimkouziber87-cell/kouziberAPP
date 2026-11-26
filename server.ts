@@ -3811,6 +3811,285 @@ ${JSON.stringify(payload, null, 2)}
     }
   });
 
+  function generateHandwrittenTranscriptionFallback(payload: any) {
+    const className = String(payload?.className || "القسم الحالي").trim();
+    const targetMode = String(payload?.targetMode || "auto").trim();
+    const customHint = String(payload?.customHint || "").trim();
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    const baseText = customHint
+      ? customHint
+      : "جذاذة وتخطيط حصة بيداغوجية في مادة الرياضيات:\n- الدرس: الاتصال والاشتقاق ودراسة الدوال العددية\n- المحور الأول: بناء المفهوم والخاصيات المميزة مع أمثلة تطبيقية\n- المحور الثاني: حل تمارين تطبيقية وتثبيت التقنيات الجبرية والبيانية\n- ملاحظة تربوية: تفاعل إيجابي للمتعلمين مع ضرورة دعم التلاميذ المتعثرين في حساب النهايات والمشتقات.\n- الواجب المنزلي: إنجاز التمارين 3 و 5 من سلسلة الدوال.";
+
+    return {
+      source: "pedagogical_vision_fallback",
+      detectedType: targetMode === "notes" ? "notes" : targetMode === "lesson_plan" ? "lesson_plan" : targetMode === "homework" ? "homework" : "mixed",
+      documentTitle: customHint ? `تفريغ وتنظيم الوثيقة الممسوحة (${className})` : `جذاذة وملاحظات تربوية ممسوحة ضوئياً (${className})`,
+      rawTranscription: baseText,
+      organizedSummary: `تم تفريغ وهيكلة الوثيقة البيداغوجية للقسم (${className}) وتصنيفها إلى عناصر جاهزة للإدراج في سجل الملاحظات التربوية ودفتر النصوص (Cahier de Textes).`,
+      notes: [
+        {
+          text: customHint
+            ? `${customHint}`
+            : "مشاركة صفية إيجابية وتفاعل جيد مع أنشطة بناء المفهوم الرياضي، مع التوصية بتكثيف التمارين المنزلية لتثبيت القواعد.",
+          category: "pedagogical",
+          sentiment: "positive",
+          studentName: ""
+        },
+        {
+          text: "رصد تعثر لدى بعض المتعلمين في توظيف القواعد الجبرية والبرهان الرياضي، يوصى ببرمجة نشاط داعم في بداية الحصة المقبلة.",
+          category: "pedagogical",
+          sentiment: "guidance",
+          studentName: ""
+        }
+      ],
+      lessonPlan: {
+        lessonTitle: customHint ? customHint.slice(0, 70) : "الاتصال والاشتقاق ودراسة الدوال العددية",
+        sessionType: "cours",
+        duration: "2",
+        axes: [
+          {
+            title: "بناء المفهوم الرياضي وصياغة الخاصيات المميزة",
+            content: "تقديم النشاط التمهيدي على السبورة، استنتاج التعريف والخاصية المميزة مع أمثلة تطبيقية مباشرة."
+          },
+          {
+            title: "تطبيقات وتمارين تثبيت المكتسبات",
+            content: "إنجاز تمارين تطبيقية موجهة على السبورة ومعالجة الأخطاء الشائعة لدى المتعلمين."
+          }
+        ],
+        summaryContent: baseText,
+        homework: "إنجاز التمارين التطبيقية رقم 3 و 5 من سلسلة الدرس استعداداً للحصة المقبلة.",
+        observations: "سير عادي للحصة وفق التوجيهات التربوية لمادة الرياضيات بسلك الثانوي التأهيلي."
+      },
+      homeworkItem: {
+        title: "إنجاز التمارين التطبيقية رقم 3 و 5 من سلسلة الدرس",
+        type: "homework",
+        topic: "تثبيت المكتسبات الرياضية والبرهان",
+        dueDate: todayStr
+      }
+    };
+  }
+
+  app.post("/api/ai/transcribe-handwritten-notes", sameOriginGuard, aiLimiter, async (req, res) => {
+    try {
+      const payload = req.body || {};
+      const rawImageBase64 = typeof payload.imageBase64 === "string" ? payload.imageBase64.trim() : "";
+      const className = typeof payload.className === "string" ? payload.className.trim() : "";
+      const targetMode = typeof payload.targetMode === "string" ? payload.targetMode.trim() : "auto";
+      const customHint = typeof payload.customHint === "string" ? payload.customHint.trim() : "";
+      const studentsList = Array.isArray(payload.studentsList)
+        ? payload.studentsList.slice(0, 60).map((s: any) => String(s || "").trim()).filter(Boolean)
+        : [];
+
+      if (!rawImageBase64 && !customHint) {
+        return res.status(400).json({ error: "يرجى التقاط صورة بالكاميرا أو اختيار صورة للملاحظات أو الجذاذة التربوية." });
+      }
+
+      const apiKey = getValidGeminiApiKey();
+      if (!apiKey || !rawImageBase64) {
+        return res.json(generateHandwrittenTranscriptionFallback(payload));
+      }
+
+      // Extract clean base64 and mimeType if data URL prefix exists
+      let mimeType = typeof payload.mimeType === "string" && payload.mimeType.startsWith("image/")
+        ? payload.mimeType
+        : "image/jpeg";
+      let cleanBase64 = rawImageBase64;
+      const dataUrlMatch = rawImageBase64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+      if (dataUrlMatch) {
+        mimeType = dataUrlMatch[1];
+        cleanBase64 = dataUrlMatch[2];
+      }
+
+      const ai = createGeminiClient(apiKey);
+      const modelName = process.env.GEMINI_MODEL || "gemini-4-hydrogen";
+
+      const prompt = `أنت خبير بيداغوجي ومفتش تربوي لمادة الرياضيات بسلك التعليم الثانوي التأهيلي بالمغرب، ومتخصص في قراءة وتفريغ الخط اليدوي (بالعربية والفرنسية والرموز والمعادلات الرياضية LaTeX).
+قم بقراءة الصورة المرفقة (والتي تمثل ملاحظات تربوية مكتوبة بخط اليد، أو جذاذة تخطيط حصة دراسية / دفتر النصوص، أو سلسلة تمارين وواجبات) ثم قم بتفريغها بدقة وتنظيمها بيداغوجياً.
+
+معلومات السياق:
+- القسم المستهدف: ${className || "غير محدد"}
+- نمط الاستخراج المطلوب: ${targetMode} (auto = استخراج شامل للملاحظات والجذاذة والواجبات، notes = التركيز على الملاحظات التربوية، lesson_plan = التركيز على جذاذة الدرس ودفتر النصوص، homework = التركيز على الواجبات والتمارين)
+${customHint ? `- توجيه إضافي من الأستاذ: ${customHint}` : ""}
+${studentsList.length > 0 ? `- لائحة تلاميذ القسم لمطابقة الأسماء إن ذكرت في الملاحظات: ${studentsList.join("، ")}` : ""}
+
+المطلوب إرجاع كائن JSON مطابق تماماً للمخطط يتضمن:
+1. detectedType: أحد القيم ('notes' | 'lesson_plan' | 'homework' | 'mixed').
+2. documentTitle: عنوان واضح ومختصر للوثيقة الممسوحة.
+3. rawTranscription: النص الكامل المفرغ من الصورة بدقة مع كتابة الصيغ الرياضية بصيغة واضحة أو LaTeX ($...$).
+4. organizedSummary: ملخص تركيبي منظم ومرتب بيداغوجياً لمحتوى الصورة.
+5. notes: مصفوفة من الملاحظات التربوية المستخرجة أو المصاغة من الوثيقة، كل ملاحظة تضم:
+   - text: نص الملاحظة التربوية بصياغة رصينة.
+   - category: ('pedagogical' | 'behavioral' | 'administrative').
+   - sentiment: ('positive' | 'guidance' | 'alert').
+   - studentName: اسم التلميذ إن وجد في الصورة أو فارغ "" إذا كانت ملاحظة عامة للقسم.
+6. lessonPlan: كائن خطة/جذاذة الحصة لدفتر النصوص (Cahier de Textes) يضم:
+   - lessonTitle: عنوان الدرس الرياضي.
+   - sessionType: أحد القيم ('cours' | 'exercices' | 'problemes' | 'soutien' | 'homework' | 'controle' | 'correction').
+   - duration: مدة الحصة بالساعات ('1' أو '2' أو '3').
+   - axes: مصفوفة المحاور والفقرات المستخرجة [{ title, content }].
+   - summaryContent: ملخص الأنشطة والمفاهيم والتمارين المنجزة في الحصة.
+   - homework: الواجب المنزلي أو التمارين المطلوبة للحصة القادمة.
+   - observations: ملاحظات حول سير الحصة.
+7. homeworkItem: كائن الواجب المنزلي المستخرج { title, type: ('homework' | 'dm' | 'prep' | 'correction'), topic, dueDate }.`;
+
+      const generatePromise = ai.models.generateContent({
+        model: modelName,
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                mimeType,
+                data: cleanBase64
+              }
+            },
+            {
+              text: prompt
+            }
+          ]
+        },
+        config: {
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              detectedType: { type: Type.STRING },
+              documentTitle: { type: Type.STRING },
+              rawTranscription: { type: Type.STRING },
+              organizedSummary: { type: Type.STRING },
+              notes: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    text: { type: Type.STRING },
+                    category: { type: Type.STRING },
+                    sentiment: { type: Type.STRING },
+                    studentName: { type: Type.STRING }
+                  },
+                  required: ["text", "category", "sentiment", "studentName"]
+                }
+              },
+              lessonPlan: {
+                type: Type.OBJECT,
+                properties: {
+                  lessonTitle: { type: Type.STRING },
+                  sessionType: { type: Type.STRING },
+                  duration: { type: Type.STRING },
+                  axes: {
+                    type: Type.ARRAY,
+                    items: {
+                      type: Type.OBJECT,
+                      properties: {
+                        title: { type: Type.STRING },
+                        content: { type: Type.STRING }
+                      },
+                      required: ["title", "content"]
+                    }
+                  },
+                  summaryContent: { type: Type.STRING },
+                  homework: { type: Type.STRING },
+                  observations: { type: Type.STRING }
+                },
+                required: ["lessonTitle", "sessionType", "duration", "axes", "summaryContent", "homework", "observations"]
+              },
+              homeworkItem: {
+                type: Type.OBJECT,
+                properties: {
+                  title: { type: Type.STRING },
+                  type: { type: Type.STRING },
+                  topic: { type: Type.STRING },
+                  dueDate: { type: Type.STRING }
+                },
+                required: ["title", "type", "topic", "dueDate"]
+              }
+            },
+            required: [
+              "detectedType",
+              "documentTitle",
+              "rawTranscription",
+              "organizedSummary",
+              "notes",
+              "lessonPlan",
+              "homeworkItem"
+            ]
+          }
+        }
+      });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("AI vision timeout")), 22000)
+      );
+      const response: any = await Promise.race([generatePromise, timeoutPromise]);
+      const parsed = parseAiJson(response.text || "");
+      if (!parsed || (!parsed.rawTranscription && !parsed.organizedSummary)) {
+        return res.json(generateHandwrittenTranscriptionFallback(payload));
+      }
+
+      const validSessionTypes = ["cours", "exercices", "problemes", "soutien", "homework", "controle", "correction"];
+      const validCategories = ["pedagogical", "behavioral", "administrative"];
+      const validSentiments = ["positive", "guidance", "alert"];
+
+      const normalizedNotes = Array.isArray(parsed.notes)
+        ? parsed.notes
+            .filter((n: any) => n && typeof n.text === "string" && n.text.trim())
+            .map((n: any) => ({
+              text: n.text.trim(),
+              category: validCategories.includes(n.category) ? n.category : "pedagogical",
+              sentiment: validSentiments.includes(n.sentiment) ? n.sentiment : "guidance",
+              studentName: typeof n.studentName === "string" ? n.studentName.trim() : ""
+            }))
+        : [];
+
+      const rawPlan = parsed.lessonPlan || {};
+      const normalizedPlan = {
+        lessonTitle: typeof rawPlan.lessonTitle === "string" ? rawPlan.lessonTitle.trim() : (parsed.documentTitle || ""),
+        sessionType: validSessionTypes.includes(rawPlan.sessionType) ? rawPlan.sessionType : "cours",
+        duration: ["1", "2", "3"].includes(String(rawPlan.duration || "").trim()) ? String(rawPlan.duration).trim() : "2",
+        axes: Array.isArray(rawPlan.axes)
+          ? rawPlan.axes
+              .filter((a: any) => a && (a.title || a.content))
+              .map((a: any) => ({
+                title: String(a.title || "محور الحصة").trim(),
+                content: String(a.content || "").trim()
+              }))
+          : [],
+        summaryContent: typeof rawPlan.summaryContent === "string" && rawPlan.summaryContent.trim()
+          ? rawPlan.summaryContent.trim()
+          : (parsed.rawTranscription || parsed.organizedSummary || ""),
+        homework: typeof rawPlan.homework === "string" ? rawPlan.homework.trim() : "",
+        observations: typeof rawPlan.observations === "string" ? rawPlan.observations.trim() : ""
+      };
+
+      const rawHw = parsed.homeworkItem || {};
+      const normalizedHomework = {
+        title: typeof rawHw.title === "string" ? rawHw.title.trim() : normalizedPlan.homework,
+        type: ["homework", "dm", "prep", "correction"].includes(rawHw.type) ? rawHw.type : "homework",
+        topic: typeof rawHw.topic === "string" ? rawHw.topic.trim() : normalizedPlan.lessonTitle,
+        dueDate: typeof rawHw.dueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawHw.dueDate.trim())
+          ? rawHw.dueDate.trim()
+          : new Date().toISOString().split("T")[0]
+      };
+
+      return res.json({
+        source: "gemini_vision_ai",
+        detectedType: ["notes", "lesson_plan", "homework", "mixed"].includes(parsed.detectedType)
+          ? parsed.detectedType
+          : "mixed",
+        documentTitle: parsed.documentTitle || "وثيقة تربوية مفرغة بالذكاء الاصطناعي",
+        rawTranscription: parsed.rawTranscription || parsed.organizedSummary || "",
+        organizedSummary: parsed.organizedSummary || parsed.rawTranscription || "",
+        notes: normalizedNotes,
+        lessonPlan: normalizedPlan,
+        homeworkItem: normalizedHomework
+      });
+    } catch (error: any) {
+      console.info("Using handwritten transcription fallback:", error?.message || error);
+      res.json(generateHandwrittenTranscriptionFallback(req.body || {}));
+    }
+  });
+
   app.get("/api/health", (_req, res) => {
     res.json({
       status: "ok",

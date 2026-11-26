@@ -4452,6 +4452,10 @@
                                 <span data-lucide="printer" data-size="13"></span>
                                 <span>طباعة السجل والإحصائيات النوعية</span>
                             </button>
+                            <button type="button" id="btnOpenCameraNotesScannerHeader" class="btn-primary" onclick="window.openHandwrittenCameraScannerModal && window.openHandwrittenCameraScannerModal('notes', document.getElementById('notesClassSelect') ? document.getElementById('notesClassSelect').value : '')" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex: 0 1 auto; white-space: nowrap; font-size: 0.72rem; background: linear-gradient(135deg, #0d9488, #0f766e); font-weight: 800; padding: 5px 10px; border-radius: 7px; box-shadow: 0 2px 5px rgba(13, 148, 136, 0.28); color: #fff;" title="التقاط صورة للملاحظات المكتوبة بخط اليد أو الجذاذات التربوية بالكاميرا وتفريغها وتنظيمها بواسطة Gemini AI">
+                                <span data-lucide="camera" data-size="13"></span>
+                                <span>مسح الملاحظات بالكاميرا (Gemini AI) 📸</span>
+                            </button>
                             <button type="button" id="btnOpenAiNotesSummaryHub" class="btn-primary" onclick="window.summarizeNotesWithAI && window.summarizeNotesWithAI()" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex: 0 1 auto; white-space: nowrap; font-size: 0.72rem; background: linear-gradient(135deg, #4f46e5, #6d28d9); font-weight: 800; padding: 5px 10px; border-radius: 7px; box-shadow: 0 2px 5px rgba(79, 70, 229, 0.28); color: #fff;" title="توليد وتلخيص الملاحظات التربوية بالذكاء الاصطناعي لصياغة تقارير تركيبية نوعية للقسم أو التلميذ">
                                 <span data-lucide="brain-circuit" data-size="13"></span>
                                 <span>توليد وتلخيص التقارير بالذكاء الاصطناعي 🤖</span>
@@ -4886,6 +4890,10 @@
                                     <span data-lucide="sparkles" data-size="14"></span>
                                     <span>توليد / تحسين الصياغة بالذكاء الاصطناعي 🤖</span>
                                 </button>
+                                <button type="button" id="btnScanHandwrittenNoteWithCamera" onclick="window.openHandwrittenCameraScannerModal && window.openHandwrittenCameraScannerModal('notes', document.getElementById('notesClassSelect') ? document.getElementById('notesClassSelect').value : '')" style="background: linear-gradient(135deg, #0d9488, #0f766e); color: #ffffff; border: none; padding: 8px 15px; border-radius: 8px; font-size: 0.81rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgba(13, 148, 136, 0.25);" title="التقاط صورة لملاحظاتك التربوية المكتوبة بخط اليد أو جذاذتك بالكاميرا وتفريغها وتنظيمها عبر Gemini AI">
+                                    <span data-lucide="camera" data-size="14"></span>
+                                    <span>تصوير ومسح ملاحظات خط اليد (Gemini AI) 📸</span>
+                                </button>
                                 <button type="button" onclick="window.summarizeNotesWithAI && window.summarizeNotesWithAI()" style="background: #eef2ff; color: #4338ca; border: 1.5px solid #c7d2fe; padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="تلخيص جميع الملاحظات المسجلة وصياغة تقرير تركيبي نوعي للقسم">
                                     <span data-lucide="file-text" data-size="14"></span>
                                     <span>تلخيص الملاحظات في تقرير نوعي 📋</span>
@@ -5021,6 +5029,11 @@
 
                     <!-- Header Action Buttons -->
                     <div class="lesson-log-header-actions" style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; width: 100%;">
+                        <!-- Camera Handwritten Pedagogical Plan / Lesson Log Scanner (Gemini Vision AI) -->
+                        <button type="button" id="btnOpenCameraPlanScannerHeader" onclick="window.openHandwrittenCameraScannerModal && window.openHandwrittenCameraScannerModal('lesson_plan', document.getElementById('lessonLogClassSelect') ? document.getElementById('lessonLogClassSelect').value : '')" class="btn-primary" style="background: linear-gradient(135deg, #0d9488, #0f766e); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 3px 8px rgba(13,148,136,0.28); color: #fff; cursor: pointer;" title="تصوير جذاذة الدرس أو التخطيط التربوي المكتوب بخط اليد بالكاميرا وتفريغه وتنظيمه تلقائياً في دفتر النصوص عبر Gemini AI">
+                            <span data-lucide="camera" data-size="16"></span>
+                            <span>مسح الجذاذة والتخطيط بالكاميرا (Gemini AI) 📸</span>
+                        </button>
                         <!-- LaTeX Equation & Formula Editor for Lesson Log + External Docs Reprography Calculator -->
                         <button type="button" id="btnOpenLatexMathModal" onclick="openLatexMathModal('editor')" class="btn-primary" style="background: linear-gradient(135deg, #4f46e5, #3730a3); border: none; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 7px; box-shadow: 0 3px 8px rgba(79,70,229,0.28); color: #fff; cursor: pointer;" title="محرر معادلات وصيغ LaTeX المدمج لدفتر النصوص وبنك الصيغ والمبرهنات الرياضية">
                             <span data-lucide="function-square" data-size="16"></span>
@@ -5177,6 +5190,10 @@
                         </span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" id="btnScanHandwrittenLessonPlanForm" onclick="window.openHandwrittenCameraScannerModal && window.openHandwrittenCameraScannerModal('lesson_plan', document.getElementById('lessonLogClassSelect') ? document.getElementById('lessonLogClassSelect').value : '')" class="btn-secondary" style="background: #f0fdfa; border: 1.5px solid #5eead4; color: #0f766e; padding: 5px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;" title="التقاط صورة لجذاذة التحضير أو خطة الدرس اليدوية بالكاميرا وتعبئة الحقول تلقائياً بواسطة Gemini AI">
+                            <span data-lucide="camera" data-size="13"></span>
+                            <span>تصوير جذاذة خط اليد (Gemini AI) 📸</span>
+                        </button>
                         <button type="button" onclick="autoFillSessionFromRecentAttendance()" class="btn-secondary" style="background: #fffbeb; border: 1px solid #fde68a; color: #b45309; padding: 5px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s;" title="استيراد التاريخ والتوقيت من آخر حصة تم تسجيل حضورها في قسم الغياب والمتابعة">
                             <span data-lucide="check-circle-2" data-size="13"></span>
                             <span>استيراد من الغياب والمتابعة</span>
@@ -9163,6 +9180,7 @@ f(x) = x - 1 + ln(x) / x
     <script defer src="/desktop-app.js?v=3.9"></script>
     <script defer src="/chunked-pdf-engine.js?v=3.9.6"></script>
     <script defer src="/ministerial-decrees-library.js?v=3.9"></script>
+    <script defer src="/camera-notes-scanner.js?v=4.8.0"></script>
 
     <!-- زر الرجوع إلى أعلى الصفحة بتمرير ناعم -->
     <button type="button" id="btnScrollToTop" class="scroll-to-top-btn" onclick="scrollToTop()" title="الرجوع إلى أعلى الصفحة" aria-label="الرجوع للأعلى">

@@ -2849,3 +2849,141 @@ test('Moroccan Pedagogical Guidelines (2007) & Ministerial Note 142-08 Deep Alig
     assert.ok(repEvoSrc.includes('المراقبة المستمرة والأحرار') && repEvoSrc.includes('معامل 1 للمتمدرسين - فرضان في كل دورة'), 'ReportsEvolutionChart.tsx must distinguish 2BAC LSH regular school assessment from free-candidate national exam');
 });
 
+test('Camera & Gemini Vision AI Handwritten Notes and Pedagogical Plans Scanner: modal UI, vision transcription endpoint, notes & lesson log saving', async () => {
+    const serverSrc = fs.readFileSync(path.join(ROOT, 'server.ts'), 'utf8');
+    const indexHtmlSrc = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+
+    // 1. Verify server.ts endpoint and Gemini multimodal inlineData configuration
+    assert.ok(serverSrc.includes('app.post("/api/ai/transcribe-handwritten-notes"'), 'server.ts must expose POST /api/ai/transcribe-handwritten-notes');
+    assert.ok(serverSrc.includes('inlineData: {') && serverSrc.includes('mimeType,') && serverSrc.includes('data: cleanBase64'), 'server.ts must pass multimodal inlineData to Gemini');
+
+    // 2. Verify index.html buttons and script tag
+    assert.ok(indexHtmlSrc.includes('id="btnOpenCameraNotesScannerHeader"'), 'index.html must include camera scanner button in notesView header');
+    assert.ok(indexHtmlSrc.includes('id="btnScanHandwrittenNoteWithCamera"'), 'index.html must include camera scanner button in note editor');
+    assert.ok(indexHtmlSrc.includes('id="btnOpenCameraPlanScannerHeader"'), 'index.html must include camera scanner button in lessonLogView header');
+    assert.ok(indexHtmlSrc.includes('src="/camera-notes-scanner.js'), 'index.html must load /camera-notes-scanner.js');
+
+    // 3. Execute camera-notes-scanner.js in DOM sandbox and test transcription -> notes, lesson log, and homework saving
+    const { win, sandbox } = createDomSandbox(`<!DOCTYPE html><html dir="rtl" lang="ar"><body>
+        <div id="notesView" style="display: block;">
+            <select id="notesClassSelect"><option value="2BAC-PC-1" selected>2BAC-PC-1</option></select>
+            <select id="newNoteCategorySelect"><option value="pedagogical">pedagogical</option><option value="behavioral">behavioral</option></select>
+            <select id="newNoteSentimentSelect"><option value="positive">positive</option><option value="guidance">guidance</option><option value="alert">alert</option></select>
+            <textarea id="newNoteText"></textarea>
+        </div>
+        <div id="lessonLogView" style="display: none;">
+            <select id="lessonLogClassSelect"><option value="2BAC-PC-1" selected>2BAC-PC-1</option></select>
+            <input id="lessonLogDate" value="2026-11-26" />
+            <input id="lessonLogNumber" value="" />
+            <select id="lessonLogSessionType"><option value="cours">cours</option><option value="exercices">exercices</option></select>
+            <textarea id="lessonLogSummary"></textarea>
+            <input id="lessonLogHomework" value="" />
+        </div>
+    </body></html>`);
+
+    win.db = {
+        classes: {
+            '2BAC-PC-1': [
+                { id: 101, name: 'أحمد العلمي' },
+                { id: 102, name: 'سلمى بنعلي' }
+            ]
+        },
+        notes: { '2BAC-PC-1': [] },
+        lessonLogs: { '2BAC-PC-1': [] },
+        homeworkAgenda: { '2BAC-PC-1': [] }
+    };
+    win.saveDB = () => {};
+    win.renderNotes = () => {};
+    win.renderLessonLogs = () => {};
+    win.renderHomeworkAgenda = () => {};
+    win.notifySafeToast = () => {};
+
+    // Mock fetch to simulate Gemini Vision AI response
+    const mockGeminiVisionResponse = {
+        source: 'gemini_vision_ai',
+        detectedType: 'mixed',
+        documentTitle: 'جذاذة وملاحظات درس الاتصال والاشتقاق',
+        rawTranscription: 'الدرس: الاتصال والاشتقاق - مبرهنة القيم الوسيطية. ملاحظة: تفوق التلميذ أحمد العلمي في البرهان الرياضي.',
+        organizedSummary: 'حصة بناء مفهوم الاتصال ومبرهنة القيم الوسيطية مع رصد تفاعل التلاميذ.',
+        notes: [
+            {
+                text: 'تفوق التلميذ أحمد العلمي في توظيف مبرهنة القيم الوسيطية والبرهان الرياضي.',
+                category: 'pedagogical',
+                sentiment: 'positive',
+                studentName: 'أحمد العلمي'
+            },
+            {
+                text: 'ضرورة إنجاز التمارين التطبيقية لتثبيت حساب النهايات.',
+                category: 'pedagogical',
+                sentiment: 'guidance',
+                studentName: ''
+            }
+        ],
+        lessonPlan: {
+            lessonTitle: 'الاتصال والاشتقاق ودراسة الدوال',
+            sessionType: 'cours',
+            duration: '2',
+            axes: [
+                { title: 'مبرهنة القيم الوسيطية', content: 'تقديم المبرهنة والتأويل الهندسي وتطبيقها على المعادلة f(x)=0' }
+            ],
+            summaryContent: 'إرساء مبرهنة القيم الوسيطية وحل تمرين تطبيقي على السبورة.',
+            homework: 'إنجاز التمرين 4 و 5 ص 42 حول مبرهنة القيم الوسيطية',
+            observations: 'تفاعل جيد للقسم'
+        },
+        homeworkItem: {
+            title: 'إنجاز التمرين 4 و 5 ص 42 حول مبرهنة القيم الوسيطية',
+            type: 'homework',
+            topic: 'الاتصال والاشتقاق',
+            dueDate: '2026-11-30'
+        }
+    };
+
+    win.fetch = async () => ({
+        ok: true,
+        json: async () => mockGeminiVisionResponse
+    });
+    sandbox.fetch = win.fetch;
+
+    runPublicScript(sandbox, 'public/camera-notes-scanner.js');
+    const doc = win.document;
+
+    // Open modal
+    win.openHandwrittenCameraScannerModal('auto', '2BAC-PC-1');
+    const modal = doc.getElementById('handwrittenCameraScannerModal');
+    assert.ok(modal, 'handwrittenCameraScannerModal must be created in DOM');
+    assert.equal(modal.style.display, 'flex', 'Modal must be visible when opened');
+
+    // Provide custom hint and trigger Gemini analysis
+    const hintInput = doc.getElementById('cameraScannerCustomHintInput');
+    hintInput.value = 'جذاذة درس الاتصال والاشتقاق';
+    await win.analyzeHandwrittenImageWithGemini();
+
+    // Verify raw transcription populated
+    const rawTextarea = doc.getElementById('cameraScannerRawTranscriptionText');
+    assert.ok(rawTextarea.value.includes('مبرهنة القيم الوسيطية'), 'Transcribed text must populate in modal');
+
+    // Verify batch saving extracted notes matches student 'أحمد العلمي' (id 101) and general class note ('all')
+    const savedCount = win.saveAllExtractedNotesFromScanner();
+    assert.equal(savedCount, 2, 'Must save 2 extracted notes into db.notes');
+    assert.equal(win.db.notes['2BAC-PC-1'].length, 2);
+    assert.equal(win.db.notes['2BAC-PC-1'][0].studentId, '101', 'First note must match student أحمد العلمي (ID 101)');
+    assert.equal(win.db.notes['2BAC-PC-1'][0].sentiment, 'positive');
+    assert.equal(win.db.notes['2BAC-PC-1'][1].studentId, 'all', 'Second note must be saved as class-level note');
+
+    // Verify filling lesson log form
+    win.fillLessonLogFormFromScanner();
+    assert.equal(doc.getElementById('lessonLogNumber').value, 'الاتصال والاشتقاق ودراسة الدوال');
+    assert.ok(doc.getElementById('lessonLogSummary').value.includes('مبرهنة القيم الوسيطية'));
+    assert.ok(doc.getElementById('lessonLogHomework').value.includes('التمرين 4 و 5'));
+
+    // Verify direct saving to lesson logs and homework agenda
+    const savedLesson = win.saveExtractedLessonPlanDirectly();
+    assert.ok(savedLesson && savedLesson.number === 'الاتصال والاشتقاق ودراسة الدوال');
+    assert.equal(win.db.lessonLogs['2BAC-PC-1'].length, 1);
+
+    const savedHw = win.saveExtractedHomeworkToAgenda();
+    assert.ok(savedHw && savedHw.title.includes('التمرين 4 و 5'));
+    assert.equal(win.db.homeworkAgenda['2BAC-PC-1'].length, 1);
+});
+
+
