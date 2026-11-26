@@ -161,7 +161,11 @@
     function calculateStudentSemesterAverage(gradesObj, options) {
         if (!gradesObj || typeof gradesObj !== 'object') return null;
         const opts = options || {};
-        const examKeys = Array.isArray(opts.examKeys) ? opts.examKeys : ['f1', 'f2', 'f3', 'f4', 'exam1', 'exam2', 'exam3', 'exam4'];
+        const maxCount = (typeof opts.examCount === 'number' && opts.examCount >= 2 && opts.examCount <= 4)
+            ? opts.examCount
+            : 4;
+        const defaultKeys = ['f1', 'f2', 'f3', 'f4'].slice(0, maxCount).concat(['exam1', 'exam2', 'exam3', 'exam4'].slice(0, maxCount));
+        const examKeys = Array.isArray(opts.examKeys) ? opts.examKeys : defaultKeys;
         const examValues = [];
 
         for (let i = 0; i < examKeys.length; i++) {

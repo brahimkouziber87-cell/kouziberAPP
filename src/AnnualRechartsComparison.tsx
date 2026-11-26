@@ -224,15 +224,38 @@ export const AnnualRechartsComparison: React.FC<{
     };
 
     const getExamKeysForClass = (cName: string): string[] => {
-      let count = 3;
+      let count = 0;
       if (typeof win.getExamsCountForClass === 'function') {
         try {
-          count = Number(win.getExamsCountForClass(cName)) || 3;
+          count = Number(win.getExamsCountForClass(cName)) || 0;
         } catch {
+          count = 0;
+        }
+      }
+      if (!count && db.classConfig?.[cName] !== undefined) {
+        const rawCfg = db.classConfig[cName];
+        count = typeof rawCfg === 'object' && rawCfg ? Number(rawCfg.examsCount) || 0 : Number(rawCfg) || 0;
+      }
+      if (!count && db.settings?.examsCountByClass?.[cName]) {
+        count = Number(db.settings.examsCountByClass[cName]) || 0;
+      }
+      if (!count || count < 2 || count > 4) {
+        const upper = String(cName || '').toUpperCase();
+        if (upper.includes('SM') || String(cName).includes('رياضية')) count = 4;
+        else if (
+          upper.includes('TCL') ||
+          upper.includes('TCO') ||
+          upper.includes('LSH') ||
+          /(?:^|[^A-Z])SH(?:$|[^A-Z])/.test(upper) ||
+          String(cName).includes('آداب') ||
+          String(cName).includes('اداب') ||
+          String(cName).includes('إنسانية') ||
+          String(cName).includes('أصيل')
+        ) {
+          count = 2;
+        } else {
           count = 3;
         }
-      } else if (db.settings?.examsCountByClass?.[cName]) {
-        count = Number(db.settings.examsCountByClass[cName]) || 3;
       }
       return ['f1', 'f2', 'f3', 'f4'].slice(0, Math.max(1, Math.min(4, count)));
     };

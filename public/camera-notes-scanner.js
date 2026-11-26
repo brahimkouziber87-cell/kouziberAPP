@@ -34,11 +34,19 @@
         return '';
     }
 
+    function extractStudentsArrayFromClass(rawClass) {
+        if (!rawClass) return [];
+        if (Array.isArray(rawClass)) return rawClass;
+        if (Array.isArray(rawClass.students)) return rawClass.students;
+        return [];
+    }
+
     function getClassStudentsNamesList(className) {
-        if (!className || !window.db || !window.db.classes || !Array.isArray(window.db.classes[className])) {
+        if (!className || !window.db || !window.db.classes) {
             return [];
         }
-        return window.db.classes[className]
+        var students = extractStudentsArrayFromClass(window.db.classes[className]);
+        return students
             .map(function (s) { return s && s.name ? String(s.name).trim() : ''; })
             .filter(Boolean);
     }
@@ -685,7 +693,9 @@
         if (!window.db.notes) window.db.notes = {};
         if (!Array.isArray(window.db.notes[className])) window.db.notes[className] = [];
 
-        var students = (window.db.classes && Array.isArray(window.db.classes[className])) ? window.db.classes[className] : [];
+        var students = (window.db.classes && window.db.classes[className])
+            ? extractStudentsArrayFromClass(window.db.classes[className])
+            : [];
         var nowDate = new Date().toLocaleDateString('ar-MA');
         var baseId = Date.now();
 

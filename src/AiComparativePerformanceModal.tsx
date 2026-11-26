@@ -146,6 +146,20 @@ export const AiComparativePerformanceModal: React.FC<StudentAiComparativeModalPr
           ? Number(rawCfg.examsCount)
           : Number(rawCfg);
       if (!isNaN(cfgN) && cfgN >= 2 && cfgN <= 4) return cfgN;
+      const upper = String(selectedClass).toUpperCase();
+      if (upper.includes('SM') || selectedClass.includes('رياضية')) return 4;
+      if (
+        upper.includes('TCL') ||
+        upper.includes('TCO') ||
+        upper.includes('LSH') ||
+        /(?:^|[^A-Z])SH(?:$|[^A-Z])/.test(upper) ||
+        selectedClass.includes('آداب') ||
+        selectedClass.includes('اداب') ||
+        selectedClass.includes('إنسانية') ||
+        selectedClass.includes('أصيل')
+      ) {
+        return 2;
+      }
       return 3;
     })();
 

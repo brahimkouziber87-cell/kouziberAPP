@@ -184,12 +184,25 @@
         const streamCfg = (window.GradesCalculator && typeof window.GradesCalculator.getStreamOfficialConfig === 'function')
             ? window.GradesCalculator.getStreamOfficialConfig(className || '')
             : null;
-        const hasFourExams = !!(streamCfg && Number(streamCfg.examsPerSemester) >= 4);
-        const header = hasFourExams
-            ? ['رقم الترتيب', 'رقم مسار', 'الاسم الكامل', 'الفوج', 'الفرض 1', 'الفرض 2', 'الفرض 3', 'الفرض 4', 'الأنشطة المندمجة', 'المعدل الدوري']
-            : ['رقم الترتيب', 'رقم مسار', 'الاسم الكامل', 'الفوج', 'الفرض 1', 'الفرض 2', 'الفرض 3', 'الأنشطة المندمجة', 'المعدل الدوري'];
+        const examCount = (streamCfg && Number(streamCfg.examsPerSemester) >= 2 && Number(streamCfg.examsPerSemester) <= 4)
+            ? Number(streamCfg.examsPerSemester)
+            : 3;
+        const hasThreeExams = examCount >= 3;
+        const hasFourExams = examCount >= 4;
+        const header = [
+            'رقم الترتيب',
+            'رقم مسار',
+            'الاسم الكامل',
+            'الفوج',
+            'الفرض 1',
+            'الفرض 2',
+            ...(hasThreeExams ? ['الفرض 3'] : []),
+            ...(hasFourExams ? ['الفرض 4'] : []),
+            'الأنشطة المندمجة',
+            'المعدل الدوري'
+        ];
         const rows = [header.join(';')];
-        const list = Array.isArray(students) ? students : [];
+        const list = Array.isArray(students) ? students : (students && Array.isArray(students.students) ? students.students : []);
 
         list.forEach((st, idx) => {
             const grades = (st && st.grades && st.grades[sem]) ? st.grades[sem] : (st && st.grades ? st.grades : {});
@@ -200,17 +213,17 @@
             const act = grades.act !== undefined && grades.act !== null ? String(grades.act).replace('.', ',') : '';
             let avg = '';
             if (window.GradesCalculator && typeof window.GradesCalculator.calculateStudentSemesterAverage === 'function') {
-                const computed = window.GradesCalculator.calculateStudentSemesterAverage(grades);
+                const computed = window.GradesCalculator.calculateStudentSemesterAverage(grades, { examCount });
                 if (computed !== null) avg = String(computed).replace('.', ',');
             }
             const cells = [
                 idx + 1,
-                normalizeMassarStudentId(st.massarCode || st.cne || ''),
+                normalizeMassarStudentId(st.massarCode || st.massar || st.cne || ''),
                 String(st.name || '').replace(/;/g, ' ').trim(),
                 normalizeGroupValue(st.group || ''),
                 f1,
                 f2,
-                f3,
+                ...(hasThreeExams ? [f3] : []),
                 ...(hasFourExams ? [f4] : []),
                 act,
                 avg

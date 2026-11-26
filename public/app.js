@@ -47036,15 +47036,40 @@ ${log.notes || 'سير الحصة عادي'}
 
         function buildNotesPdfHTML(className, options) {
             const header = buildOfficialMoroccanHeader('سجل التوجيهات والملاحظات البيداغوجية للتلاميذ', className, null, options);
-            const students = (db.classes && db.classes[className]) ? db.classes[className] : [];
+            const rawCls = (db.classes && db.classes[className]) ? db.classes[className] : [];
+            const students = Array.isArray(rawCls) ? rawCls : (Array.isArray(rawCls.students) ? rawCls.students : []);
+            const classNotesSource = (db.notes && db.notes[className]) ? db.notes[className] : null;
+            const studentNotesMap = (db.studentNotes && db.studentNotes[className]) ? db.studentNotes[className] : {};
+            const behaviorsMap = (db.behaviors && db.behaviors[className]) ? db.behaviors[className] : {};
 
             const rowsHtml = students.map((std, idx) => {
-                const note = (db.notes && db.notes[className] && db.notes[className][std.id]) ? db.notes[className][std.id] : '';
+                let note = '';
+                if (Array.isArray(classNotesSource)) {
+                    const matchingNotes = classNotesSource
+                        .filter(n => n && n.text && (String(n.studentId) === String(std.id) || (n.studentName && std.name && String(std.name).includes(String(n.studentName)))))
+                        .map(n => String(n.text).trim())
+                        .filter(Boolean);
+                    if (matchingNotes.length > 0) {
+                        note = matchingNotes.join(' — ');
+                    }
+                } else if (classNotesSource && typeof classNotesSource === 'object' && classNotesSource[std.id]) {
+                    const rawNote = classNotesSource[std.id];
+                    note = typeof rawNote === 'object' && rawNote ? String(rawNote.text || '') : String(rawNote || '');
+                }
+                if (!note && studentNotesMap[std.id]) {
+                    note = String(studentNotesMap[std.id]);
+                }
+                if (!note && behaviorsMap[std.id] && behaviorsMap[std.id].note) {
+                    note = String(behaviorsMap[std.id].note);
+                }
+                const safeNoteHtml = note
+                    ? escapeHtml(note)
+                    : '<span style="color: #94a3b8; font-style: italic;">مستوى جيد وعادي</span>';
                 return `
                 <tr style="border-bottom: 1px solid #e2e8f0; background: ${idx % 2 === 0 ? '#fff' : '#f8fafc'};">
                     <td style="padding: 8px; text-align: center; font-weight: 700; color: #475569;">${std.orderNum || (idx + 1)}</td>
-                    <td style="padding: 8px 12px; text-align: right; font-weight: 800; color: #0f172a;">${std.name}</td>
-                    <td style="padding: 8px 12px; text-align: right; font-size: 0.88rem; color: #334155;">${note || '<span style="color: #94a3b8; font-style: italic;">مستوى جيد وعادي</span>'}</td>
+                    <td style="padding: 8px 12px; text-align: right; font-weight: 800; color: #0f172a;">${escapeHtml(std.name || '')}</td>
+                    <td style="padding: 8px 12px; text-align: right; font-size: 0.88rem; color: #334155;">${safeNoteHtml}</td>
                 </tr>`;
             }).join('');
 
@@ -47174,10 +47199,12 @@ ${log.notes || 'سير الحصة عادي'}
 
         function buildAnalysisPdfHTML(className, options) {
             const header = buildOfficialMoroccanHeader('بطاقة التحليل الإحصائي والتشخيص البيداغوجي لنتائج المراقبة المستمرة', className, null, options);
-            const students = (db.classes && db.classes[className]) ? db.classes[className] : [];
+            const rawCls = (db.classes && db.classes[className]) ? db.classes[className] : [];
+            const students = Array.isArray(rawCls) ? rawCls : (Array.isArray(rawCls.students) ? rawCls.students : []);
             const classGrades = (db.grades && db.grades[className]) ? db.grades[className] : {};
 
-            const examKeys = ['f1', 'f2', 'f3', 'f4'];
+            const classExamCount = (typeof getExamsCountForClass === 'function') ? (Number(getExamsCountForClass(className)) || 3) : 3;
+            const examKeys = ['f1', 'f2', 'f3', 'f4'].slice(0, Math.max(2, Math.min(4, classExamCount)));
             const examLabels = {
                 f1: 'الفرض المحروس 1',
                 f2: 'الفرض المحروس 2',
@@ -47187,8 +47214,29 @@ ${log.notes || 'سير الحصة عادي'}
 
             const examRows = [];
             let allScores = [];
+            let studentAvgs = [];
 
             const activeSem = window.activeSemester || 's1';
+            students.forEach((std, idx) => {
+                const semG = (typeof getStudentGradesBySemester === 'function')
+                    ? getStudentGradesBySemester(className, std.id, activeSem)
+                    : null;
+                const gObj = classGrades[std.id] || classGrades[idx] || {};
+                const stdScores = [];
+                examKeys.forEach(k => {
+                    const raw = (semG && semG[k] !== undefined && semG[k] !== '')
+                        ? semG[k]
+                        : (gObj[k] !== undefined ? gObj[k] : (gObj[activeSem] && gObj[activeSem][k] !== undefined ? gObj[activeSem][k] : (gObj.s1 && gObj.s1[k])));
+                    const val = parseFloat(String(raw !== undefined && raw !== null ? raw : '').replace(',', '.'));
+                    if (!isNaN(val) && val >= 0 && val <= 20) {
+                        stdScores.push(val);
+                    }
+                });
+                if (stdScores.length > 0) {
+                    studentAvgs.push(stdScores.reduce((a, b) => a + b, 0) / stdScores.length);
+                }
+            });
+
             examKeys.forEach(k => {
                 const scores = [];
                 students.forEach((std, idx) => {
@@ -47199,7 +47247,7 @@ ${log.notes || 'سير الحصة عادي'}
                     const raw = (semG && semG[k] !== undefined && semG[k] !== '')
                         ? semG[k]
                         : (gObj[k] !== undefined ? gObj[k] : (gObj[activeSem] && gObj[activeSem][k] !== undefined ? gObj[activeSem][k] : (gObj.s1 && gObj.s1[k])));
-                    const val = parseFloat(raw);
+                    const val = parseFloat(String(raw !== undefined && raw !== null ? raw : '').replace(',', '.'));
                     if (!isNaN(val) && val >= 0 && val <= 20) {
                         scores.push(val);
                         allScores.push(val);
@@ -47227,14 +47275,15 @@ ${log.notes || 'سير الحصة عادي'}
                 }
             });
 
-            const globalAvg = allScores.length > 0 ? (allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(2) : '---';
-            const globalPassRate = allScores.length > 0 ? Math.round((allScores.filter(v => v >= 10).length / allScores.length) * 100) : 0;
+            const metricBasis = studentAvgs.length > 0 ? studentAvgs : allScores;
+            const globalAvg = metricBasis.length > 0 ? (metricBasis.reduce((a, b) => a + b, 0) / metricBasis.length).toFixed(2) : '---';
+            const globalPassRate = metricBasis.length > 0 ? Math.round((metricBasis.filter(v => v >= 10).length / metricBasis.length) * 100) : 0;
 
-            // توزيع الفئات
-            const catVeryLow = allScores.filter(v => v < 8).length;
-            const catLow = allScores.filter(v => v >= 8 && v < 10).length;
-            const catMed = allScores.filter(v => v >= 10 && v < 14).length;
-            const catGood = allScores.filter(v => v >= 14).length;
+            // توزيع الفئات حسب معدلات التلاميذ
+            const catVeryLow = metricBasis.filter(v => v < 8).length;
+            const catLow = metricBasis.filter(v => v >= 8 && v < 10).length;
+            const catMed = metricBasis.filter(v => v >= 10 && v < 14).length;
+            const catGood = metricBasis.filter(v => v >= 14).length;
 
             return header + `
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; font-family: 'Cairo', system-ui, sans-serif;">
@@ -47252,7 +47301,7 @@ ${log.notes || 'سير الحصة عادي'}
                 </div>
                 <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; text-align: center;">
                     <div style="font-size: 0.75rem; color: #64748b; font-weight: 700;">الفئة المستهدفة بالدعم (<10)</div>
-                    <div style="font-size: 1.2rem; font-weight: 900; color: #d97706;">${catVeryLow + catLow} نقطة</div>
+                    <div style="font-size: 1.2rem; font-weight: 900; color: #d97706;">${catVeryLow + catLow} تلميذ(ة)</div>
                 </div>
             </div>
 
@@ -49964,8 +50013,8 @@ ${log.notes || 'سير الحصة عادي'}
                         <th>الدورة / الأسدس</th>
                         <th>الفرض 1</th>
                         <th>الفرض 2</th>
-                        <th>الفرض 3</th>
-                        <th>الفرض 4</th>
+                        ${clsExamCnt >= 3 ? '<th>الفرض 3</th>' : ''}
+                        ${clsExamCnt >= 4 ? '<th>الفرض 4</th>' : ''}
                         <th>معدل المراقبة المستمرة</th>
                         <th>الملاحظة والتقدير</th>
                     </tr>
@@ -49975,8 +50024,8 @@ ${log.notes || 'سير الحصة عادي'}
                         <td style="font-weight: 800; background: #f8fafc;">الأسدس الأول (S1)</td>
                         <td>${s1G.f1 !== undefined && s1G.f1 !== "" ? s1G.f1 : "-"}</td>
                         <td>${s1G.f2 !== undefined && s1G.f2 !== "" ? s1G.f2 : "-"}</td>
-                        <td>${s1G.f3 !== undefined && s1G.f3 !== "" ? s1G.f3 : "-"}</td>
-                        <td>${s1G.f4 !== undefined && s1G.f4 !== "" ? s1G.f4 : "-"}</td>
+                        ${clsExamCnt >= 3 ? `<td>${s1G.f3 !== undefined && s1G.f3 !== "" ? s1G.f3 : "-"}</td>` : ''}
+                        ${clsExamCnt >= 4 ? `<td>${s1G.f4 !== undefined && s1G.f4 !== "" ? s1G.f4 : "-"}</td>` : ''}
                         <td style="font-weight: 900; font-size: 10.5pt; color: #1e40af;">${s1Avg !== null ? s1Avg.toFixed(2) + " / 20" : "-"}</td>
                         <td style="font-weight: 700;">${s1Avg !== null ? (s1Avg >= 14 ? "متفوق" : s1Avg >= 12 ? "حسن" : s1Avg >= 10 ? "متوسط" : "يتطلب دعماً ومعالجة") : "-"}</td>
                     </tr>
@@ -49984,13 +50033,13 @@ ${log.notes || 'سير الحصة عادي'}
                         <td style="font-weight: 800; background: #f8fafc;">الأسدس الثاني (S2)</td>
                         <td>${s2G.f1 !== undefined && s2G.f1 !== "" ? s2G.f1 : "-"}</td>
                         <td>${s2G.f2 !== undefined && s2G.f2 !== "" ? s2G.f2 : "-"}</td>
-                        <td>${s2G.f3 !== undefined && s2G.f3 !== "" ? s2G.f3 : "-"}</td>
-                        <td>${s2G.f4 !== undefined && s2G.f4 !== "" ? s2G.f4 : "-"}</td>
+                        ${clsExamCnt >= 3 ? `<td>${s2G.f3 !== undefined && s2G.f3 !== "" ? s2G.f3 : "-"}</td>` : ''}
+                        ${clsExamCnt >= 4 ? `<td>${s2G.f4 !== undefined && s2G.f4 !== "" ? s2G.f4 : "-"}</td>` : ''}
                         <td style="font-weight: 900; font-size: 10.5pt; color: #047857;">${s2Avg !== null ? s2Avg.toFixed(2) + " / 20" : "-"}</td>
                         <td style="font-weight: 700;">${s2Avg !== null ? (s2Avg >= 14 ? "متفوق" : s2Avg >= 12 ? "حسن" : s2Avg >= 10 ? "متوسط" : "يتطلب دعماً ومعالجة") : "-"}</td>
                     </tr>
                     <tr style="background: #f1f5f9; font-weight: 900;">
-                        <td colspan="5" style="text-align: left; padding-left: 14px;">المعدل السنوي الإجمالي لمادة الرياضيات:</td>
+                        <td colspan="${1 + Math.min(4, Math.max(2, clsExamCnt))}" style="text-align: left; padding-left: 14px;">المعدل السنوي الإجمالي لمادة الرياضيات:</td>
                         <td style="color: #4338ca; font-size: 11pt;">${annualAvg !== null ? annualAvg.toFixed(2) + " / 20" : "-"}</td>
                         <td>${annualAvg !== null ? (annualAvg >= 10 ? "مستوفٍ للعتبة ✅" : "دون العتبة ⚠️") : "-"}</td>
                     </tr>
@@ -50428,8 +50477,8 @@ ${log.notes || 'سير الحصة عادي'}
                                             <th style="padding: 5px 6px; text-align: right;">الأسدس</th>
                                             <th style="padding: 5px 6px; text-align: center;">F1</th>
                                             <th style="padding: 5px 6px; text-align: center;">F2</th>
-                                            <th style="padding: 5px 6px; text-align: center;">F3</th>
-                                            <th style="padding: 5px 6px; text-align: center;">F4</th>
+                                            ${((typeof getExamsCountForClass === 'function' ? getExamsCountForClass(focusClass) : 3) >= 3) ? '<th style="padding: 5px 6px; text-align: center;">F3</th>' : ''}
+                                            ${((typeof getExamsCountForClass === 'function' ? getExamsCountForClass(focusClass) : 3) >= 4) ? '<th style="padding: 5px 6px; text-align: center;">F4</th>' : ''}
                                             <th style="padding: 5px 6px; text-align: center;">معدل الفروض</th>
                                         </tr>
                                     </thead>
@@ -50438,8 +50487,8 @@ ${log.notes || 'سير الحصة عادي'}
                                             <td style="padding: 6px; font-weight: 800; color: #60a5fa;">الأسدس 1 (S1)</td>
                                             <td style="padding: 6px; text-align: center; color: #f1f5f9;">${s.s1Grades.f1 !== undefined && s.s1Grades.f1 !== '' ? s.s1Grades.f1 : '-'}</td>
                                             <td style="padding: 6px; text-align: center; color: #f1f5f9;">${s.s1Grades.f2 !== undefined && s.s1Grades.f2 !== '' ? s.s1Grades.f2 : '-'}</td>
-                                            <td style="padding: 6px; text-align: center; color: #f1f5f9;">${s.s1Grades.f3 !== undefined && s.s1Grades.f3 !== '' ? s.s1Grades.f3 : '-'}</td>
-                                            <td style="padding: 6px; text-align: center; color: #f1f5f9;">${s.s1Grades.f4 !== undefined && s.s1Grades.f4 !== '' ? s.s1Grades.f4 : '-'}</td>
+                                            ${((typeof getExamsCountForClass === 'function' ? getExamsCountForClass(focusClass) : 3) >= 3) ? `<td style="padding: 6px; text-align: center; color: #f1f5f9;">${s.s1Grades.f3 !== undefined && s.s1Grades.f3 !== '' ? s.s1Grades.f3 : '-'}</td>` : ''}
+                                            ${((typeof getExamsCountForClass === 'function' ? getExamsCountForClass(focusClass) : 3) >= 4) ? `<td style="padding: 6px; text-align: center; color: #f1f5f9;">${s.s1Grades.f4 !== undefined && s.s1Grades.f4 !== '' ? s.s1Grades.f4 : '-'}</td>` : ''}
                                             <td style="padding: 6px; text-align: center;">
                                                 <span style="font-size: 0.76rem; font-weight: 900; padding: 2px 8px; border-radius: 6px; ${s1Cond.cssText || ''}">
                                                     ${s.s1Avg !== null ? s.s1Avg.toFixed(2) : '-'}
@@ -50450,8 +50499,8 @@ ${log.notes || 'سير الحصة عادي'}
                                             <td style="padding: 6px; font-weight: 800; color: #34d399;">الأسدس 2 (S2)</td>
                                             <td style="padding: 6px; text-align: center; color: #f1f5f9;">${s.s2Grades.f1 !== undefined && s.s2Grades.f1 !== '' ? s.s2Grades.f1 : '-'}</td>
                                             <td style="padding: 6px; text-align: center; color: #f1f5f9;">${s.s2Grades.f2 !== undefined && s.s2Grades.f2 !== '' ? s.s2Grades.f2 : '-'}</td>
-                                            <td style="padding: 6px; text-align: center; color: #f1f5f9;">${s.s2Grades.f3 !== undefined && s.s2Grades.f3 !== '' ? s.s2Grades.f3 : '-'}</td>
-                                            <td style="padding: 6px; text-align: center; color: #f1f5f9;">${s.s2Grades.f4 !== undefined && s.s2Grades.f4 !== '' ? s.s2Grades.f4 : '-'}</td>
+                                            ${((typeof getExamsCountForClass === 'function' ? getExamsCountForClass(focusClass) : 3) >= 3) ? `<td style="padding: 6px; text-align: center; color: #f1f5f9;">${s.s2Grades.f3 !== undefined && s.s2Grades.f3 !== '' ? s.s2Grades.f3 : '-'}</td>` : ''}
+                                            ${((typeof getExamsCountForClass === 'function' ? getExamsCountForClass(focusClass) : 3) >= 4) ? `<td style="padding: 6px; text-align: center; color: #f1f5f9;">${s.s2Grades.f4 !== undefined && s.s2Grades.f4 !== '' ? s.s2Grades.f4 : '-'}</td>` : ''}
                                             <td style="padding: 6px; text-align: center;">
                                                 <span style="font-size: 0.76rem; font-weight: 900; padding: 2px 8px; border-radius: 6px; ${s2Cond.cssText || ''}">
                                                     ${s.s2Avg !== null ? s.s2Avg.toFixed(2) : '-'}

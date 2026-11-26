@@ -2986,4 +2986,152 @@ test('Camera & Gemini Vision AI Handwritten Notes and Pedagogical Plans Scanner:
     assert.equal(win.db.homeworkAgenda['2BAC-PC-1'].length, 1);
 });
 
+test('End-to-End Multi-Class Realistic Simulation Across All 14 Moroccan Qualifying Secondary Tracks: Grades, Massar CSV, Curriculum Pacing, Notes PDF, Analysis PDF & Camera Scanner Object-Wrapped Classes', async () => {
+    const { win, sandbox } = createDomSandbox(`<!DOCTYPE html><html dir="rtl" lang="ar"><body>
+        <div id="notesView" style="display: block;">
+            <select id="notesClassSelect"></select>
+            <select id="newNoteCategorySelect"><option value="pedagogical">pedagogical</option></select>
+            <select id="newNoteSentimentSelect"><option value="positive">positive</option></select>
+            <textarea id="newNoteText"></textarea>
+        </div>
+        <div id="lessonLogView" style="display: none;">
+            <select id="lessonLogClassSelect"></select>
+            <input id="lessonLogDate" value="2026-11-26" />
+            <input id="lessonLogNumber" value="" />
+            <select id="lessonLogSessionType"><option value="cours">cours</option></select>
+            <textarea id="lessonLogSummary"></textarea>
+            <input id="lessonLogHomework" value="" />
+        </div>
+    </body></html>`);
+
+    runPublicScript(sandbox, 'public/core/grades-calculator.js');
+    runPublicScript(sandbox, 'public/core/massar-io.js');
+    runPublicScript(sandbox, 'public/core/absence-manager.js');
+    runPublicScript(sandbox, 'public/core/lesson-log-engine.js');
+    runPublicScript(sandbox, 'public/secondary-math-curriculum.js');
+    runPublicScript(sandbox, 'public/camera-notes-scanner.js');
+
+    const ALL_14_CLASSES = [
+        { name: 'TCS-1', expectedCode: 'TCS', coef: 4, exams: 3, duration: 2, weeklyH: 5, annualH: 170, currKey: 'TCS' },
+        { name: 'TCT-1', expectedCode: 'TCS', coef: 4, exams: 3, duration: 2, weeklyH: 5, annualH: 170, currKey: 'TCS' },
+        { name: 'TCL-1', expectedCode: 'LIT', coef: 2, exams: 2, duration: 1, weeklyH: 2, annualH: 68, currKey: 'TCL' },
+        { name: '1BAC-SM-1', expectedCode: 'SM', coef: 9, exams: 4, duration: 2, weeklyH: 7, annualH: 238, currKey: '1BAC_SM' },
+        { name: '1BAC-SE-1', expectedCode: 'SE', coef: 7, exams: 3, duration: 2, weeklyH: 5, annualH: 170, currKey: '1BAC_EXP' },
+        { name: '1BAC-STE-1', expectedCode: 'TECH', coef: 7, exams: 3, duration: 2, weeklyH: 5, annualH: 170, currKey: '1BAC_EXP' },
+        { name: '1BAC-ECO-1', expectedCode: 'ECO', coef: 4, exams: 3, duration: 2, weeklyH: 4, annualH: 136, currKey: '1BAC_ECO' },
+        { name: '1BAC-LSH-1', expectedCode: 'BAC_LSH', coef: 1, exams: 2, duration: 1, weeklyH: 2, annualH: 68, currKey: '1BAC_LSH' },
+        { name: '1BAC-ARTS-1', expectedCode: 'ART', coef: 4, exams: 3, duration: 1, weeklyH: 3, annualH: 102, currKey: '1BAC_LSH' },
+        { name: '2BAC-SMA-1', expectedCode: 'SM', coef: 9, exams: 4, duration: 2, weeklyH: 7, annualH: 238, currKey: '2BAC_SM' },
+        { name: '2BAC-PC-1', expectedCode: 'PC', coef: 7, exams: 3, duration: 2, weeklyH: 5, annualH: 170, currKey: '2BAC_EXP' },
+        { name: '2BAC-SVT-1', expectedCode: 'SVT', coef: 7, exams: 3, duration: 2, weeklyH: 5, annualH: 170, currKey: '2BAC_EXP' },
+        { name: '2BAC-ECO-1', expectedCode: 'ECO', coef: 4, exams: 3, duration: 2, weeklyH: 4, annualH: 136, currKey: '2BAC_ECO' },
+        { name: '2BAC-LSH-1', expectedCode: 'BAC_LSH', coef: 1, exams: 2, duration: 1, weeklyH: 2, annualH: 68, currKey: '2BAC_LSH' }
+    ];
+
+    win.db = { classes: {}, grades: {}, gradesS1: {}, gradesS2: {}, notes: {}, lessonLogs: {}, homeworkAgenda: {}, records: [] };
+    win.saveDB = () => {};
+    win.renderNotes = () => {};
+    win.renderLessonLogs = () => {};
+    win.renderHomeworkAgenda = () => {};
+    win.notifySafeToast = () => {};
+
+    for (const cls of ALL_14_CLASSES) {
+        // 1. Official Stream Config & Curriculum parity
+        const cfg = win.GradesCalculator.getStreamOfficialConfig(cls.name);
+        assert.equal(cfg.code, cls.expectedCode, `Track code mismatch for ${cls.name}`);
+        assert.equal(cfg.coefficient, cls.coef, `Coefficient mismatch for ${cls.name}`);
+        assert.equal(cfg.examsPerSemester, cls.exams, `Exams per semester mismatch for ${cls.name}`);
+        assert.equal(cfg.examDurationHours, cls.duration, `Exam duration mismatch for ${cls.name}`);
+        assert.equal(cfg.weeklyHours, cls.weeklyH, `Weekly hours mismatch for ${cls.name}`);
+        assert.equal(cfg.annualHours, cls.annualH, `Annual hours mismatch for ${cls.name}`);
+
+        const currLvl = win.getCurriculumLevelForClass(cls.name);
+        assert.equal(currLvl, cls.currKey, `Curriculum level key mismatch for ${cls.name}`);
+
+        // 2. Populate realistic students (test both Array and { students: [...] } object shapes)
+        const studentsArr = [
+            { id: `${cls.name}_1`, name: 'ياسين المرابط', massar: 'R130011223', group: '1', grades: { s1: { f1: '16,5', f2: '15,5', f3: '14,0', f4: '18,0' } } },
+            { id: `${cls.name}_2`, name: 'مريم الإدريسي', massar: 'G140099887', group: '2', grades: { s1: { f1: '11,0', f2: '13,0', f3: '9,0', f4: '10,0' } } },
+            { id: `${cls.name}_3`, name: 'حمزة التازي', massar: 'K150044556', group: '1', grades: { s1: { f1: '07,5', f2: '08,5', f3: '06,5', f4: '07,0' } } }
+        ];
+        win.db.classes[cls.name] = cls.exams === 2 ? { students: studentsArr } : studentsArr;
+
+        // 3. Verify GradesCalculator semester average strictly respects cls.exams (2, 3, or 4) even if extra f3/f4 keys exist
+        const st1Grades = studentsArr[0].grades.s1;
+        const st1Avg = win.GradesCalculator.calculateStudentSemesterAverage(st1Grades, { examCount: cls.exams });
+        if (cls.exams === 2) {
+            assert.equal(st1Avg, 16.0, `${cls.name} (2 exams) must average only F1 (16.5) and F2 (15.5) = 16.0`);
+        } else if (cls.exams === 3) {
+            assert.equal(st1Avg, 15.33, `${cls.name} (3 exams) must average F1, F2, F3 = 15.33`);
+        } else if (cls.exams === 4) {
+            assert.equal(st1Avg, 16.0, `${cls.name} (4 exams) must average F1, F2, F3, F4 = 16.0`);
+        }
+
+        // 4. Verify Massar CSV export columns & student.massar fallback & exact examCount average
+        const csv = win.MassarIO.buildMassarCsvExport(win.db.classes[cls.name], cls.name, 's1');
+        const lines = csv.replace(/^\uFEFF/, '').split('\r\n');
+        const headerCols = lines[0].split(';');
+        assert.equal(lines.length, 4, `Massar CSV for ${cls.name} must contain header + 3 student rows`);
+        assert.ok(lines[1].includes('R130011223'), `Massar CSV for ${cls.name} must export st.massar CNE code`);
+
+        if (cls.exams === 2) {
+            assert.equal(headerCols.includes('الفرض 3'), false, `2-exam Literary class ${cls.name} CSV must NOT include الفرض 3`);
+            assert.equal(headerCols.includes('الفرض 4'), false, `2-exam Literary class ${cls.name} CSV must NOT include الفرض 4`);
+            assert.ok(lines[1].endsWith(';16'), `2-exam Literary class ${cls.name} CSV average for st1 must be 16`);
+        } else if (cls.exams === 3) {
+            assert.equal(headerCols.includes('الفرض 3'), true, `3-exam class ${cls.name} CSV must include الفرض 3`);
+            assert.equal(headerCols.includes('الفرض 4'), false, `3-exam class ${cls.name} CSV must NOT include الفرض 4`);
+            assert.ok(lines[1].endsWith(';15,33'), `3-exam class ${cls.name} CSV average for st1 must be 15,33`);
+        } else if (cls.exams === 4) {
+            assert.equal(headerCols.includes('الفرض 3'), true, `4-exam SM class ${cls.name} CSV must include الفرض 3`);
+            assert.equal(headerCols.includes('الفرض 4'), true, `4-exam SM class ${cls.name} CSV must include الفرض 4`);
+            assert.ok(lines[1].endsWith(';16'), `4-exam SM class ${cls.name} CSV average for st1 must be 16`);
+        }
+
+        // 5. Verify LessonLogEngine curriculum pacing & companion brief for each class
+        const pacing = win.LessonLogEngine.computeCurriculumPacingMetrics({
+            completedHours: Math.round(cls.annualH / 2),
+            plannedAnnualHours: cls.annualH,
+            elapsedWeeks: 17,
+            totalTeachingWeeks: 34
+        });
+        assert.equal(pacing.status, 'on_track', `Curriculum pacing at week 17/34 must be on_track for ${cls.name}`);
+        const brief = win.LessonLogEngine.buildCompanionAppPedagogicalBrief({
+            className: cls.name,
+            semester: 's1',
+            classMean: 12.5,
+            passRate: 78,
+            strugglingCount: 2
+        });
+        assert.equal(brief.coefficient, cls.coef);
+        assert.equal(brief.streamCode, cls.expectedCode);
+    }
+
+    // 6. Verify Camera Scanner matches student names even when db.classes[className] is an object { students: [...] } (like TCL-1)
+    win.fetch = async () => ({
+        ok: true,
+        json: async () => ({
+            source: 'gemini_vision_ai',
+            detectedType: 'notes',
+            documentTitle: 'ملاحظات قسم الجذع المشترك الأدبي',
+            rawTranscription: 'تحسن ملحوظ للتلميذة مريم الإدريسي في الحساب العددي.',
+            organizedSummary: 'تحسن ملحوظ للتلميذة مريم الإدريسي.',
+            notes: [
+                { text: 'تحسن ملحوظ للتلميذة مريم الإدريسي في الحساب العددي.', category: 'pedagogical', sentiment: 'positive', studentName: 'مريم الإدريسي' }
+            ],
+            lessonPlan: { lessonTitle: 'الإحصاء', sessionType: 'cours', duration: '1', axes: [], summaryContent: 'الإحصاء', homework: '', observations: '' },
+            homeworkItem: { title: '', type: 'homework', topic: '', dueDate: '2026-11-30' }
+        })
+    });
+    sandbox.fetch = win.fetch;
+
+    win.openHandwrittenCameraScannerModal('notes', 'TCL-1');
+    win.document.getElementById('cameraScannerCustomHintInput').value = 'ملاحظات TCL-1';
+    await win.analyzeHandwrittenImageWithGemini();
+    const savedTclNotes = win.saveAllExtractedNotesFromScanner();
+    assert.equal(savedTclNotes, 1);
+    assert.equal(win.db.notes['TCL-1'][0].studentId, 'TCL-1_2', 'Camera scanner must resolve studentId from { students: [...] } class structure');
+});
+
+
 
