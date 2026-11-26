@@ -3,9 +3,7 @@ import {
   Sparkles,
   Brain,
   TrendingUp,
-  TrendingDown,
   Scale,
-  Award,
   AlertTriangle,
   CheckCircle2,
   Clock,
@@ -17,13 +15,11 @@ import {
   Users,
   Home,
   Target,
-  ArrowRight,
   BookOpen,
   Calendar,
   Zap,
   RefreshCw,
-  X,
-  FileText
+  X
 } from 'lucide-react';
 
 export interface StudentAiComparativeModalProps {
@@ -343,7 +339,7 @@ ${analysisResult.comparativeSummary}
 ${analysisResult.recommendationsForParent.map((r, i) => `${i + 1}. ${r}`).join('\n')}
 
 🎯 *نصائح للتلميذ بالمنزل:*
-${analysisResult.recommendationsForStudent.slice(0, 2).map((r, i) => `• ${r}`).join('\n')}
+${analysisResult.recommendationsForStudent.slice(0, 2).map((r) => `• ${r}`).join('\n')}
 
 مع تحيات أستاذ المادة وإدارة المؤسسة.`;
 

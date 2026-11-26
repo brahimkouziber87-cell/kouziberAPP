@@ -3,19 +3,11 @@ import {
   X,
   FileCheck2,
   Printer,
-  Sparkles,
-  Calculator,
   Layers,
-  BookOpen,
-  Award,
   CheckCircle2,
   AlertCircle,
-  HelpCircle,
-  Download,
-  Copy,
   Plus,
-  Trash2,
-  Settings2
+  Trash2
 } from 'lucide-react';
 
 export interface ExamFrameworkModalProps {

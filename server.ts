@@ -563,7 +563,7 @@ ${JSON.stringify(targetItems.map(t => ({ id: t.id, title: t.title, fileName: t.f
   // API route for AI Annual Calendar & Milestones Decree Extraction (Supports Text and PDF)
   app.post("/api/calendar/extract-decree-ai", sameOriginGuard, aiLimiter, async (req, res) => {
     try {
-      const { text, pdfBase64, academicYear = '2026-2027', options, focusOptions } = req.body;
+      const { text, pdfBase64, academicYear = '2026-2027' } = req.body;
       const apiKey = getValidGeminiApiKey();
 
       const hasText = text && text.trim().length >= 10;
@@ -958,7 +958,6 @@ ${JSON.stringify(topStudents.slice(0, 8), null, 2)}
       const excellenceRate = Number(cls.excellenceRate || 0);
       const strugglingCount = Number(cls.strugglingCount || 0);
       const attendanceRate = Number(cls.attendanceRate ?? 100);
-      const absenceRate = Number(cls.absenceRate ?? 0);
       const totalAbsenceHours = Number(cls.totalAbsenceHours || 0);
       const unjustifiedHours = Number(cls.unjustifiedHours || 0);
       const justifiedHours = Number(cls.justifiedHours || 0);
@@ -1514,7 +1513,7 @@ ${JSON.stringify(classesPayload, null, 2)}
     res.send(icsContent);
   });
 
-function heuristicClassifyResource(titleStr: string, fileNameStr?: string, existingTopics?: string[], teacherSubject?: string) {
+function heuristicClassifyResource(titleStr: string, fileNameStr?: string, existingTopics?: string[], _teacherSubject?: string) {
   const combined = ((titleStr || '') + ' ' + (fileNameStr || '')).toLowerCase();
   
   // 1. Clean Title
@@ -2316,8 +2315,6 @@ function generatePedagogicalFallback(classData: any): string {
 
 function generateStudentComparativeFallback(body: any): any {
   const studentName = body?.studentName || 'التلميذ(ة)';
-  const className = body?.className || 'القسم';
-  const semester = body?.semester || 's1';
   
   const pExams = body?.proctoredExams || {};
   const cData = body?.continuousAssessment || {};
@@ -2571,7 +2568,6 @@ function generateMathRemediationFallback(payload: any): string {
   const level = payload?.level || 'المستوى الدراسي';
   const examLabel = payload?.examLabel || 'الفرض المحروس';
   const stats = payload?.stats || {};
-  const totalStudents = stats.totalStudents || 0;
   const classAvg = stats.classAverage !== undefined ? stats.classAverage : 10;
   const successRate = stats.successRate || '-';
   const failureRate = stats.failureRate || '-';
@@ -3352,7 +3348,6 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
     const studentName = payload?.studentName || 'التلميذ(ة)';
     const className = payload?.className || 'القسم';
     const schoolName = payload?.schoolName || 'المؤسسة التعليمية';
-    const teacherName = payload?.teacherName || 'الأستاذ إبراهيم قزيبر';
     const subjectName = payload?.subjectName || 'مادة الرياضيات';
     const tone = payload?.tone || 'supportive';
     const customNote = (payload?.customNote || '').trim();
@@ -3369,7 +3364,6 @@ function generateICalFeed(events: PortfolioCalendarEvent[], calendarTitle = 'م�
     const recentDates: string[] = Array.isArray(stats.recentDates) ? stats.recentDates : [];
     const missedLessons: string[] = Array.isArray(stats.missedLessons) ? stats.missedLessons : [];
     const gradesInfo = payload?.gradesInfo || {};
-    const behaviorInfo = payload?.behaviorInfo || {};
 
     // 1. Build Pattern Alert
     let patternAlert = 'متابعة اعتيادية للمواظبة والانضباط الصفي';
@@ -4202,7 +4196,7 @@ export function createHotContext(ownerPath) {
     app.all('/api/*', (_req, res) => {
       res.status(404).json({ error: 'المسار البرمجي غير موجود.' });
     });
-    app.get('*', (req, res) => {
+    app.get('*', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

@@ -292,8 +292,6 @@ export const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
             const xLeft = cx - boxWidth / 2;
             const xRight = cx + boxWidth / 2;
 
-            const yMin = yScale(stat.min);
-            const yMax = yScale(stat.max);
             const yQ1 = yScale(stat.q1);
             const yMedian = yScale(stat.median);
             const yQ3 = yScale(stat.q3);

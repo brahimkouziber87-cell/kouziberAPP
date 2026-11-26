@@ -22,12 +22,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp,
-  TrendingDown,
-  Minus,
-  Award,
-  AlertTriangle,
   AlertOctagon,
-  CheckCircle2,
   Users,
   BookOpen,
   Printer,
@@ -286,7 +281,7 @@ export default function ReportsEvolutionChart() {
   const [riskChartType, setRiskChartType] = useState<'scatter' | 'composed' | 'table'>('scatter');
   const [riskSortBy, setRiskSortBy] = useState<'risk_desc' | 'absence_desc' | 'grade_asc' | 'name'>('risk_desc');
   const [riskFilterLevel, setRiskFilterLevel] = useState<'all' | 'critical' | 'high' | 'declining'>('all');
-  const [riskSearchQuery, setRiskSearchQuery] = useState<string>('');
+  const [riskSearchQuery] = useState<string>('');
   const [selectedRiskStudent, setSelectedRiskStudent] = useState<StudentFailureRiskData | null>(null);
 
   const [showMinMaxRange, setShowMinMaxRange] = useState<boolean>(false);

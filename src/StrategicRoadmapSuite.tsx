@@ -22,7 +22,6 @@ import {
   EyeOff,
   CheckCircle2,
   Printer,
-  Download,
   RefreshCw,
   MessageCircle,
   UserCheck,

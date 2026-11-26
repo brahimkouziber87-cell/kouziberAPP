@@ -11,12 +11,9 @@ import {
   ReferenceLine,
   ComposedChart,
   Line,
-  Cell,
-  PieChart,
-  Pie
+  Cell
 } from 'recharts';
 import {
-  LayoutDashboard,
   Users,
   Clock,
   Award,
@@ -24,12 +21,10 @@ import {
   TrendingDown,
   AlertTriangle,
   CheckCircle2,
-  BookOpen,
   Calendar,
   RefreshCw,
   Download,
   ArrowUpRight,
-  ArrowDownRight,
   GraduationCap,
   FileCheck,
   Filter,
@@ -38,8 +33,6 @@ import {
   Activity,
   GripVertical,
   RotateCcw,
-  UserCheck,
-  UserX,
   Minus,
   Sparkles,
   CalendarRange,

@@ -11,8 +11,7 @@ import {
   Tooltip,
   Legend,
   ReferenceLine,
-  BarChart,
-  Cell
+  BarChart
 } from 'recharts';
 import {
   TrendingUp,
@@ -21,13 +20,8 @@ import {
   GraduationCap,
   Filter,
   Sparkles,
-  Award,
-  AlertTriangle,
   ArrowUpRight,
   ArrowDownRight,
-  Users,
-  BarChart3,
-  Activity,
   Printer
 } from 'lucide-react';
 

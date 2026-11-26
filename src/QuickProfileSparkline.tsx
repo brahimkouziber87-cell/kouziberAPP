@@ -17,9 +17,7 @@ import {
   TrendingDown,
   Minus,
   Sparkles,
-  BarChart2,
-  Activity,
-  Award
+  Activity
 } from 'lucide-react';
 
 export interface QuickProfileSparklineProps {
@@ -73,10 +71,7 @@ export default function QuickProfileSparkline({
   s1Grades = {},
   s2Grades = {},
   examCount = 3,
-  annualAvg = null,
-  delta = null,
   trend = 'neutral',
-  trendText = '',
   trendBadge = '',
   trendColor = '#64748b',
   trendBg = '#f1f5f9'

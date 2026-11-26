@@ -13,22 +13,17 @@ import {
 } from 'recharts';
 import {
   Calendar,
-  Clock,
-  AlertTriangle,
   CheckCircle2,
   TrendingUp,
   TrendingDown,
   Minus,
   Filter,
   ShieldAlert,
-  UserCheck,
   PlusCircle,
   MessageCircle,
   FileText,
   Trash2,
   Search,
-  Award,
-  BookOpen,
   User
 } from 'lucide-react';
 import WeekdayAbsenceDistributionCard from './WeekdayAbsenceDistributionCard.tsx';

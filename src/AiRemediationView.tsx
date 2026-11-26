@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import {
   Sparkles,
-  AlertTriangle,
   Brain,
   Target,
   Clock,
@@ -12,11 +11,8 @@ import {
   Users,
   CheckCircle2,
   BookOpen,
-  ArrowRight,
   TrendingDown,
   RefreshCw,
-  ExternalLink,
-  ChevronDown,
   QrCode
 } from 'lucide-react';
 

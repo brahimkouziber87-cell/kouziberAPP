@@ -18,7 +18,6 @@ import {
 } from 'recharts';
 import AnnualRechartsComparison from './AnnualRechartsComparison.tsx';
 import {
-  LayoutDashboard,
   Users,
   BarChart3,
   TrendingUp,
@@ -44,9 +43,6 @@ import {
   ChevronLeft,
   ChevronDown,
   BookOpen,
-  ArrowUpRight,
-  ArrowDownRight,
-  Lightbulb,
   X,
   LineChart as LineChartIcon,
   Table as TableIcon,
@@ -54,7 +50,6 @@ import {
   FileText,
   SlidersHorizontal,
   ShieldAlert,
-  Eye,
   Compass
 } from 'lucide-react';
 import AiRemediationView from './AiRemediationView';

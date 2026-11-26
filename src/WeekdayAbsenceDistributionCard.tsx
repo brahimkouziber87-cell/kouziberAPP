@@ -211,7 +211,6 @@ export const WeekdayAbsenceDistributionCard: React.FC<{
     grandTotalHours,
     grandTotalUnjustified,
     grandTotalJustified,
-    grandTotalLates,
     averageDayHours,
     peakDay,
     secondPeakDay,
