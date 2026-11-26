@@ -2495,11 +2495,11 @@ export default function DashboardView() {
         {/* Interactive Filter Controls */}
         <div className="flex items-center gap-2 flex-nowrap overflow-x-auto pb-0.5 tabular-nums">
           {/* Semester Segmented Control */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200/80 shrink-0">
+          <div className="h-9 flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200/80 shrink-0">
             <button
               type="button"
               onClick={() => setSemester('s1')}
-              className={`px-2.5 py-1.5 text-xs font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+              className={`h-full px-2.5 text-xs font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 semester === 's1'
                   ? 'bg-white text-blue-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2510,7 +2510,7 @@ export default function DashboardView() {
             <button
               type="button"
               onClick={() => setSemester('s2')}
-              className={`px-2.5 py-1.5 text-xs font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+              className={`h-full px-2.5 text-xs font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 semester === 's2'
                   ? 'bg-white text-blue-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2521,7 +2521,7 @@ export default function DashboardView() {
             <button
               type="button"
               onClick={() => setSemester('annual')}
-              className={`px-2.5 py-1.5 text-xs font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+              className={`h-full px-2.5 text-xs font-extrabold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 semester === 'annual'
                   ? 'bg-white text-blue-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2532,11 +2532,11 @@ export default function DashboardView() {
           </div>
 
           {/* Stream Level Filter */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200/80 shrink-0">
+          <div className="h-9 flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200/80 shrink-0">
             <button
               type="button"
               onClick={() => setLevelFilter('all')}
-              className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+              className={`h-full px-2.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 levelFilter === 'all'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2547,7 +2547,7 @@ export default function DashboardView() {
             <button
               type="button"
               onClick={() => setLevelFilter('tc')}
-              className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+              className={`h-full px-2.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 levelFilter === 'tc'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2558,7 +2558,7 @@ export default function DashboardView() {
             <button
               type="button"
               onClick={() => setLevelFilter('1bac')}
-              className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+              className={`h-full px-2.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 levelFilter === '1bac'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2569,7 +2569,7 @@ export default function DashboardView() {
             <button
               type="button"
               onClick={() => setLevelFilter('2bac')}
-              className={`px-2.5 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+              className={`h-full px-2.5 text-xs font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
                 levelFilter === '2bac'
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -2583,7 +2583,7 @@ export default function DashboardView() {
           <button
             type="button"
             onClick={() => syncWithGlobalDb(true)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            className="h-9 inline-flex items-center gap-1.5 px-2.5 text-xs font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer whitespace-nowrap shrink-0"
             title="تحديث الإحصائيات المجمعة"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -2599,7 +2599,7 @@ export default function DashboardView() {
                 setShowAiDiagnosticsCenter(false);
               }
             }}
-            className="ms-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold rounded-lg bg-gradient-to-r from-indigo-700 via-blue-700 to-violet-700 hover:from-indigo-800 hover:to-violet-800 text-white shadow-sm transition-all cursor-pointer border border-indigo-400/30 whitespace-nowrap shrink-0"
+            className="ms-auto h-9 inline-flex items-center gap-1.5 px-3 text-xs font-extrabold rounded-lg bg-gradient-to-r from-indigo-700 via-blue-700 to-violet-700 hover:from-indigo-800 hover:to-violet-800 text-white shadow-sm transition-all cursor-pointer border border-indigo-400/30 whitespace-nowrap shrink-0"
             title="تحليل أداء الأقسام باستخدام الذكاء الاصطناعي وتوليد تقارير تشخيصية لمستوى كل قسم بناءً على نتائج الفروض الممسوحة والمواظبة"
           >
             <Brain className="w-4 h-4 text-amber-300" />
@@ -2615,7 +2615,7 @@ export default function DashboardView() {
             type="button"
             onClick={handleExportSnapshot}
             disabled={isExporting}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-lg bg-blue-900 hover:bg-blue-800 text-white shadow-xs transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
+            className="h-9 inline-flex items-center gap-1.5 px-2.5 text-xs font-bold rounded-lg bg-blue-900 hover:bg-blue-800 text-white shadow-xs transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap shrink-0"
             title="حفظ لوحة الرسوم البيانية كصورة عالية الدقة"
           >
             <Download className="w-3.5 h-3.5" />
