@@ -38,17 +38,36 @@
         return [];
     }
 
-    function getActiveClassDefault() {
+    function resolveTargetClassName(rawClassName) {
+        var candidate = rawClassName ? String(rawClassName).trim() : '';
+        if (candidate === '__ALL__' || candidate === '__MULTI__' || candidate.indexOf('__MULTI__') === 0) {
+            if (typeof window.resolveReportTargetClasses === 'function') {
+                var resolved = window.resolveReportTargetClasses(candidate);
+                if (resolved && Array.isArray(resolved.classes) && resolved.classes.length > 0) {
+                    return resolved.classes[0];
+                }
+            }
+            candidate = '';
+        }
+        var db = window.db || {};
+        if (candidate && db.classes && db.classes[candidate]) {
+            return candidate;
+        }
         var selectors = ['reportClassSelect', 'lessonLogClassSelect', 'notesClassSelect', 'classSelect'];
         for (var i = 0; i < selectors.length; i++) {
             var el = document.getElementById(selectors[i]);
             if (el && el.value && el.value !== '__ALL__' && !String(el.value).startsWith('__MULTI__')) {
-                return el.value;
+                if (!db.classes || db.classes[el.value]) {
+                    return el.value;
+                }
             }
         }
-        var db = window.db || {};
         var keys = Object.keys(db.classes || {});
-        return keys.length > 0 ? keys[0] : '';
+        return keys.length > 0 ? keys[0] : candidate;
+    }
+
+    function getActiveClassDefault() {
+        return resolveTargetClassName('');
     }
 
     /**
@@ -56,7 +75,7 @@
      */
     function buildStudentDiagnosticAndStatisticalRecord(className, studentId) {
         var db = window.db || {};
-        var clsName = className || getActiveClassDefault();
+        var clsName = resolveTargetClassName(className);
         var students = getStudentsArray(db.classes && db.classes[clsName]);
         var student = students.find(function (s) { return s && String(s.id) === String(studentId); }) || students[0];
 
@@ -147,7 +166,8 @@
             records = window.getStudentClassRecordsFast(resolvedId, clsName) || [];
         } else if (Array.isArray(db.records)) {
             records = db.records.filter(function (r) {
-                return r && r.class === clsName && String(r.studentId) === resolvedId;
+                var recCls = r && (r.className || r.class || '');
+                return r && recCls === clsName && String(r.studentId) === resolvedId;
             });
         }
 
@@ -157,7 +177,13 @@
         var missedHwRecords = 0;
 
         records.forEach(function (r) {
-            var hrs = Number(r.hours) || 1;
+            if (!r) return;
+            if (typeof window.isRecordProtectedHolidayOrLeave === 'function' && window.isRecordProtectedHolidayOrLeave(r)) {
+                return;
+            }
+            var hrs = (typeof window.getRecordAbsenceDuration === 'function')
+                ? (Number(window.getRecordAbsenceDuration(r)) || Number(r.duration || r.hours) || 1)
+                : (Number(r.duration || r.hours) || 1);
             if (r.status === 'غائب') unjustifiedHours += hrs;
             else if (r.status === 'مبرر') justifiedHours += hrs;
             else if (r.status === 'متأخر') lateCount++;
@@ -227,6 +253,10 @@
         var diag = record.diagnostic;
         var stats = record.statistics;
         var avgVal = stats.currentAvg !== null ? stats.currentAvg : diag.total;
+        var clsUpper = String(record.className || '').toUpperCase();
+        var trackStr = String(record.trackName || '');
+        var isLit = clsUpper.indexOf('TCL') !== -1 || clsUpper.indexOf('TCO') !== -1 || clsUpper.indexOf('LSH') !== -1 || /(?:^|[^A-Z])SH(?:$|[^A-Z])/.test(clsUpper) || trackStr.indexOf('آداب') !== -1 || trackStr.indexOf('إنسانية') !== -1 || trackStr.indexOf('أصيل') !== -1;
+        var isTc = clsUpper.indexOf('TCS') !== -1 || clsUpper.indexOf('TCT') !== -1 || clsUpper.indexOf('TCL') !== -1 || clsUpper.indexOf('TCO') !== -1 || trackStr.indexOf('الجذع المشترك') !== -1;
 
         var domainCatalog = [
             {
@@ -234,44 +264,82 @@
                 domainName: 'الحسابيات والأنشطة العددية (Arithmétique & Calcul)',
                 score: diag.d1,
                 maxScore: 5,
-                topicFocus: 'الحساب العددي في ℝ، القوى والجذور المربعة، الترتيب والمجالات والقيمة المطلقة',
+                topicFocus: isLit
+                    ? 'الحساب العددي، النسب المئوية، التناسبية، والقوى والجذور المربعة'
+                    : 'الحساب العددي في ℝ، القوى والجذور المربعة، الترتيب والمجالات والقيمة المطلقة',
                 epistemologicalObstacle: 'خلط في قواعد الإشارات وتوحيد المقامات وصعوبة تأطير التعابير الجبرية والقيمة المطلقة',
-                remedialObjective: 'التحكم في العمليات داخل ℝ وقواعد الترتيب والتأطير وحل متراجحات القيمة المطلقة بدقة.',
+                remedialObjective: isLit
+                    ? 'التحكم في العمليات على الكسور والنسب المئوية وحساب التطور النسبي بدقة.'
+                    : 'التحكم في العمليات داخل ℝ وقواعد الترتيب والتأطير وحل متراجحات القيمة المطلقة بدقة.',
                 didacticStrategy: 'ورشة تطبيقية بتقنية التفريد وبطاقة المراقبة الذاتية لقواعد الإشارات والتأطير',
-                customExercise: '1) ليكن x و y عددين حقيقيين بحيث 2 ≤ x ≤ 5 و -4 ≤ y ≤ -1: أطر x + y و x - y و x×y.\n2) حل في ℝ المتراجحة |2x - 3| ≤ 5 ومثل الحلول على مستقيم مدرج.'
+                customExercise: isLit
+                    ? '1) سلعة ثمنها 250 درهماً خضعت لتخفيض نسبته 20% ثم زيادة نسبتها 10%. احسب ثمنها النهائي ونسبة التغير الإجمالية.\n2) احسب وبسط التعبير: A = (3/4 - 5/6) ÷ (7/12).'
+                    : '1) ليكن x و y عددين حقيقيين بحيث 2 ≤ x ≤ 5 و -4 ≤ y ≤ -1: أطر x + y و x - y و x×y.\n2) حل في ℝ المتراجحة |2x - 3| ≤ 5 ومثل الحلول على مستقيم مدرج.'
             },
             {
                 key: 'd2',
-                domainName: 'الهندسة والحساب المثلثي (Géométrie & Trigonométrie)',
+                domainName: isLit
+                    ? 'المعلم في المستوى والتمثيل المبياني (Repérage & Graphiques)'
+                    : 'الهندسة والحساب المثلثي (Géométrie & Trigonométrie)',
                 score: diag.d2,
                 maxScore: 5,
-                topicFocus: 'الحساب المتجهي، الجداء السلمي، الدائرة المثلثية، والهندسة التحليلية والفضائية',
-                epistemologicalObstacle: 'صعوبة الانتقال من الشكل الهندسي الحسي إلى العلاقة المتجهية أو التحليلية البرهانية',
-                remedialObjective: 'ضبط الأفصول المنحني الرئيسي وصيغ التحويل المثلثية وتوظيف الجداء السلمي تحليلياً.',
-                didacticStrategy: 'مختبر الدائرة المثلثية والتمثيل المتجهي المدعم ببرمجية GeoGebra التفاعلية',
-                customExercise: '1) حدد الأفصول المنحني الرئيسي للعدد α = 17π/4 واحسب cos(α) و sin(α).\n2) في معلم متعامد ممنظم (O,i,j)، حدد معادلة ديكارتية للمستقيم (D) المار من A(1,2) والعمودي على المتجهة n(2,-3).'
+                topicFocus: isLit
+                    ? 'المعلم في المستوى، معادلة مستقيم، وقراءة وتأويل التمثيلات المبيانية'
+                    : (isTc
+                        ? 'الحساب المتجهي، الإسقاط في المستوى، الدائرة المثلثية، ومعادلة مستقيم'
+                        : 'الحساب المتجهي، الجداء السلمي، الدائرة المثلثية، والهندسة التحليلية والفضائية'),
+                epistemologicalObstacle: isLit
+                    ? 'صعوبة تحديد ميل مستقيم وقراءة الصور والسوابق وإشارة دالة انطلاقاً من مبيانها'
+                    : 'صعوبة الانتقال من الشكل الهندسي الحسي إلى العلاقة المتجهية أو التحليلية البرهانية',
+                remedialObjective: isLit
+                    ? 'ضبط تمثيل النقط والمستقيمات في معلم متعامد وقراءة المبيانات بدقة.'
+                    : 'ضبط الأفصول المنحني الرئيسي وصيغ التحويل المثلثية وتوظيف الجداء السلمي تحليلياً.',
+                didacticStrategy: isLit
+                    ? 'ورشة القراءة المبيانية المدعمة بشبكات التربيعات وبرمجية GeoGebra'
+                    : 'مختبر الدائرة المثلثية والتمثيل المتجهي المدعم ببرمجية GeoGebra التفاعلية',
+                customExercise: isLit
+                    ? 'في معلم متعامد ممنظم (O,i,j)، نعتبر النقطتين A(1,3) و B(3,-1).\n1) مثل النقطتين A و B وحدد إحداثيتي منتصف القطعة [AB].\n2) حدد المعادلة المختصرة للمستقيم (AB) ونقطة تقاطعه مع محور الأراتيب.'
+                    : '1) حدد الأفصول المنحني الرئيسي للعدد α = 17π/4 واحسب cos(α) و sin(α).\n2) في معلم متعامد ممنظم (O,i,j)، حدد معادلة ديكارتية للمستقيم (D) المار من A(1,2) والعمودي على المتجهة n(2,-3).'
             },
             {
                 key: 'd3',
                 domainName: 'الجبر والتحليل ودراسة الدوال (Algèbre & Analyse)',
                 score: diag.d3,
                 maxScore: 5,
-                topicFocus: 'المعادلات والمتراجحات، الحدوديات، النهايات والاتصال والاشتقاق ودراسة الدوال العددية',
-                epistemologicalObstacle: 'عائق الربط بين إشارة المشتقة ورتابة الدالة وأخطاء التعميل وإشارة ثلاثية الحدود',
-                remedialObjective: 'إتقان دراسة إشارة ثلاثية الحدود وحساب النهايات والمشتقات واستنتاج جدول التغيرات.',
+                topicFocus: isTc
+                    ? 'المعادلات والمتراجحات من الدرجة الأولى والثانية، الحدوديات، وعموميات حول الدوال العددية'
+                    : 'المعادلات والمتراجحات، الحدوديات، النهايات والاتصال والاشتقاق ودراسة الدوال العددية',
+                epistemologicalObstacle: isTc
+                    ? 'أخطاء في حساب المميز Δ وتحديد جدول إشارة ثلاثية الحدود ومجموعة تعريف دالة'
+                    : 'عائق الربط بين إشارة المشتقة ورتابة الدالة وأخطاء التعميل وإشارة ثلاثية الحدود',
+                remedialObjective: isTc
+                    ? 'إتقان حل معادلات ومتراجحات الدرجة الثانية وتحديد مجموعة تعريف ورتابة دالة عددية.'
+                    : 'إتقان دراسة إشارة ثلاثية الحدود وحساب النهايات والمشتقات واستنتاج جدول التغيرات.',
                 didacticStrategy: 'عيادة دراسة الدوال العددية وحل المعادلات والمتراجحات بمنهجية الخطوات المهيكلة',
-                customExercise: 'لتكن الدالة العددية f المعرفة على ℝ بـ: f(x) = x³ - 3x + 2.\n1) احسب f\'(x) لكل x من ℝ وادرس إشارتها.\n2) ضع جدول تغيرات الدالة f وحدد مطاريفها المحلية ومعادلة المماس عند x₀ = 0.'
+                customExercise: isTc
+                    ? 'نعتبر الحدودية P(x) = x² - 5x + 6.\n1) حل في ℝ المعادلة P(x) = 0 ثم ضع جدول إشارة P(x) على ℝ.\n2) استنتج مجموعة حلول المتراجحة x² - 5x + 6 ≤ 0 وحدد مجموعة تعريف الدالة f(x) = √(x² - 5x + 6).'
+                    : 'لتكن الدالة العددية f المعرفة على ℝ بـ: f(x) = x³ - 3x + 2.\n1) احسب f\'(x) لكل x من ℝ وادرس إشارتها.\n2) ضع جدول تغيرات الدالة f وحدد مطاريفها المحلية ومعادلة المماس عند x₀ = 0.'
             },
             {
                 key: 'd4',
                 domainName: 'تنظيم المعطيات والمتتاليات وحل المسائل (Statistiques & Problèmes)',
                 score: diag.d4,
                 maxScore: 5,
-                topicFocus: 'المتتاليات العددية والبرهان بالترجع، الإحصاء والاحتمالات، وترييض المسائل المركبة',
-                epistemologicalObstacle: 'صعوبة ترجمة نص الوضعية أو المسألة إلى نموذج رياضي (متتالية أو معادلة) وهيكلة البرهان بالترجع',
-                remedialObjective: 'التمكن من ترييض المسائل وصياغة البرهان بالترجع واستغلال المتتالية المساعدة.',
+                topicFocus: isTc
+                    ? 'الإحصاء (الحصيصات، الترددات، المعدل الحسابي، القيمة الوسطية) وترييض المسائل'
+                    : (isLit
+                        ? 'المتتاليات الحسابية والهندسية، التعداد والاحتمالات، وترييض المسائل'
+                        : 'المتتاليات العددية والبرهان بالترجع، الإحصاء والاحتمالات، وترييض المسائل المركبة'),
+                epistemologicalObstacle: 'صعوبة ترجمة نص الوضعية أو المسألة إلى نموذج رياضي (متتالية أو معادلة) واستثمار المعطيات',
+                remedialObjective: isTc
+                    ? 'التمكن من حساب المؤشرات الإحصائية وترييض المسائل الجبرية بنظام معادلتين.'
+                    : 'التمكن من ترييض المسائل واستغلال المتتاليات الحسابية والهندسية في وضعيات تطبيقية.',
                 didacticStrategy: 'بيداغوجيا الأقران وورشة تفكيك المسائل التوليفية وفق الإطار المرجعي (المذكرة 142-08)',
-                customExercise: 'نعتبر المتتالية (u_n) المعرفة بـ u₀ = 4 ولكل n من ℕ: u_{n+1} = (1/2)u_n + 1.\n1) بين بالترجع أن u_n > 2 لكل n من ℕ.\n2) نضع v_n = u_n - 2، بين أن (v_n) متتالية هندسية محدداً أساسها ثم اكتب u_n بدلالة n.'
+                customExercise: isTc
+                    ? '1) حل في ℝ×ℝ النظمة: { 2x + y = 11 ; x + 3y = 18 }.\n2) اشترى تلميذ دفترين وقلم حبر بمبلغ 11 درهماً، واشترى زميله دفتراً واحداً و3 أقلام من نفس النوع بمبلغ 18 درهماً. حدد ثمن الدفتر الواحد وثمن القلم الواحد.'
+                    : (isLit
+                        ? 'نعتبر المتتالية الحسابية (u_n) التي حدها الأول u₀ = 3 وأساسها r = 4.\n1) احسب u₁ و u₂ ثم اكتب الحد العام u_n بدلالة n.\n2) احسب المجموع S = u₀ + u₁ + ... + u₁₀.'
+                        : 'نعتبر المتتالية (u_n) المعرفة بـ u₀ = 4 ولكل n من ℕ: u_{n+1} = (1/2)u_n + 1.\n1) بين بالترجع أن u_n > 2 لكل n من ℕ.\n2) نضع v_n = u_n - 2، بين أن (v_n) متتالية هندسية محدداً أساسها ثم اكتب u_n بدلالة n.')
             }
         ];
 
@@ -793,6 +861,10 @@
     window.printStudentPersonalizedRemediationPlan = function () {
         if (!_activePlanContext || !_activeGeneratedPlan) return;
         var bodyEl = document.getElementById('stdRemModalBodyContent');
+        var noteInput = document.getElementById('stdRemReadyNoteInput');
+        if (noteInput) {
+            noteInput.setAttribute('value', noteInput.value);
+        }
         var innerHtml = bodyEl ? bodyEl.innerHTML : '';
         var teacherProfile = (window.db && window.db.teacherProfile) ? window.db.teacherProfile : {};
         var teacherName = teacherProfile.name || 'أستاذ مادة الرياضيات';

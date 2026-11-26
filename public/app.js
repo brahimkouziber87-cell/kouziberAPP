@@ -47384,11 +47384,11 @@ ${log.notes || 'سير الحصة عادي'}
 
                 let prof = 'C', profLabel = 'الفئة (ج)', profColor = '#dc2626', profBg = '#fef2f2', profBorder = '#fecaca';
                 let rec = 'دعم علاجي فوري وبطاقات معالجة متدرجة في الحساب العددي.';
-                if (total >= 10) {
+                if (total >= 12) {
                     prof = 'A'; profLabel = 'الفئة (أ)'; profColor = '#15803d'; profBg = '#f0fdf4'; profBorder = '#bbf7d0';
                     rec = 'أنشطة إغناء وتحديات رياضية ومساعدة الأقران.';
                     countA++;
-                } else if (total >= 7) {
+                } else if (total >= 8) {
                     prof = 'B'; profLabel = 'الفئة (ب)'; profColor = '#0284c7'; profBg = '#f0f9ff'; profBorder = '#bae6fd';
                     rec = 'تمارين تثبيت وأنشطة تدريبية موجهة لتفادي الهشاشة.';
                     countB++;
@@ -47425,7 +47425,7 @@ ${log.notes || 'سير الحصة عادي'}
                         <td style="border: 1px solid #cbd5e1; padding: 4px; text-align: center; font-weight: 700; color: #0284c7;">${item.d2}</td>
                         <td style="border: 1px solid #cbd5e1; padding: 4px; text-align: center; font-weight: 700; color: #d97706;">${item.d3}</td>
                         <td style="border: 1px solid #cbd5e1; padding: 4px; text-align: center; font-weight: 700; color: #7c3aed;">${item.d4}</td>
-                        <td style="border: 1px solid #cbd5e1; padding: 4px; text-align: center; font-weight: 900; font-size: 0.84rem; color: ${item.total >= 10 ? '#15803d' : (item.total >= 7 ? '#0284c7' : '#dc2626')}; background: ${item.profBg};">${item.total}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 4px; text-align: center; font-weight: 900; font-size: 0.84rem; color: ${item.total >= 12 ? '#15803d' : (item.total >= 8 ? '#0284c7' : '#dc2626')}; background: ${item.profBg};">${item.total}</td>
                         <td style="border: 1px solid #cbd5e1; padding: 4px; text-align: center;">
                             <span style="display: inline-block; padding: 1px 6px; border-radius: 4px; font-weight: 800; font-size: 0.7rem; color: ${item.profColor}; background: ${item.profBg}; border: 1px solid ${item.profBorder};">
                                 ${item.profLabel}
@@ -47504,17 +47504,17 @@ ${log.notes || 'سير الحصة عادي'}
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
                         <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px; padding: 8px; text-align: center;">
                             <div style="font-weight: 800; color: #15803d; font-size: 0.8rem; margin-bottom: 2px;">الفئة (أ): متمكنة (Maîtrise)</div>
-                            <div style="font-size: 0.69rem; color: #166534; margin-bottom: 4px;">معدل الرائز: [10 - 20] / 20</div>
+                            <div style="font-size: 0.69rem; color: #166534; margin-bottom: 4px;">معدل الرائز: [12 - 20] / 20</div>
                             <div style="font-size: 1.15rem; font-weight: 900; color: #15803d;">${countA} <span style="font-size: 0.72rem;">تلميذ (${mPct}%)</span></div>
                         </div>
                         <div style="background: #eff6ff; border: 1.5px solid #93c5fd; border-radius: 8px; padding: 8px; text-align: center;">
                             <div style="font-weight: 800; color: #1d4ed8; font-size: 0.8rem; margin-bottom: 2px;">الفئة (ب): في طور التمكن (En cours)</div>
-                            <div style="font-size: 0.69rem; color: #1e40af; margin-bottom: 4px;">معدل الرائز: [7 - 10[ / 20</div>
+                            <div style="font-size: 0.69rem; color: #1e40af; margin-bottom: 4px;">معدل الرائز: [8 - 12[ / 20</div>
                             <div style="font-size: 1.15rem; font-weight: 900; color: #1d4ed8;">${countB} <span style="font-size: 0.72rem;">تلميذ (${cPct}%)</span></div>
                         </div>
                         <div style="background: #fef2f2; border: 1.5px solid #fca5a5; border-radius: 8px; padding: 8px; text-align: center;">
                             <div style="font-weight: 800; color: #dc2626; font-size: 0.8rem; margin-bottom: 2px;">الفئة (ج): غير متمكنة / متعثرة</div>
-                            <div style="font-size: 0.69rem; color: #991b1b; margin-bottom: 4px;">معدل الرائز: دون 7 / 20</div>
+                            <div style="font-size: 0.69rem; color: #991b1b; margin-bottom: 4px;">معدل الرائز: دون 8 / 20</div>
                             <div style="font-size: 1.15rem; font-weight: 900; color: #dc2626;">${countC} <span style="font-size: 0.72rem;">تلميذ (${dPct}%)</span></div>
                         </div>
                     </div>
@@ -52719,7 +52719,7 @@ ${log.notes || 'سير الحصة عادي'}
                                             <span data-lucide="target" data-size="14"></span>
                                             <span>تركيز 🎯</span>
                                         </button>
-                                        <button type="button" class="dash-btn-action" onclick="window.openStudentPersonalizedRemediationModal && window.openStudentPersonalizedRemediationModal('${escapeHtml(s.className)}', '${escapeHtml(s.id)}')" style="background: rgba(13, 148, 136, 0.12); color: #0f766e; border: 1.5px solid #5eead4; font-weight: 800;" title="توليد خطة معالجة تربوية بيداغوجية مخصصة لهذا التلميذ بناءً على التقويم التشخيصي وسجله الإحصائي">
+                                        <button type="button" class="dash-btn-action" onclick="window.openStudentPersonalizedRemediationModal && window.openStudentPersonalizedRemediationModal('${escapeQuotes(s.className)}', '${escapeQuotes(s.id)}')" style="background: rgba(13, 148, 136, 0.12); color: #0f766e; border: 1.5px solid #5eead4; font-weight: 800;" title="توليد خطة معالجة تربوية بيداغوجية مخصصة لهذا التلميذ بناءً على التقويم التشخيصي وسجله الإحصائي">
                                             <span data-lucide="sparkles" data-size="14"></span>
                                             <span>خطة معالجة</span>
                                         </button>
@@ -52809,7 +52809,7 @@ ${log.notes || 'سير الحصة عادي'}
                                             <button type="button" class="dash-btn-action focus-mode-btn" onclick="openStudentFocusMode('${escapeHtml(s.id)}', '${escapeHtml(s.className)}')" title="وضع التركيز الفردي الشامل لهذا التلميذ 🎯" style="padding: 5px 8px; background: rgba(99, 102, 241, 0.12); color: #4338ca; border: 1.5px solid #a5b4fc;">
                                                 <span data-lucide="target" data-size="13"></span>
                                             </button>
-                                            <button type="button" class="dash-btn-action" onclick="window.openStudentPersonalizedRemediationModal && window.openStudentPersonalizedRemediationModal('${escapeHtml(s.className)}', '${escapeHtml(s.id)}')" title="خطة معالجة تربوية بيداغوجية مخصصة لهذا التلميذ" style="padding: 5px 8px; background: rgba(13, 148, 136, 0.12); color: #0f766e; border: 1.5px solid #5eead4;">
+                                            <button type="button" class="dash-btn-action" onclick="window.openStudentPersonalizedRemediationModal && window.openStudentPersonalizedRemediationModal('${escapeQuotes(s.className)}', '${escapeQuotes(s.id)}')" title="خطة معالجة تربوية بيداغوجية مخصصة لهذا التلميذ" style="padding: 5px 8px; background: rgba(13, 148, 136, 0.12); color: #0f766e; border: 1.5px solid #5eead4;">
                                                 <span data-lucide="sparkles" data-size="13"></span>
                                             </button>
                                             <button type="button" class="dash-btn-action profile" onclick="openStudentQuickModal('${escapeHtml(s.className)}', '${escapeHtml(s.id)}')" title="بطاقة التلميذ السريعة" style="padding: 5px 8px;">

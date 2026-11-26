@@ -3225,6 +3225,35 @@ test('Personalized Student Pedagogical Remediation Plan: integrates diagnostic 4
     assert.ok(scheduledLog && scheduledLog.sessionType === 'soutien');
     assert.equal(win.db.lessonLogs['1BAC-SE-1'].length, 1);
     assert.ok(win.db.lessonLogs['1BAC-SE-1'][0].title.includes('سفيان المنصوري'));
+
+    // 5. Simulate realistic multi-class personalized remediation across all 14 tracks (including __ALL__ selector resolution, r.className + r.duration records, holiday exemption, and track-adapted exercises for TCS, TCL/LSH, and BAC Sci)
+    win.isRecordProtectedHolidayOrLeave = (r) => Boolean(r && r.isHoliday);
+    win.db.classes['TCS-1'] = [{ id: 'tcs_st1', name: 'آية بنسودة', massar: 'J130088112', orderNum: 1 }];
+    win.db.classes['1BAC-LSH-1'] = { students: [{ id: 'lsh_st1', name: 'عمر الفاسي', massar: 'K140077221', orderNum: 1 }] };
+    win.db.diagnostic['TCS-1'] = { 'tcs_st1': { d1: 3.5, d2: 3.0, d3: 1.0, d4: 1.5, total: 9.0 } };
+    win.db.diagnostic['1BAC-LSH-1'] = { 'lsh_st1': { d1: 1.25, d2: 1.5, d3: 3.0, d4: 2.0, total: 7.75 } };
+    win.db.records.push(
+        { className: 'TCS-1', studentId: 'tcs_st1', date: '2026-10-14', status: 'غائب', duration: 2 },
+        { className: 'TCS-1', studentId: 'tcs_st1', date: '2026-11-06', status: 'غائب', duration: 2, isHoliday: true }
+    );
+
+    // 5a. __ALL__ selector resolution must automatically fall back to first valid class in db.classes
+    win.document.getElementById('reportClassSelect').innerHTML = '<option value="__ALL__" selected>جميع الأقسام</option>';
+    const allFallbackPlan = win.openStudentPersonalizedRemediationModal('__ALL__', '');
+    assert.ok(allFallbackPlan, 'Opening personalized remediation modal with __ALL__ must resolve to first valid class');
+
+    // 5b. TCS-1 must count r.className + r.duration (2h) while excluding protected holiday record, and use Tronc Commun curriculum exercises (no f\'(x) derivative)
+    const tcsRec = win.buildStudentDiagnosticAndStatisticalRecord('TCS-1', 'tcs_st1');
+    assert.equal(tcsRec.statistics.totalAbsentHours, 2, 'TCS-1 must read r.className + r.duration and exclude holiday records');
+    const tcsPlan = win.buildLocalPersonalizedRemediationPlan(tcsRec);
+    assert.ok(tcsPlan.priorityDomains[0].customExercise.includes('P(x) = x² - 5x + 6'), 'TCS-1 d3 remediation must use Tronc Commun polynomial/domain exercise instead of Bac derivative');
+
+    // 5c. 1BAC-LSH-1 ({ students: [...] }) must use Literary percentage/proportion & coordinate graphing exercises
+    const lshRec = win.buildStudentDiagnosticAndStatisticalRecord('1BAC-LSH-1', 'lsh_st1');
+    assert.equal(lshRec.examCount, 2, '1BAC-LSH-1 must resolve to 2 exams per semester');
+    const lshPlan = win.buildLocalPersonalizedRemediationPlan(lshRec);
+    assert.ok(lshPlan.priorityDomains[0].customExercise.includes('250 درهماً') && lshPlan.priorityDomains[0].customExercise.includes('20%'), 'Literary d1 remediation must use percentages and numerical operations');
+    assert.ok(lshPlan.priorityDomains[1].domainName.includes('المعلم في المستوى والتمثيل المبياني'), 'Literary d2 remediation must target coordinate plane & graphs instead of vector/trigonometric circle');
 });
 
 
