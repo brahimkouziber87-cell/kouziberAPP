@@ -22178,8 +22178,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
         window.copyStudentHeatmapIncident = copyStudentHeatmapIncident;
 
         function updateStudentProgressChart() {
-            let className = document.getElementById('reportClassSelect').value;
-            let studentId = document.getElementById('reportStudentSelect').value;
+            let className = document.getElementById('reportClassSelect')?.value || '';
+            let studentId = document.getElementById('reportStudentSelect')?.value || '';
             if (studentId && studentId.includes(':::')) {
                 const parts = studentId.split(':::');
                 className = parts[0];
@@ -22190,8 +22190,8 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             const btnPrint = document.getElementById('btnPrintBehavior');
             const btnShare = document.getElementById('btnShareBehavior');
             const btnExportPDF = document.getElementById('btnExportStudentPDF');
-            const dateFrom = document.getElementById('reportDateFrom').value;
-            const dateTo = document.getElementById('reportDateTo').value;
+            const dateFrom = document.getElementById('reportDateFrom')?.value || '';
+            const dateTo = document.getElementById('reportDateTo')?.value || '';
 
             if (!className || !studentId) {
                 if (container) container.style.display = 'none';
@@ -22428,7 +22428,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
             }).join('');
 
             let absenceSectionHtml = `
-                <div id="studentAttendancePrintComponent" style="display: ${(typeof getStudentPrintModeOptions === 'function' ? getStudentPrintModeOptions().incidentsLog !== false : true) ? 'block' : 'none'}; background: #ffffff; border: 1.5px solid #1e293b; border-radius: 6px; padding: 12px; margin-bottom: 14px;" class="student-incidents-log-section page-break-avoid">
+                <div id="studentAttendancePrintComponent" style="display: ${(typeof getStudentPrintModeOptions === 'function' ? getStudentPrintModeOptions().incidentsLog !== false : true) ? 'block' : 'none'}; background: #ffffff; border: 1.5px solid #1e293b; border-radius: 6px; padding: 12px; margin-bottom: 14px;" class="student-incidents-log-section">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px;">
                         <strong style="color: #0f172a; font-size: 0.88rem; display: flex; align-items: center; gap: 6px;">
                             <span>📅</span> جدول سجل الوقائع والمواظبة الزمني (${periodAbsences.length} غياب بـ ${absentHours} س · ${lateCount} تأخر · ${missedHw} إخلال بالواجب · ${emptyDateEntries.length} تواريخ بدون وقائع)
@@ -29049,12 +29049,12 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     </div>
 
                     <!-- 3. High Precision A4 Grid-Compatible Table -->
-                    <div style="width: 100%; overflow: hidden;">
+                    <div style="width: 100%; overflow: visible;">
                         <table style="width: 100%; border-collapse: collapse; table-layout: auto; font-size: 0.74rem;">
                             <thead>
                                 <tr style="background: #1e3a8a; color: #ffffff;">
                                     <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 3px; width: 28px; white-space: nowrap; text-align: center;">ر.ت</th>
-                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 8px; min-width: 175px; text-align: right;">الاسم الكامل للتلميذ(ة)</th>
+                                    <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 8px; min-width: 130px; text-align: right;">الاسم الكامل للتلميذ(ة)</th>
                                     <th rowspan="2" style="border: 1px solid #94a3b8; padding: 5px 4px; width: 78px; white-space: nowrap; text-align: center;">رقم مسار</th>
                                     <th colspan="4" style="border: 1px solid #94a3b8; padding: 3px; text-align: center; background: #0284c7; font-size: 0.72rem; white-space: nowrap;">المواظبة والانضباط المدرسي</th>
                                     <th colspan="${examCount}" style="border: 1px solid #94a3b8; padding: 3px; text-align: center; background: #334155; font-size: 0.72rem; white-space: nowrap;">فروض المراقبة المستمرة (/20)</th>
@@ -29188,7 +29188,7 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                     image:        { type: 'jpeg', quality: 0.98 },
                     html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
                     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' },
-                    pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', '.page-break-avoid', '.full-report-a4-sheet'] }
+                    pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', '.page-break-avoid'] }
                 };
 
                 html2pdf().set(opt).from(sheet).save().then(() => {
@@ -29738,14 +29738,14 @@ ${behaviorData.note ? `ملاحظات: ${behaviorData.note}` : ''}
                 </div>
 
                 <!-- القسم الثاني: سجل الغياب والمواظبة والانضباط -->
-                <div style="margin-bottom: ${secMargin}; page-break-inside: avoid;" class="page-break-avoid">
-                    <div style="background: #1e3a8a; color: white; padding: ${isA5 ? '4px 8px' : '5px 10px'}; font-weight: bold; font-size: ${isA5 ? '10px' : '11.5px'}; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                <div style="margin-bottom: ${secMargin};">
+                    <div style="background: #1e3a8a; color: white; padding: ${isA5 ? '4px 8px' : '5px 10px'}; font-weight: bold; font-size: ${isA5 ? '10px' : '11.5px'}; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center; page-break-after: avoid; break-after: avoid;">
                         <span>2. سجل الغياب والمواظبة والانضباط</span>
                         <span style="font-size: ${isA5 ? '8.8px' : '10.2px'}; opacity: 0.9;">الفترة: ${safePdfHtml(dateFrom || '-')} إلى ${safePdfHtml(dateTo || '-')}</span>
                     </div>
                     <!-- إحصائيات سريعة للغياب -->
                     <div style="border: 1px solid #cbd5e1; border-top: none; background: #f8fafc; padding: ${isA5 ? '5px 7px' : '8px 10px'};">
-                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: ${isA5 ? '5px' : '8px'}; text-align: center; font-size: ${isA5 ? '9px' : '10.8px'};">
+                        <div class="page-break-avoid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: ${isA5 ? '5px' : '8px'}; text-align: center; font-size: ${isA5 ? '9px' : '10.8px'}; page-break-inside: avoid; break-inside: avoid;">
                             <div style="background: white; border: 1px solid #cbd5e1; border-radius: 4px; padding: ${isA5 ? '4px' : '6px'};">
                                 <div style="color: #64748b; font-size: ${isA5 ? '8.2px' : '9.8px'};">إجمالي ساعات الغياب (بالفترة)</div>
                                 <div style="font-size: ${isA5 ? '10.5px' : '12.5px'}; font-weight: bold; color: ${absentHours > 0 ? '#b91c1c' : '#16a34a'}; margin-top: 2px;">
@@ -44268,7 +44268,6 @@ ${log.notes || 'سير الحصة عادي'}
                 extractedStyles = styleMatches.map(block => {
                     let inner = block
                         .replace(/^<style[^>]*>|<\/style>$/gi, '')
-                        .replace(/@media\s+print\s*\{(?:[^{}]*|\{[^{}]*\})*\}/gi, '')
                         .replace(/@page\s*(?:[^{]*)?\{[^}]*\}/gi, '')
                         .replace(/(?:^|[}\r\n])\s*(?:\*+|html|body)(?:\s*,\s*(?:\*+|html|body))*\s*\{[^}]*\}/gi, (m) => (m.startsWith('}') ? '}' : ''));
                     inner = inner.trim();
@@ -44345,22 +44344,35 @@ ${log.notes || 'سير الحصة عادي'}
             display: none !important;
         }
         table {
-            width: 100%;
+            width: 100% !important;
+            max-width: 100% !important;
             border-collapse: collapse;
-            page-break-inside: auto;
+            page-break-inside: auto !important;
+            break-inside: auto !important;
+        }
+        tbody {
+            page-break-inside: auto !important;
+            break-inside: auto !important;
         }
         tr {
-            page-break-inside: avoid;
-            break-inside: avoid;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            page-break-after: auto !important;
         }
         thead {
-            display: table-header-group;
+            display: table-header-group !important;
         }
         tfoot {
-            display: table-footer-group;
+            display: table-footer-group !important;
         }
         th, td {
             border: 1px solid #334155;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .table-responsive, .table-container {
+            max-height: none !important;
+            overflow: visible !important;
         }
         .page-break-avoid {
             page-break-inside: avoid !important;
@@ -44496,7 +44508,6 @@ ${log.notes || 'سير الحصة عادي'}
                 extractedStyles = styleMatches.map(block => {
                     let inner = block
                         .replace(/^<style[^>]*>|<\/style>$/gi, '')
-                        .replace(/@media\s+print\s*\{(?:[^{}]*|\{[^{}]*\})*\}/gi, '')
                         .replace(/@page\s*(?:[^{]*)?\{[^}]*\}/gi, '')
                         .replace(/(?:^|[}\r\n])\s*(?:\*+|html|body)(?:\s*,\s*(?:\*+|html|body))*\s*\{[^}]*\}/gi, (m) => (m.startsWith('}') ? '}' : ''));
                     inner = inner.trim();
@@ -46094,9 +46105,9 @@ ${log.notes || 'سير الحصة عادي'}
                 pagePad = '8mm 10mm';
             }
 
-            // حساب الارتفاع العمودي الدقيق لكل صف لملء صفحة A4 بالكامل عمودياً وبدقة هندسية متناهية
-            const availableTbodyH = stdCount > 42 ? 880 : (stdCount > 36 ? 860 : (stdCount > 30 ? 840 : (stdCount > 20 ? 820 : 800)));
-            const calculatedRowHeight = Math.max(17.5, Math.min(52, Math.floor(availableTbodyH / Math.max(1, stdCount))));
+            // حساب الارتفاع العمودي المرجعي لكل صف بشكل متزن دون قطع أو تجاوز حدود صفحة A4
+            const availableTbodyH = stdCount > 42 ? 660 : (stdCount > 36 ? 650 : (stdCount > 30 ? 640 : (stdCount > 20 ? 620 : 600)));
+            const calculatedRowHeight = Math.max(15, Math.min(36, Math.floor(availableTbodyH / Math.max(1, stdCount))));
 
             const pAcademy = (db.teacherProfile && db.teacherProfile.academy) || 'الأكاديمية الجهوية للتربية والتكوين';
             const pDirectorate = (db.teacherProfile && db.teacherProfile.directorate) || 'المديرية الإقليمية';
@@ -46220,19 +46231,19 @@ ${log.notes || 'سير الحصة عادي'}
                 const fmtH = (val) => (val > 0 ? `<strong style="color: #0f172a;">${val}س</strong>` : `<span style="color: #cbd5e1;">-</span>`);
 
                 return `
-                <tr style="height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; border-bottom: 1px solid #cbd5e1; background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'}; line-height: ${lineH};">
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: #475569; border: 1px solid #cbd5e1; white-space: nowrap;">${std.orderNum || (idx + 1)}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 800; color: #1e3a8a; font-family: monospace; border: 1px solid #cbd5e1; white-space: nowrap;">${std.massar || '-'}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; font-weight: 800; color: #0f172a; border: 1px solid #cbd5e1;">${std.name}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1; white-space: nowrap;">${fmtH(w1)}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1; white-space: nowrap;">${fmtH(w2)}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1; white-space: nowrap;">${fmtH(w3)}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1; white-space: nowrap;">${fmtH(w4)}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 900; background: ${totalHours > 0 ? '#fef2f2' : '#f0fdf4'}; color: ${totalHours > 0 ? '#dc2626' : '#16a34a'}; border: 1px solid #cbd5e1; white-space: nowrap;">${totalHours > 0 ? totalHours + 'س' : '0'}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; color: #0284c7; font-weight: 800; border: 1px solid #cbd5e1; white-space: nowrap;">${stdJustified > 0 ? stdJustified + 'س' : '-'}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; color: #dc2626; font-weight: 800; border: 1px solid #cbd5e1; white-space: nowrap;">${stdUnjustified > 0 ? stdUnjustified + 'س' : '-'}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; color: #d97706; font-weight: 800; border: 1px solid #cbd5e1; white-space: nowrap;">${stdLates > 0 ? stdLates : '-'}</td>
-                    <td style="padding: ${cellPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-size: calc(${cellFontSize} - 0.2pt); border: 1px solid #cbd5e1;">${statusBadge}</td>
+                <tr style="min-height: ${calculatedRowHeight}px; border-bottom: 1px solid #cbd5e1; background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'}; line-height: ${lineH};">
+                    <td style="padding: ${cellPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: #475569; border: 1px solid #cbd5e1; white-space: nowrap;">${std.orderNum || (idx + 1)}</td>
+                    <td style="padding: ${cellPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 800; color: #1e3a8a; font-family: monospace; border: 1px solid #cbd5e1; white-space: nowrap;">${std.massar || '-'}</td>
+                    <td style="padding: ${cellPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; font-weight: 800; color: #0f172a; border: 1px solid #cbd5e1;">${std.name}</td>
+                    <td style="padding: ${cellPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1; white-space: nowrap;">${fmtH(w1)}</td>
+                    <td style="padding: ${cellPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1; white-space: nowrap;">${fmtH(w2)}</td>
+                    <td style="padding: ${cellPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1; white-space: nowrap;">${fmtH(w3)}</td>
+                    <td style="padding: ${cellPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; border: 1px solid #cbd5e1; white-space: nowrap;">${fmtH(w4)}</td>
+                    <td style="padding: ${cellPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 900; background: ${totalHours > 0 ? '#fef2f2' : '#f0fdf4'}; color: ${totalHours > 0 ? '#dc2626' : '#16a34a'}; border: 1px solid #cbd5e1; white-space: nowrap;">${totalHours > 0 ? totalHours + 'س' : '0'}</td>
+                    <td style="padding: ${cellPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; color: #0284c7; font-weight: 800; border: 1px solid #cbd5e1; white-space: nowrap;">${stdJustified > 0 ? stdJustified + 'س' : '-'}</td>
+                    <td style="padding: ${cellPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; color: #dc2626; font-weight: 800; border: 1px solid #cbd5e1; white-space: nowrap;">${stdUnjustified > 0 ? stdUnjustified + 'س' : '-'}</td>
+                    <td style="padding: ${cellPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; color: #d97706; font-weight: 800; border: 1px solid #cbd5e1; white-space: nowrap;">${stdLates > 0 ? stdLates : '-'}</td>
+                    <td style="padding: ${cellPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-size: calc(${cellFontSize} - 0.2pt); border: 1px solid #cbd5e1;">${statusBadge}</td>
                 </tr>`;
             }).join('');
 
@@ -46249,17 +46260,17 @@ ${log.notes || 'سير الحصة عادي'}
             </div>` : '';
 
             return `
-            <div class="monthly-absence-single-page" style="width: 794px; min-height: 1123px; height: 1123px; max-height: 1123px; margin: 0 auto; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; background: #ffffff; padding: ${pagePad}; direction: rtl; font-family: 'Cairo', system-ui, sans-serif; page-break-inside: avoid; break-inside: avoid; page-break-after: ${isLastClass ? 'auto' : 'always'}; break-after: ${isLastClass ? 'auto' : 'page'};">
+            <div class="monthly-absence-single-page" style="width: 100%; max-width: 100%; min-height: auto; height: auto; max-height: none; margin: 0 auto; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: visible; background: #ffffff; padding: ${pagePad}; direction: rtl; font-family: 'Cairo', system-ui, sans-serif; page-break-after: ${isLastClass ? 'auto' : 'always'}; break-after: ${isLastClass ? 'auto' : 'page'};">
                 <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
                     ${officialHeaderHtml}
                     ${statsBlock}
                     <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; margin-top: 2px;">
-                        <table style="width: 100%; height: 100%; border-collapse: collapse; table-layout: auto; font-family: 'Cairo', system-ui, sans-serif; font-size: ${cellFontSize}; border: 1.5px solid #0f766e;">
+                        <table style="width: 100%; border-collapse: collapse; table-layout: auto; font-family: 'Cairo', system-ui, sans-serif; font-size: ${cellFontSize}; border: 1.5px solid #0f766e;">
                             <thead>
                                 <tr style="background: #0f766e; color: #ffffff; font-weight: 800; line-height: 1.2;">
                                     <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 28px; white-space: nowrap; font-size: ${headFontSize};">ر.ت</th>
                                     <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 76px; white-space: nowrap; font-size: ${headFontSize};">رقم مسار</th>
-                                    <th style="padding: ${headPad}; text-align: right; border: 1px solid #0f766e; min-width: 185px; font-size: ${headFontSize};">الاسم الكامل للتلميذ(ة)</th>
+                                    <th style="padding: ${headPad}; text-align: right; border: 1px solid #0f766e; min-width: 140px; font-size: ${headFontSize};">الاسم الكامل للتلميذ(ة)</th>
                                     <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 38px; white-space: nowrap; font-size: ${headFontSize};">س1</th>
                                     <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 38px; white-space: nowrap; font-size: ${headFontSize};">س2</th>
                                     <th style="padding: ${headPad}; text-align: center; border: 1px solid #0f766e; width: 38px; white-space: nowrap; font-size: ${headFontSize};">س3</th>
@@ -46357,9 +46368,9 @@ ${log.notes || 'سير الحصة عادي'}
                 pagePad = '8mm 10mm';
             }
 
-            // حساب الارتفاع العمودي لكل صف لملء صفحة A4 بالكامل دون أي فراغ
-            const availableTbodyH = sCount > 42 ? 880 : (sCount > 36 ? 860 : (sCount > 30 ? 840 : (sCount > 20 ? 820 : 800)));
-            const calculatedRowHeight = Math.max(17.5, Math.min(52, Math.floor(availableTbodyH / Math.max(1, sCount))));
+            // حساب الارتفاع العمودي المرجعي لكل صف بشكل متزن دون قطع أو تجاوز حدود صفحة A4
+            const availableTbodyH = sCount > 42 ? 660 : (sCount > 36 ? 650 : (sCount > 30 ? 640 : (sCount > 20 ? 620 : 600)));
+            const calculatedRowHeight = Math.max(15, Math.min(36, Math.floor(availableTbodyH / Math.max(1, sCount))));
 
             // Calculate stats
             let presentCount = 0;
@@ -46388,13 +46399,13 @@ ${log.notes || 'سير الحصة عادي'}
                 let hwColor = (homework === 'مُنجز') ? '#059669' : '#dc2626';
 
                 return `
-                <tr style="height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; border-bottom: 1px solid #cbd5e1; background: ${idx % 2 === 0 ? '#fff' : '#f8fafc'};">
-                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: #475569; border: 1px solid #cbd5e1; white-space: nowrap;">${std.orderNum || (idx + 1)}</td>
-                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; font-weight: 800; color: #0f172a; border: 1px solid #cbd5e1;">${std.name}</td>
-                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 800; color: ${statusColor}; border: 1px solid #cbd5e1; white-space: nowrap;">${status}</td>
-                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: ${hwColor}; border: 1px solid #cbd5e1; white-space: nowrap;">${homework}</td>
-                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: #334155; border: 1px solid #cbd5e1; white-space: nowrap;">${behavior}</td>
-                    <td style="padding: ${dPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; font-size: calc(${dFontSize} - 0.2pt); color: #475569; border: 1px solid #cbd5e1;">${rec && rec.notes ? rec.notes : ''}</td>
+                <tr style="min-height: ${calculatedRowHeight}px; border-bottom: 1px solid #cbd5e1; background: ${idx % 2 === 0 ? '#fff' : '#f8fafc'};">
+                    <td style="padding: ${dPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: #475569; border: 1px solid #cbd5e1; white-space: nowrap;">${std.orderNum || (idx + 1)}</td>
+                    <td style="padding: ${dPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; font-weight: 800; color: #0f172a; border: 1px solid #cbd5e1;">${std.name}</td>
+                    <td style="padding: ${dPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 800; color: ${statusColor}; border: 1px solid #cbd5e1; white-space: nowrap;">${status}</td>
+                    <td style="padding: ${dPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: ${hwColor}; border: 1px solid #cbd5e1; white-space: nowrap;">${homework}</td>
+                    <td style="padding: ${dPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: center; font-weight: 700; color: #334155; border: 1px solid #cbd5e1; white-space: nowrap;">${behavior}</td>
+                    <td style="padding: ${dPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; font-size: calc(${dFontSize} - 0.2pt); color: #475569; border: 1px solid #cbd5e1;">${rec && rec.notes ? rec.notes : ''}</td>
                 </tr>`;
             }).join('');
 
@@ -46408,16 +46419,16 @@ ${log.notes || 'سير الحصة عادي'}
             </div>` : '';
 
             return `
-            <div class="monthly-absence-single-page" style="width: 794px; min-height: 1123px; height: 1123px; max-height: 1123px; margin: 0 auto; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; padding: ${pagePad}; background: #ffffff; direction: rtl; font-family: 'Cairo', system-ui, sans-serif; page-break-inside: avoid; break-inside: avoid; page-break-after: ${isLast ? 'auto' : 'always'}; break-after: ${isLast ? 'auto' : 'page'};">
+            <div class="monthly-absence-single-page" style="width: 100%; max-width: 100%; min-height: auto; height: auto; max-height: none; margin: 0 auto; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: visible; padding: ${pagePad}; background: #ffffff; direction: rtl; font-family: 'Cairo', system-ui, sans-serif; page-break-after: ${isLast ? 'auto' : 'always'}; break-after: ${isLast ? 'auto' : 'page'};">
                 <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
                     ${header}
                     ${statsBlock}
                     <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; margin-top: 3px;">
-                        <table style="width: 100%; height: 100%; border-collapse: collapse; table-layout: auto; font-family: 'Cairo', system-ui, sans-serif; font-size: ${dFontSize}; border: 1.5px solid #1e3a8a;">
+                        <table style="width: 100%; border-collapse: collapse; table-layout: auto; font-family: 'Cairo', system-ui, sans-serif; font-size: ${dFontSize}; border: 1.5px solid #1e3a8a;">
                             <thead>
                                 <tr style="background: #1e3a8a; color: #fff; line-height: 1.2;">
                                     <th style="padding: ${dHeadPad}; text-align: center; border: 1px solid #1e3a8a; width: 36px; white-space: nowrap; font-size: ${dHeadFontSize};">الرقم</th>
-                                    <th style="padding: ${dHeadPad}; text-align: right; border: 1px solid #1e3a8a; min-width: 195px; font-size: ${dHeadFontSize};">الاسم الكامل للتلميذ(ة)</th>
+                                    <th style="padding: ${dHeadPad}; text-align: right; border: 1px solid #1e3a8a; min-width: 140px; font-size: ${dHeadFontSize};">الاسم الكامل للتلميذ(ة)</th>
                                     <th style="padding: ${dHeadPad}; text-align: center; border: 1px solid #1e3a8a; width: 72px; white-space: nowrap; font-size: ${dHeadFontSize};">المواظبة</th>
                                     <th style="padding: ${dHeadPad}; text-align: center; border: 1px solid #1e3a8a; width: 82px; white-space: nowrap; font-size: ${dHeadFontSize};">الواجب المنزلي</th>
                                     <th style="padding: ${dHeadPad}; text-align: center; border: 1px solid #1e3a8a; width: 72px; white-space: nowrap; font-size: ${dHeadFontSize};">السلوك</th>
@@ -46511,7 +46522,7 @@ ${log.notes || 'سير الحصة عادي'}
             </div>` : '';
 
             return `
-            <div style="page-break-after: ${isLast ? 'auto' : 'always'}; break-after: ${isLast ? 'auto' : 'page'}; page-break-inside: avoid; break-inside: avoid; padding: 4mm 6mm; background: #ffffff; box-sizing: border-box;">
+            <div style="page-break-after: ${isLast ? 'auto' : 'always'}; break-after: ${isLast ? 'auto' : 'page'}; padding: 4mm 6mm; background: #ffffff; box-sizing: border-box;">
                 ${header}
                 ${statsBlock}
                 <table style="width: 100%; border-collapse: collapse; margin-top: 6px; font-family: 'Cairo', system-ui, sans-serif; font-size: 0.78rem; border: 1.2px solid #1e3a8a;">
@@ -47736,7 +47747,7 @@ ${log.notes || 'سير الحصة عادي'}
                 </div>
 
                 <!-- 2. مصفوفة الخريطة الحرارية الكاملة لأسابيع وأيام السنة الدراسية -->
-                <div style="margin-bottom: 12px; overflow-x: hidden;">
+                <div style="margin-bottom: 12px; overflow: visible;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                         <div style="font-weight: 800; color: #1e3a8a; font-size: 0.86rem;">
                             🔥 مصفوفة رصد كثافة وبؤر الغياب عبر أسابيع السنة الدراسية كاملة:
@@ -48215,7 +48226,7 @@ ${log.notes || 'سير الحصة عادي'}
     <style>
         @page {
             size: A4 ${isLandscape ? 'landscape' : 'portrait'};
-            margin: 0 !important;
+            margin: ${top}mm ${right}mm ${bottom}mm ${left}mm !important;
         }
         * {
             box-sizing: border-box;
@@ -48227,7 +48238,7 @@ ${log.notes || 'سير الحصة عادي'}
             color: #0f172a;
             background: #ffffff;
             margin: 0 !important;
-            padding: ${top}mm ${right}mm ${bottom}mm ${left}mm !important;
+            padding: 0 !important;
             direction: rtl;
             font-size: calc(8.5pt * ${Number(fontScale) / 100});
             line-height: 1.38;
@@ -48241,24 +48252,36 @@ ${log.notes || 'سير الحصة عادي'}
             display: none !important;
         }
         table {
-            width: 100%;
+            width: 100% !important;
+            max-width: 100% !important;
             border-collapse: collapse;
-            page-break-inside: auto;
+            page-break-inside: auto !important;
+            break-inside: auto !important;
             font-variant-numeric: tabular-nums;
         }
+        tbody {
+            page-break-inside: auto !important;
+            break-inside: auto !important;
+        }
         tr {
-            page-break-inside: avoid;
-            break-inside: avoid;
-            page-break-after: auto;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            page-break-after: auto !important;
         }
         thead {
-            display: table-header-group;
+            display: table-header-group !important;
         }
         tfoot {
-            display: table-footer-group;
+            display: table-footer-group !important;
         }
         th, td {
             border: 1px solid #475569;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .table-responsive, .table-container {
+            max-height: none !important;
+            overflow: visible !important;
         }
         .hide-in-print, button, input, select {
             display: none !important;
@@ -48280,20 +48303,16 @@ ${log.notes || 'سير الحصة عادي'}
         .monthly-absence-class-sheet,
         .chunked-pdf-page-container {
             width: 100% !important;
-            max-width: 210mm !important;
-            height: 297mm !important;
-            min-height: 297mm !important;
-            max-height: 297mm !important;
+            max-width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
             page-break-after: always !important;
             break-after: page !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
             box-sizing: border-box !important;
-            overflow: hidden !important;
-            display: flex !important;
-            flex-direction: column !important;
-            justify-content: space-between !important;
-            padding: 5mm 7mm !important;
+            overflow: visible !important;
+            display: block !important;
+            padding: 2mm 3mm !important;
             background: #ffffff !important;
         }
         .monthly-absence-single-page:last-child,
@@ -58413,12 +58432,12 @@ ${log.notes || 'سير الحصة عادي'}
                         dynHeadFontSize = '9.5pt';
                     }
 
-                    const availableTbodyH = sCount > 42 ? 880 : (sCount > 36 ? 860 : (sCount > 30 ? 840 : (sCount > 20 ? 820 : 800)));
-                    const calculatedRowHeight = Math.max(17.5, Math.min(52, Math.floor(availableTbodyH / Math.max(1, sCount))));
+                    const availableTbodyH = sCount > 42 ? 660 : (sCount > 36 ? 650 : (sCount > 30 ? 640 : (sCount > 20 ? 620 : 600)));
+                    const calculatedRowHeight = Math.max(15, Math.min(36, Math.floor(availableTbodyH / Math.max(1, sCount))));
 
                     const sheetPage = document.createElement('div');
                     sheetPage.className = 'monthly-absence-class-sheet';
-                    sheetPage.style.cssText = 'width: 794px; min-height: 1123px; height: 1123px; max-height: 1123px; margin: 0 auto; page-break-before: always; page-break-after: ' + ((classIdx < classes.length - 1) ? 'always' : 'auto') + '; page-break-inside: avoid; break-inside: avoid; padding: ' + pagePad + '; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; background: #ffffff; direction: rtl; font-family: "Cairo", system-ui, sans-serif;';
+                    sheetPage.style.cssText = 'width: 100%; max-width: 100%; min-height: auto; height: auto; max-height: none; margin: 0 auto; page-break-before: always; page-break-after: ' + ((classIdx < classes.length - 1) ? 'always' : 'auto') + '; padding: ' + pagePad + '; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: visible; background: #ffffff; direction: rtl; font-family: "Cairo", system-ui, sans-serif;';
 
                     sheetPage.innerHTML = `
                         <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
@@ -58452,12 +58471,12 @@ ${log.notes || 'سير الحصة عادي'}
 
                             <!-- Table Container (Flex-1 to utilize vertical space) -->
                             <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-                                <table style="width: 100%; height: 100%; border-collapse: collapse; table-layout: auto; font-size: ${dynFontSize}; text-align: center; border: 1.5px solid #0f172a;">
+                                <table style="width: 100%; border-collapse: collapse; table-layout: auto; font-size: ${dynFontSize}; text-align: center; border: 1.5px solid #0f172a;">
                                     <thead>
                                         <tr style="background: #1e3a8a; color: #ffffff; font-weight: 800; line-height: 1.2;">
                                             <th style="padding: ${dynHeadPad}; width: 28px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">ر.ت</th>
                                             <th style="padding: ${dynHeadPad}; width: 76px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">رقم مسار</th>
-                                            <th style="padding: ${dynHeadPad}; text-align: right; border: 1px solid #0f172a; min-width: 185px; font-size: ${dynHeadFontSize};">الاسم الكامل للتلميذ(ة)</th>
+                                            <th style="padding: ${dynHeadPad}; text-align: right; border: 1px solid #0f172a; min-width: 140px; font-size: ${dynHeadFontSize};">الاسم الكامل للتلميذ(ة)</th>
                                             <th style="padding: ${dynHeadPad}; width: 58px; white-space: nowrap; border: 1px solid #0f172a; background: #991b1b; color: #fff; font-size: ${dynHeadFontSize};">مجموع الغياب</th>
                                             <th style="padding: ${dynHeadPad}; width: 42px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">مبرر</th>
                                             <th style="padding: ${dynHeadPad}; width: 46px; white-space: nowrap; border: 1px solid #0f172a; font-size: ${dynHeadFontSize};">غير مبرر</th>
@@ -58469,17 +58488,17 @@ ${log.notes || 'سير الحصة عادي'}
                                     </thead>
                                     <tbody>
                                         ${studentAbsenceRows.map((r, rIdx) => `
-                                            <tr style="height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; background: ${rIdx % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1;">
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: #334155; white-space: nowrap;">${escapeHtml(r.order)}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-family: monospace; font-size: ${dynSubFontSize}; font-weight: 700; color: #1e3a8a; white-space: nowrap;">${escapeHtml(r.massar)}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a;">${escapeHtml(r.name)}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 900; color: ${r.absentHours > 0 ? '#dc2626' : '#16a34a'}; background: ${r.absentHours > 0 ? '#fef2f2' : '#ffffff'}; font-size: ${dynFontSize}; white-space: nowrap;">${r.absentHours > 0 ? r.absentHours + ' س' : '<span style="color:#16a34a;">0</span>'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #2563eb; font-weight: 800; white-space: nowrap;">${r.justHours > 0 ? r.justHours + ' س' : '-'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #dc2626; font-weight: 800; white-space: nowrap;">${r.unjustHours > 0 ? r.unjustHours + ' س' : '-'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.lateCount > 0 ? '#ea580c' : '#94a3b8'}; white-space: nowrap;">${r.lateCount > 0 ? r.lateCount : '-'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.missedHw > 0 ? '#7c3aed' : '#94a3b8'}; white-space: nowrap;">${r.missedHw > 0 ? r.missedHw : '-'}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; font-weight: 700; white-space: nowrap;">${escapeHtml(r.behavior)}</td>
-                                                <td style="padding: ${dynRowPad}; height: ${calculatedRowHeight}px; min-height: ${calculatedRowHeight}px; max-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; color: #334155; font-weight: 600;">${escapeHtml(r.note)}</td>
+                                            <tr style="min-height: ${calculatedRowHeight}px; background: ${rIdx % 2 === 0 ? '#ffffff' : '#f8fafc'}; border-bottom: 1px solid #cbd5e1;">
+                                                <td style="padding: ${dynRowPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: #334155; white-space: nowrap;">${escapeHtml(r.order)}</td>
+                                                <td style="padding: ${dynRowPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-family: monospace; font-size: ${dynSubFontSize}; font-weight: 700; color: #1e3a8a; white-space: nowrap;">${escapeHtml(r.massar)}</td>
+                                                <td style="padding: ${dynRowPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-weight: 800; color: #0f172a;">${escapeHtml(r.name)}</td>
+                                                <td style="padding: ${dynRowPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 900; color: ${r.absentHours > 0 ? '#dc2626' : '#16a34a'}; background: ${r.absentHours > 0 ? '#fef2f2' : '#ffffff'}; font-size: ${dynFontSize}; white-space: nowrap;">${r.absentHours > 0 ? r.absentHours + ' س' : '<span style="color:#16a34a;">0</span>'}</td>
+                                                <td style="padding: ${dynRowPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #2563eb; font-weight: 800; white-space: nowrap;">${r.justHours > 0 ? r.justHours + ' س' : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; color: #dc2626; font-weight: 800; white-space: nowrap;">${r.unjustHours > 0 ? r.unjustHours + ' س' : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.lateCount > 0 ? '#ea580c' : '#94a3b8'}; white-space: nowrap;">${r.lateCount > 0 ? r.lateCount : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-weight: 800; color: ${r.missedHw > 0 ? '#7c3aed' : '#94a3b8'}; white-space: nowrap;">${r.missedHw > 0 ? r.missedHw : '-'}</td>
+                                                <td style="padding: ${dynRowPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; font-weight: 700; white-space: nowrap;">${escapeHtml(r.behavior)}</td>
+                                                <td style="padding: ${dynRowPad}; min-height: ${calculatedRowHeight}px; vertical-align: middle; text-align: right; border: 1px solid #cbd5e1; font-size: ${dynSubFontSize}; color: #334155; font-weight: 600;">${escapeHtml(r.note)}</td>
                                             </tr>
                                         `).join('')}
                                     </tbody>

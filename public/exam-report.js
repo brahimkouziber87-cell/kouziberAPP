@@ -1525,7 +1525,7 @@
             border: 1.2px solid #cbd5e1;
             border-radius: 5px;
             margin-bottom: 5px;
-            overflow: hidden;
+            overflow: visible;
             page-break-inside: avoid;
         }
         .section-header {
@@ -1849,7 +1849,7 @@
                 <!-- الجداول المزدوجة المتوازية جنباً إلى جنب -->
                 <div style="display: grid; grid-template-columns: 0.90fr 1.10fr; gap: 6px; align-items: start;">
                     <!-- جدول كشف نقط القسم حسب الترتيب التسلسلي (3 خانات) -->
-                    <div style="border: 1.2px solid #cbd5e1; border-radius: 5px; overflow: hidden;">
+                    <div style="border: 1.2px solid #cbd5e1; border-radius: 5px; overflow: visible;">
                         <div style="background: #1e3a8a; color: #ffffff; font-weight: 800; font-size: 7.6pt; padding: 2.5px 6px; text-align: center;">
                             📋 كشف نقط القسم حسب الترتيب التسلسلي (3 خانات)
                         </div>
@@ -1868,7 +1868,7 @@
                     </div>
 
                     <!-- جدول الترتيب الاستحقاقي للقسم (4 خانات) -->
-                    <div style="border: 1.2px solid #cbd5e1; border-radius: 5px; overflow: hidden;">
+                    <div style="border: 1.2px solid #cbd5e1; border-radius: 5px; overflow: visible;">
                         <div style="background: #0284c7; color: #ffffff; font-weight: 800; font-size: 7.6pt; padding: 2.5px 6px; text-align: center;">
                             🏆 الترتيب الاستحقاقي (من أعلى نقطة إلى أدنى نقطة)
                         </div>

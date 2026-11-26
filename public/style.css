@@ -5775,7 +5775,9 @@ body:has(#distanceTeachingView[style*="display:block"]) #floatingVoiceSearchBtn 
         margin: 0 0 20px 0 !important;
         padding: 0 !important;
         background: transparent !important;
-        page-break-inside: avoid;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+        overflow: visible !important;
     }
 
     #reportsView h3 {
@@ -5785,7 +5787,8 @@ body:has(#distanceTeachingView[style*="display:block"]) #floatingVoiceSearchBtn 
     }
 
     /* Format the tables for printing */
-    .table-responsive {
+    .table-responsive,
+    .table-container {
         max-height: none !important;
         overflow: visible !important;
     }
@@ -5807,7 +5810,7 @@ body:has(#distanceTeachingView[style*="display:block"]) #floatingVoiceSearchBtn 
     .report-table th.th-name,
     .report-table td.td-name {
         text-align: right !important;
-        min-width: 150px !important;
+        min-width: 110px !important;
     }
 
     .report-table th {
@@ -12654,25 +12657,21 @@ body.student-print-mode.print-mode-size-a5 .student-a4-minimalist-sheet .student
         display: table-footer-group;
     }
 
-    /* ضمان ملء الصفحة عمودياً وطباعة كل قسم في صفحة واحدة A4 مستقلة */
+    /* ضمان عدم قطع الجداول وطباعة كل قسم في صفحة A4 مستقلة مع إتاحة التمدد الطبيعي عند الاقتضاء */
     .monthly-absence-single-page,
     .monthly-absence-class-sheet,
     .chunked-pdf-page-container {
         width: 100% !important;
-        max-width: 210mm !important;
-        height: 297mm !important;
-        min-height: 297mm !important;
-        max-height: 297mm !important;
+        max-width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
         page-break-after: always !important;
         break-after: page !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
         box-sizing: border-box !important;
-        overflow: hidden !important;
-        display: flex !important;
-        flex-direction: column !important;
-        justify-content: space-between !important;
-        padding: 6mm 8mm !important;
+        overflow: visible !important;
+        display: block !important;
+        padding: 4mm 6mm !important;
         background: #ffffff !important;
     }
     .monthly-absence-single-page:last-child,

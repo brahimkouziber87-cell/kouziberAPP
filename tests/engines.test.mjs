@@ -3256,6 +3256,173 @@ test('Personalized Student Pedagogical Remediation Plan: integrates diagnostic 4
     assert.ok(lshPlan.priorityDomains[1].domainName.includes('المعلم في المستوى والتمثيل المبياني'), 'Literary d2 remediation must target coordinate plane & graphs instead of vector/trigonometric circle');
 });
 
+test('Realistic Report Print & Preview Anti-Clipping Audit: 45-student large class tables, direct print iframe styles, custom preview modal, universal PDF preview & chunked PDF engine never clip tables horizontally or vertically', () => {
+    const appSrc = fs.readFileSync(path.join(ROOT, 'public/app.js'), 'utf8');
+    const styleSrc = fs.readFileSync(path.join(ROOT, 'public/style.css'), 'utf8');
+    const chunkedSrc = fs.readFileSync(path.join(ROOT, 'public/chunked-pdf-engine.js'), 'utf8');
+    const examRepSrc = fs.readFileSync(path.join(ROOT, 'public/exam-report.js'), 'utf8');
+    const evolSrc = fs.readFileSync(path.join(ROOT, 'public/academic-evolution-card.js'), 'utf8');
+
+    // 1. Verify CSS & Print Styles do not clip .monthly-absence-single-page, .monthly-absence-class-sheet, .chunked-pdf-page-container, or #reportsView .card
+    assert.equal(styleSrc.includes('max-height: 297mm !important;\n        page-break-after: always !important;\n        break-after: page !important;\n        page-break-inside: avoid !important;\n        break-inside: avoid !important;\n        box-sizing: border-box !important;\n        overflow: hidden !important;'), false, 'style.css @media print must not lock page containers to max-height: 297mm with overflow: hidden');
+    assert.ok(styleSrc.includes('#reportsView .card') && styleSrc.includes('page-break-inside: auto !important;'), '#reportsView .card must allow page-break-inside: auto so multi-page report tables are never clipped');
+    assert.equal(appSrc.includes('max-height: 1123px; margin: 0 auto; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;'), false, 'app.js must not hardcode max-height: 1123px; overflow: hidden on report pages');
+    assert.equal(appSrc.includes("avoid: ['tr', '.page-break-avoid', '.full-report-a4-sheet']"), false, 'fullReportPrintModal must not put .full-report-a4-sheet in pagebreak.avoid');
+    assert.equal(chunkedSrc.includes('max-height: 1123px; margin: 0 auto; padding: ${pagePad}; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;'), false, 'chunked-pdf-engine.js must not clip sheetPage with max-height: 1123px; overflow: hidden');
+    assert.ok(evolSrc.includes('min-height: 297mm; height: auto;'), 'academic-evolution-card.js .page-wrap must use min-height: 297mm; height: auto');
+    assert.equal(examRepSrc.includes('border: 1.2px solid #cbd5e1; border-radius: 5px; overflow: hidden;'), false, 'exam-report.js dual tables must use overflow: visible');
+
+    // 2. Load full index.html DOM sandbox with modals and test realistic 45-student class across all report preview & print engines
+    const indexHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    const { win, sandbox } = createDomSandbox(indexHtml);
+    const doc = win.document;
+
+    runPublicScript(sandbox, 'public/modals-templates.js');
+    win.mountExtractedModals();
+    runPublicScript(sandbox, 'public/core/grades-calculator.js');
+    runPublicScript(sandbox, 'public/core/absence-manager.js');
+    runPublicScript(sandbox, 'public/core/lesson-log-engine.js');
+    runPublicScript(sandbox, 'public/secondary-math-curriculum.js');
+    runPublicScript(sandbox, 'public/app.js');
+    runPublicScript(sandbox, 'public/exam-report.js');
+    runPublicScript(sandbox, 'public/pedagogical-council-pv.js');
+    runPublicScript(sandbox, 'public/chunked-pdf-engine.js');
+
+    // Populate a large 45-student class (2BAC-PC-1) with grades, absences, behaviors, and lesson logs
+    const largeClassStudents = Array.from({ length: 45 }, (_, i) => ({
+        id: `pc_std_${i + 1}`,
+        orderNum: i + 1,
+        name: `التلميذ النموذجي رقم ${i + 1} بن عبد الله المغربي`,
+        massar: `R1300${String(10000 + i + 1)}`
+    }));
+    const gradesMap = {};
+    const behaviorsMap = {};
+    const diagMap = {};
+    const recordsList = [];
+    largeClassStudents.forEach((s, idx) => {
+        const f1 = +(8 + (idx % 12) + 0.5).toFixed(2);
+        const f2 = +(9 + ((idx * 3) % 11)).toFixed(2);
+        const f3 = +(10 + ((idx * 7) % 10)).toFixed(2);
+        gradesMap[s.id] = { f1, f2, f3, s1: { f1, f2, f3 }, s2: { f1, f2, f3 } };
+        behaviorsMap[s.id] = { status: idx % 9 === 0 ? 'تنبيه' : 'منضبط', note: 'مواظب على الحضور' };
+        diagMap[s.id] = { d1: 3.5, d2: 4.0, d3: 3.0, d4: 3.5, total: 14.0 };
+        if (idx % 3 === 0) {
+            recordsList.push({
+                studentId: s.id,
+                className: '2BAC-PC-1',
+                date: `2026-11-${String((idx % 25) + 1).padStart(2, '0')}`,
+                timeSlot: '08:00 - 10:00',
+                status: idx % 6 === 0 ? 'مبرر' : 'غائب',
+                duration: 2,
+                homework: idx % 5 === 0 ? 'لم ينجز' : 'منجز',
+                notes: 'حصة الرياضيات'
+            });
+        }
+    });
+
+    win.db.teacherProfile = {
+        name: 'ذ. محمد أمين',
+        school: 'ثانوية الخوارزمي التأهيلية',
+        academy: 'الرباط سلا القنيطرة',
+        directorate: 'الرباط',
+        academicYear: '2026 / 2027'
+    };
+    win.db.classes = { '2BAC-PC-1': largeClassStudents };
+    win.db.grades = { '2BAC-PC-1': gradesMap };
+    win.db.behaviors = { '2BAC-PC-1': behaviorsMap };
+    win.db.diagnostic = { '2BAC-PC-1': diagMap };
+    win.db.records = recordsList;
+    win.db.lessonLogs = {
+        '2BAC-PC-1': Array.from({ length: 12 }, (_, i) => ({
+            id: `log_${i + 1}`,
+            sessionNum: i + 1,
+            date: `2026-10-${String((i % 25) + 1).padStart(2, '0')}`,
+            timeSlot: '08:00 - 10:00',
+            duration: '2',
+            sessionType: i % 3 === 0 ? 'exercices' : 'cours',
+            number: 'الاتصال والاشتقاق ودراسة الدوال',
+            axes: [{ title: 'اتصال دالة في نقطة ومبرهنة القيم الوسيطية' }],
+            homework: 'تمارين ص 45'
+        }))
+    };
+
+    // 3. Test Universal PDF Preview Modal across all document types for 45-student class
+    win.openUniversalPdfPreviewModal('monthly_absence', '2BAC-PC-1');
+    const univSheet = doc.getElementById('universalPdfPrintableSheet');
+    assert.ok(univSheet, 'universalPdfPrintableSheet must exist');
+
+    const docTypesToVerify = [
+        { type: 'monthly_absence', expectedRows: 45 },
+        { type: 'absence', expectedRows: 45 },
+        { type: 'grades', expectedRows: 45 },
+        { type: 'annual', expectedRows: 45 },
+        { type: 'diagnostic', expectedRows: 45 },
+        { type: 'notes', expectedRows: 45 },
+        { type: 'lessonlog', expectedRows: 12 },
+        { type: 'reports', expectedRows: 1 },
+        { type: 'heatmap', expectedRows: 6 },
+        { type: 'specification', expectedRows: 4 }
+    ];
+
+    const docTypeSel = doc.getElementById('universalPdfDocType');
+    for (const item of docTypesToVerify) {
+        docTypeSel.value = item.type;
+        win.onUniversalPdfDocTypeChanged();
+        const html = univSheet.innerHTML;
+        assert.ok(html.length > 500, `Document type ${item.type} must render rich HTML content`);
+        assert.equal(html.includes('max-height: 1123px'), false, `Document type ${item.type} must not have max-height: 1123px clipping`);
+        const tbodyRows = univSheet.querySelectorAll('table tbody tr');
+        assert.ok(
+            tbodyRows.length >= item.expectedRows,
+            `Document type ${item.type} must render all ${item.expectedRows} rows without truncation (got ${tbodyRows.length})`
+        );
+        if (item.expectedRows === 45) {
+            assert.ok(html.includes('التلميذ النموذجي رقم 1'), `${item.type} must include first student #1`);
+            assert.ok(html.includes('التلميذ النموذجي رقم 45'), `${item.type} must include last student #45 without clipping`);
+        }
+    }
+
+    // 4. Test Supervised Exam Report (2-page official Note 142-08 report) with 45 students in Custom Print Preview & Direct Print
+    const repClsSel = doc.getElementById('reportClassSelect');
+    if (repClsSel) {
+        repClsSel.innerHTML = '<option value="2BAC-PC-1" selected>2BAC-PC-1</option>';
+        repClsSel.value = '2BAC-PC-1';
+    }
+    win.cleanupExamReportMemory();
+    win.printOfficialExamReport(false);
+    const customSheet = doc.getElementById('customReportPrintableSheet');
+    assert.ok(customSheet, 'customReportPrintableSheet must be mounted by printOfficialExamReport(false)');
+    const examReportHtml = customSheet.innerHTML;
+    assert.ok(examReportHtml.includes('التلميذ النموذجي رقم 1') && examReportHtml.includes('التلميذ النموذجي رقم 45'), 'Exam report must render all 45 students in both roster and merit tables');
+    assert.ok(examReportHtml.includes('@media print'), 'openCustomPrintPreviewModal must preserve @media print rules for clean pagination');
+    assert.equal(customSheet.querySelectorAll('.print-table tbody tr').length, 90, 'Exam report preview must contain 45 roster rows + 45 merit rows = 90 rows');
+
+    // Test printDocumentDirectly (via btnDirectPrintCustomPreview) preserves @media print and anti-clipping table CSS
+    doc.getElementById('btnDirectPrintCustomPreview').click();
+    const directIframe = doc.getElementById('globalAppPrintIframe');
+    assert.ok(directIframe, 'globalAppPrintIframe must be created');
+    const iframeHtml = directIframe.contentWindow.document.documentElement.innerHTML;
+    assert.ok(iframeHtml.includes('@media print'), 'printDocumentDirectly must preserve @media print rules');
+    assert.ok(iframeHtml.includes('page-break-inside: auto !important;'), 'printDocumentDirectly must enforce page-break-inside: auto on tables');
+    assert.ok(iframeHtml.includes('التلميذ النموذجي رقم 45'), 'printDocumentDirectly must contain all 45 students');
+
+    // 5. Test printUniversalDoc iframe generation
+    docTypeSel.value = 'monthly_absence';
+    win.onUniversalPdfDocTypeChanged();
+    win.printUniversalDoc();
+    const univIframe = doc.getElementById('universalDocPrintIframe');
+    assert.ok(univIframe, 'universalDocPrintIframe must be created');
+    const univIframeHtml = univIframe.contentWindow.document.documentElement.innerHTML;
+    assert.ok(univIframeHtml.includes('height: auto !important;'), 'printUniversalDoc must use height: auto !important on page containers');
+    assert.ok(univIframeHtml.includes('overflow: visible !important;'), 'printUniversalDoc must use overflow: visible !important so tables are never clipped');
+    assert.ok(univIframeHtml.includes('التلميذ النموذجي رقم 45'), 'printUniversalDoc must contain all 45 students');
+
+    // 6. Test Pedagogical Council PV report with 45 students
+    const pvHtml = win.buildPedagogicalCouncilPvHTML('2BAC-PC-1', 's1');
+    assert.ok(pvHtml.includes('التلميذ النموذجي رقم 1') && pvHtml.includes('التلميذ النموذجي رقم 45'), 'Pedagogical Council PV must include all 45 students without truncation');
+});
+
+
 
 
 

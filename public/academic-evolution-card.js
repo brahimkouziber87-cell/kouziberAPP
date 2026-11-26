@@ -1660,12 +1660,12 @@ ${teacherName}`;
         * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         html, body {
             margin: 0 !important; padding: 0 !important;
-            width: 210mm; height: 297mm;
+            width: 210mm; min-height: 297mm; height: auto;
             font-family: ${fontFamily};
             color: #0f172a; direction: rtl; background: #ffffff;
         }
         .page-wrap {
-            width: 210mm; height: 297mm;
+            width: 210mm; min-height: 297mm; height: auto;
             padding: 8mm 10mm;
             display: flex; flex-direction: column; justify-content: space-between;
         }
