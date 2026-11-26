@@ -22,7 +22,8 @@ import {
   Sparkles,
   ArrowUpRight,
   ArrowDownRight,
-  Printer
+  Printer,
+  RotateCcw
 } from 'lucide-react';
 
 interface Student {
@@ -610,7 +611,7 @@ export default function AcademicYearPerformanceTrends({
   return (
     <div className="p-4 sm:p-5 rounded-xl border border-slate-200 bg-white mb-5">
       {/* Header Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-3.5 border-b border-slate-100">
+      <div className="flex flex-col gap-3 pb-3.5 border-b border-slate-200/80">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <GraduationCap className="w-5 h-5 text-indigo-700 shrink-0" />
@@ -636,14 +637,15 @@ export default function AcademicYearPerformanceTrends({
         </div>
 
         {/* Interactive Controls */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-nowrap overflow-x-auto p-1.5 rounded-xl bg-slate-50/90 border border-slate-200/80 tabular-nums">
           {/* Class Selector */}
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
-            <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="text-xs font-bold text-slate-600 whitespace-nowrap">القسم:</span>
+          <div className="h-8 flex items-center gap-1.5 bg-white border border-slate-200/90 rounded-lg px-2.5 shadow-2xs shrink-0 hover:border-slate-300 transition-colors focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/20">
+            <Filter className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+            <span className="text-xs font-bold text-slate-500 whitespace-nowrap">القسم:</span>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
+              aria-label="تصفية التطور السنوي حسب القسم"
               className="bg-transparent text-xs font-extrabold text-slate-900 focus:outline-hidden cursor-pointer"
             >
               <option value="all">جميع الأقسام المسندة ({classNames.length})</option>
@@ -653,16 +655,26 @@ export default function AcademicYearPerformanceTrends({
                 </option>
               ))}
             </select>
+            {selectedClass !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setSelectedClass('all')}
+                className="mr-0.5 p-0.5 rounded text-slate-400 hover:text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer"
+                title="العودة إلى جميع الأقسام"
+              >
+                <RotateCcw className="w-3 h-3" />
+              </button>
+            )}
           </div>
 
           {/* Segmented View Switcher */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+          <div className="h-8 flex items-center gap-1 p-0.5 bg-slate-200/60 rounded-lg shrink-0">
             <button
               type="button"
               onClick={() => setViewMode('trajectory')}
-              className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              className={`h-full px-3 text-xs font-extrabold rounded-md transition-all duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                 viewMode === 'trajectory'
-                  ? 'bg-white text-slate-900 shadow-xs'
+                  ? 'bg-white text-indigo-950 shadow-xs ring-1 ring-slate-200/80'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -671,9 +683,9 @@ export default function AcademicYearPerformanceTrends({
             <button
               type="button"
               onClick={() => setViewMode('semesters')}
-              className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              className={`h-full px-3 text-xs font-extrabold rounded-md transition-all duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                 viewMode === 'semesters'
-                  ? 'bg-white text-slate-900 shadow-xs'
+                  ? 'bg-white text-indigo-950 shadow-xs ring-1 ring-slate-200/80'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -682,41 +694,46 @@ export default function AcademicYearPerformanceTrends({
             <button
               type="button"
               onClick={() => setViewMode('cohorts')}
-              className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              className={`h-full px-3 text-xs font-extrabold rounded-md transition-all duration-150 whitespace-nowrap shrink-0 cursor-pointer inline-flex items-center gap-1.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                 viewMode === 'cohorts'
-                  ? 'bg-white text-slate-900 shadow-xs'
+                  ? 'bg-white text-indigo-950 shadow-xs ring-1 ring-slate-200/80'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              مسارات التلاميذ ({analyticsData.studentTrajectories.length})
+              <span>مسارات التلاميذ</span>
+              <span className="font-mono text-[11px] opacity-75">
+                ({analyticsData.studentTrajectories.length})
+              </span>
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={handlePrintAnnualTrendsReport}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-lg bg-slate-900 hover:bg-slate-800 text-white transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-            title="طباعة وتصدير حصيلة التطور السنوي كوثيقة رسمية A4"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span>طباعة الحصيلة</span>
-          </button>
+          <div className="ms-auto flex items-center gap-1.5 shrink-0">
+            {analyticsData.totalRealGradesCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setUseDemoSimulation(!useDemoSimulation)}
+                className={`h-8 inline-flex items-center gap-1.5 px-2.5 text-xs font-bold rounded-lg border transition-all duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-500 ${
+                  useDemoSimulation
+                    ? 'bg-amber-50 text-amber-900 border-amber-300 shadow-2xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-200/90'
+                }`}
+                title="التبديل بين النقط الفعلية المسجلة ومحاكاة العام الدراسي الكامل"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <span>{useDemoSimulation ? 'عرض النقط الفعلية' : 'محاكاة العام الكامل'}</span>
+              </button>
+            )}
 
-          {analyticsData.totalRealGradesCount > 0 && (
             <button
               type="button"
-              onClick={() => setUseDemoSimulation(!useDemoSimulation)}
-              className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold rounded-lg border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
-                useDemoSimulation
-                  ? 'bg-amber-50 text-amber-900 border-amber-300'
-                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
-              }`}
-              title="التبديل بين النقط الفعلية المسجلة ومحاكاة العام الدراسي الكامل"
+              onClick={handlePrintAnnualTrendsReport}
+              className="h-8 inline-flex items-center gap-1.5 px-3 text-xs font-extrabold rounded-lg bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition-all duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-1"
+              title="طباعة وتصدير حصيلة التطور السنوي كوثيقة رسمية A4"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              <span>{useDemoSimulation ? 'عرض النقط الفعلية' : 'محاكاة العام الكامل'}</span>
+              <Printer className="w-3.5 h-3.5" />
+              <span>طباعة الحصيلة</span>
             </button>
-          )}
+          </div>
         </div>
       </div>
 

@@ -24,7 +24,10 @@ import {
   FileText,
   Trash2,
   Search,
-  User
+  User,
+  BarChart3,
+  RotateCcw,
+  X
 } from 'lucide-react';
 import WeekdayAbsenceDistributionCard from './WeekdayAbsenceDistributionCard.tsx';
 
@@ -655,7 +658,7 @@ export default function AttendanceAndBehaviorHub({
         id="dashThirtyDayAttendanceTrendsSection"
         className="p-4 sm:p-5 rounded-2xl border border-slate-200/90 bg-white shadow-xs"
       >
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-3.5 border-b border-slate-100">
+        <div className="flex flex-col gap-3 pb-3.5 border-b border-slate-200/80">
           <div className="flex items-start gap-2.5">
             <span className="p-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/80 flex-shrink-0 mt-0.5">
               <Calendar className="w-5 h-5" />
@@ -667,7 +670,7 @@ export default function AttendanceAndBehaviorHub({
               <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap">
                 <span>تحليل زمني يومي لنسبة الحضور، المتوسط المتحرك لـ 7 أيام (MA₇)، وساعات الغياب والتأخر</span>
                 <span aria-hidden="true">·</span>
-                <span className="font-mono text-slate-600">
+                <span className="font-mono text-slate-600 tabular-nums">
                   {thirtyDayAnalytics.startDateStr} → {thirtyDayAnalytics.endDateStr}
                 </span>
               </p>
@@ -675,13 +678,14 @@ export default function AttendanceAndBehaviorHub({
           </div>
 
           {/* Interactive Controls */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
-              <Filter className="w-3.5 h-3.5 text-slate-400" />
-              <span className="font-bold text-slate-600">القسم:</span>
+          <div className="flex items-center justify-between gap-2 flex-nowrap overflow-x-auto p-1.5 rounded-xl bg-slate-50/90 border border-slate-200/80 tabular-nums">
+            <div className="h-8 flex items-center gap-1.5 bg-white border border-slate-200/90 rounded-lg px-2.5 text-xs shadow-2xs shrink-0 hover:border-slate-300 transition-colors focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20">
+              <Filter className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <span className="font-bold text-slate-500 whitespace-nowrap">القسم:</span>
               <select
                 value={trendClassFilter}
                 onChange={(e) => setTrendClassFilter(e.target.value)}
+                aria-label="تصفية اتجاهات المواظبة حسب القسم"
                 className="bg-transparent font-extrabold text-slate-900 focus:outline-hidden cursor-pointer"
               >
                 <option value="all">جميع الأقسام المسندة ({classNames.length})</option>
@@ -691,30 +695,42 @@ export default function AttendanceAndBehaviorHub({
                   </option>
                 ))}
               </select>
+              {trendClassFilter !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => setTrendClassFilter('all')}
+                  className="mr-0.5 p-0.5 rounded text-slate-400 hover:text-blue-700 hover:bg-blue-50 transition-colors cursor-pointer"
+                  title="عرض جميع الأقسام"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                </button>
+              )}
             </div>
 
-            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200/80">
+            <div className="h-8 flex items-center gap-1 p-0.5 bg-slate-200/60 rounded-lg shrink-0">
               <button
                 type="button"
                 onClick={() => setTrendChartMode('attendance-rate')}
-                className={`px-2.5 py-1 text-xs font-extrabold rounded-md transition-colors cursor-pointer ${
+                className={`h-full px-3 text-xs font-extrabold rounded-md transition-all duration-150 cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 ${
                   trendChartMode === 'attendance-rate'
-                    ? 'bg-white text-blue-900 shadow-2xs'
+                    ? 'bg-white text-blue-900 shadow-xs ring-1 ring-blue-200/80'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                نسبة المواظبة والمنحنى المتحرك (MA₇)
+                <TrendingUp className="w-3.5 h-3.5 shrink-0" />
+                <span>نسبة المواظبة والمنحنى المتحرك (MA₇)</span>
               </button>
               <button
                 type="button"
                 onClick={() => setTrendChartMode('absence-breakdown')}
-                className={`px-2.5 py-1 text-xs font-extrabold rounded-md transition-colors cursor-pointer ${
+                className={`h-full px-3 text-xs font-extrabold rounded-md transition-all duration-150 cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-rose-500 ${
                   trendChartMode === 'absence-breakdown'
-                    ? 'bg-white text-rose-800 shadow-2xs'
+                    ? 'bg-white text-rose-800 shadow-xs ring-1 ring-rose-200/80'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                ساعات الغياب والتأخرات اليومية
+                <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+                <span>ساعات الغياب والتأخرات اليومية</span>
               </button>
             </div>
           </div>
@@ -1156,54 +1172,122 @@ export default function AttendanceAndBehaviorHub({
           <div className="lg:col-span-7 flex flex-col justify-between">
             <div>
               {/* Filter Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-3 p-2 rounded-xl bg-slate-50 border border-slate-200/80">
-                <div className="flex items-center gap-1 flex-wrap">
-                  {[
-                    { key: 'all', label: `الكل (${behaviorCounters.total})` },
-                    { key: 'disruption', label: `تشويش (${behaviorCounters.disruption})` },
-                    { key: 'tardiness', label: `تأخر (${behaviorCounters.tardiness})` },
-                    { key: 'warning_hw', label: `تنبيه/واجب (${behaviorCounters.homeworkWarning})` },
-                    { key: 'positive', label: `تميز (${behaviorCounters.positive})` }
-                  ].map((tab) => (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setLogFilterCategory(tab.key)}
-                      className={`px-2.5 py-1 rounded-md text-xs font-extrabold transition-colors cursor-pointer ${
-                        logFilterCategory === tab.key
-                          ? 'bg-slate-900 text-white'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  <select
-                    value={logFilterClass}
-                    onChange={(e) => setLogFilterClass(e.target.value)}
-                    className="px-2 py-1 rounded-md bg-white border border-slate-300 text-xs font-bold text-slate-800"
-                  >
-                    <option value="all">كل الأقسام</option>
-                    {classNames.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <div className="mb-3 p-2.5 rounded-xl bg-slate-50/90 border border-slate-200/90 space-y-2 tabular-nums">
+                {/* Row 1: Search, Class Filter & Active Reset */}
+                <div className="flex items-center gap-2 flex-nowrap">
+                  <div className="relative flex-1 min-w-0">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="text"
                       value={logSearchQuery}
                       onChange={(e) => setLogSearchQuery(e.target.value)}
-                      placeholder="بحث باسم التلميذ..."
-                      className="pr-7 pl-2 py-1 rounded-md bg-white border border-slate-300 text-xs font-semibold text-slate-800 w-36 focus:outline-hidden focus:border-purple-500"
+                      placeholder="بحث باسم التلميذ أو مضمون الملاحظة..."
+                      aria-label="بحث في الملاحظات الانضباطية"
+                      className="h-8 w-full pr-8 pl-7 rounded-lg bg-white border border-slate-200/90 text-xs font-semibold text-slate-800 shadow-2xs focus:outline-hidden focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
                     />
+                    {logSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setLogSearchQuery('')}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                        title="مسح نص البحث"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
+
+                  <div className="h-8 flex items-center gap-1.5 bg-white border border-slate-200/90 rounded-lg px-2.5 shadow-2xs shrink-0 hover:border-slate-300 transition-colors focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-500/20">
+                    <Filter className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                    <select
+                      value={logFilterClass}
+                      onChange={(e) => setLogFilterClass(e.target.value)}
+                      aria-label="تصفية الملاحظات حسب القسم"
+                      className="bg-transparent text-xs font-extrabold text-slate-800 focus:outline-hidden cursor-pointer"
+                    >
+                      <option value="all">كل الأقسام</option>
+                      {classNames.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {(logFilterCategory !== 'all' || logFilterClass !== 'all' || logSearchQuery.trim() !== '') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLogFilterCategory('all');
+                        setLogFilterClass('all');
+                        setLogSearchQuery('');
+                      }}
+                      className="h-8 inline-flex items-center gap-1 px-2.5 rounded-lg bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-200/90 hover:border-rose-200 text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                      title="إعادة تعيين جميع الفلاتر"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>مسح ({filteredBehaviorLogs.length})</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Row 2: Single-Row Semantic Category Segmented Tabs */}
+                <div className="flex items-center gap-1 p-0.5 bg-slate-200/60 rounded-lg overflow-x-auto flex-nowrap">
+                  {[
+                    {
+                      key: 'all',
+                      label: 'الكل',
+                      count: behaviorCounters.total,
+                      activeCls: 'bg-slate-900 text-white shadow-xs'
+                    },
+                    {
+                      key: 'disruption',
+                      label: 'تشويش',
+                      count: behaviorCounters.disruption,
+                      activeCls: 'bg-rose-700 text-white shadow-xs'
+                    },
+                    {
+                      key: 'tardiness',
+                      label: 'تأخر',
+                      count: behaviorCounters.tardiness,
+                      activeCls: 'bg-amber-600 text-white shadow-xs'
+                    },
+                    {
+                      key: 'warning_hw',
+                      label: 'تنبيه/واجب',
+                      count: behaviorCounters.homeworkWarning,
+                      activeCls: 'bg-purple-700 text-white shadow-xs'
+                    },
+                    {
+                      key: 'positive',
+                      label: 'تميز',
+                      count: behaviorCounters.positive,
+                      activeCls: 'bg-emerald-700 text-white shadow-xs'
+                    }
+                  ].map((tab) => {
+                    const isActive = logFilterCategory === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => setLogFilterCategory(tab.key)}
+                        className={`flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-extrabold transition-all duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-purple-500 ${
+                          isActive
+                            ? tab.activeCls
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                        }`}
+                      >
+                        <span>{tab.label}</span>
+                        <span
+                          className={`font-mono text-[11px] ${
+                            isActive ? 'opacity-90' : 'text-slate-400'
+                          }`}
+                        >
+                          ({tab.count})
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
